@@ -621,6 +621,9 @@ class AliasedKey(CollectionMixin, collections.abc.Collection):
         return ' | '.join(self._aliases)
 
 
+_VT = TypeVar('_VT')
+
+
 class AliasedMapping(CollectionMixin, collections.abc.Mapping, ReprStrMixin):
     """A mapping class that supports aliased keys.
     
@@ -724,8 +727,6 @@ class AliasedMapping(CollectionMixin, collections.abc.Mapping, ReprStrMixin):
     aliases and values in a one-to-one mapping.
 
     """
-
-    _VT = TypeVar('_VT')
 
     Aliasable = TypeVar('Aliasable', bound=Mapping)
     Aliasable = Mapping[Aliases, _VT]
