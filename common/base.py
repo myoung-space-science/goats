@@ -102,7 +102,7 @@ class Interface(abc.ABC, iterables.ReprStrMixin):
     """Base class for observing interfaces."""
 
     @abc.abstractmethod
-    def apply(self, constraints):
+    def apply(self, constraints: Mapping):
         """Apply the given observing constraints to an observable."""
         pass
 
@@ -124,47 +124,47 @@ class Observable:
 
     def __init__(self, interface: Interface) -> None:
         self._interface = interface
+        self._constraints = {}
 
-    def given(self, **context) -> Observation:
-        """Create an observation within the given user context.
+    def given(self, **constraints) -> Observation:
+        """Create an observation within the given constraints.
 
-        This method updates the user context (see `Observable.use`) and
-        creates a new observation (see `Observable.observed`) in a single step.
+        This method updates the user constraints and creates a new observation
+        in a single step. It is equivalent to calling the `use` method, then
+        accessing the `observed`property.
         """
-        return self.use(**context).observed
+        return self.use(**constraints).observed
 
     @property
     def observed(self) -> Observation:
-        """An observation within the current user context.
+        """An observation within the current user constraints.
 
         Accessing this property will create an observation of this observable
-        within the current observational context. The default observational
-        context uses all relevant axes and default values of assumptions.
-        The caller can update the context via `Observable.use`.
+        within the current observational constraints. The default collection of
+        observational constraints uses all relevant indices and default values
+        of assumptions. The caller can update the constraints via the `use`
+        method.
         """
-        self._interface.apply(self._current)
+        self._interface.apply(self._constraints)
         return Observation(
             self._interface.result,
             **self._interface.context
         )
 
-    def use(self, **context) -> 'Observable':
-        """Update the user context.
-        
-        This method will continually update the observational context, even if
-        the user creates intermediate observations.
+    def use(self, **constraints) -> 'Observable':
+        """Update the user constraints.
 
         Parameters
         ----------
-        **update : dict
-            Key-value pairs of axes or assumptions to update.
+        **constraints : dict
+            Key-value pairs of indices or assumptions to update.
 
         Returns
         -------
         Observable:
             The updated instance.
         """
-        self._current = context.copy()
+        self._constraints = constraints.copy()
         return self
 
 
