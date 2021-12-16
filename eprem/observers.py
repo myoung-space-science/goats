@@ -4,13 +4,12 @@ from typing import *
 
 from goats.common import spelling
 from goats.common import base
-from goats.common import datasets
 from goats.common import quantities
 from goats.common.iotools import ReadOnlyPath
 from goats.common.iterables import missing
-from goats.eprem.observables import Observables
-from goats.eprem.parameters import ConfigManager
-from goats.eprem.datasets import Axes
+from goats.eprem import datasets
+from goats.eprem import observables
+from goats.eprem import parameters
 
 
 class ObservableKeyError(Exception):
@@ -29,6 +28,7 @@ class Observer(base.Observer):
         name: int=None,
         directory: Union[str, Path]=None,
         path: Union[str, Path]=None,
+        system: str='mks',
     ) -> None:
         if not missing(name):
             directory = directory or Path().cwd()
@@ -42,18 +42,15 @@ class Observer(base.Observer):
             )
             raise TypeError(message) from None
         super().__init__(path=path)
-        self._dataset = datasets.DatasetView(path)
-        self._config = ConfigManager(path)
-        self._units = quantities.MetricSystem('mks')
-        self._observables = Observables(
-            self._dataset,
-            self._config,
-            self._units,
-        )
+        self.system = system
+        self._dataset = datasets.DatasetView(path, self.system)
+        self._config = parameters.ConfigManager(path)
+        self._units = quantities.MetricSystem(self.system)
+        self._observables = observables.Observables(self._dataset)
         self._time = None
         self._energy = None
         self._mu = None
-        self._coordinates = Axes(self._dataset)
+        self._coordinates = datasets.Axes(self._dataset)
         self._spellcheck = spelling.SpellChecker(self._observables.names)
 
     @property
