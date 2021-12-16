@@ -118,7 +118,7 @@ class Application:
             try:
                 equal.append(variable == reference)
             except quantities.ComparisonError:
-                return False
+                equal.append(False)
         return any(equal)
 
     def _need_interp(self, axis: str):
