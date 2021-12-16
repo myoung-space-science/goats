@@ -17,11 +17,11 @@ from goats.eprem import interpolation
 ObservableType = TypeVar(
     'ObservableType',
     quantities.Variable,
-    quantities.Function,
+    functions.Function,
 )
 ObservableType = Union[
     quantities.Variable,
-    quantities.Function,
+    functions.Function,
 ]
 
 
