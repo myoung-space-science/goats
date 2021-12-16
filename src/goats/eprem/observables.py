@@ -375,6 +375,7 @@ class Observables(iterables.MappingBase):
         self.parameters = parameters.Parameters(dataset.config)
         self.constants = constants.Constants(dataset.system.name)
         self.dataset = dataset
+        self._cache = {}
 
     def __getitem__(self, key: str):
         """Create the requested observable, if possible."""
@@ -385,12 +386,24 @@ class Observables(iterables.MappingBase):
 
     def _implement(self, key: str):
         """Create an interface to this observable, if possible."""
+        if key in self._cache:
+            cached = self._cache[key]
+            return Interface(
+                cached['implementation'],
+                self.dataset,
+                dependencies=cached['dependencies'],
+            )
         implementation = self.get_implementation(key)
         if implementation is not None:
+            dependencies = self.get_dependencies(key)
+            self._cache[key] = {
+                'implementation': implementation,
+                'dependencies': dependencies,
+            }
             return Interface(
                 implementation,
                 self.dataset,
-                self.get_dependencies(key),
+                dependencies=dependencies,
             )
 
     def get_implementation(self, key: str):
