@@ -243,11 +243,6 @@ class Application:
         raise KeyError(f"Can't find observable {key!r}")
 
 
-# TODO: Define a `Target` class to manage axes, system, position variables, etc.
-# instead of passing in the dataset? This class would pass some of those
-# attributes along to `Application.__init__`, then pass `target.observable`
-# to `Application.evaluate`.
-
 class Interface(base.Interface):
     """A concrete EPREM observing interface."""
 
