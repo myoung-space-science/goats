@@ -539,7 +539,7 @@ class Functions(iterables.AliasedMapping):
         for parameter in target.parameters:
             if parameter in self.variables:
                 self._accumulated.extend(self.variables[parameter].axes)
-            elif parameter in self.methods:
+            elif self._namemap[parameter] in self.methods:
                 method = self.get_method(parameter)
                 self._removed.extend(method.metadata.get('removed axes', []))
                 self._restored.extend(method.metadata.get('restored axes', []))
