@@ -7,10 +7,10 @@ from typing import *
 import matplotlib.pyplot as plt
 import numpy as np
 
-from goats.common.iotools import ReadOnlyPath
 from goats.common import iterables
 from goats.common import quantities
 from goats.common import indexing
+from goats.common import spelling
 
 
 @runtime_checkable
@@ -168,38 +168,19 @@ class Observable:
         return self
 
 
-class Observer(abc.ABC):
-    """Base class for all observer-type objects."""
-    def __init__(self, path: Union[str, Path]=None) -> None:
-        self._paths = []
-        if path:
-            self._paths.append(path)
+class Observer:
+    """Base class for all observer objects."""
 
-    def path(self, new: Union[str, Path]=None) -> Union['Observer', list]:
-        """Get or update the list of paths to search for data."""
-        if new:
-            self._paths.append(ReadOnlyPath(new))
-            return self
-        return self._paths
+    def __init__(self, observables: Mapping[str, Observable]) -> None:
+        self.observables = observables
+        self._spellcheck = spelling.SpellChecker(observables.keys())
 
-    def __getitem__(self, name: str) -> Observable:
-        """Observe the named observable, if possible."""
-        if self._can_observe(name):
-            return self._observe(name)
-        self._cannot_observe(name)
+    def __getitem__(self, key: str):
+        """Access an observable object by keyword, if possible."""
+        if key in self.observables:
+            return self.observables[key]
+        if self._spellcheck.misspelled(key):
+            raise spelling.SpellingError(key, self._spellcheck.suggestions)
+        raise KeyError(f"No observable for {key!r}") from None
 
-    @abc.abstractmethod
-    def _can_observe(self, name: str) -> bool:
-        """True if this observer can observe the named observable."""
-        pass
-
-    @abc.abstractmethod
-    def _observe(self, name: str) -> Observable:
-        """Create the named observable."""
-        pass
-
-    @abc.abstractmethod
-    def _cannot_observe(self, name: str):
-        """Alert the user that this observer cannot observe this observable."""
-        pass
 
