@@ -1,4 +1,5 @@
 import abc
+import collections
 import collections.abc
 import inspect
 from itertools import product
@@ -407,6 +408,95 @@ class MappingBase(collections.abc.Mapping):
     def __iter__(self) -> Iterator:
         """Iterate over members of this collection."""
         return iter(self.__collection)
+
+
+class UniformMapping(MappingBase):
+    """A mapping with a specified value type."""
+
+    def __init__(
+        self,
+        __mapping: Mapping[str, Mapping],
+        __type: Type,
+    ) -> None:
+        """
+        Parameters
+        ----------
+        __mapping
+            A mapping from string to interior mapping. The items of the interior
+            mapping will provide the arguments used to initialize a new instance
+            of the given type.
+
+        __type
+            The type of value to return from key-based look-up.
+
+        Examples
+        --------
+        Create a mapping of mappings that will provide attribute values based on
+        keyword::
+
+            m = {
+                'a': {'value': +1, 'name': 'pos'},
+                'b': {'value': -1, 'name': 'neg'},
+            }
+
+        Define a simple class to represent the result::
+
+            class MyType:
+                def __init__(self, value, name) -> None:
+                    self.value = value
+                    self.name = name
+                def __str__(self) -> str:
+                    return f"value={self.value:+}, name={self.name!r}"
+
+        Create an instance and access objects by name::
+
+            u = iterables.UniformMapping(m, MyType)
+            print(u['a'])
+            print(u['b'])
+
+        This prints::
+
+            value=+1, name='pos'
+            value=-1, name='neg'
+
+        Redefine the custom type as a named tuple::
+
+            class MyType(typing.NamedTuple):
+                value: int
+                name: str
+
+        Create an instance and access objects by name::
+
+            u = iterables.UniformMapping(m, NamedType)
+            print(u['a'])
+            print(u['b'])
+
+        This prints::
+
+            NamedType(value=1, name='pos')
+            NamedType(value=-1, name='neg')
+
+        """
+        self._mapping = __mapping
+        super().__init__(self._mapping)
+        self._type = __type
+        self._init = None
+        if issubclass(self._type, tuple):
+            bases = self._type.__bases__
+            if len(bases) == 1 and bases[0] == tuple:
+                self._init = getattr(self._type, '_fields', None)
+        if self._init is None:
+            self._init = tuple(
+            p for p in inspect.signature(self._type.__init__).parameters
+            if p != 'self'
+        )
+
+    def __getitem__(self, key: str):
+        """Create an instance of the type from the mapping."""
+        if key in self:
+            kwargs = {p: self._mapping[key].get(p) for p in self._init}
+            return self._type(**kwargs)
+        raise KeyError(key) from None
 
 
 # This class is kind of awkward to use. It is only here because
