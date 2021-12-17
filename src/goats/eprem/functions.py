@@ -347,7 +347,7 @@ class Methods(iterables.MappingBase):
         v = np.array(speed, ndmin=1)
         dv = np.gradient(v, axis=-1)
         normalizer = np.sum(v**2 * isodist * dv, axis=-1)
-        epsilon = self.energy_density(v, isodist, self.C('mp'))
+        epsilon = self.energy_density(v, isodist)
         return 0.5 * epsilon / normalizer
 
     def isotropic_distribution(
