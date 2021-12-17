@@ -1,7 +1,7 @@
 import pathlib
 import typing
 
-from goats.common import base
+from goats import common
 from goats.common import iterables
 from goats.common import iotools
 from goats.eprem import parameters
@@ -22,7 +22,7 @@ def find_file_by_template(
             return test
 
 
-class Observer(base.Observer):
+class Observer(common.Observer):
     """Base class for EPREM observers."""
 
     def __init__(

@@ -8,7 +8,7 @@ from typing import *
 import numpy as np
 import pytest
 
-from goats.common import base
+from goats import common
 from goats import eprem
 
 
@@ -20,7 +20,8 @@ def get_rootpath() -> Path:
     returns the current working directory of the caller.
     """
     cwd = Path(__file__).expanduser().resolve().parent
-    return cwd.parent / 'data' / 'eprem'
+    pkgpath = cwd.parent.parent
+    return pkgpath / 'data' / 'eprem'
 
 
 def get_stream():
@@ -84,7 +85,7 @@ def test_observable_access(
     """Access all observables."""
     for name in observables:
         observable = stream[name]
-        assert isinstance(observable, base.Observable)
+        assert isinstance(observable, common.Observable)
 
 
 def test_create_observation(
@@ -94,6 +95,6 @@ def test_create_observation(
     """Create default observation from each observable."""
     for name, expected in observables.items():
         observation = stream[name].observed
-        assert isinstance(observation, base.Observation)
+        assert isinstance(observation, common.Observation)
         assert all(axis in observation.indices for axis in expected['axes'])
 

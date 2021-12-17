@@ -2,7 +2,7 @@ from typing import *
 
 import numpy as np
 
-from goats.common import base
+from goats import common
 from goats.common import quantities
 from goats.common import algebra
 from goats.common import iterables
@@ -243,7 +243,7 @@ class Application:
         raise KeyError(f"Can't find observable {key!r}")
 
 
-class Interface(base.Interface):
+class Interface(common.Interface):
     """A concrete EPREM observing interface."""
 
     def __init__(
@@ -382,7 +382,7 @@ class Observables(iterables.MappingBase):
         implementation = self._implement(key)
         if implementation is None:
             raise KeyError(f"No observable corresponding to {key!r}") from None
-        return base.Observable(implementation)
+        return common.Observable(implementation)
 
     def _implement(self, key: str):
         """Create an interface to this observable, if possible."""
