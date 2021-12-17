@@ -27,77 +27,77 @@ _assumptions = {
     'boundaryFunctAmplitude': {
         'aliases': ('J0',),
         'type': float,
-        'unit': '# / (cm^2*s*sr*MeV/nuc)',
-        'default': 1.0,
+        'default': (1.0, '1 / (cm^2 * s * sr * (MeV/nuc))'),
     },
     'boundaryFunctXi': {
         'aliases': ('xi',),
         'type': float,
-        'unit': '1',
         'default': 1.0,
     },
     'boundaryFunctBeta': {
         'aliases': ('beta',),
         'type': float,
-        'unit': '1',
         'default': 2.0,
     },
     'boundaryFunctGamma': {
         'aliases': ('gamma',),
         'type': float,
-        'unit': '1',
         'default': 1.5,
     },
     'boundaryFunctEcutoff': {
         'aliases': ('E0',),
         'type': float,
-        'unit': 'MeV',
-        'default': 1.0,
+        'default': (1.0, 'MeV'),
     },
     'kperxkpar': {
         'aliases': ('kper_kpar', 'kper/kpar', 'kper / kpar'),
-        'unit': '1',
         'default': 0.01,
     },
     'lamo': {
         'aliases': ('lam0', 'lambda0',),
         'type': float,
-        'unit': 'au',
-        'default': 1.0,
+        'default': (1.0, 'au'),
     },
     'minimum_energy': {
         'aliases': ('Emin', 'minimum energy'),
         'type': float,
-        'unit': 'MeV',
-        'default': 0.0,
+        'default': (0.0, 'MeV'),
     },
     'mfpRadialPower': {
         'aliases': ('mfp_radial_power',),
         'type': float,
-        'unit': '1',
         'default': 2.0,
     },
     'rigidityPower': {
         'aliases': ('rigidity_power',),
         'type': float,
-        'unit': '1',
         'default': 1/3,
     },
-    'flowMag': {'type': float, 'unit': 'km/s'},
-    'mhdDensityAu': {'type': float, 'unit': '1/cm^3'},
-    'mhdBAu': {'type': float, 'unit': 'G'},
-    'omegaSun': {'type': float, 'unit': 'rad*cm/(au*s)'},
+    'flowMag': {
+        'type': float,
+        'default': (400.0, 'km/s'),
+    },
+    'mhdDensityAu': {
+        'type': float,
+        'default': (5.0, 'cm^-3'),
+    },
+    'mhdBAu': {
+        'type': float,
+        'default': (1e-5, 'G'),
+    },
+    'omegaSun': {
+        'type': float,
+        'default': (1e-3, 'rad * cm / (au * s)'),
+    },
     'reference energy': {
         'aliases': ('energy0',),
         'type': float,
-        'unit': 'MeV',
-        'default': 1.0,
+        'default': (1.0, 'MeV'),
     },
     'reference radius': {
         'aliases': ('r0',),
         'type': float,
-        'unit': 'au',
-        'default': 1.0,
+        'default': (1.0, 'au'),
     },
 }
 """Physical quantities with default values and units."""
@@ -302,13 +302,6 @@ class Reference(iterables.ReprStrMixin):
         if self.value is not None:
             return type(self.value)
         return str
-
-    @property
-    def unit(self) -> quantities.Unit:
-        """The reference unit."""
-        if self._unit is None:
-            self._unit = quantities.Unit(self._metadata.get('unit'))
-        return self._unit
 
     @property
     def value(self):
