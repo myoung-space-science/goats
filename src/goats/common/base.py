@@ -37,8 +37,6 @@ class Observation(iterables.ReprStrMixin):
         self.data = data
         self.unit = data.unit
         """The unit of this observation's values."""
-        self.axes = tuple(indices.keys())
-        """The names of this observation's array axes."""
         self.indices = indices
         """The indices of this observation's array."""
         self.assumptions = assumptions or {}
