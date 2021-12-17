@@ -1,12 +1,7 @@
-import abc
-import inspect
 import numbers
 from typing import *
 
 import numpy as np
-
-from heroes.common.iterables import CollectionMixin
-from heroes.common.units import Unit
 
 
 def get_bounding_indices(
