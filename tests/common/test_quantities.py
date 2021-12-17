@@ -977,10 +977,7 @@ def test_variable_getitem(var: Dict[str, quantities.Variable]):
         assert sliced is not v
         expected = np.array([[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
         assert sliced.array == expected
-    indexed = v[0, 0]
-    assert indexed.array == np.array([+1.0])
-    assert indexed.unit == v.unit
-    assert indexed.axes == v.axes
+    assert v[0, 0] == quantities.Scalar(+1.0, v.unit)
     mixed = v[0, :]
     assert mixed.array == np.array([+1.0, +2.0])
     mixed = v[:, 0]

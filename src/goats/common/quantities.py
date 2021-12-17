@@ -2131,7 +2131,10 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         )
         if standard:
             # Handles v[:], v[...], v[i, :], v[:, j], and v[i, j] (i, j ints)
-            return self._new(values=self.array[unwrapped])
+            result = self.array[unwrapped]
+            if isinstance(result, numbers.Number):
+                return Scalar(result, unit=self.unit)
+            return self._new(values=result)
         if not isinstance(unwrapped, (tuple, list)):
             unwrapped = [unwrapped]
         expanded = self._expand_ellipsis(unwrapped)
