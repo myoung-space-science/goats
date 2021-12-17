@@ -396,40 +396,40 @@ class Methods(iterables.MappingBase):
                 # dimensions is if the species dimensions was squeezed. Is this
                 # a good assumption?
                 flux = flux[:, :, None, :]
-        minimum_energy = max(minimum_energy, sys.float_info.min)
         int_flux = np.zeros(flux.shape[:3])
+        minimum_energy = max(minimum_energy, sys.float_info.min)
+        use_all = minimum_energy < np.min(energies)
         for s, species_energy in enumerate(energies):
-            int_flux[..., s] = self._integrate_with_interpolation(
-                species_energy,
-                flux[..., s, :],
-                m=minimum_energy,
-            )
+            f = flux[..., s, :]
+            e = species_energy
+            y, x = (f, e) if use_all else self._interpolate(f, e)
+            int_flux[..., s] = integrate.simps(y, x)
         return int_flux
 
-    def _integrate_with_interpolation(
+    def _interpolate(
         self,
-        x: np.ndarray,
         f: np.ndarray,
+        x: np.ndarray,
         m: float,
     ) -> np.ndarray:
-        """Integrate `f` with respect to `x` with interpolated lower bound.
+        """Interpolate `f` at `x = m` if necessary.
 
-        This function uses an algorithm that interpolates `f` at `x = m` via
-        a power law. If `m` is already in `x`, the interpolation leaves
-        `f` unchanged.
+        This function uses an algorithm that interpolates `f` at `x = m` via a
+        power law. If `m` is already in `x`, the interpolation leaves `f`
+        unchanged. It was designed to support computations of integral flux and
+        therefore currently only interpolates to a lower bound.
 
-        This function makes copies of `x` and `f` before applying the
-        algorithm.
+        This function makes copies of `x` and `f` before applying the algorithm.
         """
-        _x = x.copy()
-        _f = f.copy()
-        i0, x0 = numerical.find_nearest(_x, m, constraint='upper')
+        xc = x.copy()
+        fc = f.copy()
+        i0, x0 = numerical.find_nearest(xc, m, constraint='upper')
         # TODO: Make sure i0+1 is not out of range.
-        beta = np.log(_f[..., i0+1] / _f[..., i0]) / np.log(_x[i0+1] / x0)
+        beta = np.log(fc[..., i0+1] / fc[..., i0]) / np.log(xc[i0+1] / x0)
         base = np.full_like(beta, m / x0)
-        _x[i0] = m
-        _f[..., i0] *= np.power(base, beta)
-        return integrate.simps(_f[..., i0:], _x[i0:])
+        xc[i0] = m
+        fc[..., i0] *= np.power(base, beta)
+        return fc, xc
 
 
 class Function(iterables.ReprStrMixin):
