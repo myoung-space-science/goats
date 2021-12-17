@@ -518,9 +518,10 @@ class Functions(iterables.AliasedMapping):
         raise KeyError(f"No function corresponding to {key!r}")
 
     def get_method(self, key: str):
-        """Translate `key` to canonical method name and retrieve method."""
-        name = self._namemap[key]
-        return self.methods[name]
+        """Attempt to retrieve a method by name based on `key`."""
+        if key in self._namemap:
+            name = self._namemap[key]
+            return self.methods[name]
 
     def get_axes(self, key: str):
         """Retrieve or compute the axes corresponding to `key`."""
@@ -539,8 +540,7 @@ class Functions(iterables.AliasedMapping):
         for parameter in target.parameters:
             if parameter in self.variables:
                 self._accumulated.extend(self.variables[parameter].axes)
-            elif self._namemap[parameter] in self.methods:
-                method = self.get_method(parameter)
+            elif method := self.get_method(parameter):
                 self._removed.extend(method.metadata.get('removed axes', []))
                 self._restored.extend(method.metadata.get('restored axes', []))
                 self._accumulated.extend(self._gather_axes(method))
