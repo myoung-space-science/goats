@@ -2132,6 +2132,8 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         if standard:
             # Handles v[:], v[...], v[i, :], v[:, j], and v[i, j] (i, j ints)
             return self._new(values=self.array[unwrapped])
+        if not isinstance(unwrapped, (tuple, list)):
+            unwrapped = [unwrapped]
         expanded = self._expand_ellipsis(unwrapped)
         shape = self.data.shape
         idx = [
@@ -2142,7 +2144,7 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         indices = np.ix_(*[index for index in idx])
         return self._new(values=self.array[indices])
 
-    def _expand_ellipsis(self, user: Tuple[Any, ...]) -> Tuple[slice, ...]:
+    def _expand_ellipsis(self, user: Sequence) -> Tuple[slice, ...]:
         """Expand an ``Ellipsis`` into one or more ``slice`` objects."""
         if Ellipsis not in user:
             return user
