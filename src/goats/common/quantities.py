@@ -2130,14 +2130,30 @@ class Variable(Vector, arrays.Array, allowed=allowed):
             or all(isinstance(arg, builtin) for arg in unwrapped)
         )
         if standard:
-            # Handles v[:], v[...], v[i, :], v[:, j], and v[i, j] (i, j ints)
-            result = self.array[unwrapped]
-            if isinstance(result, numbers.Number):
-                return Scalar(result, unit=self.unit)
-            return self._new(values=result)
-        if not isinstance(unwrapped, (tuple, list)):
-            unwrapped = [unwrapped]
-        expanded = self._expand_ellipsis(unwrapped)
+            return self._subscript_standard(unwrapped)
+        return self._subscript_custom(unwrapped)
+
+    def _subscript_standard(self, indices):
+        """Perform standard array subscription.
+
+        This method handles cases involving slices, an ellipsis, or integers,
+        including v[:], v[...], v[i, :], v[:, j], and v[i, j], where i and j are
+        integers.
+        """
+        result = self.array[indices]
+        if isinstance(result, numbers.Number):
+            return Scalar(result, unit=self.unit)
+        return self._new(values=result)
+
+    def _subscript_custom(self, args):
+        """Perform array subscription specific to this object.
+
+        This method handles all cases that don't meet the criteria for
+        `_subscript_standard`.
+        """
+        if not isinstance(args, (tuple, list)):
+            args = [args]
+        expanded = self._expand_ellipsis(args)
         shape = self.data.shape
         idx = [
             range(shape[i])
