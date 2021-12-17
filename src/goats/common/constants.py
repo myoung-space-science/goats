@@ -163,15 +163,16 @@ class Constants(iterables.MappingBase):
     """A class to manage sets of physical constants."""
     def __init__(self, system: str) -> None:
         self.system = system.lower()
-        super().__init__(metadata)
+        self._mapping = metadata.copy()
+        super().__init__(self._mapping)
 
     def __getitem__(self, name: str):
         """Create the named constant or raise an error."""
-        if name in metadata:
-            definition = metadata[name][self.system]
+        if name in self._mapping:
+            definition = self._mapping[name][self.system]
             value = definition['value']
             unit = definition['unit']
-            info = metadata[name].get('info')
+            info = self._mapping[name].get('info')
             return Constant(value, unit=unit, info=info)
         raise KeyError(name)
 
