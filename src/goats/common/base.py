@@ -82,13 +82,17 @@ class Observation(iterables.ReprStrMixin):
         """Plot this observation."""
         data = np.squeeze(self)
         if xaxis in self.indices:
-            coordinate = np.array(self.indices[xaxis].values)
+            indices = self.indices[xaxis]
+            if isinstance(indices, indexing.Coordinates):
+                xarr = np.array(indices.values)
+            else:
+                xarr = tuple(indices)
         else:
-            coordinate = np.arange(data.shape[0])
+            xarr = np.arange(data.shape[0])
         if ax is not None:
-            ax.plot(coordinate, data, *args, **kwargs)
+            ax.plot(xarr, data, *args, **kwargs)
             return ax
-        lines = plt.plot(coordinate, data, *args, **kwargs)
+        lines = plt.plot(xarr, data, *args, **kwargs)
         if not show and not path:
             return lines
         if show:
