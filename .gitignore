@@ -1,5 +1,6 @@
 # Package-specific files
 data/
+dev/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
