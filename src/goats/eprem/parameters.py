@@ -103,73 +103,262 @@ _assumptions = {
 """Physical quantities with default values and units."""
 
 _constraints = {
-    'mass': {'type': list, 'unit': 'nucleon'},
-    'charge': {'type': list, 'unit': 'e'},
-    'minInjectionEnergy': {'type': float, 'unit': 'MeV'},
-    'maxInjectionEnergy': {'type': float, 'unit': 'MeV'},
-    'shockInjectionFactor': {'type': float, 'unit': '1'},
-    'shockDetectPercent': {'type': float, 'unit': '1'},
-    'rScale': {'type': float, 'unit': 'au'},
-    'simStartTime': {'type': float, 'unit': 'day'},
-    'simStopTime': {'type': float, 'unit': 'day'},
-    'eMin': {'type': float, 'unit': 'MeV/nuc'},
-    'eMax': {'type': float, 'unit': 'MeV/nuc'},
-    'numObservers': {'type': int, 'unit': '1'},
-    'obsR': {'type': list, 'unit': 'au'},
-    'obsTheta': {'type': list, 'unit': 'rad'},
-    'obsPhi': {'type': list, 'unit': 'rad'},
-    'idw_p': {'type': float, 'unit': '1'},
-    'idealShockSharpness': {'type': float, 'unit': '1'},
-    'idealShockScaleLength': {'type': float, 'unit': 'au'},
-    'idealShockJump': {'type': float, 'unit': '1'},
-    'idealShockSpeed': {'type': float, 'unit': 'km/s'},
-    'idealShockInitTime': {'type': float, 'unit': 'day'},
-    'idealShockTheta': {'type': float, 'unit': 'rad'},
-    'idealShockPhi': {'type': float, 'unit': 'rad'},
-    'idealShockWidth': {'type': float, 'unit': 'rad'},
-    'tDel': {'type': float, 'unit': 'day'},
-    'gammaElow': {'type': float, 'unit': '1'},
-    'gammaEhigh': {'type': float, 'unit': '1'},
-    'masInitTimeStep': {'type': float, 'unit': 'day'},
-    'masStartTime': {'type': float, 'unit': 'day'},
-    'epEquilibriumCalcDuration': {'type': float, 'unit': 'day'},
-    'preEruptionDuration': {'type': float, 'unit': 'day'},
+    'mass': {
+        'type': list,
+        'default': (None, 'nucleon'),
+    },
+    'charge': {
+        'type': list,
+        'default': (None, 'e'),
+    },
+    'minInjectionEnergy': {
+        'type': float,
+        'default': (None, 'MeV'),
+    },
+    'maxInjectionEnergy': {
+        'type': float,
+        'default': (None, 'MeV'),
+    },
+    'shockInjectionFactor': {
+        'type': float,
+        'default': (None, '1'),
+    },
+    'shockDetectPercent': {
+        'type': float,
+        'default': (None, '1'),
+    },
+    'rScale': {
+        'type': float,
+        'default': (None, 'au'),
+    },
+    'simStartTime': {
+        'type': float,
+        'default': (None, 'day'),
+    },
+    'simStopTime': {
+        'type': float,
+        'default': (None, 'day'),
+    },
+    'eMin': {
+        'type': float,
+        'default': (None, 'MeV/nuc'),
+    },
+    'eMax': {
+        'type': float,
+        'default': (None, 'MeV/nuc'),
+    },
+    'numObservers': {
+        'type': int,
+        'default': (None, '1'),
+    },
+    'obsR': {
+        'type': list,
+        'default': (None, 'au'),
+    },
+    'obsTheta': {
+        'type': list,
+        'default': (None, 'rad'),
+    },
+    'obsPhi': {
+        'type': list,
+        'default': (None, 'rad'),
+    },
+    'idw_p': {
+        'type': float,
+        'default': (None, '1'),
+    },
+    'idealShockSharpness': {
+        'type': float,
+        'default': (None, '1'),
+    },
+    'idealShockScaleLength': {
+        'type': float,
+        'default': (None, 'au'),
+    },
+    'idealShockJump': {
+        'type': float,
+        'default': (None, '1'),
+    },
+    'idealShockSpeed': {
+        'type': float,
+        'default': (None, 'km/s'),
+    },
+    'idealShockInitTime': {
+        'type': float,
+        'default': (None, 'day'),
+    },
+    'idealShockTheta': {
+        'type': float,
+        'default': (None, 'rad'),
+    },
+    'idealShockPhi': {
+        'type': float,
+        'default': (None, 'rad'),
+    },
+    'idealShockWidth': {
+        'type': float,
+        'default': (None, 'rad'),
+    },
+    'tDel': {
+        'type': float,
+        'default': (None, 'day'),
+    },
+    'gammaElow': {
+        'type': float,
+        'default': (None, '1'),
+    },
+    'gammaEhigh': {
+        'type': float,
+        'default': (None, '1'),
+    },
+    'masInitTimeStep': {
+        'type': float,
+        'default': (None, 'day'),
+    },
+    'masStartTime': {
+        'type': float,
+        'default': (None, 'day'),
+    },
+    'epEquilibriumCalcDuration': {
+        'type': float,
+        'default': (None, 'day'),
+    },
+    'preEruptionDuration': {
+        'type': float,
+        'default': (None, 'day'),
+    },
 }
 """Physics-based parameter values that control simulation execution."""
 
 _options = {
-    'pointObserverOutput': {'type': bool},
-    'enlilCouple': {'type': bool},
-    'outputFloat': {'type': bool},
-    'numRowsPerFace': {'type': int},
-    'numColumnsPerFace': {'type': int},
-    'numNodesPerStream': {'type': int},
-    'numEnergySteps': {'type': int},
-    'numMuSteps': {'type': int},
-    'useDrift': {'type': bool},
-    'useShellDiffusion': {'type': bool},
-    'unifiedOutput': {'type': bool},
-    'streamFluxOutput': {'type': bool},
-    'epremDomain': {'type': bool},
-    'dumpFreq': {'type': bool},
-    'idealShock': {'type': bool},
-    'shockSolver': {'type': bool},
-    'fluxLimiter': {'type': bool},
-    'numEpSteps': {'type': int},
-    'useParallelDiffusion': {'type': bool},
-    'useAdiabaticChange': {'type': bool},
-    'useAdiabaticFocus': {'type': bool},
-    'numSpecies': {'type': int},
-    'boundaryFunctionInitDomain': {'type': bool},
-    'checkSeedPopulation': {'type': bool},
-    'subTimeCouple': {'type': bool},
-    'FailModeDump': {'type': bool},
-    'masCouple': {'type': bool},
-    'masDirectory': {'type': str},
-    'masInitFromOuterBoundary': {'type': bool},
-    'masRotateSolution': {'type': bool},
-    'useMasSteadyStateDt': {'type': bool},
-    'masDigits': {'type': int},
+    'pointObserverOutput': {
+        'type': bool,
+        'default': None,
+    },
+    'enlilCouple': {
+        'type': bool,
+        'default': None,
+    },
+    'outputFloat': {
+        'type': bool,
+        'default': None,
+    },
+    'numRowsPerFace': {
+        'type': int,
+        'default': None,
+    },
+    'numColumnsPerFace': {
+        'type': int,
+        'default': None,
+    },
+    'numNodesPerStream': {
+        'type': int,
+        'default': None,
+    },
+    'numEnergySteps': {
+        'type': int,
+        'default': None,
+    },
+    'numMuSteps': {
+        'type': int,
+        'default': None,
+    },
+    'useDrift': {
+        'type': bool,
+        'default': None,
+    },
+    'useShellDiffusion': {
+        'type': bool,
+        'default': None,
+    },
+    'unifiedOutput': {
+        'type': bool,
+        'default': None,
+    },
+    'streamFluxOutput': {
+        'type': bool,
+        'default': None,
+    },
+    'epremDomain': {
+        'type': bool,
+        'default': None,
+    },
+    'dumpFreq': {
+        'type': bool,
+        'default': None,
+    },
+    'idealShock': {
+        'type': bool,
+        'default': None,
+    },
+    'shockSolver': {
+        'type': bool,
+        'default': None,
+    },
+    'fluxLimiter': {
+        'type': bool,
+        'default': None,
+    },
+    'numEpSteps': {
+        'type': int,
+        'default': None,
+    },
+    'useParallelDiffusion': {
+        'type': bool,
+        'default': None,
+    },
+    'useAdiabaticChange': {
+        'type': bool,
+        'default': None,
+    },
+    'useAdiabaticFocus': {
+        'type': bool,
+        'default': None,
+    },
+    'numSpecies': {
+        'type': int,
+        'default': None,
+    },
+    'boundaryFunctionInitDomain': {
+        'type': bool,
+        'default': None,
+    },
+    'checkSeedPopulation': {
+        'type': bool,
+        'default': None,
+    },
+    'subTimeCouple': {
+        'type': bool,
+        'default': None,
+    },
+    'FailModeDump': {
+        'type': bool,
+        'default': None,
+    },
+    'masCouple': {
+        'type': bool,
+        'default': None,
+    },
+    'masDirectory': {
+        'type': str,
+        'default': None,
+    },
+    'masInitFromOuterBoundary': {
+        'type': bool,
+        'default': None,
+    },
+    'masRotateSolution': {
+        'type': bool,
+        'default': None,
+    },
+    'useMasSteadyStateDt': {
+        'type': bool,
+        'default': None,
+    },
+    'masDigits': {
+        'type': int,
+        'default': None,
+    },
 }
 """Non-physical simulation runtime options."""
 
