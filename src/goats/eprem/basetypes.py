@@ -1,10 +1,6 @@
 """
 Constants defined in EPREM `src/baseTypes.h`.
 """
-import inspect
-import typing
-import numbers
-
 import numpy as np
 
 from goats.common import constants
