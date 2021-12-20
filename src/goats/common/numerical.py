@@ -26,16 +26,22 @@ def find_1d_indices(
 
 
 _NT = TypeVar('_NT', bound=numbers.Complex)
+
+
+class Nearest(NamedTuple):
+    """The result of searching an array for a target value."""
+
+    index: int
+    value: _NT
+
+
 def find_nearest(
     values: Iterable[_NT],
     target: _NT,
     bound: str=None,
-) -> Tuple[int, _NT]:
-    """Find the sequence value nearest the target value.
+) -> Nearest:
+    """Find the value in a collection nearest the target value.
     
-    Returns a 2-tuple whose first element is the sequence index of the nearest
-    value and second element is the nearest value.
-
     Parameters
     ----------
     values : iterable of numbers
@@ -53,6 +59,13 @@ def find_nearest(
         target value
         - 'upper': ensure that the nearest value is equal to or less than the
         target value
+
+    Returns
+    -------
+    Nearest
+        A named tuple with `value` and `index` fields, respectively containing
+        the value in `values` closest to `target` (given the constraint set by
+        `bound`, if any) and the index of `value` in `values`.
 
     Notes
     -----
@@ -77,5 +90,5 @@ def find_nearest(
                 index -= 1
         except IndexError:
             index = 0
-    return index, array[index]
+    return Nearest(index=index, value=array[index])
 
