@@ -4,6 +4,7 @@ import typing
 from goats import common
 from goats.common import iterables
 from goats.common import iotools
+from goats.common import indexing
 from goats.eprem import parameters
 from goats.eprem import datasets
 from goats.eprem import observables
@@ -39,6 +40,7 @@ class Observer(common.Observer):
         self._path = path
         self.system = system
         super().__init__(observables.Observables(self.dataset))
+        self._axes = datasets.Axes(self.dataset)
 
     @property
     def path(self):
@@ -71,6 +73,34 @@ class Observer(common.Observer):
     ) -> iotools.ReadOnlyPath:
         """Retrieve the full path for a given observer."""
         return find_file_by_template(self._templates, name, datadir=directory)
+
+    def time(self, unit: str=None):
+        """This observer's times."""
+        return self._get_indices('time', unit=unit)
+
+    def shell(self):
+        """This observer's shells."""
+        return self._get_indices('shell')
+
+    def species(self):
+        """This observer's species."""
+        return self._get_indices('species')
+
+    def energy(self, unit: str=None):
+        """This observer's energies."""
+        return self._get_indices('energy', unit=unit)
+
+    def mu(self, unit: str=None):
+        """This observer's pitch-angle cosines."""
+        return self._get_indices('mu', unit=unit)
+
+    def _get_indices(self, name: str, unit: str=None, **kwargs):
+        """Get the index-like object for this axis."""
+        axis = self._axes[name]
+        values = axis(**kwargs)
+        if unit and isinstance(values, indexing.Coordinates):
+            return values.to(unit)
+        return values
 
 
 class Stream(Observer):
