@@ -87,70 +87,48 @@ class Coordinates(OrderedPairs):
         return f"{super().__str__()} [{self.unit}]"
 
 
-class Indexer(abc.ABC):
-    """Base class for objects that create index objects."""
+class Indexer:
+    """A callable object that extracts indices from reference values."""
 
-    def __init__(self, reference: Sized, size: int=None) -> None:
+    def __init__(self, reference: Iterable[Any], size: int=None) -> None:
         self.reference = reference
         self.size = size or len(self.reference)
 
     def __call__(self, *user):
         """Create an index object from user input."""
         targets = self._normalize(*user)
-        return self.index(*targets)
+        if all(index in self.reference for index in targets):
+            return Indices(targets)
+        raise IndexError("Invalid target indices.")
 
     def _normalize(self, *user):
         """Helper for computing target values from user input."""
         if not user:
             return self.reference
         if isinstance(user[0], slice):
-            return iterables.slice_to_range(user[0], stop=len(self.reference))
+            return iterables.slice_to_range(user[0], stop=self.size)
         if isinstance(user[0], range):
             return user[0]
         return user
 
-    @abc.abstractmethod
-    def index(self, *targets) -> Indices:
-        """Create an index object from user values."""
-        return Indices(targets)
 
-    def __repr__(self) -> str:
-        """An unambiguous representation of this object."""
-        return f"{self.__class__.__qualname__}"
+class IndexMapper(Indexer):
+    """A callable object that maps values to indices."""
 
-
-class Trivial(Indexer):
-    """"""
-
-    def __init__(self, reference: Iterable[Any], size: int = None) -> None:
-        super().__init__(tuple(reference), size=size)
-
-    def index(self, *targets):
-        if all(index in self.reference for index in targets):
-            return Indices(targets)
-        raise IndexError("Invalid target indices.")
-
-
-class Mapped(Indexer):
-    """"""
-
-    def __init__(self, reference: Iterable[Any], size: int = None) -> None:
+    def __init__(self, reference: Iterable[Any], size: int=None) -> None:
         super().__init__(reference, size=size)
         self.reference = tuple(self.reference)
 
-    def index(self, *targets):
-        indices = [self._get_index(target) for target in targets]
+    def __call__(self, *user):
+        targets = self._normalize(*user)
+        if all(isinstance(value, numbers.Integral) for value in targets):
+            return Indices(targets)
+        indices = [self.reference.index(target) for target in targets]
         return OrderedPairs(indices, targets)
 
-    def _get_index(self, value: Any) -> int:
-        """Get an appropriate index for the given value."""
-        if isinstance(value, numbers.Integral):
-            return int(value)
-        return self.reference.index(value)
 
-
-class Measured(Indexer):
-    """"""
+class IndexComputer(Indexer):
+    """A callable object that computes indices from reference values."""
 
     def __init__(
         self,
@@ -161,37 +139,39 @@ class Measured(Indexer):
         self.unit = reference.unit
         """The unit of the reference values."""
 
-    def index(self, *targets):
+    def __call__(self, *user):
+        targets = self._normalize(*user)
+        if all(isinstance(value, numbers.Integral) for value in targets):
+            return Indices(targets)
         vector = quantities.measure(*targets).asvector
         values = (
             vector.to(self.unit).values
             if vector.unit.dimension == self.unit.dimension
             else vector.values
         )
-        indices = [self._get_index(value) for value in values]
+        indices = [
+            find_nearest(self.reference, float(value)).index
+            for value in values
+        ]
         return Coordinates(indices, values, self.unit)
-
-    def _get_index(self, value: Union[SupportsFloat, int]) -> int:
-        """Get an appropriate index for the given value."""
-        if isinstance(value, numbers.Integral):
-            return int(value)
-        pair = find_nearest(self.reference, float(value))
-        return pair[0]
 
 
 class Axis(iterables.ReprStrMixin):
     """A single dataset axis."""
 
-    def __init__(self, indexer: Indexer) -> None:
+    Idx = TypeVar('Idx', bound=Indexer)
+    Idx = Union[Indexer, IndexMapper, IndexComputer]
+
+    def __init__(self, indexer: Idx) -> None:
         self.indexer = indexer
         self.reference = indexer.reference
         """The reference values used to compute indices."""
         self.size = indexer.size
         """The full length of this axis."""
 
-    def __call__(self, *user):
+    def __call__(self, *user, **kwargs):
         """Convert user values into an index object."""
-        return self.indexer(*user)
+        return self.indexer(*user, **kwargs)
 
     def __len__(self) -> int:
         """The full length of this axis. Called for len(self)."""
@@ -199,5 +179,5 @@ class Axis(iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        return f"size={self.size} type={self.indexer!r}"
+        return f"size={self.size}"
 

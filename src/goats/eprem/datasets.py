@@ -1,4 +1,5 @@
 from pathlib import Path
+import numbers
 from typing import *
 
 import numpy as np
@@ -9,6 +10,7 @@ from goats.common import indexing
 from goats.common import iterables
 from goats.common import iotools
 from goats.common import elements
+from goats.common import numerical
 from goats.eprem import parameters
 
 
@@ -248,29 +250,52 @@ class Variables(iterables.AliasedMapping):
         )
 
 
-class Time(indexing.Measured):
+class Time(indexing.IndexComputer):
     """EPREM time indexer."""
 
 
-class Shell(indexing.Trivial):
+class Shell(indexing.Indexer):
     """EPREM shell indexer."""
 
 
-class Species(indexing.Mapped):
+class Species(indexing.IndexMapper):
     """EPREM species indexer."""
 
 
-class Energy(indexing.Measured):
+class Energy(indexing.IndexComputer):
     """EPREM energy indexer."""
 
-    # FIXME: This only works for a single species!
-    def index(self, *targets):
-        if isinstance(targets[0], np.ndarray):
-            targets = targets[0]
-        return super().index(*targets)
+    def __init__(
+        self,
+        reference: quantities.Measured,
+        species_map: Species,
+        size: int=None,
+    ) -> None:
+        super().__init__(reference, size=size)
+        self.map = species_map
+
+    def __call__(self, *user, species: Union[str, int]=0):
+        targets = self._normalize(*user)
+        if all(isinstance(value, numbers.Integral) for value in targets):
+            return indexing.Indices(targets)
+        s = self.map(species)[0]
+        if targets == self.reference:
+            targets = targets[s, :]
+        vector = quantities.measure(*targets).asvector
+        values = (
+            vector.to(self.unit).values
+            if vector.unit.dimension == self.unit.dimension
+            else vector.values
+        )
+        reference = self.reference[s, :]
+        indices = [
+            numerical.find_nearest(reference, float(value)).index
+            for value in values
+        ]
+        return indexing.Coordinates(indices, values, self.unit)
 
 
-class Mu(indexing.Measured):
+class Mu(indexing.IndexComputer):
     """EPREM pitch-angle cosine indexer."""
 
 
@@ -292,6 +317,9 @@ class IndexerFactory(iterables.MappingBase):
             indexer = self.indexers[name]
             reference = self.arrays[name]
             size = self._sizes[name]
+            if indexer == Energy:
+                species_map = self['species']
+                return indexer(reference, species_map, size=size)
             return indexer(reference, size=size)
         raise KeyError(f"No indexer available for '{name}'") from None
 
