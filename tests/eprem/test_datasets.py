@@ -88,4 +88,17 @@ def test_axes(dataset: datasets.DatasetView):
             assert list(user.values) == test['values']
         if isinstance(user, indexing.Coordinates):
             assert numpy.allclose(user.values, test['values'])
+    name = 'energy'
+    expected = cases['energy']
+    species = axes['species']
+    for s in species():
+        axis = axes[name]
+        full = axis(species=s)
+        assert isinstance(full, expected['type'])
+        assert len(full) == expected['length']
+        test = expected['test']
+        user = axis(*test['user'])
+        assert list(user) == test['indices']
+        assert numpy.allclose(user.values, test['values'])
+
 
