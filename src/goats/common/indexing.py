@@ -84,7 +84,9 @@ class Coordinates(OrderedPairs):
         return self
 
     def __str__(self) -> str:
-        return f"{super().__str__()} [{self.unit}]"
+        """A simplified representation of this object."""
+        values = iterables.show_at_most(3, self.values, separator=', ')
+        return f"{values} [{self.unit}]"
 
 
 class Indexer:
