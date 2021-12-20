@@ -29,7 +29,7 @@ _NT = TypeVar('_NT', bound=numbers.Complex)
 def find_nearest(
     array: Sequence[_NT],
     value: _NT,
-    constraint: str=None,
+    bound: str=None,
 ) -> Tuple[int, _NT]:
     """Find the array value nearest the target value.
     
@@ -39,20 +39,20 @@ def find_nearest(
     https://stackoverflow.com/questions/2566412/find-nearest-value-in-numpy-array
     However, a lower-voted answer (and the comments) has some suggestions for a bisection-based method.
 
-    Pass `constraint='lower'` to ensure that the nearest value is equal to or greater than the target value.
-    Pass `constraint='upper'` to ensure that the nearest value is equal to or less than the target value.
+    Pass `bound='lower'` to ensure that the nearest value is equal to or greater than the target value.
+    Pass `bound='upper'` to ensure that the nearest value is equal to or less than the target value.
     """
 
     array = np.asarray(array)
     array = np.squeeze(array)
     index = np.abs(array - value).argmin()
-    if constraint == 'lower':
+    if bound == 'lower':
         try:
             while array[index] < value:
                 index += 1
         except IndexError:
             index = -1
-    elif constraint == 'upper':
+    elif bound == 'upper':
         try:
             while array[index] > value:
                 index -= 1

@@ -10,7 +10,7 @@ def test_nearest():
     for value, expected in basic.items():
         assert numerical.find_nearest(sequence, value) == expected
     for value in [0.21, 0.25, 0.29]:
-        found = numerical.find_nearest(sequence, value, constraint='lower')
+        found = numerical.find_nearest(sequence, value, bound='lower')
         assert found == (2, 0.3)
-        found = numerical.find_nearest(sequence, value, constraint='upper')
+        found = numerical.find_nearest(sequence, value, bound='upper')
         assert found == (1, 0.2)
