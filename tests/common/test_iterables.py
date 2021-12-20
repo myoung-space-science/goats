@@ -1,35 +1,40 @@
 import collections.abc
+from typing import *
 
 import pytest
 
-from goats.common.iterables import *
+from goats.common import iterables
 
 
 def test_separable():
     """Test the type that defines a separable collection."""
     separables = [[1, 2], (1, 2), range(1, 3)]
     for arg in separables:
-        assert isinstance(arg, Separable)
-        assert Separable(arg) == arg
+        assert isinstance(arg, iterables.Separable)
+        assert iterables.Separable(arg) == arg
     nonseparables = ['a', '1, 2', 1, 1.0, slice(None), slice(1)]
     for arg in nonseparables:
-        assert not isinstance(arg, Separable)
+        assert not isinstance(arg, iterables.Separable)
     value = 2
-    separable = Separable(value)
+    separable = iterables.Separable(value)
     assert len(separable) == 1
     assert value in separable
     assert list(separable) == [2]
     values = [1, 2]
-    separable = Separable(values)
+    separable = iterables.Separable(values)
     assert len(separable) == len(values)
     assert all(value in separable for value in values)
     assert list(separable) == list(values)
-    separables = [Separable(None), Separable([]), Separable(())]
+    separables = [
+        iterables.Separable(None),
+        iterables.Separable([]),
+        iterables.Separable(()),
+    ]
     for separable in separables:
         assert len(separable) == 0
         assert list(separable) == []
     string = '1, 2'
-    separable = Separable(string)
+    separable = iterables.Separable(string)
     assert len(separable) == 1
     assert string in separable
     assert string != separable
@@ -38,38 +43,38 @@ def test_separable():
 
 def test_unique():
     """Test the function that searches a container for a unique option."""
-    assert unique('a b c', ['a', 'd']) == 'a'
-    assert unique('a b c', ['a', 'b']) is None
+    assert iterables.unique('a b c', ['a', 'd']) == 'a'
+    assert iterables.unique('a b c', ['a', 'b']) is None
 
 
 def test_unwrap():
     """Test the function that removes certain outer sequence types."""
     cases = [[3], (3,), [[3]], [(3,)], ([3],), ((3,),)]
     for case in cases:
-        assert unwrap(case) == 3
+        assert iterables.unwrap(case) == 3
 
 
 def test_naked():
     """Test the function that identifies objects not wrapped in an iterable."""
     cases = [..., 'this', 0, 0.0, range(1), slice(None)]
     for case in cases:
-        assert naked(case)
+        assert iterables.naked(case)
     cases = [(case,) for case in cases] + [(0,), [0]]
     for case in cases:
-        assert not naked(case)
+        assert not iterables.naked(case)
 
 
 def test_missing():
     """Test the function that excludes 0 from truthiness evaluation."""
-    assert missing(None)
-    assert missing([])
-    assert missing(())
-    assert not missing(0)
+    assert iterables.missing(None)
+    assert iterables.missing([])
+    assert iterables.missing(())
+    assert not iterables.missing(0)
 
 
 def test_binary_groups():
     """Test the class that splits items into included and excluded."""
-    groups = BinaryGroups(range(10), range(0, 10, 2))
+    groups = iterables.BinaryGroups(range(10), range(0, 10, 2))
     assert groups.included == (0, 2, 4, 6, 8)
     assert groups.excluded == (1, 3, 5, 7, 9)
     groups.sorter([2, 5])
@@ -79,19 +84,19 @@ def test_binary_groups():
     assert groups.included == (2,)
     assert groups.excluded == (0, 1, 3, 4, 5, 6, 7, 8, 9)
     items = {k: v for k, v in zip(['a', 'b', 'c', 'd'], range(4))}
-    groups = BinaryGroups(items, ['a', 'd'])
+    groups = iterables.BinaryGroups(items, ['a', 'd'])
     assert groups.included == {'a': 0, 'd': 3}
     assert groups.excluded == {'b': 1, 'c': 2}
 
 
 def test_collection_mixin():
     """Test the mixin class that provides `Collection` methods."""
-    class C0(CollectionMixin, collections.abc.Collection):
+    class C0(iterables.CollectionMixin, collections.abc.Collection):
         def __init__(self, user: Iterable) -> None:
             self.user = user
             self.collect('user')
 
-    class C1(CollectionMixin, collections.abc.Collection):
+    class C1(iterables.CollectionMixin, collections.abc.Collection):
         def __init__(self) -> None:
             self.collect('user')
         def update(self, user: Iterable):
@@ -114,12 +119,12 @@ def test_collection_mixin():
 
 def test_mapping_base():
     """Test the object that serves as a basis for concrete mappings."""
-    class Incomplete(MappingBase):
+    class Incomplete(iterables.MappingBase):
         def __init__(self, mapping: Mapping) -> None:
             __mapping = mapping or {}
             super().__init__(__mapping.keys())
 
-    class Implemented(MappingBase):
+    class Implemented(iterables.MappingBase):
         def __init__(self, mapping: Mapping) -> None:
             __mapping = mapping or {}
             super().__init__(__mapping.keys())
@@ -141,14 +146,14 @@ def test_mapping_base():
 
 def test_aliased_key():
     """Test the object that represents aliased mapping keys."""
-    assert len(AliasedKey('t0')) == 1
-    assert len(AliasedKey(('t0', 't1', 't2'))) == 3
-    assert len(AliasedKey(['t0', 't1', 't2'])) == 3
-    assert len(AliasedKey({'t0', 't1', 't2'})) == 3
-    assert len(AliasedKey('t0', 't1', 't2')) == 3
-    key = AliasedKey('t0', 't1', 't2')
-    assert key + 't3' == AliasedKey('t0', 't1', 't2', 't3')
-    assert key - 't2' == AliasedKey('t0', 't1')
+    assert len(iterables.AliasedKey('t0')) == 1
+    assert len(iterables.AliasedKey(('t0', 't1', 't2'))) == 3
+    assert len(iterables.AliasedKey(['t0', 't1', 't2'])) == 3
+    assert len(iterables.AliasedKey({'t0', 't1', 't2'})) == 3
+    assert len(iterables.AliasedKey('t0', 't1', 't2')) == 3
+    key = iterables.AliasedKey('t0', 't1', 't2')
+    assert key + 't3' == iterables.AliasedKey('t0', 't1', 't2', 't3')
+    assert key - 't2' == iterables.AliasedKey('t0', 't1')
 
 
 def test_aliased_mapping():
@@ -165,9 +170,9 @@ def test_aliased_mapping():
         ('that', 'second'): 2,
         ('the other',): 3,
     }
-    standard = AliasedMapping(_standard)
-    aliased = AliasedMapping(_aliased)
-    mixed = AliasedMapping(_mixed)
+    standard = iterables.AliasedMapping(_standard)
+    aliased = iterables.AliasedMapping(_aliased)
+    mixed = iterables.AliasedMapping(_mixed)
 
     # Use the common keys to check values.
     for key, value in standard.items():
@@ -216,7 +221,7 @@ def test_aliased_mapping():
         mixed.alias(this='THIS')
 
 
-def _check_aliased_keys(mapping: AliasedMapping, n_keys: int):
+def _check_aliased_keys(mapping: iterables.AliasedMapping, n_keys: int):
     """Helper function for `test_aliased_mapping`."""
     assert len(mapping) == n_keys
     assert len(mapping.keys()) == n_keys
@@ -240,8 +245,8 @@ def test_aliased_mutable_mapping():
         ('that', 'second'): 2,
         ('the other',): 3,
     }
-    aliased = AliasedMutableMapping(_aliased)
-    mixed = AliasedMutableMapping(_mixed)
+    aliased = iterables.AliasedMutableMapping(_aliased)
+    mixed = iterables.AliasedMutableMapping(_mixed)
 
     # Item assignment and updates should apply to all aliases.
     aliased['this'] = -10
@@ -288,9 +293,9 @@ def test_immutable_from_mutable():
         ('that', 'second'): 2,
         ('the other', 'third'): 3,
     }
-    mutable = AliasedMutableMapping(_aliased)
-    immutable = AliasedMapping(mutable)
-    assert isinstance(immutable, AliasedMapping)
+    mutable = iterables.AliasedMutableMapping(_aliased)
+    immutable = iterables.AliasedMapping(mutable)
+    assert isinstance(immutable, iterables.AliasedMapping)
     assert not hasattr(immutable, 'update')
     with pytest.raises(TypeError):
         immutable['this'] = -10
@@ -305,14 +310,14 @@ def test_aliased_mapping_idempotence():
         ('that', 'second'): 2,
         ('the other', 'third'): 3,
     }
-    aliased = AliasedMapping(user)
-    from_aliased = AliasedMapping(aliased)
+    aliased = iterables.AliasedMapping(user)
+    from_aliased = iterables.AliasedMapping(aliased)
     assert from_aliased == aliased
     for key in aliased:
         assert aliased.alias(key) == from_aliased.alias(key)
-    from_aliased = AliasedMapping.of(aliased)
+    from_aliased = iterables.AliasedMapping.of(aliased)
     assert from_aliased == aliased
-    from_aliased = AliasedMapping.fromkeys(aliased)
+    from_aliased = iterables.AliasedMapping.fromkeys(aliased)
     assert from_aliased.keys() == aliased.keys()
 
 
@@ -323,7 +328,7 @@ def test_aliased_mapping_of():
         'b': {'aliases': 'B', 'name': 'Borb', 'k': ('Kb', 'KB')},
         'C': {'aliases': ('c',), 'name': 'Chrunk'}
     }
-    aliased = AliasedMapping.of(this)
+    aliased = iterables.AliasedMapping.of(this)
     expected = {
         'a': {'name': 'Annabez', 'k': ['Ka']},
         'A': {'name': 'Annabez', 'k': ['Ka']},
@@ -334,7 +339,7 @@ def test_aliased_mapping_of():
         'c': {'name': 'Chrunk'},
     }
     assert aliased.flat == expected
-    aliased = AliasedMapping.of(this, value_key='name')
+    aliased = iterables.AliasedMapping.of(this, value_key='name')
     expected = {
         'a': 'Annabez',
         'A': 'Annabez',
@@ -345,7 +350,7 @@ def test_aliased_mapping_of():
         'c': 'Chrunk',
     }
     assert aliased.flat == expected
-    aliased = AliasedMapping.of(this, alias_key='k', value_key='name')
+    aliased = iterables.AliasedMapping.of(this, alias_key='k', value_key='name')
     expected = {
         'a': 'Annabez',
         'Ka': 'Annabez',
@@ -364,7 +369,7 @@ def test_aliased_mapping_fromkeys():
         'b': {'aliases': 'B', 'name': 'Borb', 'k': ('Kb', 'KB')},
         'C': {'aliases': ('c',), 'name': 'Chrunk'}
     }
-    aliased = AliasedMapping.fromkeys(this)
+    aliased = iterables.AliasedMapping.fromkeys(this)
     expected = {
         'a': None,
         'A': None,
@@ -375,7 +380,7 @@ def test_aliased_mapping_fromkeys():
         'c': None,
     }
     assert aliased.flat == expected
-    aliased = AliasedMapping.fromkeys(this, value=-4.5)
+    aliased = iterables.AliasedMapping.fromkeys(this, value=-4.5)
     expected = {
         'a': -4.5,
         'A': -4.5,
@@ -395,13 +400,13 @@ def test_aliased_mapping_extract_keys():
         'b': {'aliases': 'B', 'name': 'Borb', 'k': ('Kb', 'KB')},
         'C': {'aliases': ('c',), 'name': 'Chrunk'}
     }
-    keys = AliasedMapping.extract_keys(this)
+    keys = iterables.AliasedMapping.extract_keys(this)
     expected = [
         ['a', 'A', 'a0'],
         ['b', 'B'],
         ['C', 'c'],
     ]
-    assert keys == [AliasedKey(k) for k in expected]
+    assert keys == [iterables.AliasedKey(k) for k in expected]
 
 
 def test_aliased_keysview():
@@ -414,8 +419,8 @@ def test_aliased_keysview():
     d2 = d1.copy()
     d2[('that', 'second')] = -20
     assert d1 != d2
-    a1 = AliasedMapping(d1)
-    a2 = AliasedMapping(d2)
+    a1 = iterables.AliasedMapping(d1)
+    a2 = iterables.AliasedMapping(d2)
     assert a1 != a2
     assert a1.keys() == a2.keys()
     assert a1.keys() == d1.keys()
@@ -428,7 +433,7 @@ def test_aliased_mapping_copy():
         ('that', 'second'): 2,
         ('the other', 'third'): 3,
     }
-    a1 = AliasedMapping(d1)
+    a1 = iterables.AliasedMapping(d1)
     a2 = a1.copy()
     assert a1 == a2
     assert a1 is not a2
@@ -446,8 +451,8 @@ def test_aliased_mapping_merge():
         ('the other', 'third'): 3,
         ('another', 'fourth'): 4,
     }
-    a1 = AliasedMapping(d1)
-    a2 = AliasedMapping(d2)
+    a1 = iterables.AliasedMapping(d1)
+    a2 = iterables.AliasedMapping(d2)
     merged = a1 | a2
     expected = sorted(list(a1.keys()) + list(a2.keys()))
     assert sorted(merged.keys()) == expected
@@ -474,7 +479,7 @@ def test_namemap():
     n_aliases = 6 # Non-trivial to compute for an arbitrary case in cases
     for names in references:
         for aliases in cases:
-            namemap = NameMap(names, aliases)
+            namemap = iterables.NameMap(names, aliases)
             assert namemap['a'] == 'a'
             for alias in ['b', 'B']:
                 assert namemap[alias] == 'b'
@@ -488,7 +493,7 @@ def test_namemap_copy():
     """Test the copy method of the alias -> name mapping."""
     names = ['a', 'b', 'c']
     aliases = {'b': {'alt': 'B'}, 'c': {'alt': ['c0', 'C']}}
-    namemap = NameMap(names, aliases, key='alt')
+    namemap = iterables.NameMap(names, aliases, key='alt')
     copied = namemap.copy()
     assert copied.keys() == namemap.keys()
     assert copied.values() == namemap.values()
@@ -499,7 +504,7 @@ def test_namemap_key():
     """Test the alias -> name mapping with non-default alias key"""
     names = ['a', 'b', 'c']
     aliases = {'b': {'alt': 'B'}, 'c': {'alt': ['c0', 'C']}}
-    namemap = NameMap(names, aliases, key='alt')
+    namemap = iterables.NameMap(names, aliases, key='alt')
     assert namemap['a'] == 'a'
     for alias in ['b', 'B']:
         assert namemap[alias] == 'b'
@@ -511,7 +516,7 @@ def test_namemap_invert():
     """Test the ability to invert an aliases -> name mapping."""
     names = ['a', 'b', 'c']
     aliases = [['b', 'B'], ['c', 'c0', 'C']]
-    namemap = NameMap(names, aliases).invert()
+    namemap = iterables.NameMap(names, aliases).invert()
     assert sorted(namemap['a']) == sorted(['a'])
     assert sorted(namemap['b']) == sorted(['b', 'B'])
     assert sorted(namemap['c']) == sorted(['c', 'c0', 'C'])
@@ -525,7 +530,7 @@ def test_aliased_cache():
         {'b': 'B', 'c': ['c0', 'C']}, # Mapping from name to aliases
     ]
     for aliases in cases:
-        cache = AliasedCache(mapping, aliases)
+        cache = iterables.AliasedCache(mapping, aliases)
         assert all(v is None for v in cache.values())
         assert cache['a'] == 1
         assert cache['b'] == 2
@@ -533,18 +538,18 @@ def test_aliased_cache():
         assert cache['C'] == 3
         assert list(cache.values().aliased) == list(mapping.values())
     aliases = ['b', 'B', 'c', 'c0', 'C'] # Flat iterable of keys -> no aliases
-    cache = AliasedCache(mapping, aliases)
+    cache = iterables.AliasedCache(mapping, aliases)
     assert all(v is None for v in cache.values())
     assert cache['a'] == 1
     assert cache['b'] == 2
     for key in set(aliases) - set(mapping.keys()):
-        with pytest.raises(AliasedKeyError):
+        with pytest.raises(iterables.AliasedKeyError):
             cache[key]
 
 
 def test_object_registry():
     """Test the class that holds objects with metadata."""
-    registry = ObjectRegistry({'this': [2, 3]})
+    registry = iterables.ObjectRegistry({'this': [2, 3]})
     assert registry['this']['object'] == [2, 3]
     @registry.register(name='func', color='blue')
     def func():
@@ -579,22 +584,22 @@ def extra_key():
 
 def test_table_lookup(standard_entries: list):
     """Test the object that supports multi-key look-up."""
-    table = Table(standard_entries)
+    table = iterables.Table(standard_entries)
     gary = table(name='Gary')
     assert gary['nickname'] == 'Gare-bear'
     assert gary['species'] == 'cat'
     this = table(nickname='Ro-ro')
     assert this['name'] == 'Ramon'
     assert this['species'] == 'dog'
-    with pytest.raises(TableLookupError):
+    with pytest.raises(iterables.TableLookupError):
         table(name='Simone')
-    with pytest.raises(AmbiguousRequestError):
+    with pytest.raises(iterables.AmbiguousRequestError):
         table(species='cat')
     okay = table(species='cat', name='Pickles')
     assert okay['nickname'] == 'Pick'
-    with pytest.raises(TableLookupError):
+    with pytest.raises(iterables.TableLookupError):
         table(species='dog', name='Gary', strict=True)
-    with pytest.raises(TableLookupError):
+    with pytest.raises(iterables.TableLookupError):
         table(nickname='Yrag', species='dog', name='Gary', strict=True)
 
 
@@ -607,30 +612,30 @@ def test_table_errors(
     This is separate from other tests in case we want to assert that `Table`
     raised a particular exception but we don't care what the actual message is.
     """
-    standard = Table(standard_entries)
-    extra = Table(extra_key)
+    standard = iterables.Table(standard_entries)
+    extra = iterables.Table(extra_key)
 
     message = "Table has no common key 'example'"
-    with pytest.raises(TableKeyError, match=message):
+    with pytest.raises(iterables.TableKeyError, match=message):
         standard(example='bird')
-    with pytest.raises(TableKeyError, match=message):
+    with pytest.raises(iterables.TableKeyError, match=message):
         standard(example='bird', strict=True)
-    with pytest.raises(TableKeyError, match=message):
+    with pytest.raises(iterables.TableKeyError, match=message):
         extra(example='car')
     message = "Table has no entry with species=dog and name=Gary"
-    with pytest.raises(TableLookupError, match=message):
+    with pytest.raises(iterables.TableLookupError, match=message):
         standard(species='dog', name='Gary', strict=True)
     message = (
         "Table has no entry with"
         " nickname=Yrag, species=cat, and name=Gary"
     )
-    with pytest.raises(TableLookupError, match=message):
+    with pytest.raises(iterables.TableLookupError, match=message):
         standard(nickname='Yrag', species='cat', name='Gary', strict=True)
     message = "Table has no entry with name=Simone"
-    with pytest.raises(TableLookupError, match=message):
+    with pytest.raises(iterables.TableLookupError, match=message):
         standard(name='Simone')
     message = "The search criterion 'species=cat' is ambiguous"
-    with pytest.raises(AmbiguousRequestError, match=message):
+    with pytest.raises(iterables.AmbiguousRequestError, match=message):
         standard(species='cat')
 
 
@@ -648,7 +653,7 @@ def test_table_modes(standard_entries: list):
             perm = keys[n:] + keys[:n]
         return {k: d[k] for k in perm}
 
-    table = Table(standard_entries)
+    table = iterables.Table(standard_entries)
     valid = {'name': 'Gary', 'nickname': 'Gare-bear', 'species': 'cat'}
     permutations = []
     length = len(valid)
@@ -669,22 +674,22 @@ def test_table_modes(standard_entries: list):
         assert entry['name'] == 'Ramon'
         assert entry['nickname'] == 'Ro-ro'
         assert entry['species'] == 'dog'
-    with pytest.raises(TableLookupError):
+    with pytest.raises(iterables.TableLookupError):
         table(name='Gary', nickname='Gare-bear', species='dog', strict=True)
 
 
 def test_table_getitem(extra_key: list):
     """Make sure we can get values of a common key via [] syntax."""
-    table = Table(extra_key)
+    table = iterables.Table(extra_key)
     subset = [entry['lower'] for entry in extra_key]
     assert table['lower'] == tuple(subset)
-    with pytest.raises(TableKeyError):
+    with pytest.raises(iterables.TableKeyError):
         table['example']
 
 
 def test_table_get(extra_key: list):
     """Make sure we can get value of any key, or a default value."""
-    table = Table(extra_key)
+    table = iterables.Table(extra_key)
     subset = [entry.get('example') for entry in extra_key]
     assert table.get('example') == tuple(subset)
     subset = [entry.get('example', -1) for entry in extra_key]
@@ -693,7 +698,7 @@ def test_table_get(extra_key: list):
 
 def test_table_find(standard_entries: list):
     """Test table look-up by value."""
-    table = Table(standard_entries)
+    table = iterables.Table(standard_entries)
     expected = {'name': 'Pickles', 'nickname': 'Pick', 'species': 'cat'}
     assert table.find('Pickles') == [expected]
     assert table.find('Pickles', unique=True) == expected
@@ -702,33 +707,33 @@ def test_table_find(standard_entries: list):
         {'name': 'Pickles', 'nickname': 'Pick', 'species': 'cat'},
     ]
     assert table.find('cat') == expected
-    with pytest.raises(AmbiguousValueError):
+    with pytest.raises(iterables.AmbiguousValueError):
         table.find('cat', unique=True)
-    with pytest.raises(MissingValueError):
+    with pytest.raises(iterables.MissingValueError):
         table.find('pidgeon')
 
 
 def test_nothing():
     """Test the object that represents nothing."""
-    assert not Nothing
-    assert len(Nothing) == 0
-    assert Nothing['at all'] is None
-    assert Nothing(to_see='here') is None
-    assert 'something' not in Nothing
-    for _ in Nothing:
+    assert not iterables.Nothing
+    assert len(iterables.Nothing) == 0
+    assert iterables.Nothing['at all'] is None
+    assert iterables.Nothing(to_see='here') is None
+    assert 'something' not in iterables.Nothing
+    for _ in iterables.Nothing:
         assert False
     with pytest.raises(StopIteration):
-        next(Nothing)
-    this = NothingType()
-    assert this is Nothing
+        next(iterables.Nothing)
+    this = iterables.NothingType()
+    assert this is iterables.Nothing
 
 
 def test_distribute():
     """Test the function that distributes one object over another."""
     expected = [('a', 1), ('a', 2), ('b', 1), ('b', 2)]
-    assert list(distribute(['a', 'b'], [1, 2])) == expected
+    assert list(iterables.distribute(['a', 'b'], [1, 2])) == expected
     expected = [('a', 1), ('a', 2)]
-    assert list(distribute('a', [1, 2])) == expected
+    assert list(iterables.distribute('a', [1, 2])) == expected
     expected = [('a', 1), ('b', 1)]
-    assert list(distribute(['a', 'b'], 1)) == expected
+    assert list(iterables.distribute(['a', 'b'], 1)) == expected
 
