@@ -497,8 +497,7 @@ class Functions(iterables.AliasedMapping):
             for k, v in _metadata.items()
         }
         super().__init__(mapping=mapping)
-        aliasmap = {name: info for name, info in _metadata.items()}
-        self._namemap = iterables.NameMap(self.methods.names, aliasmap)
+        self._namemap = iterables.NameMap(self.methods.names, _metadata)
         self.dataset = dataset
         self.variables = datasets.Variables(dataset)
         self.axis_names = datasets.Axes(dataset).canonical
