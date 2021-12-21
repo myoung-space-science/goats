@@ -219,10 +219,14 @@ class Term(TermOperatorMixin):
 
     def __eq__(self, other: 'Term') -> bool:
         """True if two instances' bases and exponents are equal."""
+        attrs = {'base', 'exponent'}
         try:
-            return self.base == other.base and self.exponent == other.exponent
+            true = (getattr(self, a) == getattr(other, a) for a in attrs)
+            truth = all(true)
         except AttributeError:
             return False
+        else:
+            return truth
 
 
 class TermABC(abc.ABC):
