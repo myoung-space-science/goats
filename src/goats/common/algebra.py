@@ -84,8 +84,9 @@ class Term(TermOperatorMixin):
         arg: Union[str, 'Term'],
         exponent: Union[str, int]=None,
     ) -> None:
-        self._string = str(arg)
-        self._sep = guess_separators(self._string)
+        __string = str(arg)
+        self._sep = guess_separators(__string)
+        self._string = __string
         self._base, exp = self._base_exp
         self._exponent = exp * fractions.Fraction(exponent or 1)
 
