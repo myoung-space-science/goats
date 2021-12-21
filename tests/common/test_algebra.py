@@ -30,6 +30,21 @@ def test_term():
         assert case.exponent == fractions.Fraction(expected[1])
 
 
+@pytest.mark.skip
+def test_term_coefficient():
+    """Test Term's ability to handle numerical coefficients."""
+    cases = {
+        ('2 * a',): {'coefficient': 2, 'args': ('a', 1)},
+    }
+    for case, test in cases.items():
+        result = algebra.Term(*case)
+        args = test['args']
+        assert result.base == args[0]
+        assert result.exponent == args[1]
+        expected = test['coefficient'] * algebra.Term(*args)
+        assert result == expected
+
+
 def test_term_idempotence():
     """Make sure we can initialize a term object with an existing instance."""
     term = algebra.Term('(a / b^2)^3')
