@@ -971,10 +971,15 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
 
     def _resolve(self, key: str) -> AliasedKey:
         """Resolve `key` into an existing or new aliased key."""
-        for aliased in self._aliased.keys():
-            if key in aliased:
-                return aliased
-        return AliasedKey(key)
+        try:
+            found = next(
+                aliased for aliased in self._aliased.keys()
+                if key in aliased
+            )
+        except StopIteration:
+            return AliasedKey(key)
+        else:
+            return found
 
     def alias(self, *current, include=False):
         """Get the alias for an existing key or register new ones."""
