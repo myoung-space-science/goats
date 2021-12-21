@@ -748,6 +748,12 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
         mapping: Union[Aliasable, 'AliasedMapping']=None
     ) -> None:
         self._aliased = self._build_aliased(mapping)
+        self._flat_keys = None
+        self._flatten_keys()
+
+    def _flatten_keys(self):
+        """Define a flat list of all the keys in this mapping."""
+        self._flat_keys = [key for keys in self._aliased.keys() for key in keys]
 
     def __iter__(self) -> Iterator:
         return iter(self._flat_keys)
@@ -773,11 +779,6 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
         return {
             AliasedKey(key): value for key, value in _mapping.items()
         }
-
-    @property
-    def _flat_keys(self):
-        """All keys in the mapping, as a single list."""
-        return [key for keys in self._aliased.keys() for key in keys]
 
     @property
     def flat(self) -> Dict[str, _VT]:
@@ -1198,6 +1199,7 @@ class AliasedMutableMapping(AliasedMapping, collections.abc.MutableMapping):
     def __setitem__(self, key: str, value: _VT):
         """Assign a value to `key` and its aliases."""
         self._aliased[self._resolve(key)] = value
+        self._flatten_keys()
 
     def __delitem__(self, key: str):
         """Remove the item corresponding to `key`."""
@@ -1205,6 +1207,8 @@ class AliasedMutableMapping(AliasedMapping, collections.abc.MutableMapping):
             del self._aliased[self._resolve(key)]
         except KeyError:
             raise KeyError(key) from None
+        else:
+            self._flatten_keys()
 
     def alias(self, *current, include=False, **new: str):
         """Get the alias for an existing key or register new ones."""
