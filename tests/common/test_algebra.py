@@ -124,8 +124,6 @@ def test_expression_parser():
         ],
         'a^-2': [('a', -2)],
         'a^-3 / b^-6': [('a', -3), ('b', 6)],
-        'a^2 b^-2': [('a', 2), ('b', -2)],
-        '(a b^-2) / (c^3 d)': [('a', 1), ('b', -2), ('c', -3), ('d', -1)],
         '(a * (b * c))': [('a', 1), ('b', 1), ('c', 1)],
         '(a * (b * c))^2': [('a', 2), ('b', 2), ('c', 2)],
         '(a * (b * c)^2)': [('a', 1), ('b', 2), ('c', 2)],
@@ -155,6 +153,19 @@ def test_expression_parser():
     }
     for test, pairs in cases.items():
         expression = algebra.Expression(test)
+        expected = [algebra.Term(*pair) for pair in pairs]
+        assert expression.terms == expected
+
+
+def test_space_multiplies():
+    """Test the option to allow whitespace to represent multiplication."""
+    cases = {
+        'a^2 * b^-2': [('a', 2), ('b', -2)],
+        'a^2 b^-2': [('a', 2), ('b', -2)],
+        '(a b^-2) / (c^3 d)': [('a', 1), ('b', -2), ('c', -3), ('d', -1)],
+    }
+    for test, pairs in cases.items():
+        expression = algebra.Expression(test, space_multiplies=True)
         expected = [algebra.Term(*pair) for pair in pairs]
         assert expression.terms == expected
 

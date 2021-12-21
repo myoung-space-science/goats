@@ -315,6 +315,7 @@ class Expression(collections.abc.Collection):
         divide: str='/',
         opening: str='(',
         closing: str=')',
+        space_multiplies: bool=False,
     ) -> None:
         """Create a new expression from user input.
 
@@ -340,8 +341,16 @@ class Expression(collections.abc.Collection):
 
         closing : string, default='('
             The token that represents a closing separator in `expression`.
+
+        space_multiplies : bool, default=False
+            NIST guidelines allow for the use of a space (`' '`) to represent
+            multiplication. Setting this keyword to `True` will interpret any
+            whitespace between terms as multiplication. Because this feature can
+            lead to incorrect parsing results when an expression contains errant
+            whitespace, it is off by default.
         """
-        self._opr = fr'\s*[\{self._multiply}\{self._divide}]\s*|\s+'
+        opr = fr'\s*[\{self._multiply}\{self._divide}]\s*'
+        self._opr = fr'{opr}|\s+' if space_multiplies else opr
         op_sep_str = {
             multiply: self._multiply,
             divide: self._divide,
