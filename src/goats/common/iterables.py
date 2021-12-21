@@ -1363,6 +1363,32 @@ class NameMap(MappingBase):
         return type(self)(**self._init)
 
 
+# NOTE: Possible alternative or extension to NameMap.
+class AliasMap(MappingBase):
+    """A collection that associates common aliases."""
+
+    def __init__(self, __keys: Iterable[Aliases]) -> None:
+        """
+        Parameters
+        ----------
+        __keys : iterable
+            An iterable collection of associated keys. Each key may be a string
+            or an iterable of strings (including instances of `~AliasedKey`).
+        """
+        self._aliased = [AliasedKey(key) for key in __keys]
+        self._flat = [key for alias in self._aliased for key in alias]
+        super().__init__(self._flat)
+
+    def __getitem__(self, key: str) -> AliasedKey:
+        """Look up aliases for key."""
+        try:
+            found = next(entry for entry in self._aliased if key in entry)
+        except StopIteration:
+            raise KeyError(f"{key!r} not found")
+        else:
+            return found
+
+
 class AliasedCache(CollectionMixin, collections.abc.Mapping):
     """An aliased mapping that remembers requested items."""
 

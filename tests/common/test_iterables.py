@@ -156,6 +156,17 @@ def test_aliased_key():
     assert key - 't2' == iterables.AliasedKey('t0', 't1')
 
 
+def test_alias_map():
+    """Test the collection that groups aliases."""
+    original = [('a', 'A'), 'b', ['c', 'C']]
+    aliased = iterables.AliasMap(original)
+    assert aliased['a'] == iterables.AliasedKey('a', 'A')
+    assert aliased['A'] == iterables.AliasedKey('a', 'A')
+    assert aliased['b'] == iterables.AliasedKey('b')
+    assert aliased['c'] == iterables.AliasedKey('c', 'C')
+    assert aliased['C'] == iterables.AliasedKey('c', 'C')
+
+
 def test_aliased_mapping():
     """Test the object that represents a mapping with aliased keys."""
     # Set up mappings.
