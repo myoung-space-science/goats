@@ -98,3 +98,18 @@ def test_create_observation(
         assert isinstance(observation, common.Observation)
         assert all(axis in observation.indices for axis in expected['axes'])
 
+
+def test_observable_aliases(stream: eprem.Stream):
+    """Explicitly check a few aliases to prevent regression."""
+    tests = {
+        'r': ['R'],
+        'x': ['X'],
+        'mean_free_path': ['mfp', 'mean free path'],
+        'div_v': ['div(V)', 'divV'],
+        'fluence': [],
+    }
+    for name, aliases in tests.items():
+        observable = stream[name]
+        for alias in aliases:
+            assert stream[alias].name == observable.name
+

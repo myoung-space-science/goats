@@ -368,10 +368,14 @@ class Observables(iterables.MappingBase):
     def __init__(self, dataset: datasets.DatasetView) -> None:
         self.variables = datasets.Variables(dataset)
         self.functions = functions.Functions(dataset)
-        self.primary = tuple(self.variables.keys())
-        self.derived = tuple(self.functions.keys())
+        vkeys = self.variables.keys()
+        fkeys = self.functions.keys()
+        self.primary = tuple(vkeys)
+        self.derived = tuple(fkeys)
         self.names = self.primary + self.derived
         super().__init__(self.names)
+        akeys = tuple(vkeys.aliased) + tuple(fkeys.aliased)
+        self.aliases = iterables.AliasMap(akeys)
         self.parameters = parameters.Parameters(dataset.config)
         self.constants = constants.Constants(dataset.system.name)
         self.dataset = dataset
@@ -382,7 +386,7 @@ class Observables(iterables.MappingBase):
         implementation = self._implement(key)
         if implementation is None:
             raise KeyError(f"No observable corresponding to {key!r}") from None
-        return common.Observable(implementation)
+        return common.Observable(implementation, self.aliases[key])
 
     def _implement(self, key: str):
         """Create an interface to this observable, if possible."""
