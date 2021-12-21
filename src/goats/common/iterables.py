@@ -218,7 +218,8 @@ class RequiredAttrMeta(abc.ABCMeta):
 # See MappingBase for a potentially more intuitive way to provide these features
 # when implementing `collections.abc.Mapping`. This class still has the
 # advantage of dynamically accessing the given collection to allow updates when
-# implementing `collections.abc.MutableMapping`.
+# implementing `collections.abc.MutableMapping`. However, it appears to
+# significantly slow down execution.
 class CollectionMixin:
     """A mixin class for defining required `Collection` methods.
 
@@ -559,7 +560,7 @@ class AliasedKeyError(Exception):
 Aliases = TypeVar('Aliases', bound=Union[str, Iterable[str]])
 Aliases = Union[str, Iterable[str]]
 
-class AliasedKey(CollectionMixin, collections.abc.Collection):
+class AliasedKey(collections.abc.Collection):
     """A type that supports aliased-mapping keys."""
 
     __slots__ = ('_aliases')
@@ -573,7 +574,15 @@ class AliasedKey(CollectionMixin, collections.abc.Collection):
             a[0] if isinstance(a[0], (self._builtin, AliasedKey))
             else a
         )
-        self.collect('_aliases')
+
+    def __iter__(self) -> Iterator:
+        return iter(self._aliases)
+
+    def __len__(self) -> int:
+        return len(self._aliases)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._aliases
 
     def __hash__(self) -> int:
         """Compute the hash of the underlying key tuple."""
@@ -627,7 +636,7 @@ class AliasedKey(CollectionMixin, collections.abc.Collection):
 _VT = TypeVar('_VT')
 
 
-class AliasedMapping(CollectionMixin, collections.abc.Mapping, ReprStrMixin):
+class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
     """A mapping class that supports aliased keys.
     
     Parameters
@@ -739,7 +748,15 @@ class AliasedMapping(CollectionMixin, collections.abc.Mapping, ReprStrMixin):
         mapping: Union[Aliasable, 'AliasedMapping']=None
     ) -> None:
         self._aliased = self._build_aliased(mapping)
-        self.collect('_flat_keys')
+
+    def __iter__(self) -> Iterator:
+        return iter(self._flat_keys)
+
+    def __len__(self) -> int:
+        return len(self._flat_keys)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._flat_keys
 
     T = TypeVar('T')
 
@@ -1410,7 +1427,7 @@ class AliasedCache(CollectionMixin, collections.abc.Mapping):
         return f"{self.__class__.__qualname__}({self})"
 
 
-class ObjectRegistry(CollectionMixin, collections.abc.Mapping):
+class ObjectRegistry(collections.abc.Mapping):
     """A class for associating metadata with abitrary objects."""
     def __init__(self, base: Mapping=None, object_key: str='object') -> None:
         mapping = base or {}
@@ -1421,7 +1438,15 @@ class ObjectRegistry(CollectionMixin, collections.abc.Mapping):
         self._object_key = object_key
         self._init = self._items.copy()
         self._default_key_count = 1
-        self.collect('_items')
+
+    def __iter__(self) -> Iterator:
+        return iter(self._items)
+
+    def __len__(self) -> int:
+        return len(self._items)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._items
 
     def register(
         self,

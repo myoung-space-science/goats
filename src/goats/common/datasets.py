@@ -11,12 +11,20 @@ from goats.common.iotools import ReadOnlyPath, SingleInstance
 from goats.common.iterables import CollectionMixin
 
 
-class DataViewer(CollectionMixin, collections.abc.Mapping):
+class DataViewer(collections.abc.Mapping):
     """An abstract base class for data-viewing objects."""
 
     def __init__(self, path: ReadOnlyPath) -> None:
         self.members = self.get_members(path)
-        self.collect('members')
+
+    def __iter__(self) -> Iterator:
+        return iter(self.members)
+
+    def __len__(self) -> int:
+        return len(self.members)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.members
 
     @abc.abstractmethod
     def get_members(self, path: ReadOnlyPath) -> Mapping:
@@ -51,7 +59,7 @@ class NetCDFSizes(DataViewer):
         raise KeyError(f"No dimension called '{name}'")
 
 
-class ViewerFactory(CollectionMixin, collections.abc.MutableMapping):
+class ViewerFactory(collections.abc.MutableMapping):
     """A class that creates appropriate viewers for a dataset."""
 
     _viewer_map = {
@@ -63,8 +71,16 @@ class ViewerFactory(CollectionMixin, collections.abc.MutableMapping):
 
     def __init__(self, path: ReadOnlyPath) -> None:
         self._viewers = self._get_viewers(path)
-        self.collect('_viewers')
         self.path = path
+
+    def __iter__(self) -> Iterator:
+        return iter(self._viewers)
+
+    def __len__(self) -> int:
+        return len(self._viewers)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._viewers
 
     def _get_viewers(self, path: ReadOnlyPath) -> Dict[str, Type[DataViewer]]:
         """Get the viewers for this file format.

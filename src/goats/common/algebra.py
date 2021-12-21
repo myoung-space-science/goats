@@ -284,7 +284,7 @@ class OperandError(TypeError):
     pass
 
 
-class Expression(iterables.CollectionMixin, collections.abc.Collection):
+class Expression(collections.abc.Collection):
     """An object representing an algebraic expression."""
 
     # TODO: Allow arbitrary characters in the term base as long as they are not
@@ -350,10 +350,15 @@ class Expression(iterables.CollectionMixin, collections.abc.Collection):
         string = self._normalize(expression, op_sep_str)
         self._terms = []
         self._parse(Term(string))
-        self.collect('terms')
 
     def __iter__(self) -> Iterator[Term]:
-        return super().__iter__()
+        return iter(self.terms)
+
+    def __len__(self) -> int:
+        return len(self.terms)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.terms
 
     def __repr__(self) -> str:
         """An unambiguous representation of this instance."""

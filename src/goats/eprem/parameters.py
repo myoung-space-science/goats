@@ -187,7 +187,7 @@ class ConfigKeyError(KeyError):
     pass
 
 
-class ConfigManager(iterables.CollectionMixin, collections.abc.Mapping):
+class ConfigManager(collections.abc.Mapping):
     """A class to handle EPREM run configuration files.
 
     Parameters
@@ -227,7 +227,15 @@ class ConfigManager(iterables.CollectionMixin, collections.abc.Mapping):
         self.comments = comments or ['#']
         self.KeyError = ConfigKeyError
         self._parsed = None
-        self.collect('parsed')
+
+    def __iter__(self) -> Iterator:
+        return iter(self.parsed)
+
+    def __len__(self) -> int:
+        return len(self.parsed)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.parsed
 
     @property
     def parsed(self) -> Dict[str, Any]:
