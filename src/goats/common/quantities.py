@@ -1072,10 +1072,13 @@ class Unit(algebra.Expression):
     ) -> None:
         super().__init__(expression, **kwargs)
         self._dimension = None
+        self._unit_terms = None
 
     @property
     def terms(self) -> List[UnitTerm]:
-        return [UnitTerm(term) for term in super().terms]
+        if self._unit_terms is None:
+            self._unit_terms = [UnitTerm(term) for term in super().terms]
+        return self._unit_terms
 
     @property
     def dimension(self):
