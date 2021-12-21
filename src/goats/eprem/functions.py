@@ -397,12 +397,12 @@ class Methods(iterables.MappingBase):
                 # a good assumption?
                 flux = flux[:, :, None, :]
         int_flux = np.zeros(flux.shape[:3])
-        minimum_energy = max(minimum_energy, sys.float_info.min)
-        use_all = minimum_energy < np.min(energies)
+        m = max(minimum_energy, sys.float_info.min)
+        use_all = m < np.min(energies)
         for s, species_energy in enumerate(energies):
             f = flux[..., s, :]
             e = species_energy
-            y, x = (f, e) if use_all else self._interpolate(f, e)
+            y, x = (f, e) if use_all else self._interpolate(f, e, m)
             int_flux[..., s] = integrate.simps(y, x)
         return int_flux
 
@@ -423,13 +423,13 @@ class Methods(iterables.MappingBase):
         """
         xc = x.copy()
         fc = f.copy()
-        i0, x0 = numerical.find_nearest(xc, m, constraint='upper')
+        i0, x0 = numerical.find_nearest(xc, m, bound='upper')
         # TODO: Make sure i0+1 is not out of range.
         beta = np.log(fc[..., i0+1] / fc[..., i0]) / np.log(xc[i0+1] / x0)
         base = np.full_like(beta, m / x0)
         xc[i0] = m
         fc[..., i0] *= np.power(base, beta)
-        return fc, xc
+        return fc[..., i0:], xc[i0:]
 
 
 class Function(iterables.ReprStrMixin):
