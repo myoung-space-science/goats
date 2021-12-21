@@ -121,11 +121,12 @@ class Interface(abc.ABC, iterables.ReprStrMixin):
         pass
 
 
-class Observable:
+class Observable(iterables.ReprStrMixin):
     """An object that, when observed, produces an observation."""
 
-    def __init__(self, interface: Interface) -> None:
+    def __init__(self, interface: Interface, name: str) -> None:
         self._interface = interface
+        self.name = name
         self._constraints = {}
 
     def given(self, **constraints) -> Observation:
@@ -168,6 +169,10 @@ class Observable:
         """
         self._constraints = constraints.copy()
         return self
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return f"'{self.name}'"
 
 
 class Observer:
