@@ -317,14 +317,17 @@ class CollectionMixin:
     @property
     def _collection(self) -> Collection:
         """The base collection."""
-        if hasattr(self, '_collection_name'):
-            return getattr(self, self._collection_name, ())
-        indent = ' ' * len('AttributeError: ')
-        raise AttributeError(
-            "Cannot collect unknown attribute."
-            f"\n{indent}Please pass the name of the underlying collection"
-            " via the collect method"
-        ) from None
+        try:
+            this = getattr(self, self._collection_name, ())
+        except AttributeError:
+            indent = ' ' * len('AttributeError: ')
+            raise AttributeError(
+                "Cannot collect unknown attribute."
+                f"\n{indent}Please pass the name of the underlying collection"
+                " via the collect method"
+            ) from None
+        else:
+            return this
 
     def __contains__(self, key: str) -> bool:
         """True if `key` names a member of this collection."""
