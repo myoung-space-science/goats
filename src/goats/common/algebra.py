@@ -129,7 +129,9 @@ class Term(iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        return f"{self.coefficient}{self.variable}^{self.exponent}"
+        c = '' if self.coefficient == 1 else str(self.coefficient)
+        e = '' if self.exponent == 1 else f"^{self.exponent}"
+        return f"{c}{self.variable}{e}"
 
 
 # TODO 22Dec2021:
