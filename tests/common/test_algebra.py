@@ -6,16 +6,27 @@ from goats.common import algebra
 
 def test_term():
     """Test the object representing an algebraic term."""
-    cases = {
-        '1': {'base': '1', 'exponent': 1},
-        'a': {'base': 'a', 'exponent': 1},
-        'a^2': {'base': 'a', 'exponent': 2},
-        'a^3/2': {'base': 'a', 'exponent': '3/2'},
+    valid = {
+        '1': {'coefficient': 1, 'variable': '1', 'exponent': 1},
+        'a': {'coefficient': 1, 'variable': 'a', 'exponent': 1},
+        'a^2': {'coefficient': 1, 'variable': 'a', 'exponent': 2},
+        'a^3/2': {'coefficient': 1, 'variable': 'a', 'exponent': '3/2'},
+        '4a^3/2': {'coefficient': 4, 'variable': 'a', 'exponent': '3/2'},
     }
-    for string, expected in cases.items():
+    for string, expected in valid.items():
         term = algebra.Term(string)
-        assert term.base == expected['base']
+        assert term.coefficient == float(expected['coefficient'])
+        assert term.variable == expected['variable']
         assert term.exponent == fractions.Fraction(expected['exponent'])
+    invalid = [
+        '2', # no variable
+        '^3', # exponent only
+        'a^', # missing exponent
+
+    ]
+    for string in invalid:
+        with pytest.raises(algebra.TermValueError):
+            algebra.Term(string)
 
 
 def test_term_idempotence():

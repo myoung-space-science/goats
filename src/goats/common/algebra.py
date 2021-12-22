@@ -49,7 +49,99 @@ class TermOperatorMixin:
         return self
 
 
-class Term(TermOperatorMixin):
+class TermValueError(ValueError):
+    """Argument not an algebraic term."""
+
+    def __init__(self, arg) -> None:
+        self.arg = arg
+
+    def __str__(self) -> str:
+        return f"Can't create an algebraic term from {self.arg!r}"
+
+
+class Term(iterables.ReprStrMixin):
+    """An object representing a term in an algebraic expression.
+    
+    An algebraic term has the form [c]b[^e], where `c` is an optional
+    coefficient, `v` is the variable, and `e` is an optional exponent. An
+    omitted coefficient or exponent implies a value of 1. The type of `v` is
+    non-numeric except for the special case of `'1'` (see below).
+
+    Examples include::
+    * `'1'`: unity (multiplicative identity)
+    * `'a'`: variable 'a' with coefficient 1 and exponent 1
+    * `'a^2'`: variable 'a' with coefficient 1 and exponent 2
+    * `'a^3/2'`: variable 'a' with coefficient 1 and exponent 3/2
+    * `'2a^3'`: variable 'a' with coefficient 2 and exponent 3
+    * `'2a0^3'`: variable 'a0' with coefficient 2 and exponent 3
+    """
+
+    d_re = r'[0-9]' # only equal to r'\d' in certain modes
+    n_re = fr'[-+]?{d_re}*\.?{d_re}+'
+    c_re = fr'{n_re}(?:[eE]{n_re})?'
+    # b_re = r'[-+\w#]+'
+    b_re = r'[a-zA-Z#]+[0-9]*' # digits must follow a known non-digit
+    e_re = fr'[-+]?{d_re}+(?:\/{d_re}+)?'
+    full_re = fr'(?:{c_re})?{b_re}(?:\^{e_re})?'
+    find_re = fr'({c_re})?({b_re})\^?({e_re})?'
+    # TODO: Use compiled versions.
+
+    def __init__(self, arg) -> None:
+        __string = str(arg)
+        try:
+            parsed = self._parse(__string)
+        except ValueError:
+            raise TermValueError(arg) from None
+        else:
+            c, v, e = parsed
+        try:
+            self.coefficient = int(c)
+            """The coefficient of this term."""
+        except ValueError:
+            self.coefficient = float(c)
+            """The coefficient of this term."""
+        self.variable = str(v)
+        """The variable of this term."""
+        self.exponent = fractions.Fraction(e)
+        """The exponent of this term."""
+
+    def _parse(self, s: str):
+        """Extract components from the input string."""
+        if s == '1':
+            return 3 * s
+        if re.fullmatch(self.full_re, s):
+            found = re.findall(self.find_re, s)
+            if len(found) == 1 and isinstance(found[0], tuple):
+                c, b, e = found[0]
+                return (c or 1), b, (e or 1)
+        raise ValueError
+
+    def __pow__(self, power: int):
+        """Create a new instance, raised to `power`."""
+        return type(self)(self.variable, self.exponent * power)
+
+    def __ipow__(self, power: int):
+        """Update this instance's exponent"""
+        self.exponent *= power
+        return self
+
+    # TODO: __mul__, __rmul__, and __imul__
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return f"{self.coefficient}{self.variable}^{self.exponent}"
+
+
+# TODO 22Dec2021:
+# + Step 1
+#  - Redefine this as purely a helper for Expression.
+#  - [Take advantage of overlap with Term if possible.]
+#  - [Extract parsing from Expression if possible.]
+# + Step 2
+#  - Parse baseTypes.h `#define` directives
+# + Step 3
+#  - Finish porting streams3d.py
+class Component(TermOperatorMixin):
     """An object representing a term in an algebraic expression.
 
     Algebraic terms, as defined in this module, may be simple or complex. A
@@ -81,7 +173,7 @@ class Term(TermOperatorMixin):
 
     def __init__(
         self,
-        arg: Union[str, 'Term'],
+        arg: Union[str, 'Component'],
         exponent: Union[str, int]=None,
     ) -> None:
         __string = str(arg)
@@ -217,7 +309,7 @@ class Term(TermOperatorMixin):
             return f"{self.base}^{self.exponent}"
         return f"({self.base})^{self.exponent}"
 
-    def __eq__(self, other: 'Term') -> bool:
+    def __eq__(self, other: 'Component') -> bool:
         """True if two instances' bases and exponents are equal."""
         attrs = {'base', 'exponent'}
         try:
@@ -293,19 +385,21 @@ class Expression(collections.abc.Collection):
     """An object representing an algebraic expression."""
 
     # TODO: Allow arbitrary characters in the term base as long as they are not
-    # one of the operators or separators. This may require refactoring Term; it
-    # also may not be feasible at all. One of the first steps may be redefining
-    # the full-term RE in terms of a compliment (i.e., what is *not* included in
-    # a term rather than what is included):
+    # one of the operators or separators. This may require refactoring Component
+    # and Term; it also may not be feasible at all. One of the first steps may
+    # be redefining the full-term RE in terms of a compliment (i.e., what is
+    # *not* included in a term rather than what is included). Note that
+    # `re.escape()` may be handy here:
     #
     # + escaped = [fr'\{c}' for c in (mul, div, *sep)]
     # + self._base_re = fr'[^\s{"".join(escaped)}]+'
-    # + self._full_re = fr'{self._base_re}(?:{Term.expo_re})?'
+    # + self._full_re = fr'{self._base_re}(?:{Component.expo_re})?'
     #
-    # The challenge at this point is that Term will still use its own `base_re`,
-    # which will cause expression parsing to be inconsistent. Should we allow
-    # updating the Term RE class attributes? The induced coupling may be weird.
-    # Should we use a factory class to create Term classes with pre-set REs?
+    # The challenge at this point is that Component will still use its own
+    # `base_re`, which will cause expression parsing to be inconsistent. Should
+    # we allow updating the Component RE class attributes? The induced coupling
+    # may be weird. Should we use a factory class to create Component classes
+    # with pre-set REs?
 
     _multiply = '*'
     _divide = '/'
@@ -363,9 +457,9 @@ class Expression(collections.abc.Collection):
         }
         string = self._normalize(expression, op_sep_str)
         self._terms = []
-        self._parse(Term(string))
+        self._parse(Component(string))
 
-    def __iter__(self) -> Iterator[Term]:
+    def __iter__(self) -> Iterator[Component]:
         return iter(self.terms)
 
     def __len__(self) -> int:
@@ -485,7 +579,7 @@ class Expression(collections.abc.Collection):
         else:
             return converted
 
-    def reduce(self, *groups: Iterable[Term]) -> List[Term]:
+    def reduce(self, *groups: Iterable[Component]) -> List[Component]:
         """Algebraically reduce terms with equal bases."""
         if not groups:
             self._terms = self._reduce(self._terms.copy())
@@ -493,7 +587,7 @@ class Expression(collections.abc.Collection):
         terms = (term for group in groups for term in group)
         return self._reduce(terms)
 
-    def _reduce(self, terms: Iterable[Term]):
+    def _reduce(self, terms: Iterable[Component]):
         """Internal helper for `reduce`."""
         reduced = {}
         for term in terms:
@@ -501,7 +595,7 @@ class Expression(collections.abc.Collection):
                 reduced[term.base] += term.exponent
             else:
                 reduced[term.base] = term.exponent
-        return [Term(b, e) for b, e in reduced.items() if e != 0]
+        return [Component(b, e) for b, e in reduced.items() if e != 0]
 
     @property
     def reduced(self) -> 'Expression':
@@ -552,11 +646,11 @@ class Expression(collections.abc.Collection):
         )
 
     @property
-    def terms(self) -> List[Term]:
+    def terms(self) -> List[Component]:
         """The algebraic terms in this expression."""
-        return self._terms or [Term('1')]
+        return self._terms or [Component('1')]
 
-    def _parse(self, term: Term):
+    def _parse(self, term: Component):
         """Internal parsing logic."""
         resolved = self._resolve_operations(term)
         for term in resolved:
@@ -565,7 +659,7 @@ class Expression(collections.abc.Collection):
             elif not term.isunity:
                 self._terms.append(term)
 
-    def _resolve_operations(self, term: Term) -> List[Term]:
+    def _resolve_operations(self, term: Component) -> List[Component]:
         """Split the current term into operators and operands."""
         parts = self._parse_nested(term.base)
         operands = []
@@ -574,7 +668,7 @@ class Expression(collections.abc.Collection):
             if part in {self._multiply, self._divide}:
                 operators.append(part)
             else:
-                operands.append(Term(part, term.exponent))
+                operands.append(Component(part, term.exponent))
         resolved = [operands[0]]
         if exception := self._check_operators(operators):
             raise exception(term)
@@ -630,7 +724,7 @@ class Expression(collections.abc.Collection):
 
     def _find_term(self, string: str):
         """Find a simple algebraic term in `string`, if possible."""
-        match = re.match(Term.full_re, string)
+        match = re.match(Component.full_re, string)
         if match:
             return match[0], match.end()
 
@@ -655,7 +749,7 @@ class Expression(collections.abc.Collection):
                 elif c == self._closing:
                     level -= 1
                 j += 1
-            exp = re.match(Term.expo_re, string[j:])
+            exp = re.match(Component.expo_re, string[j:])
             if exp:
                 j += exp.end()
             return string[:j], j
