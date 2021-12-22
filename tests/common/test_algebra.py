@@ -7,49 +7,22 @@ from goats.common import algebra
 def test_term():
     """Test the object representing an algebraic term."""
     cases = {
-        ('1',): ('1', 1),
-        ('a', 1): ('a', 1),
-        ('a^2', 1): ('a', 2),
-        ('a^3/2', 1): ('a', '3/2'),
-        ('a * b^2',): ('a * b^2', 1),
-        ('(a * b^2)', 1): ('a * b^2', 1),
-        ('(a * b^2)^3', 2): ('a * b^2', 6),
-        ('(a * b^2)^3/2', 2): ('a * b^2', 3),
-        ('(a * b^2)^3/2', '2/3'): ('a * b^2', 1),
-        ('a / b^2', 2): ('a / b^2', 2),
-        ('(a / b^2)^3', 2): ('a / b^2', 6),
-        ('a * (b / c^2)^3', 2): ('a * (b / c^2)^3', 2),
-        ('(a * b / c^2)^3', 2): ('a * b / c^2', 6),
-        ('(a / b^2)^3 * c', 2): ('(a / b^2)^3 * c', 2),
-        ('((a / b^2)^3 * c)^2', 2): ('(a / b^2)^3 * c', 4),
+        '1': {'base': '1', 'exponent': 1},
+        'a': {'base': 'a', 'exponent': 1},
+        'a^2': {'base': 'a', 'exponent': 2},
+        'a^3/2': {'base': 'a', 'exponent': '3/2'},
     }
-    for test, expected in cases.items():
-        case = algebra.Term(*test)
-        assert case == algebra.Term(*expected)
-        assert case.base == expected[0]
-        assert case.exponent == fractions.Fraction(expected[1])
-
-
-@pytest.mark.skip
-def test_term_coefficient():
-    """Test Term's ability to handle numerical coefficients."""
-    cases = {
-        ('2 * a',): {'coefficient': 2, 'args': ('a', 1)},
-    }
-    for case, test in cases.items():
-        result = algebra.Term(*case)
-        args = test['args']
-        assert result.base == args[0]
-        assert result.exponent == args[1]
-        expected = test['coefficient'] * algebra.Term(*args)
-        assert result == expected
+    for string, expected in cases.items():
+        term = algebra.Term(string)
+        assert term.base == expected['base']
+        assert term.exponent == fractions.Fraction(expected['exponent'])
 
 
 def test_term_idempotence():
     """Make sure we can initialize a term object with an existing instance."""
-    term = algebra.Term('(a / b^2)^3')
+    term = algebra.Term('a^3')
     assert algebra.Term(term) == term
-    assert algebra.Term(term, 2) == algebra.Term('(a / b^2)^6')
+    assert algebra.Term(term)**2 == algebra.Term('a^6')
 
 
 def test_term_issimple():
@@ -66,107 +39,49 @@ def test_term_issimple():
         assert term.issimple == expected
 
 
-def test_term_str():
-    """Test the string representation of an algebraic term."""
-    cases = {
-        ('1',): '1',
-        ('a', 1): 'a',
-        ('a^2', 1): 'a^2',
-        ('a^3/2', 1): 'a^3/2',
-        ('a * b^2',): 'a * b^2',
-        ('(a * b^2)', 1): 'a * b^2',
-        ('(a * b^2)^3', 2): '(a * b^2)^6',
-        ('(a * b^2)^3/2', 2): '(a * b^2)^3',
-        ('(a * b^2)^3/2', '2/3'): 'a * b^2',
-        ('a / b^2', 2): '(a / b^2)^2',
-        ('(a / b^2)^3', 2): '(a / b^2)^6',
-        ('a * (b / c^2)^3', 2): '(a * (b / c^2)^3)^2',
-        ('(a * b / c^2)^3', 2): '(a * b / c^2)^6',
-        ('(a / b^2)^3 * c', 2): '((a / b^2)^3 * c)^2',
-        ('((a / b^2)^3 * c)^2', 2): '((a / b^2)^3 * c)^4',
-    }
-    for test, expected in cases.items():
-        case = algebra.Term(*test)
-        assert str(case) == expected
-
-
 def test_expression_parser():
     """Test the algebraic-expression parser."""
     cases = {
-        'a / b': [('a', 1), ('b', -1)],
-        '1 / b': [('b', -1)],
-        'a / (b * c)': [('a', 1), ('b', -1), ('c', -1)],
-        'a / (bc)': [('a', 1), ('bc', -1)],
-        'a / bc': [('a', 1), ('bc', -1)],
-        'a * b / c': [('a', 1), ('b', 1), ('c', -1)],
-        '(a / b) / c': [('a', 1), ('b', -1), ('c', -1)],
-        '(a / b) / (c / d)': [('a', 1), ('b', -1), ('c', -1), ('d', 1)],
-        '(a * b / c) / (d * e / f)': [
-            ('a', 1),
-            ('b', 1),
-            ('c', -1),
-            ('d', -1),
-            ('e', -1),
-            ('f', 1),
-        ],
-        'a^2 / b^3': [('a', 2), ('b', -3)],
-        '(a^2 / b)^5 / (c^4 / d)^3': [
-            ('a', 10),
-            ('b', -5),
-            ('c', -12),
-            ('d', 3),
-        ],
-        '((a^2 / b) / (c^4 / d))^3': [
-            ('a', 6),
-            ('b', -3),
-            ('c', -12),
-            ('d', 3),
-        ],
-        'a^-2': [('a', -2)],
-        'a^-3 / b^-6': [('a', -3), ('b', 6)],
-        '(a * (b * c))': [('a', 1), ('b', 1), ('c', 1)],
-        '(a * (b * c))^2': [('a', 2), ('b', 2), ('c', 2)],
-        '(a * (b * c)^2)': [('a', 1), ('b', 2), ('c', 2)],
-        '(a / (b * c)^2)': [('a', 1), ('b', -2), ('c', -2)],
-        'a / (b * c * (d / e))': [
-            ('a', 1),
-            ('b', -1),
-            ('c', -1),
-            ('d', -1),
-            ('e', 1),
-        ],
+        'a / b': ['a', 'b^-1'],
+        '1 / b': ['b^-1'],
+        'a / (b * c)': ['a', 'b^-1', 'c^-1'],
+        'a / (bc)': ['a', 'bc^-1'],
+        'a / bc': ['a', 'bc^-1'],
+        'a * b / c': ['a', 'b', 'c^-1'],
+        '(a / b) / c': ['a', 'b^-1', 'c^-1'],
+        '(a / b) / (c / d)': ['a', 'b^-1', 'c^-1', 'd'],
+        '(a * b / c) / (d * e / f)': ['a', 'b', 'c^-1', 'd^-1', 'e^-1', 'f'],
+        'a^2 / b^3': ['a^2', 'b^-3'],
+        '(a^2 / b)^5 / (c^4 / d)^3': [ 'a^10', 'b^-5', 'c^-12', 'd^3'],
+        '((a^2 / b) / (c^4 / d))^3': [ 'a^6', 'b^-3', 'c^-12', 'd^3'],
+        'a^-2': ['a^-2', ],
+        'a^-3 / b^-6': ['a^-3', 'b^6'],
+        '(a * (b * c))': ['a', 'b', 'c'],
+        '(a * (b * c))^2': ['a^2', 'b^2', 'c^2'],
+        '(a * (b * c)^2)': ['a', 'b^2', 'c^2'],
+        '(a / (b * c)^2)': ['a', 'b^-2', 'c^-2'],
+        'a / (b * c * (d / e))': [ 'a', 'b^-1', 'c^-1', 'd^-1', 'e'],
         'a0^2 * (a1*a2) / (a3 * a4^2 * (a5/a6))': [
-            ('a0', 2),
-            ('a1', 1),
-            ('a2', 1),
-            ('a3', -1),
-            ('a4', -2),
-            ('a5', -1),
-            ('a6', 1),
+            'a0^2', 'a1', 'a2', 'a3^-1', 'a4^-2', 'a5^-1', 'a6',
         ],
-        '((a^2 * b^3) / c) * (d^-3)': [
-            ('a', 2),
-            ('b', 3),
-            ('c', -1),
-            ('d', -3)
-        ],
+        '((a^2 * b^3) / c) * (d^-3)': [ 'a^2', 'b^3', 'c^-1', 'd^-3'],
     }
-    for test, pairs in cases.items():
+    for test, strings in cases.items():
         expression = algebra.Expression(test)
-        expected = [algebra.Term(*pair) for pair in pairs]
+        expected = [algebra.Term(string) for string in strings]
         assert expression.terms == expected
 
 
 def test_space_multiplies():
     """Test the option to allow whitespace to represent multiplication."""
     cases = {
-        'a^2 * b^-2': [('a', 2), ('b', -2)],
-        'a^2 b^-2': [('a', 2), ('b', -2)],
-        '(a b^-2) / (c^3 d)': [('a', 1), ('b', -2), ('c', -3), ('d', -1)],
+        'a^2 * b^-2': ['a^2', 'b^-2'],
+        'a^2 b^-2': ['a^2', 'b^-2'],
+        '(a b^-2) / (c^3 d)': ['a^1', 'b^-2', 'c^-3', 'd^-1'],
     }
-    for test, pairs in cases.items():
+    for test, strings in cases.items():
         expression = algebra.Expression(test, space_multiplies=True)
-        expected = [algebra.Term(*pair) for pair in pairs]
+        expected = [algebra.Term(string) for string in strings]
         assert expression.terms == expected
 
 
@@ -278,11 +193,11 @@ def test_expression_collection():
     """Confirm that expressions behave like collections."""
     expression = algebra.Expression('a / (b * c * (d / e))')
     terms = [
-        algebra.Term('a', 1),
-        algebra.Term('b', -1),
-        algebra.Term('c', -1),
-        algebra.Term('d', -1),
-        algebra.Term('e', 1),
+        algebra.Term('a'),
+        algebra.Term('b^-1'),
+        algebra.Term('c^-1'),
+        algebra.Term('d^-1'),
+        algebra.Term('e'),
     ]
     assert list(expression) == terms
     assert len(expression) == len(terms)
