@@ -11,7 +11,18 @@ def test_term():
         'a': {'coefficient': 1, 'variable': 'a', 'exponent': 1},
         'a^2': {'coefficient': 1, 'variable': 'a', 'exponent': 2},
         'a^3/2': {'coefficient': 1, 'variable': 'a', 'exponent': '3/2'},
+        '4a': {'coefficient': 4, 'variable': 'a', 'exponent': 1},
+        '-4a^3': {'coefficient': -4, 'variable': 'a', 'exponent': 3},
+        '4a^-3': {'coefficient': 4, 'variable': 'a', 'exponent': -3},
         '4a^3/2': {'coefficient': 4, 'variable': 'a', 'exponent': '3/2'},
+        '4a^+3/2': {'coefficient': 4, 'variable': 'a', 'exponent': '3/2'},
+        '4a^-3/2': {'coefficient': 4, 'variable': 'a', 'exponent': '-3/2'},
+        '4a^1.5': {'coefficient': 4, 'variable': 'a', 'exponent': 1.5},
+        '4a^+1.5': {'coefficient': 4, 'variable': 'a', 'exponent': 1.5},
+        '4a^-1.5': {'coefficient': 4, 'variable': 'a', 'exponent': -1.5},
+        '4.1a^3/2': {'coefficient': 4.1, 'variable': 'a', 'exponent': '3/2'},
+        '4ab^3/2': {'coefficient': 4, 'variable': 'ab', 'exponent': '3/2'},
+        '4b0^3/2': {'coefficient': 4, 'variable': 'b0', 'exponent': '3/2'},
     }
     for string, expected in valid.items():
         term = algebra.Term(string)

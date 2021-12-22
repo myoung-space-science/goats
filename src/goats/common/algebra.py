@@ -78,10 +78,9 @@ class Term(iterables.ReprStrMixin):
 
     d_re = r'[0-9]' # only equal to r'\d' in certain modes
     n_re = fr'[-+]?{d_re}*\.?{d_re}+'
-    c_re = fr'{n_re}(?:[eE]{n_re})?'
-    # b_re = r'[-+\w#]+'
+    c_re = n_re # don't allow exponential notation (e.g., 1e2)
     b_re = r'[a-zA-Z#]+[0-9]*' # digits must follow a known non-digit
-    e_re = fr'[-+]?{d_re}+(?:\/{d_re}+)?'
+    e_re = fr'[-+]?{d_re}+(?:[/.]{d_re}+)?'
     full_re = fr'(?:{c_re})?{b_re}(?:\^{e_re})?'
     find_re = fr'({c_re})?({b_re})\^?({e_re})?'
     # TODO: Use compiled versions.
