@@ -40,6 +40,20 @@ def test_term():
             algebra.Term(string)
 
 
+def test_term_operators():
+    """Test allowed arithmetic operations on an algebraic term."""
+    x = algebra.Term('x')
+    assert x**2 == algebra.Term('x^2')
+    assert 3 * x == algebra.Term('3x')
+    assert x * 3 == algebra.Term('3x')
+    y = algebra.Term('y')
+    y *= 2.5
+    assert y == algebra.Term('2.5y')
+    z = algebra.Term('z')
+    z **= -3
+    assert z == algebra.Term('z^-3')
+
+
 def test_term_idempotence():
     """Make sure we can initialize a term object with an existing instance."""
     term = algebra.Term('a^3')

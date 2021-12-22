@@ -115,16 +115,40 @@ class Term(iterables.ReprStrMixin):
                 return (c or 1), b, (e or 1)
         raise ValueError
 
-    def __pow__(self, power: int):
+    def __pow__(self, power):
         """Create a new instance, raised to `power`."""
-        return type(self)(self.variable, self.exponent * power)
+        arg = f"{self.coefficient}{self.variable}^{self.exponent * power}"
+        return type(self)(arg)
 
-    def __ipow__(self, power: int):
-        """Update this instance's exponent"""
+    def __ipow__(self, power):
+        """Update this instance's exponent."""
         self.exponent *= power
         return self
 
-    # TODO: __mul__, __rmul__, and __imul__
+    def __mul__(self, other):
+        """Create a new instance, multiplied by `other`."""
+        arg = f"{self.coefficient * other}{self.variable}^{self.exponent}"
+        return type(self)(arg)
+
+    __rmul__ = __mul__
+
+    def __imul__(self, other):
+        """Update this instance's coefficient."""
+        self.coefficient *= other
+        return self
+
+    def __eq__(self, other) -> bool:
+        """True if two instances' bases and exponents are equal."""
+        if not isinstance(other, Term):
+            return NotImplemented
+        attrs = {'coefficient', 'variable', 'exponent'}
+        try:
+            true = (getattr(self, a) == getattr(other, a) for a in attrs)
+            truth = all(true)
+        except AttributeError:
+            return False
+        else:
+            return truth
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
