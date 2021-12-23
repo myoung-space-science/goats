@@ -81,8 +81,12 @@ class Term(iterables.ReprStrMixin):
     c_re = n_re # don't allow exponential notation (e.g., 1e2)
     b_re = r'[a-zA-Z#]+[0-9]*' # digits must follow a known non-digit
     e_re = fr'[-+]?{d_re}+(?:[/.]{d_re}+)?'
-    full_re = fr'(?:{c_re})?{b_re}(?:\^{e_re})?'
-    find_re = fr'({c_re})?({b_re})\^?({e_re})?'
+    # NOTE: Put '1' outside for `full_re` because we want it to check the unity
+    # special case first in `fullmatch`, but put it inside the variable RE of
+    # `find_re` so the variable portion will always appear at index 1 in the
+    # resultant tuple.
+    full_re = fr'1|(?:{c_re})?{b_re}(?:\^{e_re})?'
+    find_re = fr'({c_re})?(1|{b_re})\^?({e_re})?'
     # TODO: Use compiled versions.
 
     def __init__(self, arg) -> None:
@@ -106,8 +110,6 @@ class Term(iterables.ReprStrMixin):
 
     def _parse(self, s: str):
         """Extract components from the input string."""
-        if s == '1':
-            return 3 * s
         if re.fullmatch(self.full_re, s):
             found = re.findall(self.find_re, s)
             if len(found) == 1 and isinstance(found[0], tuple):
