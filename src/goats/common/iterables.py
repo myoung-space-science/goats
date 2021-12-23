@@ -6,6 +6,8 @@ import functools
 import numbers
 from typing import *
 
+from goats.common import numerical
+
 
 def unique(target: Container, options: Iterable):
     """Search `target` for a unique element from `options`."""
@@ -150,15 +152,7 @@ def slice_to_range(s: slice, stop: int=0) -> range:
 
 def string_to_list(string: str) -> list:
     """Convert a string representation of a list to a list"""
-    return [numeric_cast(i) for i in string.strip('[]').split(',')]
-
-
-def numeric_cast(string: str) -> Union[int, float]:
-    """Convert a string to an ``int`` or ``float``."""
-    try:
-        return float(string)
-    except ValueError:
-        return int(string)
+    return [numerical.cast(i) for i in string.strip('[]').split(',')]
 
 
 def naked(targets: Any) -> bool:
