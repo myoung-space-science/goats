@@ -19,3 +19,15 @@ def test_nearest():
         found = numerical.find_nearest(values, target, bound='upper')
         assert found.index == 1
         assert found.value == 0.2
+
+
+def test_cast():
+    """Test the ability to cast an arbitrary object to a numeric type."""
+    cases = [
+        ('1', int(1)),
+        (1, int(1)),
+        ('1.1', float(1.1)),
+        (1.1, float(1.1)),
+    ]
+    for (arg, expected) in cases:
+        assert numerical.cast(arg) == expected
