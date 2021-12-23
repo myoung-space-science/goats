@@ -134,29 +134,21 @@ def test_init_collection():
     }
     for string, parts in cases.items():
         assert algebra.Expression(string) == algebra.Expression(parts)
-        terms = [algebra.Term(part) for part in parts]
-        assert algebra.Expression(string) == algebra.Expression(terms)
+        components = [algebra.Component(part) for part in parts]
+        assert algebra.Expression(string) == algebra.Expression(components)
 
 
 def test_parser_operators():
     """Test the algebraic parser with non-standard operators."""
     expression = algebra.Expression('a @ b^2 $ c', multiply='@', divide='$')
-    expected = [
-        algebra.Term('a', 1),
-        algebra.Term('b', 2),
-        algebra.Term('c', -1),
-    ]
+    expected = [algebra.Term(term) for term in ('a', 'b^2', 'c^-1')]
     assert expression.terms == expected
 
 
 def test_parser_separators():
     """Test the algebraic parser with non-standard separators."""
     expression = algebra.Expression('a / [b * c]^2', opening='[', closing=']')
-    expected = [
-        algebra.Term('a', 1),
-        algebra.Term('b', -2),
-        algebra.Term('c', -2),
-    ]
+    expected = [algebra.Term(term) for term in ('a', 'b^-2', 'c^-2')]
     assert expression.terms == expected
 
 
