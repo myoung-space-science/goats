@@ -307,13 +307,13 @@ class Component:
         Note that this class stores the coefficient as a `float` or `int`, and
         the exponent as a `fractions.Fraction`.
         """
-        forms = [
-            self._simple_term(__string),
-            self._complex_term(__string),
+        methods = [
+            self._simple_term,
+            self._complex_term,
         ]
-        for form in forms:
-            if form:
-                return form
+        for method in methods:
+            if result := method(__string):
+                return result
         return 1, __string, 1
 
     def _simple_term(self, __string: str):
