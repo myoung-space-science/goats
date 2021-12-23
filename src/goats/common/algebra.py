@@ -354,7 +354,7 @@ class Component:
         if found and len(found) == 1:
             parts = found[0]
             base = str(parts[1])
-            inside = base[1:-1]
+            inside = base[1:-1].strip()
             if inside.find(sep[1]) >= inside.find(sep[0]):
                 # TODO: Extract a method for this logic. There is overlap with
                 # Term (and possibly Expression) parsing.
