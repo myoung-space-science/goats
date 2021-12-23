@@ -93,11 +93,13 @@ def find_nearest(
     return Nearest(index=index, value=array[index])
 
 
-def cast(string: str) -> typing.Union[int, float]:
-    """Convert a string to an ``int`` or ``float``."""
+def cast(arg) -> typing.Union[int, float]:
+    """Convert `arg` to an appropriate numeric type, if necessary."""
+    if isinstance(arg, numbers.Number):
+        return arg
     try:
-        return float(string)
+        return float(arg)
     except ValueError:
-        return int(string)
+        return int(arg)
 
 
