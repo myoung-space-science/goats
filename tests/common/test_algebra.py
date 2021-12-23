@@ -208,14 +208,13 @@ def test_expression_equality():
         ('a * b^2', 'a * c^2'): False,
         ('a * b^2', 'a / b^2'): False,
     }
-    for (s1, s2), result in cases.items():
-        e1 = algebra.Expression(s1)
-        e2 = algebra.Expression(s2)
-        assert s1 == e1
-        assert s2 == e2
-        assert (s1 == e2) == result
-        assert (s2 == e1) == result
-        assert (e1 == e2) == result
+    for args, result in cases.items():
+        expressions = [algebra.Expression(arg) for arg in args]
+        for arg, expression in zip(args, expressions):
+            assert arg == expression
+        assert (args[0] == expressions[1]) == result
+        assert (args[1] == expressions[0]) == result
+        assert (expressions[0] == expressions[1]) == result
 
 
 def test_expression_collection():
