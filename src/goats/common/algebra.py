@@ -603,6 +603,20 @@ class Expression(collections.abc.Collection):
         """A simplified representation of this instance."""
         return self.format()
 
+    def format(self, separator: str=' ', style: str=None):
+        """Join algebraic terms into a string."""
+        if style == 'tex':
+            return self._format("{base}^{{{exponent}}}", separator)
+        return self._format("{base}^{exponent}", separator)
+
+    def _format(self, template: str, separator: str):
+        """Helper method for expression formatting."""
+        return separator.join(
+            template.format(base=term.variable, exponent=term.exponent)
+            if term.exponent != 1 else f"{term.variable}"
+            for term in self.terms
+        )
+
     def __eq__(self, other: 'Expression') -> bool:
         """True if two expressions have the same algebraic terms.
 
@@ -765,20 +779,6 @@ class Expression(collections.abc.Collection):
     def copy(self):
         """Create a copy of this instance."""
         return self._new(self._terms)
-
-    def format(self, separator: str=' ', style: str=None):
-        """Join algebraic terms into a string."""
-        if style == 'tex':
-            return self._format("{base}^{{{exponent}}}", separator)
-        return self._format("{base}^{exponent}", separator)
-
-    def _format(self, template: str, separator: str):
-        """Helper method for expression formatting."""
-        return separator.join(
-            template.format(base=term.variable, exponent=term.exponent)
-            if term.exponent != 1 else f"{term.variable}"
-            for term in self.terms
-        )
 
     @property
     def terms(self) -> List[Term]:
