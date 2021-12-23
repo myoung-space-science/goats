@@ -1,6 +1,7 @@
 import abc
 import collections.abc
 import fractions
+import functools
 import numbers
 import operator
 import re
@@ -705,7 +706,7 @@ class Expression(collections.abc.Collection):
         else:
             return converted
 
-    def reduce(self, *groups: Iterable[Term]) -> List[Term]:
+    def reduce(self, *groups: Iterable[Term]):
         """Algebraically reduce terms with equal bases."""
         if not groups:
             self._terms = self._reduce(self._terms.copy())
@@ -718,10 +719,18 @@ class Expression(collections.abc.Collection):
         reduced = {}
         for term in terms:
             if term.variable in reduced:
-                reduced[term.variable] += term.exponent
+                reduced[term.variable]['coefficient'] *= term.coefficient
+                reduced[term.variable]['exponent'] += term.exponent
             else:
-                reduced[term.variable] = term.exponent
-        return [Term(b, e) for b, e in reduced.items() if e != 0]
+                attributes = {
+                    'coefficient': term.coefficient,
+                    'exponent': term.exponent,
+                }
+                reduced[term.variable] = attributes
+        return [
+            Component(v['coefficient'], k, v['exponent']).asterm
+            for k, v in reduced.items() if v['exponent'] != 0
+        ]
 
     @property
     def reduced(self) -> 'Expression':
