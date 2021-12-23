@@ -1,5 +1,5 @@
 import numbers
-from typing import *
+import typing
 
 import numpy as np
 
@@ -16,7 +16,7 @@ def get_bounding_indices(
 def find_1d_indices(
     array: np.ndarray,
     target: float,
-) -> Tuple[int, int]:
+) -> typing.Tuple[int, int]:
     """Find the bounding indices in a 1-D array."""
     leq = array <= target
     lower = np.where(leq)[0].max() if any(leq) else 0
@@ -25,10 +25,10 @@ def find_1d_indices(
     return lower, upper
 
 
-_NT = TypeVar('_NT', bound=numbers.Complex)
+_NT = typing.TypeVar('_NT', bound=numbers.Complex)
 
 
-class Nearest(NamedTuple):
+class Nearest(typing.NamedTuple):
     """The result of searching an array for a target value."""
 
     index: int
@@ -36,7 +36,7 @@ class Nearest(NamedTuple):
 
 
 def find_nearest(
-    values: Iterable[_NT],
+    values: typing.Iterable[_NT],
     target: _NT,
     bound: str=None,
 ) -> Nearest:
