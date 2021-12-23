@@ -98,8 +98,8 @@ def cast(arg) -> typing.Union[int, float]:
     if isinstance(arg, numbers.Number):
         return arg
     try:
-        return float(arg)
-    except ValueError:
         return int(arg)
+    except ValueError:
+        return float(arg)
 
 
