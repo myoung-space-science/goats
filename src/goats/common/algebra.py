@@ -8,6 +8,7 @@ from typing import *
 from typing import Pattern
 
 from goats.common import iterables
+from goats.common import numerical
 
 
 def strip_outer_parentheses(string: str) -> str:
@@ -87,7 +88,11 @@ class Term(iterables.ReprStrMixin):
     # resultant tuple.
     full_re = fr'1|(?:{c_re})?{b_re}(?:\^{e_re})?'
     find_re = fr'({c_re})?(1|{b_re})\^?({e_re})?'
-    # TODO: Use compiled versions.
+    # TODO:
+    # - Use compiled versions.
+    # - Create class methods to check arbitrary strings for matches. For
+    #   example, this would make it easier to include `\^` when asking whether a
+    #   component has an exponent while excluding it from the exponent RE.
 
     def __init__(self, arg) -> None:
         __string = str(arg)
@@ -159,6 +164,14 @@ class Term(iterables.ReprStrMixin):
         return f"{c}{self.variable}{e}"
 
 
+class ComponentTypeError(TypeError):
+    pass
+
+
+class ComponentValueError(ValueError):
+    pass
+
+
 # TODO 22Dec2021:
 # + Step 1
 #  - Redefine this as purely a helper for Expression.
@@ -168,151 +181,203 @@ class Term(iterables.ReprStrMixin):
 #  - Parse baseTypes.h `#define` directives
 # + Step 3
 #  - Finish porting streams3d.py
-class Component(TermOperatorMixin):
-    """An object representing a term in an algebraic expression.
+class Component:
+    """An object representing a component of an algebraic expression.
 
-    Algebraic terms, as defined in this module, may be simple or complex. A
-    simple algebraic term consists of a single base quantity and an optional
-    fractional exponent. The following are simple algebraic terms::
-    * `'1'`
-    * `'a'`
-    * `'a^2'`
-    * `'a^3/2'`
+    Algebraic components mainly exist to support the `~algebra.Expression`
+    class. They may be simple or complex. A simple algebraic component is
+    equivalent to an algebraic term. See `~algebra.Term` for examples.
 
-    A complex algebraic term consists of multiple simple terms combined with
-    algebraic operators and separators. The following are complex algebraic
-    terms::
+    A complex algebraic component consists of multiple simple components
+    combined with algebraic operators and separators. The following are complex
+    algebraic components::
     * `'a * b^2'` <=> `'(a * b^2)'` <=> `'(a * b^2)^1'`
     * `'(a * b^2)^3'`
     * `'(a * b^2)^3/2'`
     * `'((a / b^2)^3 * c)^2'`
     * `'(a / b^2)^3 * c^2'`
 
-    There are many more ways to construct a complex term than a simple term. In
-    fact, any valid algebraic expression is a complex algebraic term; this is by
-    design, to support the `Expression` class. The `.issimple` property provides
-    a way to determine if a given algebraic term is simple.
+    There are many more ways to construct a complex component than a simple
+    component. In fact, any valid algebraic expression is a complex algebraic
+    component; this is by design, to support the `Expression` class. The
+    `Component.issimple` property provides a way to determine if a given
+    algebraic component is simple.
     """
 
-    base_re = r'[-+\w#]+'
-    expo_re = r'\^[-+]?\d+(?:\/\d+)?'
-    full_re = fr'{base_re}(?:{expo_re})?'
+    CType = TypeVar('CType', bound=Union[float, int])
+    CType = Union[float, int]
 
-    def __init__(
-        self,
-        arg: Union[str, 'Component'],
-        exponent: Union[str, int]=None,
-    ) -> None:
-        __string = str(arg)
-        self._sep = guess_separators(__string)
-        self._string = __string
-        self._base, exp = self._base_exp
-        self._exponent = exp * fractions.Fraction(exponent or 1)
+    BType = TypeVar('BType', bound=str)
+    BType = str
 
-    @property
-    def _base_exp(self):
-        """Internal property that represents this term's base and exponent.
+    EType = TypeVar('EType', bound=Union[numbers.Real, str])
+    EType = Union[numbers.Real, str]
 
-        This logic here will create the most complex algebraic term possible
-        from the initial string. It will parse a simple algebraic term into a
-        base quantity and an exponent but it will not attempt to parse a complex
-        algebraic term into simple terms. If all attempts to determine an
-        appropriate base and exponent fail, it will simply return the initial
-        string with an exponent of 1. Therefore, it always ensures a base and
-        exponent.
+    # TODO: Either this class needs to inherit from Term or we need to update
+    # TermOperatorMixin (and fold it back into Term). The former is probably
+    # better since there are other places where they overlap.
+    def __init__(self, *args) -> None:
+        """
+        Parameters
+        ----------
+        *args
+            A length-1, -2, or -3 tuple. The 1-element form must be a string
+            from which this class can extract a base component (possibly the
+            entire string), and optional coefficient and exponent. The 2-element
+            form may be either (coefficient, base) or (base, exponent); this
+            class will provide a default value for the missing exponent or
+            coefficient. The 3-element form must be (coefficient, base,
+            exponent). This class will still attempt to extract a base
+            component, and optional coefficient and exponent from either the 2-
+            or 3-element form, then reduce coefficients and exponents as
+            necessary.
+        """
+        self._issimple = None
+        self.coefficient, self.base, self.exponent = self._extract(args)
 
-        The following examples use the simple and complex algebraic terms from
-        the class docstring the illustrate this splitting::
-        * `'1'` -> `'1', 1`
-        * `'a'` -> `'a', 1`
-        * `'a^2'` -> `'a', 2`
-        * `'a^3/2'` -> `'a', '3/2'`
-        * `'a * b^2'` <=> `'(a * b^2)'` <=> `'(a * b^2)^1'` -> `'a * b^2', 1`
-        * `'(a * b^2)^3'` -> `'a * b^2', 3`
+    def _extract(self, args: tuple) -> Tuple[CType, BType, EType]:
+        """Extract attributes from the given argument(s)."""
+        try:
+            nargs = len(args)
+        except TypeError:
+            raise ComponentTypeError(args) from None
+        if nargs == 1:
+            parsed = self._parse(str(args[0]))
+            return self._normalize(*parsed)
+        if nargs == 2:
+            a0, a1 = args
+            # TODO: Consider not returning from this block, but instead using it
+            # to convert `args` to a 3-tuple and letting execution proceed to
+            # the next block.
+            if isinstance(a0, numbers.Number):
+                parsed = self._parse(str(a1))
+                c, b, e = self._normalize(*parsed)
+                return c * a0, b, e
+            parsed = self._parse(str(a0))
+            c, b, e = self._normalize(*parsed)
+            return c, b, e * a1
+        if nargs == 3:
+            parsed = self._parse(str(args[1]))
+            c, b, e = self._normalize(*parsed)
+            return c * args[0], b, e * args[2]
+        # TODO: Consider putting a check (with this exception) in __new__. We
+        # could also do further checking, including:
+        # - making sure the length-1 form supports conversion to string;
+        # - making sure the length-2 form is either (coefficient-like,
+        #   base-like) or (base-like, exponent-like)
+        # - making sure the length-3 form is (coefficient-like, base-like,
+        #   exponent-like).
+        raise ComponentValueError(
+            f"{self.__class__.__qualname__}"
+            f" accepts 1, 2, or 3 arguments"
+            f" (got {nargs})"
+        )
+
+    def _normalize(self, coefficient, base, exponent) -> tuple:
+        """Ensure attributes have appropriate values and types."""
+        c = numerical.cast(coefficient or 1)
+        e = fractions.Fraction(exponent or 1)
+        return c, base, e
+
+    def _parse(self, __string: str):
+        """Parse a coefficient, base, and exponent from this string.
+
+        This method will create the most complex algebraic component possible
+        from the initial string. It will parse a simple algebraic component into
+        a coefficient, variable, and exponent but it will not attempt to parse a
+        complex algebraic component into simple components. In other words, it
+        will do as little work as possible to extract a coefficient and
+        exponent, and either a variable or an expression. If all attempts to
+        determine appropriate attributes fail, it will simply return the string
+        representation of the initial argument with coefficient and exponent
+        both equal to 1
+
+        The following examples use the complex algebraic components from the
+        class docstring to illustrate the minimal parsing described above::
+        * `'a * b^2'` <=> `'(a * b^2)'` <=> `'(a * b^2)^1'` -> `1, 'a * b^2', 1`
+        * `'2a * b^2'` -> `1, '2a * b^2', 1`
+        * `'2(a * b^2)'` -> `2, 'a * b^2', 1`
+        * `'(a * b^2)^3'` -> `1, 'a * b^2', 3`
+        * `'2(a * b^2)^3'` -> `2, 'a * b^2', 3`
         * `'(a * b^2)^3/2'` -> `'a * b^2', '3/2'`
         * `'((a / b^2)^3 * c)^2'` -> `'(a / b^2)^3 * c', 2`
         * `'(a / b^2)^3 * c^2'` -> `'(a / b^2)^3 * c^2', 1`
 
-        Note that this class stores exponents as instances of
-        `fractions.Fraction`.
+        Note that this class stores the coefficient as a `float` or `int`, and
+        the exponent as a `fractions.Fraction`.
         """
         forms = [
-            self._simple_term,
-            self._complex_term,
+            self._simple_term(__string),
+            self._complex_term(__string),
         ]
         for form in forms:
             if form:
                 return form
-        return self._string, fractions.Fraction(1)
+        return 1, __string, 1
 
-    @property
-    def _simple_term(self):
-        """The base and exponent of a simple term, if available.
+    def _simple_term(self, __string: str):
+        """Extract attributes from a simple term, if available.
 
-        The logic in this property will extract the base quantity and an
-        appropriate exponent (possibly 1) from the initial string if it has the
-        form of a simple algebraic term. Otherwise, it will return `None`.
+        The logic in this property will attempt to convert the given string into
+        an instance of `~algebra.Term`. If it succeeds, it will extract the
+        coefficient, variable, and exponent attributes. Otherwise, it will
+        return `None`.
         """
-        if self.issimple:
-            try:
-                base, exp = self._string.rsplit('^', 1)
-            except ValueError:
-                base, exp = self._string, 1
-            return base, fractions.Fraction(exp)
+        try:
+            term = Term(__string)
+            self._issimple = True
+        except TermValueError:
+            self._issimple = False
+        else:
+            return term.coefficient, term.variable, term.exponent
 
-    @property
-    def _complex_term(self):
-        """The base and exponent of a complex term, if available.
+    def _complex_term(self, __string: str):
+        """Extract attributes from a complex term, if available.
 
         The logic in this property will check if the initial string contains an
-        algebraic expression entirely bound by parentheses and an optional
-        exponent. If it finds an unbound algebraic expression, it will simply
-        return the initial string along with an exponent of 1. If it finds a
-        bound algebraic expression, it will return the expression and the
-        outermost exponent (if it exists) or 1. Otherwise, it will return
-        `None`.
+        algebraic expression entirely bound by parentheses, with an optional
+        coefficient or optional exponent. If it finds an unbound algebraic
+        expression, it will simply return the initial string along with
+        coefficient and exponent each equal to 1. If it finds a bound algebraic
+        expression, it will attempt to strip the outermost coefficient and
+        exponent from the expression (defaulting to 1 in both cases) and return
+        all three attributes. Otherwise, it will return `None`.
         """
-        pattern = fr"^[^{self._sep[0]}{self._sep[1]}]*$"
-        if re.fullmatch(pattern, self._string):
-            return self._string, fractions.Fraction(1)
-        group = fr"\{self._sep[0]}.+?\{self._sep[1]}"
-        pattern = fr'^({group})({self.expo_re})?$'
-        found = re.findall(pattern, self._string)
+        sep = guess_separators(__string)
+        unbound = fr"^[^{sep[0]}{sep[1]}]*$"
+        if re.fullmatch(unbound, __string):
+            return 1, __string, 1
+        bound = fr"\{sep[0]}.+?\{sep[1]}"
+        full = fr'^({Term.c_re})?({bound})\^?({Term.e_re})?$'
+        found = re.findall(full, __string)
         if found and len(found) == 1:
-            pair = found[0]
-            base = str(pair[0])
+            parts = found[0]
+            base = str(parts[1])
             inside = base[1:-1]
-            if inside.find(self._sep[1]) >= inside.find(self._sep[0]):
-                # TODO: Extract a method for this logic. There may be some
-                # overlap with Expression parsing.
+            if inside.find(sep[1]) >= inside.find(sep[0]):
+                # TODO: Extract a method for this logic. There is overlap with
+                # Term (and possibly Expression) parsing.
                 counted = False
                 count = 0
-                exponent = fractions.Fraction(str(pair[1]).lstrip('^') or 1)
+                coefficient = parts[0]
+                exponent = parts[2]
                 for i, c in enumerate(base):
-                    if c == self._sep[0]:
+                    if c == sep[0]:
                         count += 1
                         counted = not counted or True # Once true, always true.
-                    elif c == self._sep[1]:
+                    elif c == sep[1]:
                         count -= 1
                     if counted and count == 0 and i < len(base)-1:
-                        return base, exponent
+                        return coefficient, base, exponent
                 if counted and count == 0:
-                    return inside, exponent
+                    return coefficient, inside, exponent
 
     @property
     def issimple(self) -> bool:
-        """True if this instance has a single base and an optional exponent."""
-        return bool(re.fullmatch(self.full_re, self._string))
-
-    @property
-    def base(self) -> str:
-        """The base quantity."""
-        return self._base
-
-    @property
-    def exponent(self) -> fractions.Fraction:
-        """The numerical exponent."""
-        return self._exponent
+        """True if this instance has the form of an algebraic term."""
+        if self._issimple is None:
+            self._issimple = False
+        return self._issimple
 
     @property
     def isunity(self) -> bool:
@@ -321,24 +386,47 @@ class Component(TermOperatorMixin):
         This property may be useful when determining whether to keep a term in
         an algebraic expression.
         """
-        return self._base == '1'
+        return self.base == '1' and self.coefficient == 1
 
-    def __repr__(self) -> str:
-        """The reproducible representation of this instance."""
-        args = f"'{self.base}', {self.exponent}"
-        return f"{self.__class__.__qualname__}({args})"
-
-    def __str__(self) -> str:
-        """A simplified representation of this instance."""
-        if self.isunity or self.exponent == 1:
-            return self.base
+    @property
+    def asterm(self) -> Term:
+        """Convert this component to a `Term`, if possible."""
         if self.issimple:
-            return f"{self.base}^{self.exponent}"
-        return f"({self.base})^{self.exponent}"
+            return Term(str(self))
+        raise ValueError(f"Can't convert {self} to Term.")
+
+    def __pow__(self, power):
+        """Create a new instance, raised to `power`."""
+        return type(self)(
+            self.coefficient ** power,
+            self.base,
+            self.exponent * power,
+        )
+
+    def __ipow__(self, power):
+        """Update this instance's exponent."""
+        self.coefficient **= power
+        self.exponent *= power
+        return self
+
+    def __mul__(self, other):
+        """Create a new instance, multiplied by `other`."""
+        return type(self)(
+            self.coefficient * other,
+            self.base,
+            self.exponent,
+        )
+
+    __rmul__ = __mul__
+
+    def __imul__(self, other):
+        """Update this instance's coefficient."""
+        self.coefficient *= other
+        return self
 
     def __eq__(self, other: 'Component') -> bool:
-        """True if two instances' bases and exponents are equal."""
-        attrs = {'base', 'exponent'}
+        """True if two instances' attributes are equal."""
+        attrs = {'coefficient', 'base', 'exponent'}
         try:
             true = (getattr(self, a) == getattr(other, a) for a in attrs)
             truth = all(true)
@@ -346,6 +434,18 @@ class Component(TermOperatorMixin):
             return False
         else:
             return truth
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        c = '' if self.coefficient == 1 else str(self.coefficient)
+        b = self.base if self.issimple else f'({self.base})'
+        e = '' if self.exponent == 1 else f"^{self.exponent}"
+        return f"{c}{b}{e}"
+
+    def __repr__(self) -> str:
+        """The reproducible representation of this instance."""
+        args = f"{self.coefficient}, '{self.base}', {self.exponent}"
+        return f"{self.__class__.__qualname__}({args})"
 
 
 class TermABC(abc.ABC):
@@ -411,22 +511,21 @@ class OperandError(TypeError):
 class Expression(collections.abc.Collection):
     """An object representing an algebraic expression."""
 
-    # TODO: Allow arbitrary characters in the term base as long as they are not
-    # one of the operators or separators. This may require refactoring Component
-    # and Term; it also may not be feasible at all. One of the first steps may
-    # be redefining the full-term RE in terms of a compliment (i.e., what is
-    # *not* included in a term rather than what is included). Note that
+    # TODO: Allow arbitrary characters in the term variable as long as they are
+    # not one of the operators or separators. This may require refactoring
+    # Component and Term; it also may not be feasible at all. One of the first
+    # steps may be redefining the full-term RE in terms of a compliment (i.e.,
+    # what is *not* included in a term rather than what is included). Note that
     # `re.escape()` may be handy here:
     #
     # + escaped = [fr'\{c}' for c in (mul, div, *sep)]
     # + self._base_re = fr'[^\s{"".join(escaped)}]+'
-    # + self._full_re = fr'{self._base_re}(?:{Component.expo_re})?'
+    # + self._full_re = fr'{self._base_re}(?:{Term.expo_re})?'
     #
-    # The challenge at this point is that Component will still use its own
-    # `base_re`, which will cause expression parsing to be inconsistent. Should
-    # we allow updating the Component RE class attributes? The induced coupling
-    # may be weird. Should we use a factory class to create Component classes
-    # with pre-set REs?
+    # The challenge at this point is that Term will still use its own `base_re`,
+    # which will cause expression parsing to be inconsistent. Should we allow
+    # updating the Term RE class attributes? The induced coupling may be weird.
+    # Should we use a factory class to create Term classes with pre-set REs?
 
     _multiply = '*'
     _divide = '/'
@@ -504,15 +603,15 @@ class Expression(collections.abc.Collection):
         return self.format()
 
     def __eq__(self, other: 'Expression') -> bool:
-        """True if two expressions have the same simple algebraic terms.
+        """True if two expressions have the same algebraic terms.
 
         This method defines two expressions as equal if they have equivalent
-        lists of simple algebraic terms, regardless of order, after parsing. Two
-        expressions with different numbers of terms are always false. If the
-        expressions have the same number of terms, this method will sort the
-        pairs (first by base, then by exponent) and compare the sorted lists.
-        Two expressions are equal if and only if their sorted lists of terms are
-        equal.
+        lists of algebraic terms (a.k.a simple components), regardless of order,
+        after parsing. Two expressions with different numbers of terms are
+        always false. If the expressions have the same number of terms, this
+        method will sort the triples (first by variable, then by exponent, and
+        finally by coefficient) and compare the sorted lists. Two expressions
+        are equal if and only if their sorted lists of terms are equal.
 
         If `other` is a string, this method will first attempt to convert it to
         an expression.
@@ -521,7 +620,7 @@ class Expression(collections.abc.Collection):
             other = self._convert(other)
         if len(self._terms) != len(other._terms):
             return False
-        key = operator.attrgetter('base', 'exponent')
+        key = operator.attrgetter('variable', 'exponent', 'coefficient')
         return sorted(self._terms, key=key) == sorted(other._terms, key=key)
 
     def __mul__(self, other: 'Expression'):
@@ -606,7 +705,7 @@ class Expression(collections.abc.Collection):
         else:
             return converted
 
-    def reduce(self, *groups: Iterable[Component]) -> List[Component]:
+    def reduce(self, *groups: Iterable[Term]) -> List[Term]:
         """Algebraically reduce terms with equal bases."""
         if not groups:
             self._terms = self._reduce(self._terms.copy())
@@ -614,15 +713,15 @@ class Expression(collections.abc.Collection):
         terms = (term for group in groups for term in group)
         return self._reduce(terms)
 
-    def _reduce(self, terms: Iterable[Component]):
+    def _reduce(self, terms: Iterable[Term]):
         """Internal helper for `reduce`."""
         reduced = {}
         for term in terms:
-            if term.base in reduced:
-                reduced[term.base] += term.exponent
+            if term.variable in reduced:
+                reduced[term.variable] += term.exponent
             else:
-                reduced[term.base] = term.exponent
-        return [Component(b, e) for b, e in reduced.items() if e != 0]
+                reduced[term.variable] = term.exponent
+        return [Term(b, e) for b, e in reduced.items() if e != 0]
 
     @property
     def reduced(self) -> 'Expression':
@@ -667,38 +766,39 @@ class Expression(collections.abc.Collection):
     def _format(self, template: str, separator: str):
         """Helper method for expression formatting."""
         return separator.join(
-            template.format(base=term.base, exponent=term.exponent)
-            if term.exponent != 1 else f"{term.base}"
+            template.format(base=term.variable, exponent=term.exponent)
+            if term.exponent != 1 else f"{term.variable}"
             for term in self.terms
         )
 
     @property
-    def terms(self) -> List[Component]:
+    def terms(self) -> List[Term]:
         """The algebraic terms in this expression."""
-        return self._terms or [Component('1')]
+        return self._terms or [Term('1')]
 
-    def _parse(self, term: Component):
+    def _parse(self, component: Component):
         """Internal parsing logic."""
-        resolved = self._resolve_operations(term)
-        for term in resolved:
-            if not term.issimple:
-                self._parse(term)
-            elif not term.isunity:
-                self._terms.append(term)
+        resolved = self._resolve_operations(component)
+        for component in resolved:
+            if not component.issimple:
+                self._parse(component)
+            elif not component.isunity:
+                self._terms.append(component.asterm)
 
-    def _resolve_operations(self, term: Component) -> List[Component]:
-        """Split the current term into operators and operands."""
-        parts = self._parse_nested(term.base)
+    def _resolve_operations(self, component: Component) -> List[Component]:
+        """Split the current component into operators and operands."""
+        parts = self._parse_nested(component.base)
         operands = []
         operators = []
         for part in parts:
             if part in {self._multiply, self._divide}:
                 operators.append(part)
             else:
-                operands.append(Component(part, term.exponent))
+                args = (component.coefficient, part, component.exponent)
+                operands.append(Component(*args))
         resolved = [operands[0]]
         if exception := self._check_operators(operators):
-            raise exception(term)
+            raise exception(component)
         for operator, operand in zip(operators, operands[1:]):
             if operator == self._divide:
                 resolved.append(operand ** -1)
@@ -750,8 +850,8 @@ class Expression(collections.abc.Collection):
         return parts
 
     def _find_term(self, string: str):
-        """Find a simple algebraic term in `string`, if possible."""
-        match = re.match(Component.full_re, string)
+        """Find an algebraic term in `string`, if possible."""
+        match = re.match(Term.full_re, string)
         if match:
             return match[0], match.end()
 
@@ -776,7 +876,7 @@ class Expression(collections.abc.Collection):
                 elif c == self._closing:
                     level -= 1
                 j += 1
-            exp = re.match(Component.expo_re, string[j:])
+            exp = re.match(fr'\^{Term.e_re}', string[j:])
             if exp:
                 j += exp.end()
             return string[:j], j

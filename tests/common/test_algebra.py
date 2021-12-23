@@ -61,17 +61,18 @@ def test_term_idempotence():
     assert algebra.Term(term)**2 == algebra.Term('a^6')
 
 
-def test_term_issimple():
-    """Test the property that indicates whether or not a term is 'simple'."""
+def test_component_issimple():
+    """Test the check for a 'simple' expression component."""
     cases = {
         '': False,
         'a': True,
         'a^2': True,
         'a^2/3': True,
+        '3a^2': True,
         'a * b^2': False,
     }
     for string, expected in cases.items():
-        term = algebra.Term(string)
+        term = algebra.Component(string)
         assert term.issimple == expected
 
 
