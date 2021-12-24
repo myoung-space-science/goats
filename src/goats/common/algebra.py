@@ -875,13 +875,13 @@ class Expression(collections.abc.Collection):
         return parts
 
     def _find_term(self, string: str):
-        """Find an algebraic term in `string`, if possible."""
+        """Check for an algebraic term at the start of `string`."""
         match = re.match(Term.full_re, string)
         if match:
             return match[0], match.end()
 
     def _find_operator(self, string: str):
-        """Find a known operator in `string`, if possible."""
+        """Check for a known operator at the start of `string`."""
         match = re.match(self._opr, string)
         if match:
             ischar = any(i in match[0] for i in {self._multiply, self._divide})
@@ -890,7 +890,7 @@ class Expression(collections.abc.Collection):
             return self._multiply, match.end()
 
     def _find_group(self, string: str):
-        """Find a nested group in `string`, if possible."""
+        """Check for a nested group at the start of `string`."""
         if string.startswith(self._opening):
             level = 1
             j = 1
