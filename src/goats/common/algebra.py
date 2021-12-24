@@ -818,16 +818,16 @@ class Expression(collections.abc.Collection):
             if part in {self._multiply, self._divide}:
                 operators.append(part)
             else:
-                args = (component.coefficient, part, component.exponent)
+                args = (part, component.exponent)
                 operands.append(Component(*args))
-        resolved = [operands[0]]
+        resolved = [component.coefficient * operands[0]]
         if exception := self._check_operators(operators):
             raise exception(component)
         for operator, operand in zip(operators, operands[1:]):
             if operator == self._divide:
-                resolved.append(operand ** -1)
-            else:
-                resolved.append(operand)
+                operand **= -1
+            operand *= component.coefficient
+            resolved.append(operand)
         return resolved
 
     def _check_operators(self, operators: List[str]) -> Optional[ParsingError]:

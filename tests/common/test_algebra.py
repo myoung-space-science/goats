@@ -121,6 +121,10 @@ def test_expression_parser():
             'a0^2', 'a1', 'a2', 'a3^-1', 'a4^-2', 'a5^-1', 'a6',
         ],
         '((a^2 * b^3) / c) * (d^-3)': [ 'a^2', 'b^3', 'c^-1', 'd^-3'],
+        '3a * b': ['3a', 'b'],
+        '3(a * b)': ['3a', '3b'],
+        '3a / b': ['3a', 'b^-1'],
+        '3(a / b)': ['3a', '3b^-1'],
     }
     for test, strings in cases.items():
         expression = algebra.Expression(test)
