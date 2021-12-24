@@ -1,7 +1,6 @@
 import abc
 import collections.abc
 import fractions
-import functools
 import numbers
 import operator
 import re
@@ -125,7 +124,9 @@ class Term(iterables.ReprStrMixin):
 
     def __pow__(self, power):
         """Create a new instance, raised to `power`."""
-        arg = f"{self.coefficient}{self.variable}^{self.exponent * power}"
+        new_c = self.coefficient ** power
+        new_e = self.exponent * power
+        arg = self.format(coefficient=new_c, exponent=new_e)
         return type(self)(arg)
 
     def __ipow__(self, power):
@@ -135,7 +136,8 @@ class Term(iterables.ReprStrMixin):
 
     def __mul__(self, other):
         """Create a new instance, multiplied by `other`."""
-        arg = f"{self.coefficient * other}{self.variable}^{self.exponent}"
+        new = self.coefficient * other
+        arg = self.format(coefficient=new)
         return type(self)(arg)
 
     __rmul__ = __mul__
@@ -160,9 +162,31 @@ class Term(iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        c = '' if self.coefficient == 1 else str(self.coefficient)
-        e = '' if self.exponent == 1 else f"^{self.exponent}"
-        return f"{c}{self.variable}{e}"
+        return self.format()
+
+    def format(self, style: str=None, **updates):
+        """Format this term."""
+        c = updates.get('coefficient', self.coefficient)
+        e = updates.get('exponent', self.exponent)
+        coefficient = self._format_coefficient(c)
+        exponent = self._format_exponent(e, style)
+        return f"{coefficient}{self.variable}{exponent}"
+
+    def _format_coefficient(self, coefficient: Union[int, float]):
+        """Format the current coefficient for string use."""
+        if coefficient == 1:
+            return ''
+        return str(coefficient)
+
+    def _format_exponent(self, exponent: fractions.Fraction, style: str):
+        """Format the current exponent for string use."""
+        if exponent == 1:
+            return ''
+        if not style:
+            return f"^{exponent}"
+        if 'tex' in style.lower():
+            return f"^{{{exponent}}}"
+        raise ValueError(f"Can't format {exponent}")
 
 
 class ComponentTypeError(TypeError):
@@ -586,7 +610,7 @@ class Expression(collections.abc.Collection):
         self._terms = []
         self._parse(Component(string))
 
-    def __iter__(self) -> Iterator[Component]:
+    def __iter__(self) -> Iterator[Term]:
         return iter(self.terms)
 
     def __len__(self) -> int:
@@ -605,17 +629,8 @@ class Expression(collections.abc.Collection):
 
     def format(self, separator: str=' ', style: str=None):
         """Join algebraic terms into a string."""
-        if style == 'tex':
-            return self._format("{base}^{{{exponent}}}", separator)
-        return self._format("{base}^{exponent}", separator)
-
-    def _format(self, template: str, separator: str):
-        """Helper method for expression formatting."""
-        return separator.join(
-            template.format(base=term.variable, exponent=term.exponent)
-            if term.exponent != 1 else f"{term.variable}"
-            for term in self.terms
-        )
+        formatted = (term.format(style=style) for term in self)
+        return separator.join(formatted)
 
     def __eq__(self, other: 'Expression') -> bool:
         """True if two expressions have the same algebraic terms.

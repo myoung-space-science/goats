@@ -40,12 +40,31 @@ def test_term():
             algebra.Term(string)
 
 
+def test_term_format():
+    """Test the ability to properly format an algebraic term."""
+    cases = [
+        ('1', '1'),
+        ('a', 'a'),
+        ('2a', '2a'),
+        ('a^2', 'a^2'),
+        ('3a^2', '3a^2'),
+        ('1a', 'a'),
+        ('a^1', 'a'),
+        ('1a^1', 'a'),
+        ('2a^1', '2a'),
+        ('1a^2', 'a^2'),
+    ]
+    for (arg, expected) in cases:
+        assert str(algebra.Term(arg)) == expected
+
+
 def test_term_operators():
     """Test allowed arithmetic operations on an algebraic term."""
     x = algebra.Term('x')
     assert x**2 == algebra.Term('x^2')
     assert 3 * x == algebra.Term('3x')
     assert x * 3 == algebra.Term('3x')
+    assert (3 * x) ** 2 == algebra.Term('9x^2')
     y = algebra.Term('y')
     y *= 2.5
     assert y == algebra.Term('2.5y')
@@ -242,6 +261,7 @@ def test_expression_algebra():
         'b^-3 * d / a^2',
         'a / b^2',
         'b^2 / a',
+        '3a',
     ]
     expressions = [algebra.Expression(string) for string in strings]
 
@@ -295,6 +315,10 @@ def test_expression_algebra():
 
     # Test exponentiation to a negative power
     assert expressions[3] ** -1 == algebra.Expression('b^3 * d^-1 * a^2')
+
+    # Test multiplication with a coefficient
+    assert expressions[0] * expressions[6] == algebra.Expression('3a^2')
+    assert expressions[6] ** 2 == algebra.Expression('9a^2')
 
 
 def test_algebra_with_conversion():
