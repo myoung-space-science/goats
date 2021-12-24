@@ -224,10 +224,11 @@ class Component:
     * `'(a / b^2)^3 * c^2'`
 
     There are many more ways to construct a complex component than a simple
-    component. In fact, any valid algebraic expression is a complex algebraic
-    component; this is by design, to support the `Expression` class. The
-    `Component.issimple` property provides a way to determine if a given
-    algebraic component is simple.
+    component. In fact, any valid algebraic expression, as well as any number,
+    is a complex algebraic component; this is by design, to support the
+    `Expression` class. The `Component.issimple` property provides a way to
+    determine if a given algebraic component is simple, and `Component.asterm`
+    converts a simple algebraic component into a `Term`.
     """
 
     CType = TypeVar('CType', bound=Union[float, int])
@@ -310,13 +311,13 @@ class Component:
 
         This method will create the most complex algebraic component possible
         from the initial string. It will parse a simple algebraic component into
-        a coefficient, variable, and exponent but it will not attempt to parse a
-        complex algebraic component into simple components. In other words, it
-        will do as little work as possible to extract a coefficient and
-        exponent, and either a variable or an expression. If all attempts to
-        determine appropriate attributes fail, it will simply return the string
-        representation of the initial argument with coefficient and exponent
-        both equal to 1
+        a coefficient, variable, and exponent but it will not attempt to fully
+        parse a complex algebraic component into simple components (i.e.
+        algebraic terms). In other words, it will do as little work as possible
+        to extract a coefficient and exponent, and the expression on which they
+        operate. If all attempts to determine appropriate attributes fail, it
+        will simply return the string representation of the initial argument
+        with coefficient and exponent both equal to 1.
 
         The following examples use the complex algebraic components from the
         class docstring to illustrate the minimal parsing described above::
