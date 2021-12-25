@@ -4,6 +4,7 @@ import fractions
 from goats.common import algebra
 
 
+@pytest.mark.term
 def test_term():
     """Test the object representing an algebraic term."""
     valid = {
@@ -40,6 +41,7 @@ def test_term():
             algebra.Term(string)
 
 
+@pytest.mark.term
 def test_term_format():
     """Test the ability to properly format an algebraic term."""
     cases = [
@@ -58,6 +60,7 @@ def test_term_format():
         assert str(algebra.Term(arg)) == expected
 
 
+@pytest.mark.term
 def test_term_operators():
     """Test allowed arithmetic operations on an algebraic term."""
     x = algebra.Term('x')
@@ -73,6 +76,7 @@ def test_term_operators():
     assert z == algebra.Term('z^-3')
 
 
+@pytest.mark.term
 def test_term_idempotence():
     """Make sure we can initialize a term object with an existing instance."""
     term = algebra.Term('a^3')
@@ -80,6 +84,7 @@ def test_term_idempotence():
     assert algebra.Term(term)**2 == algebra.Term('a^6')
 
 
+@pytest.mark.component
 def test_component_issimple():
     """Test the check for a 'simple' expression component."""
     cases = {
@@ -95,6 +100,7 @@ def test_component_issimple():
         assert term.issimple == expected
 
 
+@pytest.mark.component
 def test_component_init():
     """Test the object representing a component of an expression."""
     cases = {
@@ -121,6 +127,7 @@ def test_component_init():
                 assert component.exponent == fractions.Fraction(ref[2])
 
 
+@pytest.mark.expression
 def test_expression_parser():
     """Test the algebraic-expression parser."""
     cases = {
@@ -249,6 +256,7 @@ def test_expression_parser():
         assert expression.scale == expected['scale']
 
 
+@pytest.mark.expression
 def test_space_multiplies():
     """Test the option to allow whitespace to represent multiplication."""
     cases = {
@@ -262,6 +270,7 @@ def test_space_multiplies():
         assert expression.terms == expected
 
 
+@pytest.mark.expression
 def test_init_collection():
     """Test the ability to initialize an expression from a collection."""
     cases = {
@@ -278,6 +287,7 @@ def test_init_collection():
         assert algebra.Expression(string) == algebra.Expression(components)
 
 
+@pytest.mark.expression
 def test_parser_operators():
     """Test the algebraic parser with non-standard operators."""
     expression = algebra.Expression('a @ b^2 $ c', multiply='@', divide='$')
@@ -285,6 +295,7 @@ def test_parser_operators():
     assert expression.terms == expected
 
 
+@pytest.mark.expression
 def test_parser_separators():
     """Test the algebraic parser with non-standard separators."""
     expression = algebra.Expression('a / [b * c]^2', opening='[', closing=']')
@@ -293,6 +304,7 @@ def test_parser_separators():
 
 
 @pytest.mark.skip(reason="Requires significant refactoring")
+@pytest.mark.expression
 def test_nonstandard_chars():
     """Test the ability to include non-standard characters in terms."""
     string = '<r> * cm^2 / (<flux> / nuc)'
@@ -306,6 +318,7 @@ def test_nonstandard_chars():
     assert expression.terms == expected
 
 
+@pytest.mark.expression
 def test_guess_separators():
     """Test the function that guesses separators in an expression."""
     cases = {
@@ -318,6 +331,7 @@ def test_guess_separators():
         assert algebra.guess_separators(test) == expected
 
 
+@pytest.mark.expression
 def test_parsing_errors():
     """Make sure the parser raises appropriate exceptions."""
     with pytest.raises(algebra.RatioError):
@@ -326,6 +340,7 @@ def test_parsing_errors():
         algebra.Expression('a/b*c')
 
 
+@pytest.mark.expression
 def test_formatted_expression():
     """Test the ability to format terms in an algebraic expression."""
     string = 'a0^2 * (a1*a2) / (a3 * a4^2 * (a5/a6))'
@@ -336,6 +351,7 @@ def test_formatted_expression():
     assert expresssion.format(style='tex') == expected
 
 
+@pytest.mark.expression
 def test_expression_equality():
     """Test the definition of equality between two expressions."""
     cases = {
@@ -357,6 +373,7 @@ def test_expression_equality():
         assert (expressions[0] == expressions[1]) == result
 
 
+@pytest.mark.expression
 def test_expression_collection():
     """Confirm that expressions behave like collections."""
     expression = algebra.Expression('a / (b * c * (d / e))')
@@ -373,6 +390,7 @@ def test_expression_collection():
         assert term in expression
 
 
+@pytest.mark.expression
 def test_expression_algebra():
     """Test algebraic operations between expressions."""
     strings = [
@@ -442,6 +460,7 @@ def test_expression_algebra():
     assert expressions[6] ** 2 == algebra.Expression('9a^2')
 
 
+@pytest.mark.expression
 def test_algebra_with_conversion():
     """Test algebraic operations that require conversion to an expression."""
     expr = algebra.Expression('a^2 * b / c^3')
@@ -450,6 +469,7 @@ def test_algebra_with_conversion():
     assert expr / 'a * d / (b^2 * c)' == expected
 
 
+@pytest.mark.expression
 def test_expression_copy():
     """Test the method that creates a copy of an expression."""
     expr = algebra.Expression('a * b^2 / c^3')
@@ -457,6 +477,7 @@ def test_expression_copy():
     assert expr.copy() is not expr
 
 
+@pytest.mark.expression
 def test_reduced_expression():
     """Test the property that returns an algebraically reduced expression."""
     expression = algebra.Expression('a^2 * b / (a * b^3 * c)')
