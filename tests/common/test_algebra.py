@@ -108,6 +108,7 @@ def test_component_init():
         (2, 'a', -1): [['2a^-1']],
         (1, '2a * b', 3): [['(2a * b)^3']],
         (3, 'a * b', -2): [['3(a * b)^-2']],
+        (1, 'a / (b * c)', 1): [['a / (b * c)']],
     }
     for ref, group in cases.items():
         from_ref = algebra.Component(*ref)
