@@ -118,7 +118,10 @@ class Term(iterables.ReprStrMixin):
             return coefficient, variable, exponent
         raise TermValueError(base)
 
-    def _parse(self, s: str):
+    _RT = TypeVar('_RT', bound=tuple)
+    _RT = Tuple[Union[int, float], str, fractions.Fraction]
+
+    def _parse(self, s: str) -> _RT:
         """Extract components from the input string."""
         if re.fullmatch(self.full_re, s):
             found = re.findall(self.find_re, s)
