@@ -124,38 +124,129 @@ def test_component_init():
 def test_expression_parser():
     """Test the algebraic-expression parser."""
     cases = {
-        'a / b': ['a', 'b^-1'],
-        '1 / b': ['b^-1'],
-        'a / (b * c)': ['a', 'b^-1', 'c^-1'],
-        'a / (bc)': ['a', 'bc^-1'],
-        'a / bc': ['a', 'bc^-1'],
-        'a * b / c': ['a', 'b', 'c^-1'],
-        '(a / b) / c': ['a', 'b^-1', 'c^-1'],
-        '(a / b) / (c / d)': ['a', 'b^-1', 'c^-1', 'd'],
-        '(a * b / c) / (d * e / f)': ['a', 'b', 'c^-1', 'd^-1', 'e^-1', 'f'],
-        'a^2 / b^3': ['a^2', 'b^-3'],
-        '(a^2 / b)^5 / (c^4 / d)^3': [ 'a^10', 'b^-5', 'c^-12', 'd^3'],
-        '((a^2 / b) / (c^4 / d))^3': [ 'a^6', 'b^-3', 'c^-12', 'd^3'],
-        'a^-2': ['a^-2', ],
-        'a^-3 / b^-6': ['a^-3', 'b^6'],
-        '(a * (b * c))': ['a', 'b', 'c'],
-        '(a * (b * c))^2': ['a^2', 'b^2', 'c^2'],
-        '(a * (b * c)^2)': ['a', 'b^2', 'c^2'],
-        '(a / (b * c)^2)': ['a', 'b^-2', 'c^-2'],
-        'a / (b * c * (d / e))': [ 'a', 'b^-1', 'c^-1', 'd^-1', 'e'],
-        'a0^2 * (a1*a2) / (a3 * a4^2 * (a5/a6))': [
-            'a0^2', 'a1', 'a2', 'a3^-1', 'a4^-2', 'a5^-1', 'a6',
-        ],
-        '((a^2 * b^3) / c) * (d^-3)': [ 'a^2', 'b^3', 'c^-1', 'd^-3'],
-        '3a * b': ['3a', 'b'],
-        '3(a * b)': ['3a', '3b'],
-        '3a / b': ['3a', 'b^-1'],
-        '3(a / b)': ['3a', '3b^-1'],
+        'a / b': {
+            'parts': ['a', 'b^-1'],
+            'scale': 1.0,
+        },
+        '1 / b': {
+            'parts': ['b^-1'],
+            'scale': 1.0,
+        },
+        'a / (b * c)': {
+            'parts': ['a', 'b^-1', 'c^-1'],
+            'scale': 1.0,
+        },
+        'a / (bc)': {
+            'parts': ['a', 'bc^-1'],
+            'scale': 1.0,
+        },
+        'a / bc': {
+            'parts': ['a', 'bc^-1'],
+            'scale': 1.0,
+        },
+        'a * b / c': {
+            'parts': ['a', 'b', 'c^-1'],
+            'scale': 1.0,
+        },
+        '(a / b) / c': {
+            'parts': ['a', 'b^-1', 'c^-1'],
+            'scale': 1.0,
+        },
+        '(a / b) / (c / d)': {
+            'parts': ['a', 'b^-1', 'c^-1', 'd'],
+            'scale': 1.0,
+        },
+        '(a * b / c) / (d * e / f)': {
+            'parts': ['a', 'b', 'c^-1', 'd^-1', 'e^-1', 'f'],
+            'scale': 1.0,
+        },
+        'a^2 / b^3': {
+            'parts': ['a^2', 'b^-3'],
+            'scale': 1.0,
+        },
+        '(a^2 / b)^5 / (c^4 / d)^3': {
+            'parts': [ 'a^10', 'b^-5', 'c^-12', 'd^3'],
+            'scale': 1.0,
+        },
+        '((a^2 / b) / (c^4 / d))^3': {
+            'parts': [ 'a^6', 'b^-3', 'c^-12', 'd^3'],
+            'scale': 1.0,
+        },
+        'a^-2': {
+            'parts': ['a^-2', ],
+            'scale': 1.0,
+        },
+        'a^-3 / b^-6': {
+            'parts': ['a^-3', 'b^6'],
+            'scale': 1.0,
+        },
+        '(a * (b * c))': {
+            'parts': ['a', 'b', 'c'],
+            'scale': 1.0,
+        },
+        '(a * (b * c))^2': {
+            'parts': ['a^2', 'b^2', 'c^2'],
+            'scale': 1.0,
+        },
+        '(a * (b * c)^2)': {
+            'parts': ['a', 'b^2', 'c^2'],
+            'scale': 1.0,
+        },
+        '(a / (b * c)^2)': {
+            'parts': ['a', 'b^-2', 'c^-2'],
+            'scale': 1.0,
+        },
+        'a / (b * c * (d / e))': {
+            'parts': [ 'a', 'b^-1', 'c^-1', 'd^-1', 'e'],
+            'scale': 1.0,
+        },
+        'a0^2 * (a1*a2) / (a3 * a4^2 * (a5/a6))': {
+            'parts': ['a0^2', 'a1', 'a2', 'a3^-1', 'a4^-2', 'a5^-1', 'a6'],
+            'scale': 1.0,
+        },
+        '((a^2 * b^3) / c) * (d^-3)': {
+            'parts': ['a^2', 'b^3', 'c^-1', 'd^-3'],
+            'scale': 1.0,
+        },
+        '3a * b': {
+            'parts': ['a', 'b'],
+            'scale': 3.0,
+        },
+        '3(a * b)': {
+            'parts': ['a', 'b'],
+            'scale': 3.0,
+        },
+        '3a / b': {
+            'parts': ['a', 'b^-1'],
+            'scale': 3.0,
+        },
+        '3(a / b)': {
+            'parts': ['a', 'b^-1'],
+            'scale': 3.0,
+        },
+        'a / (2.5 * 4.0)': {
+            'parts': ['a'],
+            'scale': 0.1,
+        },
+        'a / (2.5b * 4.0)': {
+            'parts': ['a', 'b^-1'],
+            'scale': 0.1,
+        },
+        'a / ((2.5 * 4.0) * b)': {
+            'parts': ['a', 'b^-1'],
+            'scale': 0.1,
+        },
+        'a / (2.5 * 4.0 * b)': {
+            'parts': ['a', 'b^-1'],
+            'scale': 0.1,
+        },
     }
-    for test, strings in cases.items():
+    for test, expected in cases.items():
+        print(test)
+        parts = expected['parts']
         expression = algebra.Expression(test)
-        expected = [algebra.Term(string) for string in strings]
-        assert expression.terms == expected
+        assert expression.terms == [algebra.Term(part) for part in parts]
+        assert expression.scale == expected['scale']
 
 
 def test_space_multiplies():

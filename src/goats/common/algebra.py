@@ -901,13 +901,14 @@ class Expression(collections.abc.Collection):
             elif not component.issimple:
                 self._parse(component)
             else:
-                self._terms.append(component.asterm)
+                term = component.asterm
+                self._scale *= float(term.coefficient)
+                normalized = Component(term.variable, term.exponent)
+                self._terms.append(normalized.asterm)
 
     def _resolve_operations(self, component: Component) -> List[Component]:
         """Split the current component into operators and operands."""
-        # coefficient = component.coefficient
         self._scale *= component.coefficient
-        # exponent = component.exponent
         parts = self._parse_nested(component.base)
         operands = []
         operators = []
@@ -923,13 +924,7 @@ class Expression(collections.abc.Collection):
         for operator, operand in zip(operators, operands[1:]):
             if operator == self._divide:
                 operand **= -1
-            # if isinstance(operand, Component) and operand.isconstant:
-            #     coefficient *= float(operand)
-            # else:
-            #     resolved.append(operand)
             resolved.append(operand)
-        # self._scale *= coefficient
-        # breakpoint()
         return resolved
 
     def _check_operators(self, operators: List[str]) -> Optional[ParsingError]:
