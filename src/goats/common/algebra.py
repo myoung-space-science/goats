@@ -95,33 +95,40 @@ class Term(iterables.ReprStrMixin):
     #   example, this would make it easier to include `\^` when asking whether a
     #   component has an exponent while excluding it from the exponent RE.
 
-    def __init__(self, arg) -> None:
-        __string = str(arg)
+    def __init__(self, *args) -> None:
         try:
-            parsed = self._parse(__string)
-        except ValueError:
-            raise TermValueError(arg) from None
+            c, v, e = self._normalize(args)
+        except TypeError:
+            raise TermValueError(args)
         else:
-            c, v, e = parsed
-        try:
-            self.coefficient = int(c)
+            self.coefficient = c
             """The coefficient of this term."""
-        except ValueError:
-            self.coefficient = float(c)
-            """The coefficient of this term."""
-        self.variable = str(v)
-        """The variable of this term."""
-        self.exponent = fractions.Fraction(e)
-        """The exponent of this term."""
+            self.variable = v
+            """The variable of this term."""
+            self.exponent = e
+            """The exponent of this term."""
+
+    def _normalize(self, args):
+        """Ensure a three-tuple of (coefficient, variable, exponent)."""
+        c, base, e = Component.normalize(args)
+        if parsed := self._parse(base):
+            coefficient = c * (parsed[0] ** e)
+            variable = parsed[1]
+            exponent = parsed[2] * e
+            return coefficient, variable, exponent
+        raise TermValueError(base)
 
     def _parse(self, s: str):
         """Extract components from the input string."""
         if re.fullmatch(self.full_re, s):
             found = re.findall(self.find_re, s)
             if len(found) == 1 and isinstance(found[0], tuple):
-                c, b, e = found[0]
-                return (c or 1), b, (e or 1)
-        raise ValueError
+                c, variable, e = found[0]
+                # NOTE: No need to apply exponent to coefficient because initial
+                # arguments of the form (cv)^e are not allowed.
+                coefficient = numerical.cast(c or 1)
+                exponent = fractions.Fraction(e or 1)
+                return coefficient, variable, exponent
 
     def __pow__(self, power):
         """Create a new instance, raised to `power`."""
@@ -264,12 +271,13 @@ class Component:
 
     def _init(self, args) -> ArgsType:
         """Extract appropriate attributes or raise an exception."""
-        norm = self._normalize(args)
+        norm = self.normalize(args)
         if parsed := self._parse(norm):
             return parsed
         raise ComponentValueError(f"Can't initialize from {args}")
 
-    def _normalize(self, args: tuple) -> ArgsType:
+    @classmethod
+    def normalize(cls, args) -> ArgsType:
         """Extract attributes from the given argument(s)."""
         try:
             nargs = len(args)
@@ -309,6 +317,9 @@ class Component:
                 f"({', '.join(badtypes)})"
             )
         if nargs == 3:
+            # NOTE: No need to apply exponent here because the coefficient is
+            # outside of the exponential portion by definition in the 3-argument
+            # form.
             c = numerical.cast(args[0])
             b = str(args[1])
             e = fractions.Fraction(args[2])
@@ -321,7 +332,7 @@ class Component:
         # - making sure the length-3 form is (coefficient-like, base-like,
         #   exponent-like).
         raise ComponentValueError(
-            f"{self.__class__.__qualname__}"
+            f"{cls.__qualname__}"
             f" accepts 1, 2, or 3 arguments"
             f" (got {nargs})"
         )

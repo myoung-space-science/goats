@@ -42,6 +42,23 @@ def test_term():
 
 
 @pytest.mark.term
+def test_term_init():
+    """Initialize a term with various arguments."""
+    cases = {
+        (1, 'a', 1): [['a'], [1, 'a'], ['a', 1], [1, 'a', 1]],
+        (2, 'a', 1): [['2a'], [1, '2a'], ['2a', 1], [1, '2a', 1]],
+        (2, 'a', 3): [['2a^3'], [2, 'a', 3]],
+        (2, 'a', -1): [['2a^-1'], [2, 'a', -1]],
+    }
+    for reference, groups in cases.items():
+        for args in groups:
+            term = algebra.Term(*args)
+            assert term.coefficient == reference[0]
+            assert term.variable == reference[1]
+            assert term.exponent == reference[2]
+
+
+@pytest.mark.term
 def test_term_format():
     """Test the ability to properly format an algebraic term."""
     cases = [
