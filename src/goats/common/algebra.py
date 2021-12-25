@@ -327,36 +327,60 @@ class Component:
         )
 
     def _parse(self, args: ArgsType) -> ArgsType:
-        """Parse this string and compute values."""
-        # TODO: Adapt docstring from old `_parse` method.
+        """Parse appropriate attributes from arguments.
+        
+        This method will create the most complex algebraic component possible
+        from the initial string. It will parse a simple algebraic component into
+        a coefficient, variable, and exponent but it will not attempt to fully
+        parse a complex algebraic component into simple components (i.e.
+        algebraic terms). In other words, it will do as little work as possible
+        to extract a coefficient and exponent, and the expression on which they
+        operate. If all attempts to determine appropriate attributes fail, it
+        will simply return the string representation of the initial argument
+        with coefficient and exponent both equal to 1.
+
+        The following examples use the complex algebraic components from the
+        class docstring to illustrate the minimal parsing described above::
+        * `'a * b^2'` <=> `'(a * b^2)'` <=> `'(a * b^2)^1'` -> `1, 'a * b^2', 1`
+        * `'2a * b^2'` -> `1, '2a * b^2', 1`
+        * `'2(a * b^2)'` -> `2, 'a * b^2', 1`
+        * `'(a * b^2)^3'` -> `1, 'a * b^2', 3`
+        * `'2(a * b^2)^3'` -> `2, 'a * b^2', 3`
+        * `'(a * b^2)^3/2'` -> `'a * b^2', '3/2'`
+        * `'((a / b^2)^3 * c)^2'` -> `'(a / b^2)^3 * c', 2`
+        * `'(a / b^2)^3 * c^2'` -> `'(a / b^2)^3 * c^2', 1`
+
+        Note that this class stores the coefficient as a `float` or `int`, and
+        the exponent as a `fractions.Fraction`.
+        """
         parsers = (
             self._parse_simple,
             self._parse_complex,
         )
         for parse in parsers:
-            if result := parse(args):
-                return result
-
-    def _parse_simple(self, args: ArgsType) -> ArgsType:
-        """"""
-        parsers = (
-            self._parse_term,
-            self._parse_constant,
-        )
-        for parse in parsers:
             if result := parse(*args):
                 return result
+        return args
 
-    def _parse_term(
+    def _parse_simple(
         self,
         _coefficient: CType,
         _base: BType,
         _exponent: EType,
     ) -> ArgsType:
-        """"""
-        # If we can convert `_base` to a `Term`, we can use its attributes to
-        # compute the coefficient and exponent, then return its variable as the
-        # base.
+        """Parse a simple algebraic component, if possible.
+
+        A simple algebraic component may be a term or a constant. This method
+        checks for them in that order.
+
+        * If we can convert `_base` to an instance of `~algebra.Term`, we can
+           use its attributes to compute the coefficient and exponent, then
+           return its variable as the base.
+        * If `_base` matches the RE for a pure number, we'll shift it to the
+           coefficient, define the base to be '1', and pass the exponent along.
+        * If neither of those succeed, this method will return its arguments
+          unaltered.
+        """
         try:
             term = Term(_base)
             self._issimple = True
@@ -366,74 +390,46 @@ class Component:
             coefficient = _coefficient * (term.coefficient ** _exponent)
             exponent = term.exponent * _exponent
             return coefficient, term.variable, exponent
-
-    def _parse_constant(
-        self,
-        _coefficient: CType,
-        _base: BType,
-        _exponent: EType,
-    ) -> ArgsType:
-        """"""
-        # If `_base` matches the RE for a pure number, we'll shift it to the
-        # coefficient, define the base to be '1', and pass the exponent along.
         if match := re.fullmatch(Term.n_re, _base):
             c = numerical.cast(match[0])
             coefficient = _coefficient * (c ** _exponent)
             return coefficient, '1', _exponent
 
-    def _parse_complex(self, args: ArgsType) -> ArgsType:
-        """"""
-        parsers = (
-            self._parse_unbounded,
-            self._parse_bounded,
-        )
-        for parse in parsers:
-            if result := parse(*args):
-                return result
-
-    def _parse_unbounded(
+    def _parse_complex(
         self,
         _coefficient: CType,
         _base: BType,
         _exponent: EType,
     ) -> ArgsType:
-        """"""
-        # If `_base` matches this RE, it does not include a bounded component,
-        # so we can directly return it as the base along with trivial
-        # coefficient and exponent.
-        sep = guess_separators(_base)
-        unbounded = fr"^[^{sep[0]}{sep[1]}]*$"
-        if re.fullmatch(unbounded, _base):
-            return _coefficient, _base, _exponent
+        """Parse a complex algebraic component, if possible.
 
-    def _parse_bounded(
-        self,
-        _coefficient: CType,
-        _base: BType,
-        _exponent: EType,
-    ) -> ArgsType:
-        """"""
-        # If `_base` matches this RE, it begins with an opening separator,
-        # possibly preceeded by a coefficient, and ends with a closing
-        # separator, possibly followed by an exponent. It may have the form of a
-        # `Term` with a potentially complex component in the variable position,
-        # but it need not. For example, the following strings will both match,
-        # but only the first contains a coefficient and exponent that apply to
-        # all terms:
-        # - '3(a * b / (c * d))^2'
-        # - '3(a * b) / (c * d)^2'
-        #
-        # Therefore, we need to perform some additional searching to determine
-        # if the final closing separator matches the initial opening separator.
-        # The algorithm essentially consists of computing a running difference
-        # between the number of opening separators and the number of closing
-        # separators. If we close the initial opening separator before the end
-        # of the variable-like substring, the substring is not bounded, so we
-        # can't extract a coefficient and exponent. If we close the initial
-        # opening separator right at the end of the substring, the substring is
-        # bounded by separators, so we can extract and update the coefficient
-        # and exponent if they exist.
+        A complex algebraic component is any algebraic component that is neither
+        a term not a constant. This method will attempt to match `_base` to a
+        term-like regular expression in which a non-empty string is bounded by
+        known separator charaters, is possibly preceeded by a coefficient, and
+        is possibly followed by an exponent.
 
+        If `_base` matches this RE, it may have the form of a `Term` with a
+        potentially complex component in the variable position, but it need not.
+        For example, the following strings will both match, but only the first
+        contains a coefficient and exponent that apply to all terms:
+        - '3(a * b / (c * d))^2'
+        - '3(a * b) / (c * d)^2'
+
+        Therefore, we need to perform some additional searching to determine if
+        the final closing separator matches the initial opening separator. The
+        algorithm essentially consists of computing a running difference between
+        the number of opening separators and the number of closing separators.
+        If we close the initial opening separator before the end of the
+        variable-like substring, the substring is not bounded, so we can't
+        extract a coefficient and exponent. If we close the initial opening
+        separator right at the end of the substring, the substring is bounded by
+        separators, so we can extract and update the coefficient and exponent if
+        they exist.
+
+        If `_base` doesn't match the RE or if the variable-like term isn't
+        boudned afterall, this method will return `None`.
+        """
         sep = guess_separators(_base)
         bounded = fr"\{sep[0]}.+?\{sep[1]}"
         full = fr'^({Term.c_re})?({bounded})\^?({Term.e_re})?$'
@@ -449,7 +445,7 @@ class Component:
         e = fractions.Fraction(parts[2] or 1)
         coefficient = _coefficient * (c ** _exponent)
         exponent = e * _exponent
-        if this := self._parse_simple((1, inside, 1)):
+        if this := self._parse_simple(1, inside, 1):
             exponent *= this[2]
             coefficient *= this[0] ** exponent
             base = this[1]
@@ -701,7 +697,10 @@ class Expression(collections.abc.Collection):
         }
         string = self._normalize(expression, op_sep_str)
         self._terms = []
+        self._scale = 1.0
         self._parse(Component(string))
+        # self._terms = [self._scale * term for term in self._terms]
+        self.scale = self._scale
 
     def __iter__(self) -> Iterator[Term]:
         return iter(self.terms)
@@ -897,30 +896,40 @@ class Expression(collections.abc.Collection):
         """Internal parsing logic."""
         resolved = self._resolve_operations(component)
         for component in resolved:
-            if not component.issimple:
+            if component.isconstant:
+                self._scale *= float(component)
+            elif not component.issimple:
                 self._parse(component)
-            elif not component.isunity:
+            else:
                 self._terms.append(component.asterm)
 
     def _resolve_operations(self, component: Component) -> List[Component]:
         """Split the current component into operators and operands."""
+        # coefficient = component.coefficient
+        self._scale *= component.coefficient
+        # exponent = component.exponent
         parts = self._parse_nested(component.base)
         operands = []
         operators = []
         for part in parts:
-            if part in {self._multiply, self._divide}:
+            if part in (self._multiply, self._divide):
                 operators.append(part)
             else:
                 args = (part, component.exponent)
                 operands.append(Component(*args))
-        resolved = [component.coefficient * operands[0]]
         if exception := self._check_operators(operators):
             raise exception(component)
+        resolved = [operands[0]]
         for operator, operand in zip(operators, operands[1:]):
             if operator == self._divide:
                 operand **= -1
-            operand *= component.coefficient
+            # if isinstance(operand, Component) and operand.isconstant:
+            #     coefficient *= float(operand)
+            # else:
+            #     resolved.append(operand)
             resolved.append(operand)
+        # self._scale *= coefficient
+        # breakpoint()
         return resolved
 
     def _check_operators(self, operators: List[str]) -> Optional[ParsingError]:
@@ -955,6 +964,7 @@ class Expression(collections.abc.Collection):
         i = 0
         methods = [ # Order matters!
             self._find_term,
+            self._find_number,
             self._find_operator,
             self._find_group,
         ]
@@ -965,6 +975,12 @@ class Expression(collections.abc.Collection):
                     parts.append(result[0])
                     i += result[1]
         return parts
+
+    def _find_number(self, string: str):
+        """Check for a pure number at the start of `string`."""
+        match = re.match(Term.n_re, string)
+        if match:
+            return match[0], match.end()
 
     def _find_term(self, string: str):
         """Check for an algebraic term at the start of `string`."""
