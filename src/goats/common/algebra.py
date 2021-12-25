@@ -713,7 +713,6 @@ class Expression(collections.abc.Collection):
         self._terms = []
         self._scale = 1.0
         self._parse(Component(string))
-        # self._terms = [self._scale * term for term in self._terms]
         self.scale = self._scale
 
     def __iter__(self) -> Iterator[Term]:
