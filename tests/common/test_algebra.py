@@ -95,6 +95,31 @@ def test_component_issimple():
         assert term.issimple == expected
 
 
+def test_component_init():
+    """Test the object representing a component of an expression."""
+    cases = {
+        (4, '1', 1): [['4'], [1, '4', 1]],
+        (1, 'a', 1): [['a']],
+        (2, 'a', 1): [['2a'], [1, '2a', 1]],
+        (2, 'a', 3): [['2a^3']],
+        (2**3, 'a', 3): [['(2a)^3'], [1, '2a', 3]],
+        (2**(3/4), 'a', '3/4'): [['(2a)^3/4'], [1, '2a', '3/4']],
+        (4 * 2**3, 'a', 3): [['4(2a)^3'], [4, '2a', 3]],
+        (2, 'a', -1): [['2a^-1']],
+        (1, '2a * b', 3): [['(2a * b)^3']],
+        (3, 'a * b', -2): [['3(a * b)^-2']],
+    }
+    for ref, group in cases.items():
+        from_ref = algebra.Component(*ref)
+        for args in group:
+            from_args = algebra.Component(*args)
+            assert from_ref == from_args
+            for component in [from_ref, from_args]:
+                assert component.coefficient == ref[0]
+                assert component.base == ref[1]
+                assert component.exponent == fractions.Fraction(ref[2])
+
+
 def test_expression_parser():
     """Test the algebraic-expression parser."""
     cases = {
