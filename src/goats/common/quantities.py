@@ -839,8 +839,8 @@ class Dimension(algebra.Expression):
         """Create an appropriate algebraic term from input."""
         if base := getattr(obj, 'dimension', None):
             exponent = getattr(obj, 'exponent', 1)
-            return algebra.Term(base, exponent)
-        if isinstance(obj, algebra.Term):
+            return algebra.Part(base, exponent)
+        if isinstance(obj, algebra.Part):
             return obj
         return str(obj)
 
@@ -1038,6 +1038,11 @@ class NamedUnit(iterables.ReprStrMixin):
         return f"'{self.name} | {self.symbol}'"
 
 
+# TODO: This class feels awkward. It essentialy exists because `Unit` is a
+# subclass of `algebra.Expression` and I want its terms to carry information
+# from `NamedUnit`, which is not a subclass of `algebra.Term`. The reason that
+# `NamedUnit` is not a subclass of `algebra.Term` is that I want each instance
+# to represent pure unit, without coefficient or exponent.
 class UnitTerm(algebra.Term):
     """An algebraic term containing a single named unit."""
 
@@ -1046,8 +1051,8 @@ class UnitTerm(algebra.Term):
         arg: Union[str, algebra.Term],
         exponent: Union[str, int]=None,
     ) -> None:
-        super().__init__(arg, exponent)
-        self._unit = NamedUnit(self.base)
+        super().__init__(str(arg), exponent or 1)
+        self._unit = NamedUnit(self.variable)
         self.dimension = self._unit.dimension
         self.quantity = self._unit.quantity
 
@@ -1067,12 +1072,16 @@ class Unit(algebra.Expression):
 
     def __init__(
         self,
-        expression: Union[str, iterables.Separable],
+        expression: Union['Unit', str, iterables.Separable],
         **kwargs,
     ) -> None:
+        kwargs.update(space_multiplies=True)
+        if isinstance(expression, Unit):
+            expression = str(expression)
         super().__init__(expression, **kwargs)
         self._dimension = None
         self._unit_terms = None
+        
 
     @property
     def terms(self) -> List[UnitTerm]:
@@ -1153,9 +1162,9 @@ def parse_quantity(string: str, key: str):
     expr = algebra.Expression(string)
     parts = []
     for term in expr:
-        prop = get_property(term.base.replace('_', ' '), key)
+        prop = get_property(term.variable.replace('_', ' '), key)
         tmp = {
-            k: algebra.Term(v, term.exponent)
+            k: algebra.Part(v, term.exponent)
             for k, v in prop.items()
         }
         parts.append(tmp)
@@ -1164,7 +1173,13 @@ def parse_quantity(string: str, key: str):
     for part in parts:
         for key, value in part.items():
             merged[key].append(value)
-    return {k: str(algebra.Expression(v).reduced) for k, v in merged.items()}
+    return {
+        # NOTE: Future updates may remove the need to pass
+        # `space_multiplies=True` to `algebra.Expression` when the use of
+        # whitespace to imply multiplication is obvious.
+        k: str(algebra.Expression(v, space_multiplies=True).reduced)
+        for k, v in merged.items()
+    }
 
 
 class Metric(iterables.ReprStrMixin):
@@ -1372,7 +1387,7 @@ class MetricSystem(iterables.MappingBase, iterables.ReprStrMixin):
             return self['identity'].unit
         try:
             quantities = [
-                NamedUnit(term.base).quantity
+                NamedUnit(term.variable).quantity
                 for term in Unit(string)
             ]
         except UnitParsingError:
@@ -1879,7 +1894,10 @@ class Measured(Ordered):
 
     def __pow__(self, other: Any):
         if isinstance(other, numbers.Number):
-            return self._new(amount=self.amount ** other, unit=self.unit ** other)
+            return self._new(
+                amount=self.amount ** other,
+                unit=self.unit ** other
+            )
         return NotImplemented
 
     def __rpow__(self, other: Any):
@@ -2163,7 +2181,7 @@ class Variable(Vector, arrays.Array, allowed=allowed):
             if isinstance(arg, slice) else arg
             for i, arg in enumerate(expanded)
         ]
-        indices = np.ix_(*[index for index in idx])
+        indices = np.ix_(*list(idx))
         return self._new(values=self.array[indices])
 
     def _expand_ellipsis(self, user: Sequence) -> Tuple[slice, ...]:
@@ -2232,7 +2250,7 @@ class Variable(Vector, arrays.Array, allowed=allowed):
     @property
     def shape_dict(self) -> Dict[str, int]:
         """Label and size for each axis."""
-        return {a: n for a, n in zip(self.axes, self.data.shape)}
+        return dict(zip(self.axes, self.data.shape))
 
     def _extend_arrays(
         self,
