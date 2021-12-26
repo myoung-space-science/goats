@@ -80,7 +80,7 @@ class Term(iterables.ReprStrMixin):
     d_re = r'[0-9]' # only equal to r'\d' in certain modes
     n_re = fr'[-+]?{d_re}*\.?{d_re}+'
     c_re = n_re # don't allow exponential notation (e.g., 1e2)
-    b_re = r'[a-zA-Z#]+[0-9]*' # digits must follow a known non-digit
+    b_re = r'[a-zA-Z#_]+[0-9]*' # digits must follow a known non-digit
     e_re = fr'[-+]?{d_re}+(?:[/.]{d_re}+)?'
     # NOTE: Put the unity RE outside for `full_re` because we want it to check
     # that special case first in `fullmatch`, but put it inside the variable RE

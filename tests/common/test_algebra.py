@@ -10,6 +10,7 @@ def test_term():
     valid = {
         '1': {'coefficient': 1, 'variable': '1', 'exponent': 1},
         'a': {'coefficient': 1, 'variable': 'a', 'exponent': 1},
+        'a_b': {'coefficient': 1, 'variable': 'a_b', 'exponent': 1},
         'a^2': {'coefficient': 1, 'variable': 'a', 'exponent': 2},
         'a^3/2': {'coefficient': 1, 'variable': 'a', 'exponent': '3/2'},
         '4a': {'coefficient': 4, 'variable': 'a', 'exponent': 1},
