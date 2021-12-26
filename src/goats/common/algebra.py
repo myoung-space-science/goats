@@ -787,7 +787,20 @@ class Expression(collections.abc.Collection):
             other = self._convert(other)
         if not other:
             return NotImplemented
-        return self.__mul__([term ** -1 for term in other])
+        # HACK: This avoids a bug that occurs when passing '1^-1' to
+        # Term.__init__, but it is awkward. A better solution may involve
+        # redefining Part and Term, and defining a new Constant.
+        terms = []
+        for term in other:
+            inverted = Part(term) ** -1
+            if inverted.isconstant:
+                self._scale *= float(inverted)
+            else:
+                term = inverted.asterm
+                self._scale *= float(term.coefficient)
+                normalized = Part(term.variable, term.exponent)
+                terms.append(normalized.asterm)
+        return self.__mul__(terms)
 
     def __rtruediv__(self, other: Any):
         """Called for other / self."""
@@ -803,7 +816,19 @@ class Expression(collections.abc.Collection):
         exp = self._convert(exp, float)
         if not exp:
             return NotImplemented
-        terms = [pow(term, exp) for term in self]
+        # HACK: This avoids a bug that occurs when passing '1^-1' to
+        # Term.__init__, but it is awkward. A better solution may involve
+        # redefining Part and Term, and defining a new Constant.
+        terms = []
+        for term in self:
+            updated = Part(term) ** exp
+            if updated.isconstant:
+                self._scale *= float(updated)
+            else:
+                term = updated.asterm
+                self._scale *= float(term.coefficient)
+                normalized = Part(term.variable, term.exponent)
+                terms.append(normalized.asterm)
         return self._new(self.reduce(terms))
 
     def __ipow__(self, exp: numbers.Real):
@@ -861,6 +886,7 @@ class Expression(collections.abc.Collection):
                 }
                 reduced[term.variable] = attributes
         return [
+            # TODO: exponent == 0 parts should go into the constant.
             Part(v['coefficient'], k, v['exponent']).asterm
             for k, v in reduced.items() if v['exponent'] != 0
         ]
@@ -908,15 +934,23 @@ class Expression(collections.abc.Collection):
         """Internal parsing logic."""
         resolved = self._resolve_operations(part)
         for part in resolved:
-            if part.isconstant:
-                self._scale *= float(part)
-            elif not part.issimple:
+            if not part.issimple:
                 self._parse(part)
             else:
-                term = part.asterm
-                self._scale *= float(term.coefficient)
-                normalized = Part(term.variable, term.exponent)
-                self._terms.append(normalized.asterm)
+                self._assign_part(part)
+
+    # TODO: It may be better to only distinguish simple parts from complex parts
+    # at this stage, and assign constant simple parts (i.e., parts with variable
+    # '1') to the global scale factor in `reduce`.
+    def _assign_part(self, part: Part):
+        """Store simple parts or further parse complex parts."""
+        if part.isconstant:
+            self._scale *= float(part)
+        else:
+            term = part.asterm
+            self._scale *= float(term.coefficient)
+            normalized = Part(term.variable, term.exponent)
+            self._terms.append(normalized.asterm)
 
     def _resolve_operations(self, part: Part) -> List[Part]:
         """Split the current part into operators and operands."""
