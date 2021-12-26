@@ -102,9 +102,9 @@ def test_term_idempotence():
     assert algebra.Term(term)**2 == algebra.Term('a^6')
 
 
-@pytest.mark.component
-def test_component_issimple():
-    """Test the check for a 'simple' expression component."""
+@pytest.mark.part
+def test_part_issimple():
+    """Test the check for a 'simple' expression part."""
     cases = {
         '': False,
         'a': True,
@@ -114,13 +114,13 @@ def test_component_issimple():
         'a * b^2': False,
     }
     for string, expected in cases.items():
-        term = algebra.Component(string)
+        term = algebra.Part(string)
         assert term.issimple == expected
 
 
-@pytest.mark.component
-def test_component_init():
-    """Test the object representing a component of an expression."""
+@pytest.mark.part
+def test_part_init():
+    """Test the object representing a part of an expression."""
     cases = {
         (4, '1', 1): [['4'], [1, '4', 1]],
         (1, 'a', 1): [['a']],
@@ -135,14 +135,14 @@ def test_component_init():
         (1, 'a / (b * c)', 1): [['a / (b * c)']],
     }
     for ref, group in cases.items():
-        from_ref = algebra.Component(*ref)
+        from_ref = algebra.Part(*ref)
         for args in group:
-            from_args = algebra.Component(*args)
+            from_args = algebra.Part(*args)
             assert from_ref == from_args
-            for component in [from_ref, from_args]:
-                assert component.coefficient == ref[0]
-                assert component.base == ref[1]
-                assert component.exponent == fractions.Fraction(ref[2])
+            for part in [from_ref, from_args]:
+                assert part.coefficient == ref[0]
+                assert part.base == ref[1]
+                assert part.exponent == fractions.Fraction(ref[2])
 
 
 @pytest.mark.expression
@@ -150,127 +150,126 @@ def test_expression_parser():
     """Test the algebraic-expression parser."""
     cases = {
         'a / b': {
-            'parts': ['a', 'b^-1'],
+            'terms': ['a', 'b^-1'],
             'scale': 1.0,
         },
         '1 / b': {
-            'parts': ['b^-1'],
+            'terms': ['b^-1'],
             'scale': 1.0,
         },
         'a / (b * c)': {
-            'parts': ['a', 'b^-1', 'c^-1'],
+            'terms': ['a', 'b^-1', 'c^-1'],
             'scale': 1.0,
         },
         'a / (bc)': {
-            'parts': ['a', 'bc^-1'],
+            'terms': ['a', 'bc^-1'],
             'scale': 1.0,
         },
         'a / bc': {
-            'parts': ['a', 'bc^-1'],
+            'terms': ['a', 'bc^-1'],
             'scale': 1.0,
         },
         'a * b / c': {
-            'parts': ['a', 'b', 'c^-1'],
+            'terms': ['a', 'b', 'c^-1'],
             'scale': 1.0,
         },
         '(a / b) / c': {
-            'parts': ['a', 'b^-1', 'c^-1'],
+            'terms': ['a', 'b^-1', 'c^-1'],
             'scale': 1.0,
         },
         '(a / b) / (c / d)': {
-            'parts': ['a', 'b^-1', 'c^-1', 'd'],
+            'terms': ['a', 'b^-1', 'c^-1', 'd'],
             'scale': 1.0,
         },
         '(a * b / c) / (d * e / f)': {
-            'parts': ['a', 'b', 'c^-1', 'd^-1', 'e^-1', 'f'],
+            'terms': ['a', 'b', 'c^-1', 'd^-1', 'e^-1', 'f'],
             'scale': 1.0,
         },
         'a^2 / b^3': {
-            'parts': ['a^2', 'b^-3'],
+            'terms': ['a^2', 'b^-3'],
             'scale': 1.0,
         },
         '(a^2 / b)^5 / (c^4 / d)^3': {
-            'parts': [ 'a^10', 'b^-5', 'c^-12', 'd^3'],
+            'terms': [ 'a^10', 'b^-5', 'c^-12', 'd^3'],
             'scale': 1.0,
         },
         '((a^2 / b) / (c^4 / d))^3': {
-            'parts': [ 'a^6', 'b^-3', 'c^-12', 'd^3'],
+            'terms': [ 'a^6', 'b^-3', 'c^-12', 'd^3'],
             'scale': 1.0,
         },
         'a^-2': {
-            'parts': ['a^-2', ],
+            'terms': ['a^-2', ],
             'scale': 1.0,
         },
         'a^-3 / b^-6': {
-            'parts': ['a^-3', 'b^6'],
+            'terms': ['a^-3', 'b^6'],
             'scale': 1.0,
         },
         '(a * (b * c))': {
-            'parts': ['a', 'b', 'c'],
+            'terms': ['a', 'b', 'c'],
             'scale': 1.0,
         },
         '(a * (b * c))^2': {
-            'parts': ['a^2', 'b^2', 'c^2'],
+            'terms': ['a^2', 'b^2', 'c^2'],
             'scale': 1.0,
         },
         '(a * (b * c)^2)': {
-            'parts': ['a', 'b^2', 'c^2'],
+            'terms': ['a', 'b^2', 'c^2'],
             'scale': 1.0,
         },
         '(a / (b * c)^2)': {
-            'parts': ['a', 'b^-2', 'c^-2'],
+            'terms': ['a', 'b^-2', 'c^-2'],
             'scale': 1.0,
         },
         'a / (b * c * (d / e))': {
-            'parts': [ 'a', 'b^-1', 'c^-1', 'd^-1', 'e'],
+            'terms': [ 'a', 'b^-1', 'c^-1', 'd^-1', 'e'],
             'scale': 1.0,
         },
         'a0^2 * (a1*a2) / (a3 * a4^2 * (a5/a6))': {
-            'parts': ['a0^2', 'a1', 'a2', 'a3^-1', 'a4^-2', 'a5^-1', 'a6'],
+            'terms': ['a0^2', 'a1', 'a2', 'a3^-1', 'a4^-2', 'a5^-1', 'a6'],
             'scale': 1.0,
         },
         '((a^2 * b^3) / c) * (d^-3)': {
-            'parts': ['a^2', 'b^3', 'c^-1', 'd^-3'],
+            'terms': ['a^2', 'b^3', 'c^-1', 'd^-3'],
             'scale': 1.0,
         },
         '3a * b': {
-            'parts': ['a', 'b'],
+            'terms': ['a', 'b'],
             'scale': 3.0,
         },
         '3(a * b)': {
-            'parts': ['a', 'b'],
+            'terms': ['a', 'b'],
             'scale': 3.0,
         },
         '3a / b': {
-            'parts': ['a', 'b^-1'],
+            'terms': ['a', 'b^-1'],
             'scale': 3.0,
         },
         '3(a / b)': {
-            'parts': ['a', 'b^-1'],
+            'terms': ['a', 'b^-1'],
             'scale': 3.0,
         },
         'a / (2.5 * 4.0)': {
-            'parts': ['a'],
+            'terms': ['a'],
             'scale': 0.1,
         },
         'a / (2.5b * 4.0)': {
-            'parts': ['a', 'b^-1'],
+            'terms': ['a', 'b^-1'],
             'scale': 0.1,
         },
         'a / ((2.5 * 4.0) * b)': {
-            'parts': ['a', 'b^-1'],
+            'terms': ['a', 'b^-1'],
             'scale': 0.1,
         },
         'a / (2.5 * 4.0 * b)': {
-            'parts': ['a', 'b^-1'],
+            'terms': ['a', 'b^-1'],
             'scale': 0.1,
         },
     }
     for test, expected in cases.items():
-        print(test)
-        parts = expected['parts']
+        terms = expected['terms']
         expression = algebra.Expression(test)
-        assert expression.terms == [algebra.Term(part) for part in parts]
+        assert expression.terms == [algebra.Term(term) for term in terms]
         assert expression.scale == expected['scale']
 
 
@@ -299,10 +298,10 @@ def test_init_collection():
         ],
         'a0 * (a1 / a2) * (a3 / a4)': ['a0', 'a1 / a2', 'a3 / a4'],
     }
-    for string, parts in cases.items():
+    for string, terms in cases.items():
+        assert algebra.Expression(string) == algebra.Expression(terms)
+        parts = [algebra.Part(term) for term in terms]
         assert algebra.Expression(string) == algebra.Expression(parts)
-        components = [algebra.Component(part) for part in parts]
-        assert algebra.Expression(string) == algebra.Expression(components)
 
 
 @pytest.mark.expression
