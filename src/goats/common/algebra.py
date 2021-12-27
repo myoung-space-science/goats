@@ -930,27 +930,22 @@ class Expression(collections.abc.Collection):
         """The algebraic terms in this expression."""
         return self._terms or [Term('1')]
 
-    def _parse(self, part: Part):
-        """Internal parsing logic."""
-        resolved = self._resolve_operations(part)
-        for part in resolved:
-            if not part.issimple:
-                self._parse(part)
-            else:
-                self._assign_part(part)
-
     # TODO: It may be better to only distinguish simple parts from complex parts
     # at this stage, and assign constant simple parts (i.e., parts with variable
     # '1') to the global scale factor in `reduce`.
-    def _assign_part(self, part: Part):
-        """Store simple parts or further parse complex parts."""
+    def _parse(self, part: Part):
+        """Internal parsing logic."""
         if part.isconstant:
             self._scale *= float(part)
-        else:
+        elif part.issimple:
             term = part.asterm
             self._scale *= float(term.coefficient)
             normalized = Part(term.variable, term.exponent)
             self._terms.append(normalized.asterm)
+        else:
+            resolved = self._resolve_operations(part)
+            for p in resolved:
+                self._parse(p)
 
     def _resolve_operations(self, part: Part) -> List[Part]:
         """Split the current part into operators and operands."""
