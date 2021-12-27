@@ -575,6 +575,322 @@ def entire(string: str, opening: str, closing: str):
     return counted and count == 0
 
 
+class RE(NamedTuple):
+    """Namespace for regular expressions used in this module."""
+
+    digit = r'[0-9]' # only equal to r'\d' in certain modes
+    coefficient = fr'[-+]?{digit}*\.?{digit}+' # '1e2' not included
+    base = r'[a-zA-Z#_]+[0-9]*' # digits must follow a known non-digit
+    exponent = fr'[-+]?{digit}+(?:[/.]{digit}+)?'
+    # NOTE: Put the unity RE outside for `full_re` because we want it to check
+    # that special case first in `fullmatch`, but put it inside the variable RE
+    # of `find_re` so the variable portion will always appear at index 1 in the
+    # resultant tuple.
+    unity = r'(?<![\d.])1(?![\d.])'
+    # full_re = fr'{unity}|(?:{coefficient})?{base}(?:\^{exponent})?'
+    # find_re = fr'({coefficient})?({unity}|{base})\^?({exponent})?'
+    variable = re.compile(fr'(?:{coefficient})?{base}(?:\^{exponent})?')
+    """The regular expression matching a variable term."""
+    constant = re.compile(fr'{coefficient}(?:\^{exponent})?')
+    """The regular expression matching a constant term."""
+    _bases = fr'({coefficient})?((?(1)(?:{base}|\B)?|{base}))'
+    _search = re.compile(fr'{_bases}\^?({exponent})?')
+
+    @classmethod
+    def parse(cls, s: str):
+        """Find a variable or constant term if it exists."""
+        return cls._search.findall(s)
+
+
+class Part:
+    """Part of an algebraic expression."""
+
+    @classmethod
+    def isvariable(cls, s: str):
+        """True if the given string matches the variable pattern."""
+        return bool(RE.variable.fullmatch(s))
+
+    @classmethod
+    def isconstant(cls, s: str):
+        """True if the given string matches the constant pattern."""
+        return bool(RE.constant.fullmatch(s))
+
+    @classmethod
+    def normalize(cls, *args):
+        """Extract attributes from the given argument(s)."""
+        try:
+            nargs = len(args)
+        except TypeError:
+            raise PartTypeError(args) from None
+        if nargs == 1:
+            return 1, str(args[0]), fractions.Fraction(1)
+        if nargs == 2:
+            # A length-2 `args` may represent either:
+            # - (coefficient <Real>, base <str>)
+            # - (base <str>, exponent <Real or str>)
+            #
+            # If it has the first form, assume there is an implied exponent
+            # equal to 1. If it has the second form, assume there is an implied
+            # coefficient equal to 1. Otherwise, raise an exception.
+            argtypes = zip(args, (numbers.Real, str))
+            implied_exponent = all(isinstance(a, t) for a, t in argtypes)
+            argtypes = zip(args, (str, (numbers.Real, str)))
+            implied_coefficient = all(isinstance(a, t) for a, t in argtypes)
+            if implied_exponent:
+                c = numerical.cast(args[0])
+                b = str(args[1])
+                e = fractions.Fraction(1)
+                return c, b, e
+            if implied_coefficient:
+                c = 1
+                b = str(args[0])
+                e = fractions.Fraction(args[1])
+                return c, b, e
+            badtypes = [type(arg) for arg in args]
+            raise PartTypeError(
+                "Acceptable two-argument forms are"
+                " (coefficient <Real>, base <str>)"
+                " and"
+                " (base <str>, exponent <Real or str>)"
+                " not"
+                f"({', '.join(badtypes)})"
+            )
+        if nargs == 3:
+            # NOTE: No need to apply exponent here because the coefficient is
+            # outside of the exponential portion by definition in the 3-argument
+            # form.
+            c = numerical.cast(args[0])
+            b = str(args[1])
+            e = fractions.Fraction(args[2])
+            return c, b, e
+        raise PartValueError(
+            f"{cls.__qualname__}"
+            f" accepts 1, 2, or 3 arguments"
+            f" (got {nargs})"
+        )
+
+    @classmethod
+    def evaluate(cls, *args):
+        """Compute coefficient, base, and exponent from input.
+        
+        This method will create the most complex algebraic part possible from
+        the initial string. It will parse a simple algebraic part into a
+        coefficient, variable, and exponent but it will not attempt to fully
+        parse a complex algebraic part into simple parts (i.e. algebraic terms).
+        In other words, it will do as little work as possible to extract a
+        coefficient and exponent, and the expression on which they operate. If
+        all attempts to determine appropriate attributes fail, it will simply
+        return the string representation of the initial argument with
+        coefficient and exponent both equal to 1.
+
+        The following examples use the complex algebraic parts from the class
+        docstring to illustrate the minimal parsing described above::
+        * `'a * b^2'` <=> `'(a * b^2)'` <=> `'(a * b^2)^1'` -> `1, 'a * b^2', 1`
+        * `'2a * b^2'` -> `1, '2a * b^2', 1`
+        * `'2(a * b^2)'` -> `2, 'a * b^2', 1`
+        * `'(a * b^2)^3'` -> `1, 'a * b^2', 3`
+        * `'2(a * b^2)^3'` -> `2, 'a * b^2', 3`
+        * `'(a * b^2)^3/2'` -> `'a * b^2', '3/2'`
+        * `'((a / b^2)^3 * c)^2'` -> `'(a / b^2)^3 * c', 2`
+        * `'(a / b^2)^3 * c^2'` -> `'(a / b^2)^3 * c^2', 1`
+
+        Note that this class stores the coefficient as a `float` or `int`, and
+        the exponent as a `fractions.Fraction`.
+        """
+        c0, b0, e0 = cls.normalize(*args)
+        parsers = (
+            cls._simplex,
+            cls._complex,
+        )
+        for parse in parsers:
+            if result := parse(c0, b0, e0):
+                return result
+        return args
+
+    # It seems like subclasses of Part (Simplex and Complex) would be better
+    # here. Simplex.__new__ would create a new Variable or Constant;
+    # Complex.__new__ would create a new Term. However, classes may be overkill
+    # (or at least non-Pythonic). Does it make more sense to convert this logic
+    # into a module-level function that resolves `*args` into an instance of
+    # Term or one of its subclasses? If we go with classes, maybe they should
+    # have their own instances of `RE` with appropriate patterns (e.g., a
+    # variable-like pattern for bounded parts in Complex).
+
+    @classmethod
+    def _simplex(cls, c0, b0, e0):
+        """Parse a simple algebraic part, if possible.
+
+        A simple algebraic part represents a variable or constant term. This
+        method checks for them in that order.
+        """
+        parsed = RE.parse(b0)
+        if len(parsed) == 1:
+            found = parsed[0]
+            c1 = numerical.cast(found[0] or 1)
+            coefficient = c0 * (c1 ** e0)
+            base = str(found[1] or 1)
+            e1 = fractions.Fraction(found[2] or 1)
+            exponent = e1 * e0
+            return coefficient, base, exponent
+
+    @classmethod
+    def _complex(cls, c0, b0, e0):
+        """Parse a complex algebraic part, if possible.
+
+        A complex algebraic part is any algebraic part that is neither a term
+        not a constant. This method will attempt to match `b0` to a term-like
+        regular expression in which a non-empty string is bounded by known
+        separator charaters, is possibly preceeded by a coefficient, and is
+        possibly followed by an exponent.
+
+        If `b0` matches this RE, it may have the form of a `Term` with a
+        potentially complex part in the variable position, but it need not. For
+        example, the following strings will both match, but only the first
+        contains a coefficient and exponent that apply to all terms:
+        - '3(a * b / (c * d))^2'
+        - '3(a * b) / (c * d)^2'
+
+        Therefore, we need to perform some additional searching to determine if
+        the final closing separator matches the initial opening separator. The
+        algorithm essentially consists of computing a running difference between
+        the number of opening separators and the number of closing separators.
+        If we close the initial opening separator before the end of the
+        variable-like substring, the substring is not bounded, so we can't
+        extract a coefficient and exponent. If we close the initial opening
+        separator right at the end of the substring, the substring is bounded by
+        separators, so we can extract and update the coefficient and exponent if
+        they exist.
+
+        If `b0` doesn't match the RE or if the variable-like term isn't bounded
+        afterall, this method will return `None`.
+        """
+        sep = guess_separators(b0)
+        bounded = fr"\{sep[0]}.+?\{sep[1]}"
+        full = fr'^({RE.coefficient})?({bounded})\^?({RE.exponent})?$'
+        found = re.findall(full, b0)
+        if not found or len(found) != 1:
+            return
+        parts = found[0]
+        string = str(parts[1])
+        inside = string[1:-1].strip()
+        if not entire(string, *sep):
+            return
+        c = numerical.cast(parts[0] or 1)
+        e = fractions.Fraction(parts[2] or 1)
+        coefficient = c0 * (c ** e0)
+        exponent = e * e0
+        if this := cls._simplex(1, inside, 1):
+            exponent *= this[2]
+            coefficient *= this[0] ** exponent
+            base = this[1]
+        else:
+            base = inside
+        return coefficient, base, exponent
+
+    @classmethod
+    def _init(cls, base: str):
+        """Return the appropriate type for the given base string."""
+        if cls.isvariable(base):
+            return Variable
+        if cls.isconstant(base):
+            return Constant
+        return Term
+
+    def __new__(cls, *args):
+        """Create a new instance based on input."""
+        coefficient, base, exponent = cls.evaluate(*args)
+        if cls is Part:
+            new = cls._init(base)
+            return new(coefficient, base, exponent)
+        raise TypeError(f"Can't create new term from {args}")
+
+
+class Term(iterables.ReprStrMixin):
+    """A single term in an algebraic expression."""
+
+    def __init__(self, coefficient, base, exponent) -> None:
+        self.coefficient = coefficient
+        self.base = base
+        self.exponent = exponent
+
+    def __pow__(self, power):
+        """Create a new instance, raised to `power`."""
+        coefficient = self.coefficient ** power
+        exponent = self.exponent * power
+        return type(self)(coefficient, self.base, exponent)
+
+    def __ipow__(self, power):
+        """Update this instance's exponent."""
+        self.coefficient **= power
+        self.exponent *= power
+        return self
+
+    def __mul__(self, other):
+        """Create a new instance, multiplied by `other`."""
+        coefficient = self.coefficient * other
+        return type(self)(coefficient, self.base, self.exponent)
+
+    __rmul__ = __mul__
+
+    def __imul__(self, other):
+        """Update this instance's coefficient."""
+        self.coefficient *= other
+        return self
+
+    def __eq__(self, other) -> bool:
+        """True if two instances' attributes are equal."""
+        if not isinstance(other, Term):
+            return NotImplemented
+        attrs = {'coefficient', 'base', 'exponent'}
+        try:
+            true = (getattr(self, a) == getattr(other, a) for a in attrs)
+            truth = all(true)
+        except AttributeError:
+            return False
+        else:
+            return truth
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return self.format()
+
+    def format(self):
+        """Format this term."""
+        return f"{self.coefficient} * ({self.base})^{self.exponent}"
+
+
+class Variable(Term):
+    """An algebraic term with an irreducible variable base."""
+
+    def format(self, style: str=None):
+        """Format this term."""
+        coefficient = '' if self.coefficient == 1 else str(self.coefficient)
+        exponent = self._format_exponent(style)
+        return f"{coefficient}{self.base}{exponent}"
+
+    def _format_exponent(self, style: str):
+        """Format the current exponent for printing."""
+        if self.exponent == 1:
+            return ''
+        if not style:
+            return f"^{self.exponent}"
+        if 'tex' in style.lower():
+            return f"^{{{self.exponent}}}"
+        raise ValueError(f"Can't format {self.exponent}")
+
+
+class Constant(Term):
+    """An algebraic term representing a constant value."""
+
+    def format(self):
+        value = self.coefficient ** self.exponent
+        return f"{value}"
+
+    def __float__(self) -> float:
+        """Called for float(self)."""
+        return self.coefficient * float(self.base) ** self.exponent
+
+
 class ParsingError(Exception):
     """Base class for exceptions encountered during algebraic parsing."""
     def __init__(self, string: str) -> None:
