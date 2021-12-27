@@ -239,7 +239,7 @@ class Variables(iterables.AliasedMapping):
             unit = stored['unit']
             axes = stored['axes']
             variable = quantities.Variable(data, unit, axes)
-            return variable.to(self.system.get_unit(unit))
+            return variable.to(self.system.get_unit(unit=unit))
         raise KeyError(f"No variable corresponding to '{key!r}'") from None
 
     def __str__(self) -> str:
