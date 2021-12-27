@@ -997,19 +997,28 @@ class Expression(collections.abc.Collection):
     def _parse_nested(self, string: str) -> List[str]:
         """Parse an algebraic expression while preserving nested groups."""
         parsed = []
-        i = 0
         methods = [ # Order matters!
             self._find_term,
             self._find_number,
             self._find_operator,
             self._find_group,
         ]
-        while i < len(string):
+        errstart = "Failed to find a match for"
+        errfinal = repr(string)
+        n = len(string)
+        i = 0
+        i0 = None
+        while i < n:
+            i0 = i
             for method in methods:
                 result = method(string[i:])
                 if result:
                     parsed.append(result[0])
                     i += result[1]
+            if i == i0:
+                if i != 0:
+                    errfinal = f"{string[i:]!r} in {errfinal}"
+                raise RecursionError(f"{errstart} {errfinal}") from None
         return parsed
 
     def _find_number(self, string: str):
