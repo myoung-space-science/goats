@@ -575,34 +575,6 @@ def entire(string: str, opening: str, closing: str):
     return counted and count == 0
 
 
-class TermABC(abc.ABC):
-    """Abstract base class for algebraic terms."""
-
-    def __init__(
-        self,
-        arg: Any,
-        exponent: Union[str, int]=None,
-        base_re: Pattern=None,
-        expo_re: Pattern=None,
-        separators: Iterable[str]=None,
-    ) -> None:
-        self._string = str(arg)
-        self._base_re = base_re or r'[-+\w#]+'
-        self._expo_re = expo_re or r'\^[-+]?\d+(?:\/\d+)?'
-        self._full_re = fr'{base_re}(?:{expo_re})?'
-        self._sep = self._get_separators(separators)
-
-    def _get_separators(self, given: Iterable[str]) -> Tuple[str, str]:
-        """Get an appropriate 2-tuple of opening and closing separators."""
-        if not given:
-            return guess_separators(self._string)
-        try:
-            nsep = len(given)
-        except TypeError:
-            nsep = -1
-        return tuple(given) if nsep == 2 else ('(',')')
-
-
 class ParsingError(Exception):
     """Base class for exceptions encountered during algebraic parsing."""
     def __init__(self, string: str) -> None:
