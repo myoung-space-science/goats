@@ -827,9 +827,12 @@ class Dimension(algebra.Expression):
 
     def __init__(
         self,
-        expression: Union[str, iterables.Separable],
+        expression: Union['Dimension', str, iterables.Separable],
         **kwargs,
     ) -> None:
+        kwargs.update(space_multiplies=True)
+        if isinstance(expression, Dimension):
+            expression = str(expression)
         if isinstance(expression, iterables.Separable):
             terms = [self._get_term(term) for term in expression]
             return super().__init__(terms, **kwargs)
@@ -1081,7 +1084,6 @@ class Unit(algebra.Expression):
         super().__init__(expression, **kwargs)
         self._dimension = None
         self._unit_terms = None
-        
 
     @property
     def terms(self) -> List[UnitTerm]:
