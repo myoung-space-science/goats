@@ -4,47 +4,52 @@ import fractions
 from goats.common import algebra
 
 
+simple_type = (algebra.Variable, algebra.Constant)
+
+
 @pytest.mark.term
-def test_term():
-    """Test the object representing an algebraic term."""
+def test_simple_term():
+    """Test the object representing a simple algebraic term."""
     valid = {
-        '1': {'coefficient': 1, 'variable': '1', 'exponent': 1},
-        'a': {'coefficient': 1, 'variable': 'a', 'exponent': 1},
-        'a_b': {'coefficient': 1, 'variable': 'a_b', 'exponent': 1},
-        'a^2': {'coefficient': 1, 'variable': 'a', 'exponent': 2},
-        'a^3/2': {'coefficient': 1, 'variable': 'a', 'exponent': '3/2'},
-        '4a': {'coefficient': 4, 'variable': 'a', 'exponent': 1},
-        '-4a^3': {'coefficient': -4, 'variable': 'a', 'exponent': 3},
-        '4a^-3': {'coefficient': 4, 'variable': 'a', 'exponent': -3},
-        '4a^3/2': {'coefficient': 4, 'variable': 'a', 'exponent': '3/2'},
-        '4a^+3/2': {'coefficient': 4, 'variable': 'a', 'exponent': '3/2'},
-        '4a^-3/2': {'coefficient': 4, 'variable': 'a', 'exponent': '-3/2'},
-        '4a^1.5': {'coefficient': 4, 'variable': 'a', 'exponent': 1.5},
-        '4a^+1.5': {'coefficient': 4, 'variable': 'a', 'exponent': 1.5},
-        '4a^-1.5': {'coefficient': 4, 'variable': 'a', 'exponent': -1.5},
-        '4.1a^3/2': {'coefficient': 4.1, 'variable': 'a', 'exponent': '3/2'},
-        '4ab^3/2': {'coefficient': 4, 'variable': 'ab', 'exponent': '3/2'},
-        '4b0^3/2': {'coefficient': 4, 'variable': 'b0', 'exponent': '3/2'},
+        '1': {'coefficient': 1, 'base': '1', 'exponent': 1},
+        '2': {'coefficient': 2, 'base': '1', 'exponent': 1},
+        '2^3': {'coefficient': 2, 'base': '1', 'exponent': 3},
+        '2^-3': {'coefficient': 2, 'base': '1', 'exponent': -3},
+        'a': {'coefficient': 1, 'base': 'a', 'exponent': 1},
+        'a_b': {'coefficient': 1, 'base': 'a_b', 'exponent': 1},
+        'a^2': {'coefficient': 1, 'base': 'a', 'exponent': 2},
+        'a^3/2': {'coefficient': 1, 'base': 'a', 'exponent': '3/2'},
+        '4a': {'coefficient': 4, 'base': 'a', 'exponent': 1},
+        '-4a^3': {'coefficient': -4, 'base': 'a', 'exponent': 3},
+        '4a^-3': {'coefficient': 4, 'base': 'a', 'exponent': -3},
+        '4a^3/2': {'coefficient': 4, 'base': 'a', 'exponent': '3/2'},
+        '4a^+3/2': {'coefficient': 4, 'base': 'a', 'exponent': '3/2'},
+        '4a^-3/2': {'coefficient': 4, 'base': 'a', 'exponent': '-3/2'},
+        '4a^1.5': {'coefficient': 4, 'base': 'a', 'exponent': 1.5},
+        '4a^+1.5': {'coefficient': 4, 'base': 'a', 'exponent': 1.5},
+        '4a^-1.5': {'coefficient': 4, 'base': 'a', 'exponent': -1.5},
+        '4.1a^3/2': {'coefficient': 4.1, 'base': 'a', 'exponent': '3/2'},
+        '4ab^3/2': {'coefficient': 4, 'base': 'ab', 'exponent': '3/2'},
+        '4b0^3/2': {'coefficient': 4, 'base': 'b0', 'exponent': '3/2'},
     }
     for string, expected in valid.items():
-        term = algebra.Term(string)
+        term = algebra.Part(string)
+        assert isinstance(term, simple_type)
         assert term.coefficient == float(expected['coefficient'])
-        assert term.variable == expected['variable']
+        assert term.base == expected['base']
         assert term.exponent == fractions.Fraction(expected['exponent'])
     invalid = [
-        '2', # no variable
         '^3', # exponent only
         'a^', # missing exponent
-
     ]
     for string in invalid:
-        with pytest.raises(algebra.TermValueError):
-            algebra.Term(string)
+        with pytest.raises(algebra.PartValueError):
+            algebra.Part(string)
 
 
 @pytest.mark.term
-def test_term_init():
-    """Initialize a term with various arguments."""
+def test_simple_term_init():
+    """Initialize a simple term with various arguments."""
     cases = {
         (1, 'a', 1): [['a'], [1, 'a'], ['a', 1], [1, 'a', 1]],
         (2, 'a', 1): [['2a'], [1, '2a'], ['2a', 1], [1, '2a', 1]],
@@ -53,17 +58,20 @@ def test_term_init():
     }
     for reference, groups in cases.items():
         for args in groups:
-            term = algebra.Term(*args)
+            term = algebra.Part(*args)
+            assert isinstance(term, simple_type)
             assert term.coefficient == reference[0]
-            assert term.variable == reference[1]
+            assert term.base == reference[1]
             assert term.exponent == reference[2]
 
 
 @pytest.mark.term
-def test_term_format():
-    """Test the ability to properly format an algebraic term."""
+def test_simple_term_format():
+    """Test the ability to properly format a simple algebraic term."""
     cases = [
         ('1', '1'),
+        ('1^2', '1'),
+        ('2^2', '4'),
         ('a', 'a'),
         ('2a', '2a'),
         ('a^2', 'a^2'),
@@ -75,31 +83,34 @@ def test_term_format():
         ('1a^2', 'a^2'),
     ]
     for (arg, expected) in cases:
-        assert str(algebra.Term(arg)) == expected
+        assert str(algebra.Part(arg)) == expected
 
 
 @pytest.mark.term
-def test_term_operators():
-    """Test allowed arithmetic operations on an algebraic term."""
-    x = algebra.Term('x')
-    assert x**2 == algebra.Term('x^2')
-    assert 3 * x == algebra.Term('3x')
-    assert x * 3 == algebra.Term('3x')
-    assert (3 * x) ** 2 == algebra.Term('9x^2')
-    y = algebra.Term('y')
+def test_simple_term_operators():
+    """Test allowed arithmetic operations on a simple algebraic term."""
+    x = algebra.Part('x')
+    assert isinstance(x, algebra.Variable)
+    assert x**2 == algebra.Variable(1, 'x', 2)
+    assert 3 * x == algebra.Variable(3, 'x', 1)
+    assert x * 3 == algebra.Variable(3, 'x', 1)
+    assert (3 * x) ** 2 == algebra.Variable(9, 'x', 2)
+    y = algebra.Part('y')
+    assert isinstance(y, algebra.Variable)
     y *= 2.5
-    assert y == algebra.Term('2.5y')
-    z = algebra.Term('z')
+    assert y == algebra.Variable(2.5, 'y', 1)
+    z = algebra.Part('z')
+    assert isinstance(z, algebra.Variable)
     z **= -3
-    assert z == algebra.Term('z^-3')
+    assert z == algebra.Variable(1, 'z', -3)
 
 
-@pytest.mark.term
-def test_term_idempotence():
-    """Make sure we can initialize a term object with an existing instance."""
-    term = algebra.Term('a^3')
-    assert algebra.Term(term) == term
-    assert algebra.Term(term)**2 == algebra.Term('a^6')
+@pytest.mark.part
+def test_part_idempotence():
+    """Make sure we can initialize a part object with an existing instance."""
+    term = algebra.Part('a^3')
+    assert isinstance(term, algebra.Variable)
+    assert algebra.Part(term) == term
 
 
 @pytest.mark.part
@@ -113,9 +124,10 @@ def test_part_issimple():
         '3a^2': True,
         'a * b^2': False,
     }
+    simple = (algebra.Variable, algebra.Constant)
     for string, expected in cases.items():
         term = algebra.Part(string)
-        assert term.issimple == expected
+        assert isinstance(term, simple) == expected
 
 
 @pytest.mark.part
@@ -150,127 +162,97 @@ def test_expression_parser():
     """Test the algebraic-expression parser."""
     cases = {
         'a / b': {
-            'terms': ['a', 'b^-1'],
-            'scale': 1.0,
+            'terms': ['1', 'a', 'b^-1'],
         },
         '1 / b': {
-            'terms': ['b^-1'],
-            'scale': 1.0,
+            'terms': ['1', 'b^-1'],
         },
         'a / (b * c)': {
-            'terms': ['a', 'b^-1', 'c^-1'],
-            'scale': 1.0,
+            'terms': ['1', 'a', 'b^-1', 'c^-1'],
         },
         'a / (bc)': {
-            'terms': ['a', 'bc^-1'],
-            'scale': 1.0,
+            'terms': ['1', 'a', 'bc^-1'],
         },
         'a / bc': {
-            'terms': ['a', 'bc^-1'],
-            'scale': 1.0,
+            'terms': ['1', 'a', 'bc^-1'],
         },
         'a * b / c': {
-            'terms': ['a', 'b', 'c^-1'],
-            'scale': 1.0,
+            'terms': ['1', 'a', 'b', 'c^-1'],
         },
         '(a / b) / c': {
-            'terms': ['a', 'b^-1', 'c^-1'],
-            'scale': 1.0,
+            'terms': ['1', 'a', 'b^-1', 'c^-1'],
         },
         '(a / b) / (c / d)': {
-            'terms': ['a', 'b^-1', 'c^-1', 'd'],
-            'scale': 1.0,
+            'terms': ['1', 'a', 'b^-1', 'c^-1', 'd'],
         },
         '(a * b / c) / (d * e / f)': {
-            'terms': ['a', 'b', 'c^-1', 'd^-1', 'e^-1', 'f'],
-            'scale': 1.0,
+            'terms': ['1', 'a', 'b', 'c^-1', 'd^-1', 'e^-1', 'f'],
         },
         'a^2 / b^3': {
-            'terms': ['a^2', 'b^-3'],
-            'scale': 1.0,
+            'terms': ['1', 'a^2', 'b^-3'],
         },
         '(a^2 / b)^5 / (c^4 / d)^3': {
-            'terms': [ 'a^10', 'b^-5', 'c^-12', 'd^3'],
-            'scale': 1.0,
+            'terms': ['1', 'a^10', 'b^-5', 'c^-12', 'd^3'],
         },
         '((a^2 / b) / (c^4 / d))^3': {
-            'terms': [ 'a^6', 'b^-3', 'c^-12', 'd^3'],
-            'scale': 1.0,
+            'terms': ['1', 'a^6', 'b^-3', 'c^-12', 'd^3'],
         },
         'a^-2': {
-            'terms': ['a^-2', ],
-            'scale': 1.0,
+            'terms': ['1', 'a^-2'],
         },
         'a^-3 / b^-6': {
-            'terms': ['a^-3', 'b^6'],
-            'scale': 1.0,
+            'terms': ['1', 'a^-3', 'b^6'],
         },
         '(a * (b * c))': {
-            'terms': ['a', 'b', 'c'],
-            'scale': 1.0,
+            'terms': ['1', 'a', 'b', 'c'],
         },
         '(a * (b * c))^2': {
-            'terms': ['a^2', 'b^2', 'c^2'],
-            'scale': 1.0,
+            'terms': ['1', 'a^2', 'b^2', 'c^2'],
         },
         '(a * (b * c)^2)': {
-            'terms': ['a', 'b^2', 'c^2'],
-            'scale': 1.0,
+            'terms': ['1', 'a', 'b^2', 'c^2'],
         },
         '(a / (b * c)^2)': {
-            'terms': ['a', 'b^-2', 'c^-2'],
-            'scale': 1.0,
+            'terms': ['1', 'a', 'b^-2', 'c^-2'],
         },
         'a / (b * c * (d / e))': {
-            'terms': [ 'a', 'b^-1', 'c^-1', 'd^-1', 'e'],
-            'scale': 1.0,
+            'terms': ['1', 'a', 'b^-1', 'c^-1', 'd^-1', 'e'],
         },
         'a0^2 * (a1*a2) / (a3 * a4^2 * (a5/a6))': {
-            'terms': ['a0^2', 'a1', 'a2', 'a3^-1', 'a4^-2', 'a5^-1', 'a6'],
-            'scale': 1.0,
+            'terms': ['1', 'a0^2', 'a1', 'a2', 'a3^-1', 'a4^-2', 'a5^-1', 'a6'],
         },
         '((a^2 * b^3) / c) * (d^-3)': {
-            'terms': ['a^2', 'b^3', 'c^-1', 'd^-3'],
-            'scale': 1.0,
+            'terms': ['1', 'a^2', 'b^3', 'c^-1', 'd^-3'],
         },
         '3a * b': {
-            'terms': ['a', 'b'],
-            'scale': 3.0,
+            'terms': ['3', 'a', 'b'],
         },
         '3(a * b)': {
-            'terms': ['a', 'b'],
-            'scale': 3.0,
+            'terms': ['3', 'a', 'b'],
         },
         '3a / b': {
-            'terms': ['a', 'b^-1'],
-            'scale': 3.0,
+            'terms': ['3', 'a', 'b^-1'],
         },
         '3(a / b)': {
-            'terms': ['a', 'b^-1'],
-            'scale': 3.0,
+            'terms': ['3', 'a', 'b^-1'],
         },
         'a / (2.5 * 4.0)': {
-            'terms': ['a'],
-            'scale': 0.1,
+            'terms': ['0.1', 'a'],
         },
         'a / (2.5b * 4.0)': {
-            'terms': ['a', 'b^-1'],
-            'scale': 0.1,
+            'terms': ['0.1', 'a', 'b^-1'],
         },
         'a / ((2.5 * 4.0) * b)': {
-            'terms': ['a', 'b^-1'],
-            'scale': 0.1,
+            'terms': ['0.1', 'a', 'b^-1'],
         },
         'a / (2.5 * 4.0 * b)': {
-            'terms': ['a', 'b^-1'],
-            'scale': 0.1,
+            'terms': ['0.1', 'a', 'b^-1'],
         },
     }
     for test, expected in cases.items():
         terms = expected['terms']
         expression = algebra.Expression(test)
-        assert expression.terms == [algebra.Term(term) for term in terms]
-        assert expression.scale == expected['scale']
+        assert expression.terms == [algebra.Part(term) for term in terms]
 
 
 @pytest.mark.expression
