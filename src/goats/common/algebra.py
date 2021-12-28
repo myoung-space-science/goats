@@ -415,13 +415,20 @@ class Variable(Term):
 class Constant(Term):
     """An algebraic term representing a constant value."""
 
+    def __init__(self, coefficient, base, exponent) -> None:
+        super().__init__(coefficient, base, exponent)
+        self._value = self.coefficient ** self.exponent
+
     def format(self):
-        value = self.coefficient ** self.exponent
-        return f"{value}"
+        return str(self._value)
 
     def __float__(self) -> float:
         """Called for float(self)."""
-        return self.coefficient * float(self.base) ** self.exponent
+        return self._value
+
+    def __eq__(self, other: SupportsFloat):
+        """True if two objects have the same floating-point value."""
+        return float(self) == float(other)
 
 
 class ParsingError(Exception):
