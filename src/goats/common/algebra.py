@@ -737,11 +737,20 @@ class Expression(collections.abc.Collection):
         replaceable: Dict[str, str],
     ) -> str:
         """Convert user input to a standard format."""
-        string = (
-            expression if isinstance(expression, str)
-            else ' * '.join(f"({part})" for part in expression or ['1'])
-        )
-        for old, new in replaceable.items():
+        string = self._build_string(expression)
+        return self._replace_tokens(string, replaceable)
+
+    def _build_string(self, expression: Union[str, iterables.Separable]) -> str:
+        """Create a standardized string from user input."""
+        if not expression:
+            return '1'
+        if isinstance(expression, str):
+            return expression
+        return ' * '.join(f"({part})" for part in expression or ['1'])
+
+    def _replace_tokens(self, string: str, replacement: Dict[str, str]) -> str:
+        """Replace user tokens with standard versions."""
+        for old, new in replacement.items():
             string = string.replace(old.strip(), new)
         return string
 
