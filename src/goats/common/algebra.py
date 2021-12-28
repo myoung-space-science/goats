@@ -857,13 +857,13 @@ class Expression(collections.abc.Collection):
 
     def _find_number(self, string: str):
         """Check for a pure number at the start of `string`."""
-        match = re.match(Term.n_re, string)
+        match = re.match(RE.constant, string)
         if match:
             return match[0], match.end()
 
     def _find_term(self, string: str):
         """Check for an algebraic term at the start of `string`."""
-        match = re.match(Term.full_re, string)
+        match = re.match(RE.variable, string)
         if match:
             return match[0], match.end()
 
@@ -888,7 +888,7 @@ class Expression(collections.abc.Collection):
                 elif c == self._closing:
                     level -= 1
                 j += 1
-            exp = re.match(fr'\^{Term.e_re}', string[j:])
+            exp = re.match(fr'\^{RE.exponent}', string[j:])
             if exp:
                 j += exp.end()
             return string[:j], j
