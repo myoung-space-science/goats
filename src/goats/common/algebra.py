@@ -424,7 +424,7 @@ class Constant(Term):
 
     def __float__(self) -> float:
         """Called for float(self)."""
-        return self._value
+        return float(self._value)
 
     def __eq__(self, other: SupportsFloat):
         """True if two objects have the same floating-point value."""
