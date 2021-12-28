@@ -227,6 +227,8 @@ class Part:
         the exponent as a `fractions.Fraction`.
         """
         c0, b0, e0 = cls.normalize(*args)
+        if b0.startswith('^') or b0.endswith('^'):
+            raise PartValueError(b0) from None
         parsers = (
             cls._simplex,
             cls._complex,
@@ -234,7 +236,7 @@ class Part:
         for parse in parsers:
             if result := parse(c0, b0, e0):
                 return result
-        return args
+        return c0, b0, e0
 
     # It seems like subclasses of Part (Simplex and Complex) would be better
     # here. Simplex.__new__ would create a new Variable or Constant;
@@ -252,6 +254,8 @@ class Part:
         A simple algebraic part represents a variable or constant term. This
         method checks for them in that order.
         """
+        if not (cls.isconstant(b0) or cls.isvariable(b0)):
+            return
         parsed = RE.parse(b0)
         if len(parsed) == 1:
             found = parsed[0]
