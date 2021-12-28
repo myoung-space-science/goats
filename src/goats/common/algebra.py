@@ -571,7 +571,7 @@ class Expression(collections.abc.Collection):
         lists of algebraic terms (a.k.a simple parts), regardless of order,
         after parsing. Two expressions with different numbers of terms are
         always false. If the expressions have the same number of terms, this
-        method will sort the triples (first by variable, then by exponent, and
+        method will sort the triples (first by base, then by exponent, and
         finally by coefficient) and compare the sorted lists. Two expressions
         are equal if and only if their sorted lists of terms are equal.
 
@@ -582,7 +582,7 @@ class Expression(collections.abc.Collection):
             other = self._convert(other)
         if len(self._terms) != len(other._terms):
             return False
-        key = operator.attrgetter('variable', 'exponent', 'coefficient')
+        key = operator.attrgetter('base', 'exponent', 'coefficient')
         return sorted(self._terms, key=key) == sorted(other._terms, key=key)
 
     def __mul__(self, other: 'Expression'):
@@ -692,18 +692,17 @@ class Expression(collections.abc.Collection):
         """
         reduced = {}
         for term in terms:
-            if term.variable in reduced:
-                reduced[term.variable]['coefficient'] *= term.coefficient
-                reduced[term.variable]['exponent'] += term.exponent
+            if term.base in reduced:
+                reduced[term.base]['coefficient'] *= term.coefficient
+                reduced[term.base]['exponent'] += term.exponent
             else:
                 attributes = {
                     'coefficient': term.coefficient,
                     'exponent': term.exponent,
                 }
-                reduced[term.variable] = attributes
+                reduced[term.base] = attributes
         return [
-            # TODO: exponent == 0 parts should go into the constant.
-            Part(v['coefficient'], k, v['exponent']).asterm
+            Part(v['coefficient'], k, v['exponent'])
             for k, v in reduced.items() if v['exponent'] != 0
         ]
 
@@ -755,37 +754,30 @@ class Expression(collections.abc.Collection):
         """The algebraic terms in this expression."""
         return self._terms or [Term('1')]
 
-    # TODO: It may be better to only distinguish simple parts from complex parts
-    # at this stage, and assign constant simple parts (i.e., parts with variable
-    # '1') to the global scale factor in `reduce`.
-    def _parse(self, part: Part):
+    def _parse(self, term: Term):
         """Internal parsing logic."""
-        if part.isconstant:
-            self._scale *= float(part)
-        elif part.issimple:
-            term = part.asterm
-            self._scale *= float(term.coefficient)
-            normalized = Part(term.variable, term.exponent)
-            self._terms.append(normalized.asterm)
+        self._scale *= term.coefficient
+        normalized = Part(term.base, term.exponent)
+        if isinstance(normalized, (Variable, Constant)):
+            self._terms.append(normalized)
         else:
-            resolved = self._resolve_operations(part)
-            for p in resolved:
-                self._parse(p)
+            resolved = self._resolve_operations(normalized)
+            for t in resolved:
+                self._parse(t)
 
-    def _resolve_operations(self, part: Part) -> List[Part]:
-        """Split the current part into operators and operands."""
-        self._scale *= part.coefficient
-        parsed = self._parse_nested(part.base)
+    def _resolve_operations(self, term: Term) -> List[Term]:
+        """Split the current term into operators and operands."""
+        parsed = self._parse_nested(term.base)
         operands = []
         operators = []
-        for this in parsed:
-            if this in (self._multiply, self._divide):
-                operators.append(this)
+        for part in parsed:
+            if part in (self._multiply, self._divide):
+                operators.append(part)
             else:
-                args = (this, part.exponent)
+                args = (part, term.exponent)
                 operands.append(Part(*args))
         if exception := self._check_operators(operators):
-            raise exception(part)
+            raise exception(term)
         resolved = [operands[0]]
         for operator, operand in zip(operators, operands[1:]):
             if operator == self._divide:
