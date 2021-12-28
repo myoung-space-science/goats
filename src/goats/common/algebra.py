@@ -608,20 +608,7 @@ class Expression(collections.abc.Collection):
             other = self._convert(other)
         if not other:
             return NotImplemented
-        # HACK: This avoids a bug that occurs when passing '1^-1' to
-        # Term.__init__, but it is awkward. A better solution may involve
-        # redefining Part and Term, and defining a new Constant.
-        terms = []
-        for term in other:
-            inverted = Part(term) ** -1
-            if inverted.isconstant:
-                self._scale *= float(inverted)
-            else:
-                term = inverted.asterm
-                self._scale *= float(term.coefficient)
-                normalized = Part(term.variable, term.exponent)
-                terms.append(normalized.asterm)
-        return self.__mul__(terms)
+        return self.__mul__([term ** -1 for term in other])
 
     def __rtruediv__(self, other: Any):
         """Called for other / self."""
@@ -637,19 +624,7 @@ class Expression(collections.abc.Collection):
         exp = self._convert(exp, float)
         if not exp:
             return NotImplemented
-        # HACK: This avoids a bug that occurs when passing '1^-1' to
-        # Term.__init__, but it is awkward. A better solution may involve
-        # redefining Part and Term, and defining a new Constant.
-        terms = []
-        for term in self:
-            updated = Part(term) ** exp
-            if updated.isconstant:
-                self._scale *= float(updated)
-            else:
-                term = updated.asterm
-                self._scale *= float(term.coefficient)
-                normalized = Part(term.variable, term.exponent)
-                terms.append(normalized.asterm)
+        terms = [pow(term, exp) for term in self._terms]
         return self._new(self.reduce(terms))
 
     def __ipow__(self, exp: numbers.Real):
