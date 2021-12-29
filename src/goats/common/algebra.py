@@ -433,8 +433,8 @@ class Constant(Term):
 
 class ParsingError(Exception):
     """Base class for exceptions encountered during algebraic parsing."""
-    def __init__(self, string: str) -> None:
-        self.string = string
+    def __init__(self, arg: Any) -> None:
+        self.arg = arg
 
 
 class RatioError(ParsingError):
@@ -442,7 +442,7 @@ class RatioError(ParsingError):
 
     def __str__(self) -> str:
         return (
-            f"The expression '{self.string}' contains ambiguous '/'."
+            f"The expression '{self.arg}' contains ambiguous '/'."
             f" Please refer to the NIST guidelines"
             f" (https://physics.nist.gov/cuu/Units/checklist.html)"
             f" for more information."
@@ -454,7 +454,7 @@ class ProductError(ParsingError):
 
     def __str__(self) -> str:
         return (
-            f"The expression '{self.string}' contains an ambiguous '*'."
+            f"The expression '{self.arg}' contains an ambiguous '*'."
             f" Please group '*' in parentheses when following '/'."
         )
 
