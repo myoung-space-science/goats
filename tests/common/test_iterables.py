@@ -748,3 +748,10 @@ def test_distribute():
     expected = [('a', 1), ('b', 1)]
     assert list(iterables.distribute(['a', 'b'], 1)) == expected
 
+
+def test_batch_replace():
+    """Test replacing multiple characters in a string."""
+    these = {'a': 'A', 'c': 'C'}
+    string = 'abcd'
+    expected = 'AbCd'
+    assert iterables.batch_replace(string, these) == expected

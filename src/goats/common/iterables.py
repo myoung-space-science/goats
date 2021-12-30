@@ -2105,3 +2105,10 @@ def isproperty(this: object) -> bool:
     """
     return inspect.isdatadescriptor(this) and isinstance(this, property)
 
+
+def batch_replace(string: str, replacement: Mapping[str, str]) -> str:
+    """Replace characters in a string based on a mapping."""
+    for old, new in replacement.items():
+        string = string.replace(old.strip(), new)
+    return string
+
