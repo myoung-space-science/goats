@@ -1401,12 +1401,40 @@ class Parser:
         closing: str=')',
         raising: str='^',
     ) -> None:
+        """
+        Initialize a parser with fixed tokens.
+
+        Parameters
+        ----------
+        multiply : string, default='*'
+            The token that represents multiplication.
+
+        divide : string, default='/'
+            The token that represents division.
+
+        opening : string, default='('
+            The token that represents an opening separator.
+
+        closing : string, default='('
+            The token that represents a closing separator.
+
+        raising : string, default='^'
+            The token that represents raising to a power (exponentiation).
+        """
         self.operators = OperatorFactory(multiply, divide)
         self.operands = OperandFactory(opening, closing, raising)
+        self.tokens = {
+            'multiply': multiply,
+            'divide': divide,
+            'opening': opening,
+            'closing': closing,
+            'raising': raising,
+        }
 
     def parse(self, string: str):
         """Resolve the given string into individual terms."""
-        operand = self.operands.create(string)
+        standard = iterables.batch_replace(string, self.tokens)
+        operand = self.operands.create(standard)
         if not operand:
             return []
         if isinstance(operand, Term):
