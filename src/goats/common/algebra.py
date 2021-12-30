@@ -1542,5 +1542,224 @@ class Parser:
             return ProductError
 
 
-class Expression:
-    """An algebraic expression."""
+class Expression(collections.abc.Collection, iterables.ReprStrMixin):
+    """An object representing an algebraic expression."""
+
+    def __init__(
+        self,
+        expression: Union[str, iterables.Separable],
+        **kwargs
+    ) -> None:
+        """Create a new expression from user input.
+
+        This will initialize a new instance of this class from the given string
+        or collection of parts after replacing operators and separators with
+        their standard versions, if necessary.
+
+        Parameters
+        ----------
+        expression : string or collection
+            A single string or collection of any type to initialize the new
+            instance. If this is a collection, all members must support
+            conversion to a string.
+
+        **kwargs
+            Keywords to pass to `~algebra.Parser`.
+        """
+        self.parser = Parser(**kwargs)
+        string = self._standardize(expression)
+        self._terms = self.parser.parse(string)
+
+    def _standardize(self, expression: Union[str, iterables.Separable]) -> str:
+        """Convert user input to a standard format."""
+        if not expression:
+            return '1'
+        if isinstance(expression, str):
+            return expression
+        return ' * '.join(f"({part})" for part in expression or ['1'])
+
+    @property
+    def terms(self) -> List[Term]:
+        """The algebraic terms in this expression."""
+        return self._terms or [Term('1')]
+
+    def __iter__(self) -> Iterator[Term]:
+        return iter(self.terms)
+
+    def __len__(self) -> int:
+        return len(self.terms)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.terms
+
+    def __str__(self) -> str:
+        """A simplified representation of this instance."""
+        return self.format()
+
+    def format(self, separator: str=' ', style: str=None):
+        """Join algebraic terms into a string."""
+        formatted = (term.format(style=style) for term in self)
+        return separator.join(formatted)
+
+    def __eq__(self, other: 'Expression') -> bool:
+        """True if two expressions have the same algebraic terms.
+
+        This method defines two expressions as equal if they have equivalent
+        lists of algebraic terms (a.k.a simple parts), regardless of order,
+        after parsing. Two expressions with different numbers of terms are
+        always false. If the expressions have the same number of terms, this
+        method will sort the triples (first by base, then by exponent, and
+        finally by coefficient) and compare the sorted lists. Two expressions
+        are equal if and only if their sorted lists of terms are equal.
+
+        If `other` is a string, this method will first attempt to convert it to
+        an expression.
+        """
+        if not isinstance(other, Expression):
+            other = self._convert(other)
+        if len(self._terms) != len(other._terms):
+            return False
+        key = operator.attrgetter('base', 'exponent', 'coefficient')
+        return sorted(self._terms, key=key) == sorted(other._terms, key=key)
+
+    def __mul__(self, other: 'Expression'):
+        """Called for self * other.
+
+        This method implements multiplication between two expressions by
+        reducing the exponents of terms with a common base. If `other` is a
+        string, it will first attempt to convert it to an `Expression`.
+        """
+        if not isinstance(other, Expression):
+            other = self._convert(other)
+        if not other:
+            return NotImplemented
+        terms = self.reduce(self._terms, other)
+        return self._new(terms)
+
+    def __rmul__(self, other: Any):
+        """Called for other * self."""
+        return self._convert(other).__mul__(self)
+
+    def __truediv__(self, other: 'Expression'):
+        """Called for self / other.
+
+        This method implements division between two expressions by raising all
+        terms in `other` to -1, then reducing the exponents of terms with a
+        common base. If `other` is a string, it will first attempt to convert it
+        to an `Expression`.
+        """
+        if not isinstance(other, Expression):
+            other = self._convert(other)
+        if not other:
+            return NotImplemented
+        return self.__mul__([term ** -1 for term in other])
+
+    def __rtruediv__(self, other: Any):
+        """Called for other / self."""
+        return self._convert(other).__truediv__(self)
+
+    def __pow__(self, exp: numbers.Real):
+        """Called for self ** exp.
+
+        This method implements exponentiation of an expression by raising all
+        terms to the given power, then reducing exponents of terms with a common
+        base. It will first attempt to convert `exp` to a float.
+        """
+        exp = self._convert(exp, float)
+        if not exp:
+            return NotImplemented
+        terms = [pow(term, exp) for term in self._terms]
+        return self._new(self.reduce(terms))
+
+    def __ipow__(self, exp: numbers.Real):
+        """Called for self **= exp."""
+        for term in self._terms:
+            term **= exp
+        return self.reduce()
+
+    def _convert(self, other, converter: Callable=None, fatal: bool=False):
+        """Convert `other` to a new type, if possible.
+
+        Parameters
+        ----------
+        other : any
+            The object to convert.
+
+        converter : callable, default=None
+            A callable object that will perform the conversion. By default, this
+            method converts `other` to an instance of this class. 
+
+        fatal : bool, default=False
+            If this keyword is set to true, a conversion error will raise an
+            exception. If it is set to false (default), this method will
+            silently return `None`. The default option allows the calling code
+            to decide what to do with a failed conversion.
+        """
+        convert = converter or self._new
+        try:
+            converted = convert(other)
+        except TypeError:
+            if fatal:
+                raise OperandError(f"Can't convert {other}")
+        else:
+            return converted
+
+    def reduce(self, *groups: Iterable[Term]):
+        """Algebraically reduce terms with equal bases.
+        
+        Parameters
+        ----------
+        *groups : tuple of iterables
+            Zero or more iterables of `~algebra.Term` instances. If there are
+            zero groups, this method will use the current collection of terms in
+            this expression; otherwise, it will combine all terms it finds in
+            the full collection of groups.
+        """
+        if not groups:
+            self._terms = self._reduce(self._terms.copy())
+            return self
+        terms = (term for group in groups for term in group)
+        return self._reduce(terms)
+
+    def _reduce(self, terms: Iterable[Term]):
+        """Internal helper for `reduce`.
+
+        This method handles the actual logic for combining terms with the same
+        base into a single term with a combined exponent.
+        """
+        reduced = {}
+        for term in terms:
+            if term.base in reduced:
+                reduced[term.base]['coefficient'] *= term.coefficient
+                reduced[term.base]['exponent'] += term.exponent
+            else:
+                attributes = {
+                    'coefficient': term.coefficient,
+                    'exponent': term.exponent,
+                }
+                reduced[term.base] = attributes
+        return [
+            Part(v['coefficient'], k, v['exponent'])
+            for k, v in reduced.items() if v['exponent'] != 0
+        ]
+
+    @property
+    def reduced(self) -> 'Expression':
+        """A new instance, with algebraically reduced terms."""
+        inst = self.copy()
+        return inst.reduce()
+
+    def copy(self):
+        """Create a copy of this instance."""
+        return self._new(self._terms)
+
+    @classmethod
+    def _new(cls, arg: Union[str, iterables.Separable]):
+        """Internal helper method for creating a new instance.
+
+        This method is separated out for the sake of modularity, in case of a
+        need to add any other functionality when creating a new instance from
+        the current one (perhaps in a subclass).
+        """
+        return cls(arg)
+
