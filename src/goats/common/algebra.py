@@ -1371,13 +1371,13 @@ class OperandFactory(PartFactory):
             raise OperandValueError(errmsg)
         if not self.entire(base):
             return
-        inside = base[1:-1].strip()
         coefficient = c0 * (c1 ** e0)
         exponent = e1 * e0
-        if this := self._simplex(1, inside, 1):
-            exponent *= this[2]
-            coefficient *= this[0] ** exponent
-            base = this[1]
+        inside = self.strip(base)
+        if interior := self._simplex(1, inside, 1):
+            exponent *= interior.exponent
+            coefficient *= interior.coefficient ** exponent
+            base = interior.base
         else:
             base = inside
         return Operand(coefficient, base, exponent)
@@ -1399,6 +1399,15 @@ class OperandFactory(PartFactory):
             if counted and count == 0 and i < len(string)-1:
                 return False
         return counted and count == 0
+
+    def strip(self, string: str):
+        """Remove bounding separators from `string`."""
+        if not self.entire(string):
+            return string
+        inside = string[1:-1].strip()
+        while self.entire(inside):
+            inside = inside[1:-1].strip()
+        return inside
 
 
 class Parser:
