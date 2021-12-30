@@ -974,12 +974,11 @@ class Operand(Part):
 class Term(Operand):
     """An algebraic operand with an irreducible base."""
 
-    def __init__(self, coefficient, base, exponent) -> None:
-        super().__init__(coefficient, base, exponent)
-        self._value = (
-            self.coefficient ** self.exponent
-            if self.base == '1' else None
-        )
+    @property
+    def _value(self):
+        """Internal value attribute for constant terms."""
+        if self.base == '1':
+            return self.coefficient ** self.exponent
 
     def format(self, style: str=None):
         """Format this term."""
