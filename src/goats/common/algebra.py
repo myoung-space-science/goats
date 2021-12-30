@@ -1407,7 +1407,14 @@ class Parser:
         return self._resolve_operations(operand)
 
     def _insert_multiply(self, parts: Iterable[Part]):
-        """Insert a multiplication operator between adjacent terms."""
+        """Insert a multiplication operator between adjacent terms.
+
+        NIST guidelines permit the use of a space character to indicate
+        multiplication between unit symbols, and this is a common practice when
+        writing algebraic expressions in general. This method places a
+        multiplication operator of the appropriate form between adjacent terms
+        in order to make that operation explicit
+        """
         result = []
         last = parts[0]
         for this in parts[1:]:
