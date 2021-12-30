@@ -876,3 +876,603 @@ class Expression(collections.abc.Collection):
                 j += exp.end()
             return string[:j], j
 
+
+class Part(abc.ABC, iterables.ReprStrMixin):
+    """Base class for parts of an algebraic expression."""
+
+    __slots__ = ()
+
+
+class Operator(Part):
+    """An operator in an algebraic expression."""
+
+    def __init__(self, operation: str) -> None:
+        self.operation = operation
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return self.operation
+
+    def __eq__(self, other) -> bool:
+        """True if two operators represent the same operation."""
+        if isinstance(other, Operator):
+            return other.operation == self.operation
+        if isinstance(other, str):
+            return other == self.operation
+        return NotImplemented
+
+
+class Operand(Part):
+    """An operand in an algebraic expression."""
+
+    def __init__(self, coefficient, base, exponent) -> None:
+        self.coefficient = coefficient
+        """The numerical coefficient."""
+        self.base = base
+        """The base term or complex."""
+        self.exponent = exponent
+        """The numerical exponent."""
+
+    def __pow__(self, power):
+        """Create a new operand, raised to `power`."""
+        coefficient = self.coefficient ** power
+        exponent = self.exponent * power
+        return type(self)(coefficient, self.base, exponent)
+
+    def __ipow__(self, power):
+        """Update this operand's exponent."""
+        self.coefficient **= power
+        self.exponent *= power
+        return self
+
+    def __mul__(self, other):
+        """Create a new operand, multiplied by `other`."""
+        coefficient = self.coefficient * other
+        return type(self)(coefficient, self.base, self.exponent)
+
+    __rmul__ = __mul__
+
+    def __imul__(self, other):
+        """Update this operand's coefficient."""
+        self.coefficient *= other
+        return self
+
+    def __eq__(self, other) -> bool:
+        """True if two operands' attributes are equal."""
+        if not isinstance(other, Operand):
+            return NotImplemented
+        attrs = {'coefficient', 'base', 'exponent'}
+        try:
+            true = (getattr(self, a) == getattr(other, a) for a in attrs)
+            truth = all(true)
+        except AttributeError:
+            return False
+        else:
+            return truth
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return self.format()
+
+    def format(self):
+        """Format this operand for printing."""
+        return f"{self.coefficient} * ({self.base})^{self.exponent}"
+
+
+class Term(Operand):
+    """An algebraic operand with an irreducible base."""
+
+    def __init__(self, coefficient, base, exponent) -> None:
+        super().__init__(coefficient, base, exponent)
+        self._value = (
+            self.coefficient ** self.exponent
+            if self.base == '1' else None
+        )
+
+    def format(self, style: str=None):
+        """Format this term."""
+        exponent = self._format_exponent(style)
+        if self.base == '1':
+            return f"{self.coefficient}{exponent}"
+        coefficient = '' if self.coefficient == 1 else str(self.coefficient)
+        return f"{coefficient}{self.base}{exponent}"
+
+    def _format_exponent(self, style: str):
+        """Format the current exponent for printing."""
+        if self.exponent == 1:
+            return ''
+        if not style:
+            return f"^{self.exponent}"
+        if 'tex' in style.lower():
+            return f"^{{{self.exponent}}}"
+        raise ValueError(f"Can't format {self.exponent}")
+
+    def __float__(self) -> float:
+        """Called for float(self)."""
+        if self._value:
+            return float(self._value)
+        errmsg = f"Can't convert term with base {self.base!r} to float"
+        raise TypeError(errmsg)
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, numbers.Real):
+            return float(self) == float(other)
+        return super().__eq__(other)
+
+
+class OperandTypeError(TypeError):
+    pass
+
+
+class OperandValueError(ValueError):
+    pass
+
+
+class Parsed(NamedTuple):
+    """The result of parsing an algebraic string."""
+
+    result: Part
+    remainder: str
+
+    def __bool__(self) -> bool:
+        """Called for bool(self)."""
+        return bool(self.result)
+
+
+@runtime_checkable
+class PartFactory(Protocol):
+    """Protocol for algebraic factories."""
+
+    @abc.abstractmethod
+    def parse(self) -> Parsed:
+        pass
+
+
+class OperatorFactory(PartFactory):
+    """A factory that produces algebraic operators."""
+
+    def __init__(
+        self,
+        multiply: str='*',
+        divide: str='/',
+    ) -> None:
+        mul = fr'\{multiply}'
+        div = fr'\{divide}'
+        self.patterns = {
+            'multiply': re.compile(
+                fr'(?<!{div})(\s*{mul}\s*)(?!{div})'
+            ),
+            'divide': re.compile(
+                fr'(?<!{mul})(\s*{div}\s*)(?!{mul})'
+            ),
+        }
+        """Compiled regular expressions for algebraic operators."""
+
+    def parse(self, string: str):
+        """Extract an operator at the start of `string`, possible."""
+        for key in ('multiply', 'divide'):
+            if match := self.patterns[key].match(string):
+                return Parsed(
+                    result=Operator(key),
+                    remainder=string[match.end():],
+                )
+        return Parsed(result=None, remainder=string)
+
+
+class OperandFactory(PartFactory):
+    """A factory that produces algebraic operands."""
+
+    digit = r'[0-9]' # only equal to r'\d' in certain modes
+    coefficient = fr'[-+]?{digit}*\.?{digit}+' # '1e2' not included
+    base = r'[a-zA-Z#_]+[0-9]*' # digits must follow a known non-digit
+    exponent = fr'[-+]?{digit}+(?:[/.]{digit}+)?'
+    unity = r'(?<![\d.])1(?![\d.])'
+
+    def __init__(
+        self,
+        opening: str='(',
+        closing: str=')',
+        raising: str='^',
+    ) -> None:
+        exponent = fr'\{raising}{self.exponent}'
+        self.patterns = {
+            'constant': re.compile(
+                fr'(?P<coefficient>{self.coefficient})'
+                fr'(?P<exponent>{exponent})?'
+            ),
+            'variable': re.compile(
+                fr'(?P<coefficient>{self.coefficient})?'
+                fr'(?P<base>{self.base})'
+                fr'(?P<exponent>{exponent})?'
+            ),
+            'complex': re.compile(
+                fr'(?P<coefficient>{self.coefficient})?'
+                fr'(?P<base>\{opening}.+?\{closing})'
+                fr'(?P<exponent>{exponent})?'
+            ),
+            'exponent': re.compile(exponent),
+            'opening': re.compile(fr'\{opening}'),
+            'closing': re.compile(fr'\{closing}'),
+            'raising': re.compile(fr'\{raising}')
+        }
+        """Compiled regular expressions for algebraic operands."""
+
+    # NOTE: The difference between `create` and `parse` is: 
+    # * `create` resolves input into (coefficient, base, exponent), then creates
+    #   an appropriate operand from the base string, applies the input
+    #   coefficient and exponent, and finally returns the operand.
+    # * `parse` attempts to match an operand at the start of a string, then
+    #   creates an appropriate operand from only that substring, and finally
+    #   returns the operand and the remainder of the string.
+    #
+    # TODO: Reduce overlap between `create`, `parse`, and their various helper
+    # methods.
+
+    def create(self, *args, strict: bool=False):
+        """Create an operand from input.
+
+        Parameters
+        ----------
+        *args
+            The object(s) from which to create an operand, if possible. This may
+            take one of the following forms: a single string representing the
+            base operand; a numerical coefficient and a base string; a base
+            string and a numerical exponent; or a coefficient, base, and
+            exponent. A missing coefficient or exponent will default to 1.
+
+        strict : bool, default=false
+            If true, this method will return `None` if it is unable to create an
+            operand from `*args`. The default behavior is to return the input
+            (with default coefficient and exponent, if necessary) as an
+            `~algebra.Operand`.
+
+        Returns
+        -------
+        `~algebra.Operand` or `None`
+            An instance of `~algebra.Operand` or one of its subclasses if the
+            input arguments represent a valid operand. The `strict` keyword
+            dictates the return behavior when input does not produce an operand.
+
+        Notes
+        -----
+        This method will create the most complex algebraic operand possible from
+        the initial string. It will parse a simple algebraic operand into a
+        coefficient, variable, and exponent but it will not attempt to fully
+        parse a complex algebraic operand into simpler parts (i.e. algebraic
+        terms). In other words, it will do as little work as possible to extract
+        a coefficient and exponent, and the expression on which they operate. If
+        all attempts to determine appropriate attributes fail, it will simply
+        return the string representation of the initial argument with
+        coefficient and exponent both equal to 1.
+
+        The following examples use the complex algebraic parts from the class
+        docstring to illustrate the minimal parsing described above::
+        * `'a * b^2'` <=> `'(a * b^2)'` <=> `'(a * b^2)^1'` -> `1, 'a * b^2', 1`
+        * `'2a * b^2'` -> `1, '2a * b^2', 1`
+        * `'2(a * b^2)'` -> `2, 'a * b^2', 1`
+        * `'(a * b^2)^3'` -> `1, 'a * b^2', 3`
+        * `'2(a * b^2)^3'` -> `2, 'a * b^2', 3`
+        * `'(a * b^2)^3/2'` -> `'a * b^2', '3/2'`
+        * `'((a / b^2)^3 * c)^2'` -> `'(a / b^2)^3 * c', 2`
+        * `'(a / b^2)^3 * c^2'` -> `'(a / b^2)^3 * c^2', 1`
+
+        Note that this class stores the coefficient as a `float` or `int`, and
+        the exponent as a `fractions.Fraction`.
+        """
+        c0, b0, e0 = self.normalize(*args)
+        ends = (b0[0], b0[-1])
+        if any(self.patterns['raising'].match(c) for c in ends):
+            raise OperandValueError(b0) from None
+        parsers = (
+            self._simplex,
+            self._complex,
+        )
+        for parse in parsers:
+            if result := parse(c0, b0, e0):
+                return result
+        if not strict:
+            return Operand(c0, b0, e0)
+
+    def normalize(self, *args):
+        """Extract attributes from the given argument(s)."""
+        try:
+            nargs = len(args)
+        except TypeError:
+            raise OperandTypeError(args) from None
+        if nargs == 1:
+            # A length-1 `args` may represent either:
+            # - coefficient <Real>
+            # - base <str>
+            #
+            # If it has one of these forms, substitute the default value for the
+            # missing attributes. Otherwise, raise an exception.
+            arg = args[0]
+            if isinstance(arg, str):
+                return self._standard(base=arg)
+            if isinstance(arg, numbers.Real):
+                return self._standard(coefficient=arg)
+            raise OperandTypeError(
+                "A single argument may be either"
+                " a coefficient <Real> or a base <str>;"
+                f" not {type(arg)}"
+            )
+        if nargs == 2:
+            # A length-2 `args` may represent either:
+            # - (base <str>, exponent <Real or str>)
+            # - (coefficient <Real>, exponent <Real or str>)
+            # - (coefficient <Real>, base <str>)
+            #
+            # If it has one of these forms, substitute the default value for the
+            # missing attribute. Otherwise, raise an exception.
+            argtypes = zip(args, (str, (numbers.Real, str)))
+            implied_coefficient = all(isinstance(a, t) for a, t in argtypes)
+            if implied_coefficient:
+                return self._standard(
+                    base=args[0],
+                    exponent=args[1],
+                )
+            argtypes = zip(args, (numbers.Real, (numbers.Real, str)))
+            implied_base = all(isinstance(a, t) for a, t in argtypes)
+            if implied_base:
+                return self._standard(
+                    coefficient=args[0],
+                    exponent=args[1],
+                )
+            argtypes = zip(args, (numbers.Real, str))
+            implied_exponent = all(isinstance(a, t) for a, t in argtypes)
+            if implied_exponent:
+                return self._standard(
+                    coefficient=args[0],
+                    base=args[1],
+                )
+            badtypes = [type(arg) for arg in args]
+            raise OperandTypeError(
+                "Acceptable two-argument forms are"
+                " (base <str>, exponent <Real or str>),"
+                " (coefficient <Real>, exponent <Real or str>),"
+                " or"
+                " (coefficient <Real>, base <str>);"
+                " not"
+                f"({', '.join(str(t) for t in badtypes)})"
+            )
+        if nargs == 3:
+            return self._standard(
+                coefficient=args[0],
+                base=args[1],
+                exponent=args[2],
+            )
+        raise OperandValueError(
+            f"{self.__class__.__qualname__}"
+            f" accepts 1, 2, or 3 arguments"
+            f" (got {nargs})"
+        )
+
+    def parse(self, string: str):
+        """Extract an operand at the start of `string`, possible."""
+        current = (string[1:-1] if self.entire(string) else string).strip()
+        for key in ('complex', 'variable', 'constant'):
+            if match := self.patterns[key].match(current):
+                args = self._standard(**match.groupdict())
+                return Parsed(
+                    result=self._create_new(key, *args),
+                    remainder=current[match.end():],
+                )
+        return Parsed(result=None, remainder=current)
+
+    def _create_new(self, key: str, *args):
+        """Create a new instance from `args`, based on `key`."""
+        if key in {'constant', 'variable'}:
+            return Term(*args)
+        return Operand(*args)
+
+    def _standard(
+        self,
+        coefficient: Any=None,
+        base: Any=None,
+        exponent: Any=None,
+    ) -> Tuple[Union[float, int], str, fractions.Fraction]:
+        """Cast component(s) to the appropriate type(s) or return default."""
+        c = numerical.cast(coefficient or 1)
+        b = str(base or 1)
+        if isinstance(exponent, str):
+            exponent = self.patterns['raising'].sub('', exponent)
+        e = fractions.Fraction(exponent or 1)
+        return c, b, e
+
+    def findfull(self, string: str, keys: Union[str, Iterable[str]]):
+        """Extract components if the string matches a named pattern.
+
+        This method will compare `string` to the pattern(s) indicated by `keys`
+        in the order of `keys`. It will only return a non-null result if the
+        whole string matches one of the target patterns.
+        """
+        patterns = (
+            pattern for key, pattern in self.patterns.items()
+            if key in iterables.Separable(keys)
+        )
+        for pattern in patterns:
+            if match := pattern.fullmatch(string):
+                return self._standard(**match.groupdict())
+
+    def _simplex(self, c0, b0, e0):
+        """Parse a simple algebraic part, if possible.
+
+        A simple algebraic part represents a variable or constant term. This
+        method checks for them in that order.
+        """
+        keys = ('constant', 'variable')
+        found = self.findfull(b0, keys)
+        if not found:
+            return
+        try:
+            c1, base, e1 = found
+        except ValueError:
+            errmsg = f"Expected 3 components in {b0} but found {len(found)}"
+            raise OperandValueError(errmsg)
+        coefficient = c0 * (c1 ** e0)
+        exponent = e1 * e0
+        return Term(coefficient, base, exponent)
+
+    def _complex(self, c0, b0, e0):
+        """Parse a complex algebraic part, if possible.
+
+        A complex algebraic part is any algebraic part that is neither a term
+        not a constant. This method will attempt to match `b0` to a term-like
+        regular expression in which a non-empty string is bounded by known
+        separator charaters, is possibly preceeded by a coefficient, and is
+        possibly followed by an exponent.
+
+        If `b0` matches this RE, it may have the form of a `Term` with a
+        potentially complex part in the variable position, but it need not. For
+        example, the following strings will both match, but only the first
+        contains a coefficient and exponent that apply to all terms:
+        - '3(a * b / (c * d))^2'
+        - '3(a * b) / (c * d)^2'
+
+        Therefore, we need to perform some additional searching to determine if
+        the final closing separator matches the initial opening separator. The
+        algorithm essentially consists of computing a running difference between
+        the number of opening separators and the number of closing separators.
+        If we close the initial opening separator before the end of the
+        variable-like substring, the substring is not bounded, so we can't
+        extract a coefficient and exponent. If we close the initial opening
+        separator right at the end of the substring, the substring is bounded by
+        separators, so we can extract and update the coefficient and exponent if
+        they exist.
+
+        If `b0` doesn't match the RE or if the variable-like term isn't bounded
+        afterall, this method will return `None`.
+        """
+        found = self.findfull(b0, 'complex')
+        if not found:
+            return
+        try:
+            c1, base, e1 = found
+        except ValueError:
+            errmsg = f"Expected 3 components in {b0} but found {len(found)}"
+            raise OperandValueError(errmsg)
+        if not self.entire(base):
+            return
+        inside = base[1:-1].strip()
+        coefficient = c0 * (c1 ** e0)
+        exponent = e1 * e0
+        if this := self._simplex(1, inside, 1):
+            exponent *= this[2]
+            coefficient *= this[0] ** exponent
+            base = this[1]
+        else:
+            base = inside
+        return Operand(coefficient, base, exponent)
+
+    def entire(self, string: str):
+        """True if `string` is completely bounded by separators."""
+        counted = False
+        count = 0
+        opened = self.patterns['opening'].match(string[0])
+        closed = self.patterns['closing'].match(string[-1])
+        if not (opened and closed):
+            return False
+        for i, c in enumerate(string):
+            if self.patterns['opening'].match(c):
+                count += 1
+                counted = not counted or True # Once true, always true.
+            elif self.patterns['closing'].match(c):
+                count -= 1
+            if counted and count == 0 and i < len(string)-1:
+                return False
+        return counted and count == 0
+
+
+class Parser:
+    """A tool for parsing algebraic expressions."""
+
+    def __init__(
+        self,
+        multiply: str='*',
+        divide: str='/',
+        opening: str='(',
+        closing: str=')',
+        raising: str='^',
+    ) -> None:
+        self.operators = OperatorFactory(multiply, divide)
+        self.operands = OperandFactory(opening, closing, raising)
+
+    def parse(self, string: str):
+        """Resolve the given string into individual terms."""
+        operand = self.operands.create(string)
+        if not operand:
+            return []
+        if isinstance(operand, Term):
+            return [operand]
+        return self._resolve_operations(operand)
+
+    def _insert_multiply(self, parts: Iterable[Part]):
+        """Insert a multiplication operator between adjacent terms."""
+        result = []
+        last = parts[0]
+        for this in parts[1:]:
+            if all(isinstance(part, Operand) for part in (last, this)):
+                result.extend([last, Operator('multiply')])
+            else:
+                result.append(last)
+            last = this
+        result.append(last)
+        return result
+
+    # TODO: Refactor this method at the comment breaks.
+    def _resolve_operations(self, current: Operand):
+        """Separate an algebraic group into operators and operands."""
+        # Parse the base string into operands and operators.
+        parts = self._parse_complex(current.base)
+        # Insert explicit multiplication operators where implied.
+        tmp = self._insert_multiply(parts)
+        # Gather operands, invert if necessary, and catch operator errors.
+        exponent = current.exponent
+        in_denominator = False
+        operands = tmp[::2]
+        operators = tmp[1::2]
+        pairs = zip(operands[::-1], operators[::-1])
+        resolved = [operands[0] ** +exponent]
+        for (operand, operator) in pairs:
+            if operator == Operator('divide'):
+                if in_denominator:
+                    raise RatioError(current)
+                in_denominator = True
+                resolved.append(operand ** -exponent)
+            elif operator == Operator('multiply'):
+                if in_denominator:
+                    raise ProductError(current)
+                resolved.append(operand ** +exponent)
+        # Store terms and parse remaining groups.
+        terms = [self.operands.create(current.coefficient)]
+        for operand in resolved:
+            if isinstance(operand, Term):
+                terms.append(operand)
+            elif isinstance(operand, Operand):
+                terms.extend(self._resolve_operations(operand))
+            else:
+                raise TypeError(f"Unknown operand type: {operand!r}")
+        return terms
+
+    def _parse_complex(self, string: str) -> List[Part]:
+        """Parse an algebraic expression while preserving nested groups."""
+        errstart = "Failed to find a match for"
+        errfinal = repr(string)
+        parts = []
+        parsers = (self.operands, self.operators)
+        init = string
+        while string:
+            current = string
+            for parser in parsers:
+                # Could we instead stay in this loop until a parser fails?
+                parsed = parser.parse(current)
+                if parsed:
+                    parts.append(parsed.result)
+                    current = parsed.remainder
+            if current == string:
+                if current == init:
+                    errfinal = f"{current!r} in {errfinal}"
+                raise RecursionError(f"{errstart} {errfinal}") from None
+            string = current
+        return parts
+
