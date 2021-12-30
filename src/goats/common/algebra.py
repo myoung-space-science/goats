@@ -956,7 +956,14 @@ class Operand(Part):
 
     def format(self):
         """Format this operand for printing."""
-        return f"{self.coefficient} * ({self.base})^{self.exponent}"
+        if self.coefficient == 1 and self.exponent == 1:
+            return self.base
+        string = f"({self.base})"
+        if self.exponent != 1:
+            string = f"{string}^{self.exponent}"
+        if self.coefficient != 1:
+            string = f"{self.coefficient}{self.base}"
+        return string
 
 
 class Term(Operand):
