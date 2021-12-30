@@ -979,10 +979,21 @@ class Term(Operand):
     def format(self, style: str=None):
         """Format this term."""
         exponent = self._format_exponent(style)
+        coefficient = self._format_coefficient()
         if self.base == '1':
-            return f"{self.coefficient}{exponent}"
-        coefficient = '' if self.coefficient == 1 else str(self.coefficient)
+            return f"{coefficient}{exponent}"
         return f"{coefficient}{self.base}{exponent}"
+
+    def _format_coefficient(self):
+        """Format the coefficient for printing."""
+        if self.base != '1' and self.coefficient == 1:
+            return ''
+        if (
+            isinstance(self.coefficient, fractions.Fraction)
+            and
+            self.coefficient.denominator != 1
+        ): return f"({self.coefficient})"
+        return str(self.coefficient)
 
     def _format_exponent(self, style: str):
         """Format the current exponent for printing."""
