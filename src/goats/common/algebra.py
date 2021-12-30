@@ -1428,21 +1428,15 @@ class Parser:
         tmp = self._insert_multiply(parts)
         # Gather operands, invert if necessary, and catch operator errors.
         exponent = current.exponent
-        in_denominator = False
         operands = tmp[::2]
         operators = tmp[1::2]
+        if exception := self._check_operators(operators):
+            raise exception(current)
         pairs = zip(operands[::-1], operators[::-1])
         resolved = [operands[0] ** +exponent]
         for (operand, operator) in pairs:
-            if operator == Operator('divide'):
-                if in_denominator:
-                    raise RatioError(current)
-                in_denominator = True
-                resolved.append(operand ** -exponent)
-            elif operator == Operator('multiply'):
-                if in_denominator:
-                    raise ProductError(current)
-                resolved.append(operand ** +exponent)
+            exp = -exponent if operator == 'divide' else +exponent
+            resolved.append(operand ** exp)
         # Store terms and parse remaining groups.
         terms = [self.operands.create(current.coefficient)]
         for operand in resolved:
@@ -1476,3 +1470,35 @@ class Parser:
             string = current
         return parts
 
+    def _check_operators(
+        self,
+        operators: Sequence[Operator],
+    ) -> Optional[ParsingError]:
+        """Check for operator-related exceptions.
+
+        This method checks for the following errors and returns the appropriate
+        exception class if it finds one:
+        * Multiple divisions on a single level (e.g., `'a / b / c'`), which
+          results in a `RatioError`.
+        * Multiplication after division on the same level (e.g., `'a / b * c'`),
+          which results in a `ProductError`.
+
+        Both of the examples shown above result in errors because they each
+        introduce an ambiguous order of operations. Users can resolve the
+        ambiguity by properly grouping terms in the expression. Continuing with
+        the above examples, `'a / b / c'` should become `'(a / b) / c'` or `'a /
+        (b / c)'`, and `'a / b * c'` should become `'(a / b) * c'` or `'a / (b *
+        c)'`.
+        """
+        n_div = operators.count('divide')
+        i_div = operators.index('divide') if n_div > 0 else -1
+        n_mul = operators.count('multiply')
+        i_mul = operators.index('multiply') if n_mul > 0 else -1
+        if n_div > 1:
+            return RatioError
+        if n_div == 1 and i_mul > i_div:
+            return ProductError
+
+
+class Expression:
+    """An algebraic expression."""
