@@ -905,7 +905,12 @@ class Operator(Part):
 class Operand(Part):
     """An operand in an algebraic expression."""
 
-    def __init__(self, coefficient, base, exponent) -> None:
+    def __init__(
+        self,
+        coefficient: numbers.Real=1,
+        base: str='1',
+        exponent: numbers.Real=1,
+    ) -> None:
         self.coefficient = coefficient
         """The numerical coefficient."""
         self.base = base
