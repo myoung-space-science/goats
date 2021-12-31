@@ -1461,11 +1461,16 @@ class OperandFactory(PartFactory):
         """Remove bounding separators from `string`."""
         if not self.entire(string):
             return string
-        inside = string[1:-1].strip()
+        inside = self.strip_separators(string)
         while self.entire(inside):
-            inside = inside[1:-1].strip()
+            inside = self.strip_separators(inside)
         return inside
 
+    def strip_separators(self, string: str):
+        """Remove one opening and one closing separator."""
+        for key in ('opening', 'closing'):
+            string = self.patterns[key].sub('', string, count=1)
+        return string
 
 class Parser:
     """A tool for parsing algebraic expressions."""
