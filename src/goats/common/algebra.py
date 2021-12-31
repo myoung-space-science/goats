@@ -1600,12 +1600,12 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
             return '1'
         if isinstance(expression, str):
             return expression
-        return ' * '.join(f"({part})" for part in expression or ['1'])
+        return ' * '.join(f"({part})" for part in expression)
 
     @property
     def terms(self) -> List[Term]:
         """The algebraic terms in this expression."""
-        return self._terms or [Term('1')]
+        return self._terms or []
 
     def __iter__(self) -> Iterator[Term]:
         return iter(self.terms)
@@ -1763,7 +1763,7 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
                 }
                 reduced[term.base] = attributes
         return [
-            Part(v['coefficient'], k, v['exponent'])
+            Term(v['coefficient'], k, v['exponent'])
             for k, v in reduced.items() if v['exponent'] != 0
         ]
 
