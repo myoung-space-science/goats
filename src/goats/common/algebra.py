@@ -1271,7 +1271,7 @@ class OperandFactory(PartFactory):
 
     def parse(self, string: str):
         """Extract an operand at the start of `string`, possible."""
-        current = (string[1:-1] if self.entire(string) else string).strip()
+        current = self.unpack(string).strip()
         for key in ('complex', 'variable', 'constant'):
             if match := self.patterns[key].match(current):
                 args = self._standard(**match.groupdict())
@@ -1377,7 +1377,7 @@ class OperandFactory(PartFactory):
             return
         coefficient = c0 * (c1 ** e0)
         exponent = e1 * e0
-        inside = self.strip(base)
+        inside = self.unpack(base)
         if interior := self._simplex(1, inside, 1):
             exponent *= interior.exponent
             coefficient *= interior.coefficient ** exponent
@@ -1404,7 +1404,7 @@ class OperandFactory(PartFactory):
                 return False
         return counted and count == 0
 
-    def strip(self, string: str):
+    def unpack(self, string: str):
         """Remove bounding separators from `string`."""
         if not self.entire(string):
             return string
