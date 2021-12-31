@@ -1079,7 +1079,7 @@ class Parsed(NamedTuple):
     end: int=-1
 
     def __bool__(self) -> bool:
-        """Called for bool(self)."""
+        """The truth value of this object."""
         return bool(self.result)
 
 
