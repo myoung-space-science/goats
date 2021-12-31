@@ -1083,21 +1083,48 @@ class Parsed(NamedTuple):
         return bool(self.result)
 
 
-class Matched:
-    """A simple objects that mimics `re.Match`."""
+@runtime_checkable
+class Matched(Protocol):
+    """Protocol for pattern-matching results."""
 
-    def __init__(self, result: Mapping=None, end: SupportsIndex=-1) -> None:
-        self._result = result or {}
-        self._groupdict = None
-        self._end = end
+    @abc.abstractmethod
+    def groupdict(self) -> Dict[str, Any]:
+        pass
+
+    @abc.abstractmethod
+    def end(self) -> int:
+        pass
+
+
+class MatchResult(Matched):
+    """A simple objects that mimics a `re.Match` object.
+
+    This class exists to provide a single interface for parsing and
+    pattern-matching methods, some of which use the `re` module and some of
+    which use custom code.
+    """
+
+    def __init__(self, match: re.Match=None, **kwargs) -> None:
+        self._kwargs = self._update_kwargs(kwargs, match=match)
+
+    def _update_kwargs(self, original: dict, match: re.Match=None):
+        """Update the user keyword arguments from the `Match` object."""
+        updates = {
+            'groupdict': match.groupdict(),
+            'end': match.end(),
+        } if match else {}
+        original.update(**updates)
+        return original
 
     def groupdict(self):
-        if self._groupdict is None:
-            self._groupdict = dict(self._result)
-        return self._groupdict
+        return self._kwargs.get('groupdict')
 
     def end(self):
-        return int(self._end)
+        return self._kwargs.get('end')
+
+    def __bool__(self) -> bool:
+        """The truth value of this object."""
+        return bool(self._kwargs)
 
 
 @runtime_checkable
