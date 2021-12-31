@@ -1035,10 +1035,29 @@ class Parsed(NamedTuple):
 
     result: Part
     remainder: str
+    start: int=0
+    end: int=-1
 
     def __bool__(self) -> bool:
         """Called for bool(self)."""
         return bool(self.result)
+
+
+class Matched:
+    """A simple objects that mimics `re.Match`."""
+
+    def __init__(self, result: Mapping=None, end: SupportsIndex=-1) -> None:
+        self._result = result or {}
+        self._groupdict = None
+        self._end = end
+
+    def groupdict(self):
+        if self._groupdict is None:
+            self._groupdict = dict(self._result)
+        return self._groupdict
+
+    def end(self):
+        return int(self._end)
 
 
 @runtime_checkable
@@ -1077,6 +1096,7 @@ class OperatorFactory(PartFactory):
                 return Parsed(
                     result=Operator(key),
                     remainder=string[match.end():],
+                    end=match.end(),
                 )
         return Parsed(result=None, remainder=string)
 
@@ -1272,20 +1292,41 @@ class OperandFactory(PartFactory):
     def parse(self, string: str):
         """Extract an operand at the start of `string`, possible."""
         current = self.unpack(string).strip()
-        for key in ('complex', 'variable', 'constant'):
+        for key in ('variable', 'constant'):
             if match := self.patterns[key].match(current):
                 args = self._standard(**match.groupdict())
                 return Parsed(
-                    result=self._create_new(key, *args),
+                    result=Term(*args),
                     remainder=current[match.end():],
+                    end=match.end(),
                 )
+        if match := self._match_complex(current):
+            args = self._standard(**match.groupdict())
+            return Parsed(
+                result=Operand(*args),
+                remainder=current[match.end():],
+                end=match.end(),
+            )
         return Parsed(result=None, remainder=current)
 
-    def _create_new(self, key: str, *args):
-        """Create a new instance from `args`, based on `key`."""
-        if key in {'constant', 'variable'}:
-            return Term(*args)
-        return Operand(*args)
+    def _match_complex(self, string: str):
+        """Attempt to find a complex operand at the start of `string`."""
+        # This assumes that the 'constant' RE match has already pulled off a
+        # leading coefficient.
+        bounded = self.find_bounded(string)
+        result = {'base': bounded.result}
+        end = bounded.end
+        match = self.patterns['exponent'].match(bounded.remainder)
+        if match:
+            result['exponent'] = match[0]
+            end += match.end()
+        return Matched(result=result, end=end)
+
+    # def _create_new(self, key: str, *args):
+    #     """Create a new instance from `args`, based on `key`."""
+    #     if key in {'constant', 'variable'}:
+    #         return Term(*args)
+    #     return Operand(*args)
 
     def _standard(
         self,
@@ -1386,23 +1427,31 @@ class OperandFactory(PartFactory):
             base = inside
         return Operand(coefficient, base, exponent)
 
-    def entire(self, string: str):
-        """True if `string` is completely bounded by separators."""
+    def find_bounded(self, string: str):
+        """Find the first bounded operand in `string`."""
         counted = False
         count = 0
-        opened = self.patterns['opening'].match(string[0])
-        closed = self.patterns['closing'].match(string[-1])
-        if not (opened and closed):
-            return False
         for i, c in enumerate(string):
             if self.patterns['opening'].match(c):
                 count += 1
                 counted = not counted or True # Once true, always true.
             elif self.patterns['closing'].match(c):
                 count -= 1
-            if counted and count == 0 and i < len(string)-1:
-                return False
-        return counted and count == 0
+            if counted and count == 0:
+                end = i+1
+                return Parsed( # result does not include bounding separators
+                    result=string[1:i],
+                    remainder=string[end:],
+                    end=end,
+                )
+
+    def entire(self, string: str):
+        """True if `string` is completely bounded by separators."""
+        opened = self.patterns['opening'].match(string[0])
+        closed = self.patterns['closing'].match(string[-1])
+        if not (opened and closed):
+            return False
+        return self.find_bounded(string) == string
 
     def unpack(self, string: str):
         """Remove bounding separators from `string`."""
