@@ -1427,8 +1427,28 @@ class OperandFactory(PartFactory):
             base = inside
         return Operand(coefficient, base, exponent)
 
-    def find_bounded(self, string: str):
-        """Find the first bounded operand in `string`."""
+    def find_bounded(self, string: str, strip: bool=False):
+        """Find the first bounded operand in `string`.
+        
+        A bounded operand is any collection of valid operands or operators that
+        is bounded on the left by the opening separator and on the right by the
+        closing separator. Opening and closing separators are an immutable
+        attribute of an instance of this class.
+
+        Parameters
+        ----------
+        string
+            The string in which to match a bounded operand, if possible.
+
+        strip : bool, default=False
+            If True, remove the bounding separators from the result.
+
+        Returns
+        -------
+        Parsed
+            A `~algebra.Parsed` object built from the result, if found;
+            otherwise, `None`.
+        """
         initialized = False
         count = 0
         start = 0
@@ -1442,9 +1462,13 @@ class OperandFactory(PartFactory):
                 count -= 1
             if initialized and count == 0:
                 end = i+1
+                result = string[start:end]
+                remainder = string[end:]
+                if strip:
+                    result = self.strip_separators(result)
                 return Parsed(
-                    result=string[start:end],
-                    remainder=string[end:],
+                    result=result,
+                    remainder=remainder,
                     end=end,
                 )
 
