@@ -958,6 +958,11 @@ class Operand(Part):
         self.exponent = exponent
         """The numerical exponent."""
 
+    @property
+    def attrs(self):
+        """The current coefficient, base, and exponent."""
+        return (self.coefficient, self.base, self.exponent)
+
     def __pow__(self, power):
         """Create a new operand, raised to `power`."""
         coefficient = self.coefficient ** power
