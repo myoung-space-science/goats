@@ -1429,18 +1429,21 @@ class OperandFactory(PartFactory):
 
     def find_bounded(self, string: str):
         """Find the first bounded operand in `string`."""
-        counted = False
+        initialized = False
         count = 0
+        start = 0
         for i, c in enumerate(string):
             if self.patterns['opening'].match(c):
                 count += 1
-                counted = not counted or True # Once true, always true.
+                if not initialized:
+                    start = i
+                    initialized = True
             elif self.patterns['closing'].match(c):
                 count -= 1
-            if counted and count == 0:
+            if initialized and count == 0:
                 end = i+1
-                return Parsed( # result does not include bounding separators
-                    result=string[1:i],
+                return Parsed(
+                    result=string[start:end],
                     remainder=string[end:],
                     end=end,
                 )
@@ -1451,7 +1454,8 @@ class OperandFactory(PartFactory):
         closed = self.patterns['closing'].match(string[-1])
         if not (opened and closed):
             return False
-        return self.find_bounded(string) == string
+        if bounded := self.find_bounded(string):
+            return not bounded.remainder
 
     def unpack(self, string: str):
         """Remove bounding separators from `string`."""
