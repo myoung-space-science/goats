@@ -903,7 +903,47 @@ class Operator(Part):
 
 
 class Operand(Part):
-    """An operand in an algebraic expression."""
+    """An operand in an algebraic expression.
+
+    Algebraic operands mainly exist to support the `~algebra.Expression` class.
+    They may be simple or general, as described below.
+
+    A simple algebraic operand has the form [c]b[^e] or c[^e], where `c` is a
+    numerical coefficient, `b` is a string base, and `e` is a numerical
+    exponent. Braces ('[]') denote an optional component that defaults to a
+    value of 1. The `~algebra.Term` class formally represents simple algebraic
+    operands; the form [c]b[^e] corresponds to a variable term and the form
+    c[^e] corresponds to a constant term.
+
+    Examples include::
+    * `'1'`: unity / multiplicative identity
+    * `'1^n'` (`n` real): constant equivalent to unity
+    * `'m^n'` (`m`, `n` real): arbitrary constant
+    * `'V'`: variable 'V' with coefficient 1 and exponent 1
+    * `'V^n'` (`n` real): variable 'V' with coefficient 1 and exponent n
+    * `'mV'` (`m` real): variable 'V' with coefficient m and exponent 1
+    * `'mV^n'` (`m`, `n` real): variable 'V' with coefficient m and exponent n
+
+    Note that the base of a variable term may comprise multiple characters as
+    long as it does not begin with a digit, which this class will interpret as
+    part of the coefficient.
+
+    A general algebraic operand consists of simpler operands (though not
+    necessarily formally simple operands) combined with algebraic operators and
+    separators. All formally simple operands are general operands. The following
+    are examples of (non-simple) general algebraic operands::
+    * `'a * b^2'` <=> `'(a * b^2)'` <=> `'(a * b^2)^1'`
+    * `'(a * b^2)^3'`
+    * `'(a * b^2)^3/2'`
+    * `'((a / b^2)^3 * c)^2'`
+    * `'(a / b^2)^3 * c^2'`
+    * `'a / (2 * 4b)'`
+    * `'(2a * b)^3 / (4 * c)'`
+
+    There are many more ways to construct a general operand than a simple
+    operand. This is by design, to support building instances of
+    `~algebra.Expression` with `~algebra.Parser`.
+    """
 
     def __init__(
         self,
