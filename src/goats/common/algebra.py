@@ -1191,13 +1191,17 @@ class OperandFactory(PartFactory):
         exponent = fr'\{raising}{self.exponent}'
         self.patterns = {
             'constant': re.compile(
+                fr'\{opening}?'
                 fr'(?P<coefficient>{self.coefficient})'
                 fr'(?P<exponent>{exponent})?'
+                fr'\{closing}?'
             ),
             'variable': re.compile(
+                fr'\{opening}?'
                 fr'(?P<coefficient>{self.coefficient})?'
                 fr'(?P<base>{self.base})'
                 fr'(?P<exponent>{exponent})?'
+                fr'\{closing}?'
             ),
             'complex': re.compile(
                 fr'(?P<coefficient>{self.coefficient})?'
