@@ -1449,7 +1449,12 @@ class OperandFactory(PartFactory):
         pattern because `re.match` will find a match for 'constant' at the start
         of any variable term with an explicit coefficient.
         """
-        string = self.unpack(string)
+        bounded = self.find_bounded(string, match=True)
+        if bounded:
+            stripped = self.unpack(bounded.result)
+            for key in ('variable', 'constant'):
+                if match := self.patterns[key].fullmatch(stripped):
+                    return match
         for key in ('variable', 'constant'):
             if match := self.patterns[key].match(string):
                 return match
@@ -1569,6 +1574,8 @@ class OperandFactory(PartFactory):
                 return
             if initialized and count == 0:
                 end = i+1
+                if exp := self.patterns['exponent'].match(string[end:]):
+                    end += exp.end()
                 result = string[start:end]
                 remainder = string[end:]
                 if strip:
@@ -1598,8 +1605,13 @@ class OperandFactory(PartFactory):
             inside = self.strip_separators(inside)
         return inside
 
+    # TODO: Refactor to reuse code with `entire`.
     def strip_separators(self, string: str):
         """Remove one opening and one closing separator."""
+        opened = self.patterns['opening'].match(string[0])
+        closed = self.patterns['closing'].match(string[-1])
+        if not (opened and closed):
+            return string
         for key in ('opening', 'closing'):
             string = self.patterns[key].sub('', string, count=1)
         return string
