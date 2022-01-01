@@ -1388,12 +1388,13 @@ class OperandFactory(PartFactory):
 
     def parse(self, string: str):
         """Extract an operand at the start of `string`, possible."""
+        stripped = string.strip()
         for recipe in self.recipes.values():
-            if match := self.match_maker(string, recipe['match']):
+            if match := self.match_maker(stripped, recipe['match']):
                 standard = self.standardize(**match.groupdict(), fill=True)
                 return Parsed(
                     result=recipe['type'](*standard.values()),
-                    remainder=string[match.end():],
+                    remainder=stripped[match.end():],
                     end=match.end(),
                 )
         return Parsed(result=None, remainder=string)
