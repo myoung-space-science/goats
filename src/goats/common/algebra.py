@@ -1012,7 +1012,7 @@ class Operand(Part):
         if self.exponent != 1:
             string = f"{string}^{self.exponent}"
         if self.coefficient != 1:
-            string = f"{self.coefficient}{self.base}"
+            string = f"{self.coefficient}{string}"
         return string
 
 
