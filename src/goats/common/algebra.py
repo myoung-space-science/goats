@@ -1439,9 +1439,9 @@ class OperandFactory(PartFactory):
 
     def _fullmatch_simplex(self, string: str):
         """Attempt to match `string` to a full term pattern."""
-        for key in ('variable', 'constant'):
-            if match := self.patterns[key].fullmatch(string):
-                return match
+        match = self._match_simplex(string)
+        if match and match.end() == len(string):
+            return match
 
     def _match_simplex(self, string: str):
         """Attempt to find an irreducible term at the start of `string`.
