@@ -1444,9 +1444,15 @@ class OperandFactory(PartFactory):
                 return match
 
     def _match_simplex(self, string: str):
-        """Attempt to find an irreducible term at the start of `string`."""
-        if bounded := self.find_bounded(string, strip=True):
-            string = bounded
+        """Attempt to find an irreducible term at the start of `string`.
+
+        Notes
+        -----
+        This method tries to match the 'variable' pattern before the 'constant'
+        pattern because `re.match` will find a match for 'constant' at the start
+        of any variable term with an explicit coefficient.
+        """
+        string = self.unpack(string)
         for key in ('variable', 'constant'):
             if match := self.patterns[key].match(string):
                 return match
