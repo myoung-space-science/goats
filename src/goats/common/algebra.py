@@ -1223,79 +1223,6 @@ class OperandFactory(PartFactory):
             },
         }
 
-    # NOTE: The difference between `create` and `parse` is: 
-    # * `create` resolves input into (coefficient, base, exponent), then creates
-    #   an appropriate operand from the base string, applies the input
-    #   coefficient and exponent, and finally returns the operand.
-    # * `parse` attempts to match an operand at the start of a string, then
-    #   creates an appropriate operand from only that substring, and finally
-    #   returns the operand and the remainder of the string.
-
-    # def create(self, *args, strict: bool=False):
-    #     """Create an operand from input.
-
-    #     Parameters
-    #     ----------
-    #     *args
-    #         The object(s) from which to create an operand, if possible. This may
-    #         take one of the following forms: a single string representing the
-    #         base operand; a numerical coefficient and a base string; a base
-    #         string and a numerical exponent; or a coefficient, base, and
-    #         exponent. A missing coefficient or exponent will default to 1.
-
-    #     strict : bool, default=false
-    #         If true, this method will return `None` if it is unable to create an
-    #         operand from `*args`. The default behavior is to return the input
-    #         (with default coefficient and exponent, if necessary) as an
-    #         `~algebra.Operand`.
-
-    #     Returns
-    #     -------
-    #     `~algebra.Operand` or `None`
-    #         An instance of `~algebra.Operand` or one of its subclasses if the
-    #         input arguments represent a valid operand. The `strict` keyword
-    #         dictates the return behavior when input does not produce an operand.
-
-    #     Notes
-    #     -----
-    #     This method will create the most complex algebraic operand possible from
-    #     the initial string. It will parse a simple algebraic operand into a
-    #     coefficient, variable, and exponent but it will not attempt to fully
-    #     parse a complex algebraic operand into simpler parts (i.e. algebraic
-    #     terms). In other words, it will do as little work as possible to extract
-    #     a coefficient and exponent, and the expression on which they operate. If
-    #     all attempts to determine appropriate attributes fail, it will simply
-    #     return the string representation of the initial argument with
-    #     coefficient and exponent both equal to 1.
-
-    #     The following examples use the complex algebraic parts from the class
-    #     docstring to illustrate the minimal parsing described above::
-    #     * `'a * b^2'` <=> `'(a * b^2)'` <=> `'(a * b^2)^1'` -> `1, 'a * b^2', 1`
-    #     * `'2a * b^2'` -> `1, '2a * b^2', 1`
-    #     * `'2(a * b^2)'` -> `2, 'a * b^2', 1`
-    #     * `'(a * b^2)^3'` -> `1, 'a * b^2', 3`
-    #     * `'2(a * b^2)^3'` -> `2, 'a * b^2', 3`
-    #     * `'(a * b^2)^3/2'` -> `'a * b^2', '3/2'`
-    #     * `'((a / b^2)^3 * c)^2'` -> `'(a / b^2)^3 * c', 2`
-    #     * `'(a / b^2)^3 * c^2'` -> `'(a / b^2)^3 * c^2', 1`
-
-    #     Note that this class stores the coefficient as a `float` or `int`, and
-    #     the exponent as a `fractions.Fraction`.
-    #     """
-    #     c0, b0, e0 = self.normalize(*args)
-    #     ends = (b0[0], b0[-1])
-    #     if any(self.patterns['raising'].match(c) for c in ends):
-    #         raise OperandValueError(b0) from None
-    #     parsers = (
-    #         self._simplex,
-    #         self._complex,
-    #     )
-    #     for parse in parsers:
-    #         if result := parse(c0, b0, e0):
-    #             return result
-    #     if not strict:
-    #         return Operand(c0, b0, e0)
-
     def normalize(self, *args):
         """Extract attributes from the given argument(s)."""
         try:
@@ -1374,49 +1301,13 @@ class OperandFactory(PartFactory):
             f" (got {nargs})"
         )
 
-    # def _make_term(self, c0, b0, e0):
-    #     """Create an irreducible algebraic term, if possible."""
-    #     string = self.unpack(b0).strip()
-    #     for key in ('variable', 'constant'):
-    #         if match := self.patterns[key].fullmatch(string):
-    #             c1, base, e1 = self._standard(**match.groupdict())
-    #             coefficient = c0 * (c1 ** e0)
-    #             exponent = e1 * e0
-    #             return Term(coefficient, base, exponent)
-
-    # def _make_term(self, c0, b0, e0):
-    #     """Create an irreducible algebraic term, if possible."""
-    #     # parsed = self.parse(b0)
-    #     for key in ('variable', 'constant'):
-    #         func = self.patterns[key].match
-    #         parsed = self._parse_general(b0, func, Term)
-    #         # if not parsed or parsed.remainder:
-    #         #     return
-    #         term = parsed.result
-    #         coefficient = c0 * (term.coefficient ** e0)
-    #         exponent = term.exponent * e0
-    #         return Term(coefficient, term.base, exponent)
-
-    # def _make_operand(self, c0, b0, e0):
-    #     """Create a generalized algebraic operand, if possible."""
-    #     parsed = self.parse(b0)
-    #     failed = not parsed or parsed.remainder
-    #     if failed or not isinstance(parsed.result, Operand):
-    #         return
-    #     operand = parsed.result
-    #     base = operand.base
-    #     if not self.entire(base):
-    #         return
-    #     coefficient = c0 * (operand.coefficient ** e0)
-    #     exponent = operand.exponent * e0
-    #     inside = self.unpack(base)
-    #     if interior := self._make_term(1, inside, 1):
-    #         exponent *= interior.exponent
-    #         coefficient *= interior.coefficient ** exponent
-    #         base = interior.base
-    #     else:
-    #         base = inside
-    #     return Operand(coefficient, base, exponent)
+    # NOTE: The difference between `create` and `parse` is: 
+    # * `create` resolves input into (coefficient, base, exponent), then creates
+    #   an appropriate operand from the base string, applies the input
+    #   coefficient and exponent, and finally returns the operand.
+    # * `parse` attempts to match an operand at the start of a string, then
+    #   creates an appropriate operand from only that substring, and finally
+    #   returns the operand and the remainder of the string.
 
     def create(self, *args, strict: bool=False):
         """Create an operand from input.
@@ -1579,12 +1470,6 @@ class OperandFactory(PartFactory):
             end += match.end()
         return MatchResult(groupdict=result, end=end)
 
-    # def _create_new(self, key: str, *args):
-    #     """Create a new instance from `args`, based on `key`."""
-    #     if key in {'constant', 'variable'}:
-    #         return Term(*args)
-    #     return Operand(*args)
-
     def standardize(
         self,
         fill: bool=False,
@@ -1609,20 +1494,6 @@ class OperandFactory(PartFactory):
             v = self.patterns['raising'].sub('', v)
         return fractions.Fraction(v or 1)
 
-    # def _standard(
-    #     self,
-    #     coefficient: Any=None,
-    #     base: Any=None,
-    #     exponent: Any=None,
-    # ) -> Tuple[Union[float, int], str, fractions.Fraction]:
-    #     """Cast component(s) to the appropriate type(s) or return default."""
-    #     c = numerical.cast(coefficient or 1)
-    #     b = str(base or 1)
-    #     if isinstance(exponent, str):
-    #         exponent = self.patterns['raising'].sub('', exponent)
-    #     e = fractions.Fraction(exponent or 1)
-    #     return c, b, e
-
     def fill_defaults(self, **given):
         """Return the default value for any explicitly null arguments.
 
@@ -1644,91 +1515,6 @@ class OperandFactory(PartFactory):
             }
         )
         return given
-
-    # def findfull(self, string: str, keys: Union[str, Iterable[str]]):
-    #     """Extract components if the string matches a named pattern.
-
-    #     This method will compare `string` to the pattern(s) indicated by `keys`
-    #     in the order of `keys`. It will only return a non-null result if the
-    #     whole string matches one of the target patterns.
-    #     """
-    #     patterns = (
-    #         pattern for key, pattern in self.patterns.items()
-    #         if key in iterables.Separable(keys)
-    #     )
-    #     for pattern in patterns:
-    #         if match := pattern.fullmatch(string):
-    #             return self._standard(**match.groupdict())
-
-    # def _simplex(self, c0, b0, e0):
-    #     """Parse a simple algebraic part, if possible.
-
-    #     A simple algebraic part represents a variable or constant term. This
-    #     method checks for them in that order.
-    #     """
-    #     keys = ('constant', 'variable')
-    #     found = self.findfull(b0, keys)
-    #     if not found:
-    #         return
-    #     try:
-    #         c1, base, e1 = found
-    #     except ValueError:
-    #         errmsg = f"Expected 3 components in {b0} but found {len(found)}"
-    #         raise OperandValueError(errmsg)
-    #     coefficient = c0 * (c1 ** e0)
-    #     exponent = e1 * e0
-    #     return Term(coefficient, base, exponent)
-
-    # def _complex(self, c0, b0, e0):
-    #     """Parse a complex algebraic part, if possible.
-
-    #     A complex algebraic part is any algebraic part that is neither a term
-    #     not a constant. This method will attempt to match `b0` to a term-like
-    #     regular expression in which a non-empty string is bounded by known
-    #     separator charaters, is possibly preceeded by a coefficient, and is
-    #     possibly followed by an exponent.
-
-    #     If `b0` matches this RE, it may have the form of a `Term` with a
-    #     potentially complex part in the variable position, but it need not. For
-    #     example, the following strings will both match, but only the first
-    #     contains a coefficient and exponent that apply to all terms:
-    #     - '3(a * b / (c * d))^2'
-    #     - '3(a * b) / (c * d)^2'
-
-    #     Therefore, we need to perform some additional searching to determine if
-    #     the final closing separator matches the initial opening separator. The
-    #     algorithm essentially consists of computing a running difference between
-    #     the number of opening separators and the number of closing separators.
-    #     If we close the initial opening separator before the end of the
-    #     variable-like substring, the substring is not bounded, so we can't
-    #     extract a coefficient and exponent. If we close the initial opening
-    #     separator right at the end of the substring, the substring is bounded by
-    #     separators, so we can extract and update the coefficient and exponent if
-    #     they exist.
-
-    #     If `b0` doesn't match the RE or if the variable-like term isn't bounded
-    #     afterall, this method will return `None`.
-    #     """
-    #     found = self.findfull(b0, 'complex')
-    #     if not found:
-    #         return
-    #     try:
-    #         c1, base, e1 = found
-    #     except ValueError:
-    #         errmsg = f"Expected 3 components in {b0} but found {len(found)}"
-    #         raise OperandValueError(errmsg)
-    #     if not self.entire(base):
-    #         return
-    #     coefficient = c0 * (c1 ** e0)
-    #     exponent = e1 * e0
-    #     inside = self.unpack(base)
-    #     if interior := self._simplex(1, inside, 1):
-    #         exponent *= interior.exponent
-    #         coefficient *= interior.coefficient ** exponent
-    #         base = interior.base
-    #     else:
-    #         base = inside
-    #     return Operand(coefficient, base, exponent)
 
     def find_bounded(self, string: str, strip: bool=False):
         """Find the first bounded operand in `string`.
