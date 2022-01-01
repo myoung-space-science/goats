@@ -1467,19 +1467,22 @@ class OperandFactory(PartFactory):
 
     def _match_complex(self, string: str):
         """Attempt to find a complex operand at the start of `string`."""
-        bounded = self.find_bounded(string, strip=True)
+        bounded = self.find_bounded(string, strip=True, match=True)
         if not bounded:
             return
-        result = {'base': bounded.result}
+        result = {}
         end = bounded.end
         if leading := self._match_simplex(string):
             standard = self.standardize(**leading.groupdict())
             coefficient = standard['coefficient'] ** standard['exponent']
             result['coefficient'] = coefficient
-        match = self.patterns['exponent'].match(bounded.remainder)
-        if match:
+        if matches := self.patterns['exponent'].finditer(bounded.result):
+            match = tuple(matches)[-1]
+            base = bounded.result[:match.start()]
             result['exponent'] = match[0]
-            end += match.end()
+        else:
+            base = bounded.result
+        result['base'] = self.unpack(base)
         return MatchResult(groupdict=result, end=end)
 
     def standardize(
