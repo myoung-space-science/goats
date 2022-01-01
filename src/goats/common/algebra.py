@@ -1568,6 +1568,7 @@ class OperandFactory(PartFactory):
                 return Parsed(
                     result=result,
                     remainder=remainder,
+                    start=start,
                     end=end,
                 )
 
