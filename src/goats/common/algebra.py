@@ -1526,7 +1526,12 @@ class OperandFactory(PartFactory):
         )
         return given
 
-    def find_bounded(self, string: str, strip: bool=False):
+    def find_bounded(
+        self,
+        string: str,
+        strip: bool=False,
+        match: bool=False,
+    ) -> Optional[Parsed]:
         """Find the first bounded operand in `string`.
         
         A bounded operand is any collection of valid operands or operators that
@@ -1537,10 +1542,14 @@ class OperandFactory(PartFactory):
         Parameters
         ----------
         string
-            The string in which to match a bounded operand, if possible.
+            The string in which to search for a bounded operand.
 
         strip : bool, default=False
             If True, remove the bounding separators from the result.
+
+        match : bool, default=False
+            If True, restrict search to beginning of string (similar to
+            the `match` functions of the `re` module).
 
         Returns
         -------
@@ -1559,6 +1568,8 @@ class OperandFactory(PartFactory):
                     initialized = True
             elif self.patterns['closing'].match(c):
                 count -= 1
+            if match and start > 0:
+                return
             if initialized and count == 0:
                 end = i+1
                 result = string[start:end]
