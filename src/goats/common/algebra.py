@@ -1,6 +1,7 @@
 import abc
 import collections.abc
 import fractions
+import functools
 import numbers
 import operator
 import re
@@ -1165,9 +1166,15 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
                     'exponent': term.exponent,
                 }
                 reduced[term.base] = attributes
-        return [
-            Term(v['coefficient'], k, v['exponent'])
-            for k, v in reduced.items() if v['exponent'] != 0
+        fracs = [
+            fractions.Fraction(v['coefficient'])
+            for v in reduced.values()
+        ]
+        constant = functools.reduce(lambda x, y: x*y, fracs)
+        return [Term(coefficient=constant)] + [
+            Term(base=k, exponent=v['exponent'])
+            for k, v in reduced.items()
+            if k != '1' and v['exponent'] != 0
         ]
 
     @property
