@@ -639,6 +639,7 @@ class OperandFactory(PartFactory):
         else:
             base = bounded.result
         result['base'] = self.unpack(base)
+        # breakpoint()
         return MatchResult(groupdict=result, end=end)
 
     def standardize(
@@ -779,9 +780,9 @@ class OperandFactory(PartFactory):
         closed = self.patterns['closing'].match(string[-1])
         if not (opened and closed):
             return string
-        for key in ('opening', 'closing'):
-            string = self.patterns[key].sub('', string, count=1)
-        return string
+        string = self.patterns['opening'].sub('', string, count=1)
+        string = self.patterns['closing'].sub('', string[::-1], count=1)
+        return string[::-1]
 
 
 class ParsingError(Exception):
@@ -997,6 +998,7 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
         self.parser = Parser(**kwargs)
         string = self._standardize(expression)
         self._terms = self.parser.parse(string)
+        self.reduce()
 
     def _standardize(self, expression: Union[str, iterables.Separable]) -> str:
         """Convert user input to a standard format."""
