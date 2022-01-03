@@ -864,26 +864,6 @@ class Parser:
             return [operand]
         return self._resolve_operations(operand)
 
-    def _insert_multiply(self, parts: Iterable[Part]):
-        """Insert a multiplication operator between adjacent terms.
-
-        NIST guidelines permit the use of a space character to indicate
-        multiplication between unit symbols, and this is a common practice when
-        writing algebraic expressions in general. This method places a
-        multiplication operator of the appropriate form between adjacent terms
-        in order to make that operation explicit
-        """
-        result = []
-        last = parts[0]
-        for this in parts[1:]:
-            if all(isinstance(part, Operand) for part in (last, this)):
-                result.extend([last, Operator('multiply')])
-            else:
-                result.append(last)
-            last = this
-        result.append(last)
-        return result
-
     # TODO: Refactor this method at the comment breaks.
     def _resolve_operations(self, current: Operand):
         """Separate an algebraic group into operators and operands."""
@@ -936,6 +916,26 @@ class Parser:
                 raise RecursionError(f"{errstart} {errfinal}") from None
             string = current
         return parts
+
+    def _insert_multiply(self, parts: Iterable[Part]):
+        """Insert a multiplication operator between adjacent terms.
+
+        NIST guidelines permit the use of a space character to indicate
+        multiplication between unit symbols, and this is a common practice when
+        writing algebraic expressions in general. This method places a
+        multiplication operator of the appropriate form between adjacent terms
+        in order to make that operation explicit
+        """
+        result = []
+        last = parts[0]
+        for this in parts[1:]:
+            if all(isinstance(part, Operand) for part in (last, this)):
+                result.extend([last, Operator('multiply')])
+            else:
+                result.append(last)
+            last = this
+        result.append(last)
+        return result
 
     def _check_operators(
         self,
