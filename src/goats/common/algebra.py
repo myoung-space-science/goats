@@ -1067,6 +1067,11 @@ class Term(Operand):
         return super().__eq__(other)
 
 
+def asterms(these: Iterable[str]):
+    """Convert strings to terms, if possible."""
+    return [OperandFactory().create(this) for this in these]
+
+
 class OperandTypeError(TypeError):
     pass
 
