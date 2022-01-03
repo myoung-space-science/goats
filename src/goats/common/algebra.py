@@ -317,8 +317,8 @@ class OperandFactory(PartFactory):
         (?:                   # followed by ...
             (?:/\d+)?         # ... an optional denominator
         |                     # OR
-            (?:\.\d*)         # ... an optional fractional part
-            (?:[eE][-+]?\d+)  #     and optional exponent
+            (?:\.\d*)?        # ... an optional fractional part
+            (?:[eE][-+]?\d+)? #     and optional exponent
         )
     """
     base = r"""
