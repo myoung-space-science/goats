@@ -169,6 +169,8 @@ class Term(Operand):
         if (
             isinstance(self.coefficient, fractions.Fraction)
             and
+            self.base != '1'
+            and
             self.coefficient.denominator != 1
         ): return f"({self.coefficient})"
         return str(self.coefficient)
