@@ -1513,8 +1513,8 @@ class OperandFactory(PartFactory):
     ) -> Dict[str, Union[float, int, str, fractions.Fraction]]:
         """Cast to appropriate types and fill in defaults, if necessary."""
         full = {
-            'coefficient': {'callable': numerical.cast},
-            'base': {'callable': str},
+            'coefficient': {'callable': self._standard_coefficient},
+            'base': {'callable': self._standard_base},
             'exponent': {'callable': self._standard_exponent},
         }
         default = self.fill_defaults(**dict.fromkeys(full.keys()))
@@ -1523,6 +1523,14 @@ class OperandFactory(PartFactory):
             key: attr['callable'](given.get(key) or default[key])
             for key, attr in updatable.items()
         }
+
+    def _standard_coefficient(self, v):
+        """Convert input to a standard coefficient."""
+        return fractions.Fraction(v or 1)
+
+    def _standard_base(self, v):
+        """Convert input to a standard base."""
+        return str(v)
 
     def _standard_exponent(self, v):
         """Convert input to a standard exponent."""
