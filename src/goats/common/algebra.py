@@ -1476,10 +1476,11 @@ class OperandFactory(PartFactory):
             standard = self.standardize(**leading.groupdict())
             coefficient = standard['coefficient'] ** standard['exponent']
             result['coefficient'] = coefficient
-        if matches := self.patterns['exponent'].finditer(bounded.result):
-            match = tuple(matches)[-1]
-            base = bounded.result[:match.start()]
-            result['exponent'] = match[0]
+        matches = tuple(self.patterns['exponent'].finditer(bounded.result))
+        if matches:
+            final = matches[-1]
+            base = bounded.result[:final.start()]
+            result['exponent'] = final[0]
         else:
             base = bounded.result
         result['base'] = self.unpack(base)
