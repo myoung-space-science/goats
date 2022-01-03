@@ -154,10 +154,10 @@ class Term(Operand):
 
     def format(self, style: str=None):
         """Format this term."""
-        exponent = self._format_exponent(style)
         coefficient = self._format_coefficient()
         if self.base == '1':
-            return f"{coefficient}{exponent}"
+            return f"{coefficient}"
+        exponent = self._format_exponent(style)
         return f"{coefficient}{self.base}{exponent}"
 
     def _format_coefficient(self):
@@ -175,7 +175,7 @@ class Term(Operand):
 
     def _format_exponent(self, style: str):
         """Format the current exponent for printing."""
-        if self.exponent == 1:
+        if self.base == '1' or self.exponent == 1:
             return ''
         if not style:
             return f"^{self.exponent}"
