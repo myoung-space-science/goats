@@ -516,6 +516,9 @@ class OperandFactory(PartFactory):
         if match := self.match_maker(b0, recipe['fullmatch']):
             standard = self.standardize(**match.groupdict(), fill=True)
             c1, base, e1 = standard.values()
+            if base == '1':
+                coefficient = c0 * (c1 ** e1) ** e0
+                return recipe['type'](float(coefficient))
             coefficient = c0 * (c1 ** e0)
             exponent = e1 * e0
             return recipe['type'](coefficient, base, exponent)
