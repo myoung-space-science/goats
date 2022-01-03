@@ -152,12 +152,6 @@ class Operand(Part):
 class Term(Operand):
     """An algebraic operand with an irreducible base."""
 
-    @property
-    def _value(self):
-        """Internal value attribute for constant terms."""
-        if self.base == '1':
-            return self.coefficient ** self.exponent
-
     def format(self, style: str=None):
         """Format this term."""
         exponent = self._format_exponent(style)
@@ -170,6 +164,8 @@ class Term(Operand):
         """Format the coefficient for printing."""
         if self.base != '1' and self.coefficient == 1:
             return ''
+        if float(self.coefficient) == int(self.coefficient):
+            return str(int(self.coefficient))
         if (
             isinstance(self.coefficient, fractions.Fraction)
             and
@@ -189,8 +185,8 @@ class Term(Operand):
 
     def __float__(self) -> float:
         """Called for float(self)."""
-        if self._value:
-            return float(self._value)
+        if self.base == '1':
+            return float(self.coefficient)
         errmsg = f"Can't convert term with base {self.base!r} to float"
         raise TypeError(errmsg)
 
