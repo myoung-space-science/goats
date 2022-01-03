@@ -1425,8 +1425,7 @@ class OperandFactory(PartFactory):
         -------
         A Matched object or `None`
         """
-        target = self.unpack(string).strip()
-        result = func(target)
+        result = func(string)
         if not result:
             return
         if isinstance(result, Matched):
@@ -1454,10 +1453,13 @@ class OperandFactory(PartFactory):
             stripped = self.unpack(bounded.result)
             for key in ('variable', 'constant'):
                 if match := self.patterns[key].fullmatch(stripped):
-                    return match
+                    return MatchResult(
+                        groupdict=match.groupdict(),
+                        end=bounded.end,
+                    )
         for key in ('variable', 'constant'):
             if match := self.patterns[key].match(string):
-                return match
+                return MatchResult(match=match)
 
     def _fullmatch_complex(self, string: str):
         """Attempt to match `string` to the form of a complex operand."""
