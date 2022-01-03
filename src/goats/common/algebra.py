@@ -1176,11 +1176,21 @@ class OperatorFactory(PartFactory):
 class OperandFactory(PartFactory):
     """A factory that produces algebraic operands."""
 
-    digit = r'[0-9]' # only equal to r'\d' in certain modes
-    coefficient = fr'[-+]?{digit}*\.?{digit}+' # '1e2' not included
-    base = r'[a-zA-Z#_]+[0-9]*' # digits must follow a known non-digit
-    exponent = fr'[-+]?{digit}+(?:[/.]{digit}+)?'
-    unity = r'(?<![\d.])1(?![\d.])'
+    rational = r""" # Modeled after `fractions._RATIONAL_FORMAT`
+        [-+]?                 # an optional sign, ...
+        (?=\d|\.\d)           # ... only if followed by <digit> or .<digit>
+        \d*                   # possibly empty numerator
+        (?:                   # followed by ...
+            (?:/\d+)?         # ... an optional denominator
+        |                     # OR
+            (?:\.\d*)         # ... an optional fractional part
+            (?:[eE][-+]?\d+)  #     and optional exponent
+        )
+    """
+    base = r"""
+        [a-zA-Z#_]+ # one or more accepted non-digit character(s)
+        \d*         # followed by optional digits
+    """
 
     def __init__(
         self,
@@ -1188,26 +1198,29 @@ class OperandFactory(PartFactory):
         closing: str=')',
         raising: str='^',
     ) -> None:
-        exponent = fr'\{raising}{self.exponent}'
+        exponent = fr'\{raising}{self.rational}'
         self.patterns = {
             'constant': re.compile(
-                fr'(?P<coefficient>{self.coefficient})'
-                fr'(?P<exponent>{exponent})?'
+                fr'(?P<coefficient>{self.rational})'
+                fr'(?P<exponent>{exponent})?',
+                re.VERBOSE,
             ),
             'variable': re.compile(
-                fr'(?P<coefficient>{self.coefficient})?'
+                fr'(?P<coefficient>{self.rational})?'
                 fr'(?P<base>{self.base})'
-                fr'(?P<exponent>{exponent})?'
+                fr'(?P<exponent>{exponent})?',
+                re.VERBOSE,
             ),
             'complex': re.compile(
-                fr'(?P<coefficient>{self.coefficient})?'
+                fr'(?P<coefficient>{self.rational})?'
                 fr'(?P<base>\{opening}.+?\{closing})'
-                fr'(?P<exponent>{exponent})?'
+                fr'(?P<exponent>{exponent})?',
+                re.VERBOSE,
             ),
-            'exponent': re.compile(exponent),
-            'opening': re.compile(fr'\{opening}'),
-            'closing': re.compile(fr'\{closing}'),
-            'raising': re.compile(fr'\{raising}')
+            'exponent': re.compile(exponent, re.VERBOSE),
+            'opening': re.compile(fr'\{opening}', re.VERBOSE),
+            'closing': re.compile(fr'\{closing}', re.VERBOSE),
+            'raising': re.compile(fr'\{raising}', re.VERBOSE)
         }
         """Compiled regular expressions for algebraic operands."""
         self.recipes = {
