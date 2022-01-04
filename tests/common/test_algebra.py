@@ -229,6 +229,8 @@ def test_expression_parser():
         expression = algebra.Expression(test)
         terms = algebra.asterms(expected['terms'])
         assert equal_terms(expression, terms)
+    with pytest.raises(RecursionError):
+        algebra.Expression('(a*b))')
 
 
 @pytest.mark.expression
