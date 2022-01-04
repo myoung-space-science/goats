@@ -1,20 +1,18 @@
 import pytest
 import fractions
+import typing
 
 from goats.common import algebra
 
 
-# simple_type = (algebra.Variable, algebra.Constant)
-
-
 @pytest.mark.term
-def test_simple_term():
-    """Test the object representing a simple algebraic term."""
+def test_create_term():
+    """Create variable and constant algebraic terms."""
     valid = {
         '1': {'coefficient': 1, 'base': '1', 'exponent': 1},
         '2': {'coefficient': 2, 'base': '1', 'exponent': 1},
-        '2^3': {'coefficient': 2, 'base': '1', 'exponent': 3},
-        '2^-3': {'coefficient': 2, 'base': '1', 'exponent': -3},
+        '2^3': {'coefficient': 8, 'base': '1', 'exponent': 1},
+        '2^-3': {'coefficient': 1/8, 'base': '1', 'exponent': 1},
         'a': {'coefficient': 1, 'base': 'a', 'exponent': 1},
         'a_b': {'coefficient': 1, 'base': 'a_b', 'exponent': 1},
         'a^2': {'coefficient': 1, 'base': 'a', 'exponent': 2},
@@ -35,7 +33,7 @@ def test_simple_term():
     for string, expected in valid.items():
         term = algebra.OperandFactory().create(string)
         assert isinstance(term, algebra.Term)
-        assert term.coefficient == float(expected['coefficient'])
+        assert float(term.coefficient) == float(expected['coefficient'])
         assert term.base == expected['base']
         assert term.exponent == fractions.Fraction(expected['exponent'])
     invalid = [
@@ -43,94 +41,30 @@ def test_simple_term():
         'a^', # missing exponent
     ]
     for string in invalid:
-        with pytest.raises(algebra.PartValueError):
-            algebra.Part(string)
-
-
-@pytest.mark.term
-def test_simple_term_init():
-    """Initialize a simple term with various arguments."""
-    cases = {
-        (1, 'a', 1): [['a'], [1, 'a'], ['a', 1], [1, 'a', 1]],
-        (2, 'a', 1): [['2a'], [1, '2a'], ['2a', 1], [1, '2a', 1]],
-        (2, 'a', 3): [['2a^3'], [2, 'a', 3]],
-        (2, 'a', -1): [['2a^-1'], [2, 'a', -1]],
-    }
-    for reference, groups in cases.items():
-        for args in groups:
-            term = algebra.Term(*args)
-            assert isinstance(term, algebra.Term)
-            assert term.coefficient == reference[0]
-            assert term.base == reference[1]
-            assert term.exponent == reference[2]
-
-
-@pytest.mark.term
-def test_simple_term_format():
-    """Test the ability to properly format a simple algebraic term."""
-    cases = [
-        ('1', '1'),
-        ('1^2', '1'),
-        ('2^2', '4'),
-        ('a', 'a'),
-        ('2a', '2a'),
-        ('a^2', 'a^2'),
-        ('3a^2', '3a^2'),
-        ('1a', 'a'),
-        ('a^1', 'a'),
-        ('1a^1', 'a'),
-        ('2a^1', '2a'),
-        ('1a^2', 'a^2'),
-    ]
-    for (arg, expected) in cases:
-        assert str(algebra.Part(arg)) == expected
+        with pytest.raises(algebra.OperandValueError):
+            term = algebra.OperandFactory().create(string)
 
 
 @pytest.mark.term
 def test_simple_term_operators():
     """Test allowed arithmetic operations on a simple algebraic term."""
-    x = algebra.Part('x')
-    assert isinstance(x, algebra.Variable)
-    assert x**2 == algebra.Variable(1, 'x', 2)
-    assert 3 * x == algebra.Variable(3, 'x', 1)
-    assert x * 3 == algebra.Variable(3, 'x', 1)
-    assert (3 * x) ** 2 == algebra.Variable(9, 'x', 2)
-    y = algebra.Part('y')
-    assert isinstance(y, algebra.Variable)
+    x = algebra.OperandFactory().create('x')
+    assert isinstance(x, algebra.Term)
+    assert x**2 == algebra.Term(1, 'x', 2)
+    assert 3 * x == algebra.Term(3, 'x', 1)
+    assert x * 3 == algebra.Term(3, 'x', 1)
+    assert (3 * x) ** 2 == algebra.Term(9, 'x', 2)
+    y = algebra.OperandFactory().create('y')
+    assert isinstance(y, algebra.Term)
     y *= 2.5
-    assert y == algebra.Variable(2.5, 'y', 1)
-    z = algebra.Part('z')
-    assert isinstance(z, algebra.Variable)
+    assert y == algebra.Term(2.5, 'y', 1)
+    z = algebra.OperandFactory().create('z')
+    assert isinstance(z, algebra.Term)
     z **= -3
-    assert z == algebra.Variable(1, 'z', -3)
+    assert z == algebra.Term(1, 'z', -3)
 
 
-@pytest.mark.part
-def test_part_idempotence():
-    """Make sure we can initialize a part object with an existing instance."""
-    term = algebra.Part('a^3')
-    assert isinstance(term, algebra.Variable)
-    assert algebra.Part(term) == term
-
-
-@pytest.mark.part
-def test_part_issimple():
-    """Test the check for a 'simple' expression part."""
-    cases = {
-        '': False,
-        'a': True,
-        'a^2': True,
-        'a^2/3': True,
-        '3a^2': True,
-        'a * b^2': False,
-    }
-    simple = (algebra.Variable, algebra.Constant)
-    for string, expected in cases.items():
-        term = algebra.Part(string)
-        assert isinstance(term, simple) == expected
-
-
-@pytest.mark.part
+@pytest.mark.xfail
 def test_part_init():
     """Test the object representing a part of an expression."""
     cases = {
@@ -147,9 +81,9 @@ def test_part_init():
         (1, 'a / (b * c)', 1): [['a / (b * c)']],
     }
     for ref, group in cases.items():
-        from_ref = algebra.Part(*ref)
+        from_ref = algebra.OperandFactory().create(*ref)
         for args in group:
-            from_args = algebra.Part(*args)
+            from_args = algebra.OperandFactory().create(*args)
             assert from_ref == from_args
             for part in [from_ref, from_args]:
                 assert part.coefficient == ref[0]
@@ -252,22 +186,24 @@ def test_expression_parser():
     for test, expected in cases.items():
         expression = algebra.Expression(test)
         terms = algebra.asterms(expected['terms'])
-        assert len(expression.terms) == len(terms)
-        assert all(term in expression.terms for term in terms)
+        assert equal_terms(expression, terms)
 
 
 @pytest.mark.expression
 def test_space_multiplies():
     """Test the option to allow whitespace to represent multiplication."""
     cases = {
-        'a^2 * b^-2': ['a^2', 'b^-2'],
-        'a^2 b^-2': ['a^2', 'b^-2'],
-        '(a b^-2) / (c^3 d)': ['a^1', 'b^-2', 'c^-3', 'd^-1'],
+        'a^2 * b^-2': ['1', 'a^2', 'b^-2'],
+        'a^2 b^-2': ['1', 'a^2', 'b^-2'],
+        '(a b^-2) / (c^3 d)': ['1', 'a^1', 'b^-2', 'c^-3', 'd^-1'],
     }
     for test, strings in cases.items():
-        expression = algebra.Expression(test, space_multiplies=True)
-        expected = [algebra.Term(string) for string in strings]
-        assert expression.terms == expected
+        expression = algebra.Expression(test)
+        expected = [
+            algebra.OperandFactory().create(string)
+            for string in strings
+        ]
+        assert equal_terms(expression, expected)
 
 
 @pytest.mark.expression
@@ -283,7 +219,7 @@ def test_init_collection():
     }
     for string, terms in cases.items():
         assert algebra.Expression(string) == algebra.Expression(terms)
-        parts = [algebra.Part(term) for term in terms]
+        parts = [algebra.OperandFactory().create(term) for term in terms]
         assert algebra.Expression(string) == algebra.Expression(parts)
 
 
@@ -291,16 +227,22 @@ def test_init_collection():
 def test_parser_operators():
     """Test the algebraic parser with non-standard operators."""
     expression = algebra.Expression('a @ b^2 $ c', multiply='@', divide='$')
-    expected = [algebra.Term(term) for term in ('a', 'b^2', 'c^-1')]
-    assert expression.terms == expected
+    expected = [
+        algebra.OperandFactory().create(term)
+        for term in ('1', 'a', 'b^2', 'c^-1')
+    ]
+    assert equal_terms(expression, expected)
 
 
 @pytest.mark.expression
 def test_parser_separators():
     """Test the algebraic parser with non-standard separators."""
     expression = algebra.Expression('a / [b * c]^2', opening='[', closing=']')
-    expected = [algebra.Term(term) for term in ('a', 'b^-2', 'c^-2')]
-    assert expression.terms == expected
+    expected = [
+        algebra.OperandFactory().create(term)
+        for term in ('1', 'a', 'b^-2', 'c^-2')
+    ]
+    assert equal_terms(expression, expected)
 
 
 @pytest.mark.skip(reason="Requires significant refactoring")
@@ -310,25 +252,12 @@ def test_nonstandard_chars():
     string = '<r> * cm^2 / (<flux> / nuc)'
     expression = algebra.Expression(string)
     expected = [
-        algebra.Term('<r>', 1),
-        algebra.Term('cm', 2),
-        algebra.Term('<flux>', -1),
-        algebra.Term('nuc', 1),
+        algebra.Term(1, '<r>', 1),
+        algebra.Term(1, 'cm', 2),
+        algebra.Term(1, '<flux>', -1),
+        algebra.Term(1, 'nuc', 1),
     ]
-    assert expression.terms == expected
-
-
-@pytest.mark.expression
-def test_guess_separators():
-    """Test the function that guesses separators in an expression."""
-    cases = {
-        'a * (b / c)': ('(', ')'),
-        'a * (b / c]': ('(', ']'),
-        'a * [b / c)': ('[', ')'),
-        'a * [b / c]': ('[', ']'),
-    }
-    for test, expected in cases.items():
-        assert algebra.guess_separators(test) == expected
+    assert equal_terms(expression, expected)
 
 
 @pytest.mark.expression
@@ -345,10 +274,12 @@ def test_formatted_expression():
     """Test the ability to format terms in an algebraic expression."""
     string = 'a0^2 * (a1*a2) / (a3 * a4^2 * (a5/a6))'
     expresssion = algebra.Expression(string)
-    expected = 'a0^2 a1 a2 a3^-1 a4^-2 a5^-1 a6'
-    assert expresssion.format() == expected
-    expected = 'a0^{2} a1 a2 a3^{-1} a4^{-2} a5^{-1} a6'
-    assert expresssion.format(style='tex') == expected
+    terms = ['1', 'a0^2', 'a1', 'a2', 'a3^-1', 'a4^-2', 'a5^-1', 'a6']
+    formatted = expresssion.format()
+    assert all(term in formatted for term in terms)
+    terms = ['1', 'a0^{2}', 'a1', 'a2', 'a3^{-1}', 'a4^{-2}', 'a5^{-1}', 'a6']
+    formatted = expresssion.format(style='tex')
+    assert all(term in formatted for term in terms)
 
 
 @pytest.mark.expression
@@ -371,23 +302,6 @@ def test_expression_equality():
         assert (args[0] == expressions[1]) == result
         assert (args[1] == expressions[0]) == result
         assert (expressions[0] == expressions[1]) == result
-
-
-@pytest.mark.expression
-def test_expression_collection():
-    """Confirm that expressions behave like collections."""
-    expression = algebra.Expression('a / (b * c * (d / e))')
-    terms = [
-        algebra.Term('a'),
-        algebra.Term('b^-1'),
-        algebra.Term('c^-1'),
-        algebra.Term('d^-1'),
-        algebra.Term('e'),
-    ]
-    assert list(expression) == terms
-    assert len(expression) == len(terms)
-    for term in terms:
-        assert term in expression
 
 
 @pytest.mark.expression
@@ -479,13 +393,18 @@ def test_expression_copy():
 
 @pytest.mark.expression
 def test_reduced_expression():
-    """Test the property that returns an algebraically reduced expression."""
+    """An expression should be equal to its reduced version."""
     expression = algebra.Expression('a^2 * b / (a * b^3 * c)')
-    copied = expression.reduced
-    expected = algebra.Expression('a * b^-2 * c^-1')
-    assert copied == expected
-    assert copied is not expression
-    assert copied != expression
-    inplace = expression.reduce()
-    assert inplace == expected
-    assert inplace is expression
+    reduced = algebra.Expression('a * b^-2 * c^-1')
+    assert expression == reduced
+
+
+def equal_terms(
+    expression: algebra.Expression,
+    terms: typing.Iterable[algebra.Term],
+) -> bool:
+    """True if an expression's terms equal an iterable of terms."""
+    if len(expression.terms) != len(terms):
+        return False
+    return all(term in expression.terms for term in terms)
+

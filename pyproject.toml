@@ -22,7 +22,6 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 markers = [
     "term: marks tests for algebraic terms",
-    "part: marks tests for parts of algebraic expressions",
     "expression: marks tests for algebraic expressions",
 ]
 
