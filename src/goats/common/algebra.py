@@ -630,14 +630,11 @@ class OperandFactory(PartFactory):
             coefficient = standard['coefficient'] ** standard['exponent']
             result['coefficient'] = coefficient
         matches = tuple(self.patterns['exponent'].finditer(bounded.result))
-        if matches:
-            final = matches[-1]
+        base = bounded.result
+        if matches and (final := matches[-1]).end() == end:
             base = bounded.result[:final.start()]
             result['exponent'] = final[0]
-        else:
-            base = bounded.result
         result['base'] = self.unpack(base)
-        # breakpoint()
         return MatchResult(groupdict=result, end=end)
 
     def standardize(
