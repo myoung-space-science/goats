@@ -125,14 +125,12 @@ class Operand(Part):
         """True if two operands' attributes are equal."""
         if not isinstance(other, Operand):
             return NotImplemented
-        attrs = {'coefficient', 'base', 'exponent'}
-        try:
-            true = (getattr(self, a) == getattr(other, a) for a in attrs)
-            truth = all(true)
-        except AttributeError:
+        if not other.base == self.base:
             return False
-        else:
-            return truth
+        return all(
+            float(getattr(other, attr)) == float(getattr(self, attr))
+            for attr in ('exponent', 'coefficient')
+        )
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
