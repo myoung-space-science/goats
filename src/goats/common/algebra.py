@@ -599,15 +599,6 @@ class OperandFactory(PartFactory):
         pattern because `re.match` will find a match for 'constant' at the start
         of any variable term with an explicit coefficient.
         """
-        bounded = self.find_bounded(string, match=True)
-        if bounded:
-            stripped = self.unpack(bounded.result)
-            for key in ('variable', 'constant'):
-                if match := self.patterns[key].fullmatch(stripped):
-                    return MatchResult(
-                        groupdict=match.groupdict(),
-                        end=bounded.end,
-                    )
         for key in ('variable', 'constant'):
             if match := self.patterns[key].match(string):
                 return MatchResult(match=match)
