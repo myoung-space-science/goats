@@ -993,7 +993,7 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
         self.parser = Parser(**kwargs)
         string = self._standardize(expression)
         self._terms = self.parser.parse(string)
-        self.reduce()
+        self._reduce()
 
     def _standardize(self, expression: Union[str, iterables.Separable]) -> str:
         """Convert user input to a standard format."""
@@ -1058,7 +1058,7 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
             other = self._convert(other)
         if not other:
             return NotImplemented
-        terms = self.reduce(self._terms, other)
+        terms = self._reduce(self._terms, other)
         return self._new(terms)
 
     def __rmul__(self, other: Any):
@@ -1094,13 +1094,13 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
         if not exp:
             return NotImplemented
         terms = [pow(term, exp) for term in self._terms]
-        return self._new(self.reduce(terms))
+        return self._new(self._reduce(terms))
 
     def __ipow__(self, exp: numbers.Real):
         """Called for self **= exp."""
         for term in self._terms:
             term **= exp
-        return self.reduce()
+        return self._reduce()
 
     def _convert(self, other, converter: Callable=None, fatal: bool=False):
         """Convert `other` to a new type, if possible.
@@ -1129,24 +1129,28 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
         else:
             return converted
 
-    def reduce(self, *groups: Iterable[Term]):
+    def _reduce(self, *groups: Iterable[Term]):
         """Algebraically reduce terms with equal bases.
-        
+
         Parameters
         ----------
-        *groups : tuple of iterables
-            Zero or more iterables of `~algebra.Term` instances. If there are
-            zero groups, this method will use the current collection of terms in
-            this expression; otherwise, it will combine all terms it finds in
-            the full collection of groups.
+        *groups : tuple of iterables Zero or more iterables of `~algebra.Term`
+            instances. If there are zero groups, this method will use the
+            current collection of terms in this expression; otherwise, it will
+            combine all terms it finds in the full collection of groups.
+
+        Notes
+        -----
+        This method is intended as an internal utility for
+        `~algebra.Expression`.
         """
         if not groups:
-            self._terms = self._reduce(self._terms.copy())
+            self._terms = self._reducer(self._terms.copy())
             return self
         terms = (term for group in groups for term in group)
-        return self._reduce(terms)
+        return self._reducer(terms)
 
-    def _reduce(self, terms: Iterable[Term]):
+    def _reducer(self, terms: Iterable[Term]):
         """Internal helper for `reduce`.
 
         This method handles the actual logic for combining terms with the same
