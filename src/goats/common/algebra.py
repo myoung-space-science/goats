@@ -1171,12 +1171,18 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
             fractions.Fraction(v['coefficient'])
             for v in reduced.values()
         ]
-        constant = functools.reduce(lambda x, y: x*y, fracs)
-        return [Term(coefficient=constant)] + [
+        variables = [
             Term(base=k, exponent=v['exponent'])
             for k, v in reduced.items()
             if k != '1' and v['exponent'] != 0
         ]
+        c = functools.reduce(lambda x, y: x*y, fracs)
+        constant = [Term(coefficient=c)]
+        if not variables:
+            return constant
+        if c == 1:
+            return variables
+        return variables + constant
 
     def copy(self):
         """Create a copy of this instance."""

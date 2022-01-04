@@ -96,100 +96,100 @@ def test_expression_parser():
     """Test the algebraic-expression parser."""
     cases = {
         'a / b': {
-            'terms': ['1', 'a', 'b^-1'],
+            'terms': ['a', 'b^-1'],
         },
         '1 / b': {
-            'terms': ['1', 'b^-1'],
+            'terms': ['b^-1'],
         },
         'a / (b * c)': {
-            'terms': ['1', 'a', 'b^-1', 'c^-1'],
+            'terms': ['a', 'b^-1', 'c^-1'],
         },
         'a / (bc)': {
-            'terms': ['1', 'a', 'bc^-1'],
+            'terms': ['a', 'bc^-1'],
         },
         'a / bc': {
-            'terms': ['1', 'a', 'bc^-1'],
+            'terms': ['a', 'bc^-1'],
         },
         'a * b / c': {
-            'terms': ['1', 'a', 'b', 'c^-1'],
+            'terms': ['a', 'b', 'c^-1'],
         },
         '(a / b) / c': {
-            'terms': ['1', 'a', 'b^-1', 'c^-1'],
+            'terms': ['a', 'b^-1', 'c^-1'],
         },
         '(a / b) / (c / d)': {
-            'terms': ['1', 'a', 'b^-1', 'c^-1', 'd'],
+            'terms': ['a', 'b^-1', 'c^-1', 'd'],
         },
         '(a * b / c) / (d * e / f)': {
-            'terms': ['1', 'a', 'b', 'c^-1', 'd^-1', 'e^-1', 'f'],
+            'terms': ['a', 'b', 'c^-1', 'd^-1', 'e^-1', 'f'],
         },
         'a^2 / b^3': {
-            'terms': ['1', 'a^2', 'b^-3'],
+            'terms': ['a^2', 'b^-3'],
         },
         '(a^2 / b)^5 / (c^4 / d)^3': {
-            'terms': ['1', 'a^10', 'b^-5', 'c^-12', 'd^3'],
+            'terms': ['a^10', 'b^-5', 'c^-12', 'd^3'],
         },
         '((a^2 / b) / (c^4 / d))^3': {
-            'terms': ['1', 'a^6', 'b^-3', 'c^-12', 'd^3'],
+            'terms': ['a^6', 'b^-3', 'c^-12', 'd^3'],
         },
         'a^-2': {
-            'terms': ['1', 'a^-2'],
+            'terms': ['a^-2'],
         },
         'a^-3 / b^-6': {
-            'terms': ['1', 'a^-3', 'b^6'],
+            'terms': ['a^-3', 'b^6'],
         },
         '(a * (b * c))': {
-            'terms': ['1', 'a', 'b', 'c'],
+            'terms': ['a', 'b', 'c'],
         },
         '(a * (b * c))^2': {
-            'terms': ['1', 'a^2', 'b^2', 'c^2'],
+            'terms': ['a^2', 'b^2', 'c^2'],
         },
         '(a * (b * c)^2)': {
-            'terms': ['1', 'a', 'b^2', 'c^2'],
+            'terms': ['a', 'b^2', 'c^2'],
         },
         '(a / (b * c)^2)': {
-            'terms': ['1', 'a', 'b^-2', 'c^-2'],
+            'terms': ['a', 'b^-2', 'c^-2'],
         },
         'a / (b * c * (d / e))': {
-            'terms': ['1', 'a', 'b^-1', 'c^-1', 'd^-1', 'e'],
+            'terms': ['a', 'b^-1', 'c^-1', 'd^-1', 'e'],
         },
         'a0^2 * (a1*a2) / (a3 * a4^2 * (a5/a6))': {
-            'terms': ['1', 'a0^2', 'a1', 'a2', 'a3^-1', 'a4^-2', 'a5^-1', 'a6'],
+            'terms': ['a0^2', 'a1', 'a2', 'a3^-1', 'a4^-2', 'a5^-1', 'a6'],
         },
         '((a^2 * b^3) / c) * (d^-3)': {
-            'terms': ['1', 'a^2', 'b^3', 'c^-1', 'd^-3'],
+            'terms': ['a^2', 'b^3', 'c^-1', 'd^-3'],
         },
         '3a * b': {
-            'terms': ['3', 'a', 'b'],
+            'terms': ['a', 'b', '3'],
         },
         '3(a * b)': {
-            'terms': ['3', 'a', 'b'],
+            'terms': ['a', 'b', '3'],
         },
         '3a / b': {
-            'terms': ['3', 'a', 'b^-1'],
+            'terms': ['a', 'b^-1', '3'],
         },
         '3(a / b)': {
-            'terms': ['3', 'a', 'b^-1'],
+            'terms': ['a', 'b^-1', '3'],
         },
         'a / (2.5 * 4.0)': {
-            'terms': ['0.1', 'a'],
+            'terms': ['a', '0.1'],
         },
         'a / (2.5b * 4.0)': {
-            'terms': ['0.1', 'a', 'b^-1'],
+            'terms': ['a', 'b^-1', '0.1'],
         },
         'a / ((2.5 * 4.0) * b)': {
-            'terms': ['0.1', 'a', 'b^-1'],
+            'terms': ['a', 'b^-1', '0.1'],
         },
         'a / (2.5 * 4.0 * b)': {
-            'terms': ['0.1', 'a', 'b^-1'],
+            'terms': ['a', 'b^-1', '0.1'],
         },
         'a': {
-            'terms': ['1', 'a'],
+            'terms': ['a'],
         },
         '2a': {
-            'terms': ['2', 'a'],
+            'terms': ['a', '2'],
         },
         '2a^3': {
-            'terms': ['2', 'a^3'],
+            'terms': ['a^3', '2'],
         },
         '1': {
             'terms': ['1'],
@@ -201,28 +201,28 @@ def test_expression_parser():
             'terms': ['2^-1'],
         },
         '0.5a': {
-            'terms': ['0.5', 'a'],
+            'terms': ['a', '0.5'],
         },
         '(a*b)^2': {
-            'terms': ['1', 'a^2', 'b^2'],
+            'terms': ['a^2', 'b^2'],
         },
         '3(a*b)^2': {
-            'terms': ['3', 'a^2', 'b^2'],
+            'terms': ['a^2', 'b^2', '3'],
         },
         '3(a*2b)^2': {
-            'terms': ['12', 'a^2', 'b^2'],
+            'terms': ['a^2', 'b^2', '12'],
         },
         '3(a*2b)^2 / 6c^3': {
-            'terms': ['2', 'a^2', 'b^2', 'c^-3'],
+            'terms': ['a^2', 'b^2', 'c^-3', '2'],
         },
         '2 * 4a^5 2(2a^3)^6 * (3b * c)^-1': {
-            'terms': ['1024/3', 'a^23', 'b^-1', 'c^-1'],
+            'terms': ['a^23', 'b^-1', 'c^-1', '1024/3'],
         },
         '(3)': {
             'terms': ['3'],
         },
         '(3) * (2a)': {
-            'terms': ['6', 'a'],
+            'terms': ['a', '6'],
         },
     }
     for test, expected in cases.items():
@@ -235,9 +235,9 @@ def test_expression_parser():
 def test_space_multiplies():
     """Test the option to allow whitespace to represent multiplication."""
     cases = {
-        'a^2 * b^-2': ['1', 'a^2', 'b^-2'],
-        'a^2 b^-2': ['1', 'a^2', 'b^-2'],
-        '(a b^-2) / (c^3 d)': ['1', 'a^1', 'b^-2', 'c^-3', 'd^-1'],
+        'a^2 * b^-2': ['a^2', 'b^-2'],
+        'a^2 b^-2': ['a^2', 'b^-2'],
+        '(a b^-2) / (c^3 d)': ['a^1', 'b^-2', 'c^-3', 'd^-1'],
     }
     for test, strings in cases.items():
         expression = algebra.Expression(test)
@@ -271,7 +271,7 @@ def test_parser_operators():
     expression = algebra.Expression('a @ b^2 $ c', multiply='@', divide='$')
     expected = [
         algebra.OperandFactory().create(term)
-        for term in ('1', 'a', 'b^2', 'c^-1')
+        for term in ('a', 'b^2', 'c^-1')
     ]
     assert equal_terms(expression, expected)
 
@@ -282,7 +282,7 @@ def test_parser_separators():
     expression = algebra.Expression('a / [b * c]^2', opening='[', closing=']')
     expected = [
         algebra.OperandFactory().create(term)
-        for term in ('1', 'a', 'b^-2', 'c^-2')
+        for term in ('a', 'b^-2', 'c^-2')
     ]
     assert equal_terms(expression, expected)
 
@@ -316,10 +316,10 @@ def test_formatted_expression():
     """Test the ability to format terms in an algebraic expression."""
     string = 'a0^2 * (a1*a2) / (a3 * a4^2 * (a5/a6))'
     expresssion = algebra.Expression(string)
-    terms = ['1', 'a0^2', 'a1', 'a2', 'a3^-1', 'a4^-2', 'a5^-1', 'a6']
+    terms = ['a0^2', 'a1', 'a2', 'a3^-1', 'a4^-2', 'a5^-1', 'a6']
     formatted = expresssion.format()
     assert all(term in formatted for term in terms)
-    terms = ['1', 'a0^{2}', 'a1', 'a2', 'a3^{-1}', 'a4^{-2}', 'a5^{-1}', 'a6']
+    terms = ['a0^{2}', 'a1', 'a2', 'a3^{-1}', 'a4^{-2}', 'a5^{-1}', 'a6']
     formatted = expresssion.format(style='tex')
     assert all(term in formatted for term in terms)
 
