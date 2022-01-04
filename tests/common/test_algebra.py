@@ -4,7 +4,7 @@ import fractions
 from goats.common import algebra
 
 
-simple_type = (algebra.Variable, algebra.Constant)
+# simple_type = (algebra.Variable, algebra.Constant)
 
 
 @pytest.mark.term
@@ -33,8 +33,8 @@ def test_simple_term():
         '4b0^3/2': {'coefficient': 4, 'base': 'b0', 'exponent': '3/2'},
     }
     for string, expected in valid.items():
-        term = algebra.Part(string)
-        assert isinstance(term, simple_type)
+        term = algebra.OperandFactory().create(string)
+        assert isinstance(term, algebra.Term)
         assert term.coefficient == float(expected['coefficient'])
         assert term.base == expected['base']
         assert term.exponent == fractions.Fraction(expected['exponent'])
@@ -58,8 +58,8 @@ def test_simple_term_init():
     }
     for reference, groups in cases.items():
         for args in groups:
-            term = algebra.Part(*args)
-            assert isinstance(term, simple_type)
+            term = algebra.Term(*args)
+            assert isinstance(term, algebra.Term)
             assert term.coefficient == reference[0]
             assert term.base == reference[1]
             assert term.exponent == reference[2]
@@ -250,9 +250,10 @@ def test_expression_parser():
         },
     }
     for test, expected in cases.items():
-        terms = expected['terms']
         expression = algebra.Expression(test)
-        assert expression.terms == [algebra.Part(term) for term in terms]
+        terms = algebra.asterms(expected['terms'])
+        assert len(expression.terms) == len(terms)
+        assert all(term in expression.terms for term in terms)
 
 
 @pytest.mark.expression
