@@ -125,20 +125,6 @@ metadata['H+'] = {
 }
 
 
-class Constant(NamedTuple):
-    """A single physical constant."""
-    value: numbers.Real
-    unit: str
-
-    def __int__(self) -> int:
-        """Convert to built-in integer type."""
-        return int(self.value)
-
-    def __float__(self) -> float:
-        """Convert to built-in float type."""
-        return float(self.value)
-
-
 class Constant(quantities.Scalar):
     """A single physical constant."""
 
