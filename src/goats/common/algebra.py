@@ -1174,12 +1174,6 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
             if k != '1' and v['exponent'] != 0
         ]
 
-    @property
-    def reduced(self) -> 'Expression':
-        """A new instance, with algebraically reduced terms."""
-        inst = self.copy()
-        return inst.reduce()
-
     def copy(self):
         """Create a copy of this instance."""
         return self._new(self._terms)
