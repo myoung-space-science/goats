@@ -830,7 +830,6 @@ class Dimension(algebra.Expression):
         expression: Union['Dimension', str, iterables.Separable],
         **kwargs,
     ) -> None:
-        kwargs.update(space_multiplies=True)
         if isinstance(expression, Dimension):
             expression = str(expression)
         if isinstance(expression, iterables.Separable):
@@ -842,8 +841,8 @@ class Dimension(algebra.Expression):
         """Create an appropriate algebraic term from input."""
         if base := getattr(obj, 'dimension', None):
             exponent = getattr(obj, 'exponent', 1)
-            return algebra.Part(base, exponent)
-        if isinstance(obj, algebra.Part):
+            return algebra.Term(base=base, exponent=exponent)
+        if isinstance(obj, algebra.Term):
             return obj
         return str(obj)
 
@@ -905,7 +904,8 @@ class NamedUnit(iterables.ReprStrMixin):
     # create a singleton instance for each unique named unit but to avoid
     # parsing the input twice -- first in __new__, to build the instance key,
     # then in __init__, to set the instance attributes. This approach is almost
-    # certainly NOT thread safe.
+    # certainly NOT thread safe. UPDATE: We may be able to avoid this by
+    # initializing the instance and returning it from __new__.
 
     def __new__(cls, arg: Union[str, 'NamedUnit']):
         """Create a new instance or return an existing one."""
@@ -1045,7 +1045,11 @@ class NamedUnit(iterables.ReprStrMixin):
 # subclass of `algebra.Expression` and I want its terms to carry information
 # from `NamedUnit`, which is not a subclass of `algebra.Term`. The reason that
 # `NamedUnit` is not a subclass of `algebra.Term` is that I want each instance
-# to represent pure unit, without coefficient or exponent.
+# to a represent pure unit, without coefficient or exponent.
+#
+# Update: It's even more awkward with recent updates to the `algebra` module.
+# Consider letting `NamedUnit` subclass `algebra.Term` with coefficient=1 and
+# exponent=1.
 class UnitTerm(algebra.Term):
     """An algebraic term containing a single named unit."""
 
@@ -1054,8 +1058,10 @@ class UnitTerm(algebra.Term):
         arg: Union[str, algebra.Term],
         exponent: Union[str, int]=None,
     ) -> None:
-        super().__init__(str(arg), exponent or 1)
-        self._unit = NamedUnit(self.variable)
+        # HACK:
+        init = algebra.OperandFactory().create(str(arg), exponent or 1)
+        super().__init__(*init.attrs)
+        self._unit = NamedUnit(self.base)
         self.dimension = self._unit.dimension
         self.quantity = self._unit.quantity
 
@@ -1078,7 +1084,6 @@ class Unit(algebra.Expression):
         expression: Union['Unit', str, iterables.Separable],
         **kwargs,
     ) -> None:
-        kwargs.update(space_multiplies=True)
         if isinstance(expression, Unit):
             expression = str(expression)
         super().__init__(expression, **kwargs)
@@ -1123,8 +1128,8 @@ class Unit(algebra.Expression):
         These results are equivalent to the statement that there are 100
         centimeters in a meter.
         """
-        self_dim = self.dimension.reduced
-        other_dim = other.dimension.reduced
+        self_dim = self.dimension
+        other_dim = other.dimension
         if self_dim != other_dim:
             raise TypeError(
                 "Can't compute a numerical factor from"
@@ -1164,9 +1169,9 @@ def parse_quantity(string: str, key: str):
     expr = algebra.Expression(string)
     parts = []
     for term in expr:
-        prop = get_property(term.variable.replace('_', ' '), key)
+        prop = get_property(term.base.replace('_', ' '), key)
         tmp = {
-            k: algebra.Part(v, term.exponent)
+            k: algebra.OperandFactory().create(v, term.exponent)
             for k, v in prop.items()
         }
         parts.append(tmp)
@@ -1176,10 +1181,7 @@ def parse_quantity(string: str, key: str):
         for key, value in part.items():
             merged[key].append(value)
     return {
-        # NOTE: Future updates may remove the need to pass
-        # `space_multiplies=True` to `algebra.Expression` when the use of
-        # whitespace to imply multiplication is obvious.
-        k: str(algebra.Expression(v, space_multiplies=True).reduced)
+        k: str(algebra.Expression(v))
         for k, v in merged.items()
     }
 
@@ -1389,7 +1391,7 @@ class MetricSystem(iterables.MappingBase, iterables.ReprStrMixin):
             return self['identity'].unit
         try:
             quantities = [
-                NamedUnit(term.variable).quantity
+                NamedUnit(term.base).quantity
                 for term in Unit(string)
             ]
         except UnitParsingError:
