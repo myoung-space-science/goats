@@ -811,6 +811,11 @@ class ProductError(ParsingError):
         )
 
 
+class ParsingValueError(ValueError):
+    """Cannot create an expression from the given string."""
+    pass
+
+
 class Parser:
     """A tool for parsing algebraic expressions."""
 
@@ -842,8 +847,9 @@ class Parser:
         raising : string, default='^'
             The token that represents raising to a power (exponentiation).
         """
-        self.operators = OperatorFactory(multiply, divide)
         self.operands = OperandFactory(opening, closing, raising)
+        self.operators = OperatorFactory(multiply, divide)
+        self.parsers = (self.operands, self.operators)
         self.tokens = {
             'multiply': multiply,
             'divide': divide,
@@ -895,25 +901,26 @@ class Parser:
 
     def _parse_complex(self, string: str) -> List[Part]:
         """Parse an algebraic expression while preserving nested groups."""
-        errstart = "Failed to find a match for"
-        errfinal = repr(string)
         parts = []
-        parsers = (self.operands, self.operators)
-        init = string
-        while string:
-            current = string
-            for parser in parsers:
-                # Could we instead stay in this loop until a parser fails?
-                parsed = parser.parse(current)
-                if parsed:
-                    parts.append(parsed.result)
-                    current = parsed.remainder
-            if current == string:
-                if current == init:
-                    errfinal = f"{current!r} in {errfinal}"
-                raise RecursionError(f"{errstart} {errfinal}") from None
-            string = current
+        current = string
+        parsing = self._apply_parsers(current)
+        while parsing:
+            parts.append(parsing.result)
+            current = parsing.remainder
+            parsing = self._apply_parsers(current)
+        errstr = repr(string)
+        if current:
+            if current != string:
+                errstr = f"{current!r} in {errstr}"
+            raise ParsingValueError(
+                f"Failed to find a match for {errstr}"
+            ) from None
         return parts
+
+    def _apply_parsers(self, string: str):
+        """Apply the available parsers in sequence."""
+        gen = (parser.parse(string) for parser in self.parsers)
+        return next((result for result in gen if result), None)
 
     def _insert_multiply(self, parts: Iterable[Part]):
         """Insert a multiplication operator between adjacent terms.

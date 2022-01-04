@@ -229,8 +229,6 @@ def test_expression_parser():
         expression = algebra.Expression(test)
         terms = algebra.asterms(expected['terms'])
         assert equal_terms(expression, terms)
-    with pytest.raises(RecursionError):
-        algebra.Expression('(a*b))')
 
 
 @pytest.mark.expression
@@ -306,11 +304,18 @@ def test_nonstandard_chars():
 
 @pytest.mark.expression
 def test_parsing_errors():
-    """Make sure the parser raises appropriate exceptions."""
+    """Make sure the parser catches invalid expressions."""
     with pytest.raises(algebra.RatioError):
         algebra.Expression('a/b/c')
     with pytest.raises(algebra.ProductError):
         algebra.Expression('a/b*c')
+    invalid = [
+        '(a*b))',
+        'a / (a*b',
+    ]
+    for string in invalid:
+        with pytest.raises(algebra.ParsingValueError):
+            algebra.Expression(string)
 
 
 @pytest.mark.expression
