@@ -316,7 +316,7 @@ class OperandFactory(PartFactory):
         (?=\d|\.\d)           # ... only if followed by <digit> or .<digit>
         \d*                   # possibly empty numerator
         (?:                   # followed by ...
-            (?:/\d+)?         # ... an optional denominator
+            (?:/\d+?)         # ... an optional denominator
         |                     # OR
             (?:\.\d*)?        # ... an optional fractional part
             (?:[eE][-+]?\d+)? #     and optional exponent
