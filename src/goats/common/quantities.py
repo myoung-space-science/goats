@@ -1055,12 +1055,15 @@ class UnitTerm(algebra.Term):
 
     def __init__(
         self,
-        arg: Union[str, algebra.Term],
-        exponent: Union[str, int]=None,
+        coefficient: numbers.Real=1,
+        base: Union[str, algebra.Term]='1',
+        exponent: numbers.Real=1,
     ) -> None:
-        # HACK:
-        init = algebra.OperandFactory().create(str(arg), exponent or 1)
-        super().__init__(*init.attrs)
+        super().__init__(
+            coefficient=coefficient,
+            base=str(base),
+            exponent=exponent
+        )
         self._unit = NamedUnit(self.base)
         self.dimension = self._unit.dimension
         self.quantity = self._unit.quantity
@@ -1093,7 +1096,9 @@ class Unit(algebra.Expression):
     @property
     def terms(self) -> List[UnitTerm]:
         if self._unit_terms is None:
-            self._unit_terms = [UnitTerm(term) for term in super().terms]
+            self._unit_terms = [
+                UnitTerm(*term.attrs) for term in super().terms
+            ]
         return self._unit_terms
 
     @property
@@ -1145,7 +1150,10 @@ class Unit(algebra.Expression):
         factor = 1.0
         for term in ratio:
             quantity = get_quantity(term.quantity)
-            reference = UnitTerm(quantity.units['mks'], term.exponent)
+            reference = UnitTerm(
+                base=quantity.units['mks'],
+                exponent=term.exponent,
+            )
             factor *= term // reference
         return factor
 
