@@ -609,24 +609,36 @@ class OperandFactory(PartFactory):
         if match and match.end() == len(string):
             return match
 
-    def _match_complex(self, string: str):
-        """Attempt to find a complex operand at the start of `string`."""
-        bounded = self.find_bounded(string, strip=True, match=True)
-        if not bounded:
+    def _match_complex(self, string: str, start: int=0):
+        """Attempt to match a complex operand at the start of `string`."""
+        target = string[start:]
+        bounds = self._find_bounds(target)
+        if not bounds:
             return
-        result = {}
-        end = bounded.end
-        if leading := self._match_simplex(string):
-            standard = self.standardize(**leading.groupdict())
-            coefficient = standard['coefficient'] ** standard['exponent']
-            result['coefficient'] = coefficient
-        matches = tuple(self.patterns['exponent'].finditer(bounded.result))
-        base = bounded.result
-        if matches and (final := matches[-1]).end() == end:
-            base = bounded.result[:final.start()]
-            result['exponent'] = final[0]
-        result['base'] = self.unpack(base)
+        start, end = bounds
+        if start != 0:
+            return
+        result = {'base': target[1:end-1]}
+        if exp := self.patterns['exponent'].match(target[end:]):
+            result['exponent'] = exp[0]
+            end += exp.end()
         return MatchResult(groupdict=result, end=end)
+
+    def _find_bounds(self, string: str):
+        """Find the outermost separators bounding `string`, if any."""
+        initialized = False
+        count = 0
+        i0 = 0
+        for i, c in enumerate(string):
+            if self.patterns['opening'].match(c):
+                count += 1
+                if not initialized:
+                    i0 = i
+                    initialized = True
+            elif self.patterns['closing'].match(c):
+                count -= 1
+            if initialized and count == 0:
+                return i0, i+1
 
     def standardize(
         self,
