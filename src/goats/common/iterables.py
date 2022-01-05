@@ -2112,3 +2112,15 @@ def batch_replace(string: str, replacement: Mapping[str, str]) -> str:
         string = string.replace(old.strip(), new)
     return string
 
+
+R = TypeVar('R')
+def apply(
+    methods: Iterable[Callable[..., R]],
+    *args,
+    **kwargs,
+) -> Optional[R]:
+    """Apply the given methods until one returns a non-null result."""
+    gen = (method(*args, **kwargs) for method in methods)
+    if result := next((match for match in gen if match), None):
+        return result
+

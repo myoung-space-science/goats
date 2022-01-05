@@ -2,6 +2,7 @@ import abc
 import collections.abc
 import fractions
 import functools
+import itertools
 import numbers
 import operator
 import re
@@ -210,61 +211,90 @@ class OperandValueError(ValueError):
     pass
 
 
-class Parsed(NamedTuple):
-    """The result of parsing an algebraic string."""
+class PartMatch(iterables.ReprStrMixin):
+    """An object that represents the result of a RE pattern match."""
 
-    result: Part
-    remainder: str
-    start: int=0
-    end: int=-1
+    def __new__(cls, result, context):
+        """Check argument types."""
+        if not isinstance(result, Part):
+            raise TypeError(
+                f"Result must be an Part"
+                f", not {type(result)}"
+            ) from None
+        if not isinstance(context, (re.Match, Mapping)):
+            raise TypeError(
+                f"Context may be a Match object or a Mapping"
+                f", not {type(context)}"
+            )
+        return super().__new__(cls)
 
-    def __bool__(self) -> bool:
-        """The truth value of this object."""
-        return bool(self.result)
+    T = TypeVar('T', bound=Part)
+    T = Union[Operand, Operator]
 
+    def __init__(
+        self,
+        result: T,
+        context: Union[re.Match, Mapping],
+    ) -> None:
+        self.result = result
+        """The result of the match attempt."""
+        self._context = self._set_context(context)
 
-@runtime_checkable
-class Matched(Protocol):
-    """Protocol for pattern-matching results."""
+    def _set_context(self, user: Any) -> dict:
+        """Normalize the instance context from user input."""
+        if isinstance(user, re.Match):
+            return self._set_from_match(user)
+        if isinstance(user, Mapping):
+            return self._set_from_mapping(user)
 
-    @abc.abstractmethod
-    def groupdict(self) -> Dict[str, Any]:
-        pass
-
-    @abc.abstractmethod
-    def end(self) -> int:
-        pass
-
-
-class MatchResult(Matched):
-    """A simple objects that mimics a `re.Match` object.
-
-    This class exists to provide a single interface for parsing and
-    pattern-matching methods, some of which use the `re` module and some of
-    which use custom code.
-    """
-
-    def __init__(self, match: re.Match=None, **kwargs) -> None:
-        self._kwargs = self._update_kwargs(kwargs, match=match)
-
-    def _update_kwargs(self, original: dict, match: re.Match=None):
-        """Update the user keyword arguments from the `Match` object."""
-        updates = {
-            'groupdict': match.groupdict(),
+    def _set_from_match(self, match: re.Match):
+        """Set the instance context from a match object."""
+        return {
+            'start': match.start(),
             'end': match.end(),
-        } if match else {}
-        original.update(**updates)
-        return original
+            'string': match.string,
+        }
 
-    def groupdict(self):
-        return self._kwargs.get('groupdict')
+    def _set_from_mapping(self, mapping: Mapping):
+        """Set the instance context from a mapping."""
+        attrs = (
+            'start',
+            'end',
+            'string',
+        )
+        return {k: mapping.get(k) for k in attrs}
 
-    def end(self):
-        return self._kwargs.get('end')
+    @property
+    def start(self) -> int:
+        """The starting index in `string` of the match."""
+        return self._context['start']
+
+    @property
+    def end(self) -> int:
+        """The ending index in `string` of the match."""
+        return self._context['end']
+
+    @property
+    def string(self) -> str:
+        """The target string."""
+        return self._context['string']
+
+    @property
+    def remainder(self) -> str:
+        """The unparsed portion of `string` after `end`."""
+        return self.string[self.end:]
 
     def __bool__(self) -> bool:
-        """The truth value of this object."""
-        return bool(self._kwargs)
+        """Always true, like `re.Match`."""
+        return True
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        attrs = {
+            'result': 'result',
+            'context': '_context',
+        }
+        return ', '.join(f"{k}: {getattr(self, v)}" for k, v in attrs.items())
 
 
 @runtime_checkable
@@ -272,7 +302,7 @@ class PartFactory(Protocol):
     """Protocol for algebraic factories."""
 
     @abc.abstractmethod
-    def parse(self) -> Parsed:
+    def parse(self) -> PartMatch:
         pass
 
 
@@ -300,12 +330,10 @@ class OperatorFactory(PartFactory):
         """Extract an operator at the start of `string`, possible."""
         for key in ('multiply', 'divide'):
             if match := self.patterns[key].match(string):
-                return Parsed(
+                return PartMatch(
                     result=Operator(key),
-                    remainder=string[match.end():],
-                    end=match.end(),
+                    context=match,
                 )
-        return Parsed(result=None, remainder=string)
 
 
 class OperandFactory(PartFactory):
@@ -358,18 +386,6 @@ class OperandFactory(PartFactory):
             'raising': re.compile(fr'\{raising}', re.VERBOSE)
         }
         """Compiled regular expressions for algebraic operands."""
-        self.recipes = {
-            'simplex': {
-                'type': Term,
-                'match': self._match_simplex,
-                'fullmatch': self._fullmatch_simplex,
-            },
-            'complex': {
-                'type': Operand,
-                'match': self._match_complex,
-                'fullmatch': self._fullmatch_complex,
-            },
-        }
 
     def normalize(self, *args):
         """Extract attributes from the given argument(s)."""
@@ -449,14 +465,6 @@ class OperandFactory(PartFactory):
             f" (got {nargs})"
         )
 
-    # NOTE: The difference between `create` and `parse` is: 
-    # * `create` resolves input into (coefficient, base, exponent), then creates
-    #   an appropriate operand from the base string, applies the input
-    #   coefficient and exponent, and finally returns the operand.
-    # * `parse` attempts to match an operand at the start of a string, then
-    #   creates an appropriate operand from only that substring, and finally
-    #   returns the operand and the remainder of the string.
-
     def create(self, *args, strict: bool=False):
         """Create an operand from input.
 
@@ -472,8 +480,8 @@ class OperandFactory(PartFactory):
         strict : bool, default=false
             If true, this method will return `None` if it is unable to create an
             operand from `*args`. The default behavior is to return the input
-            (with default coefficient and exponent, if necessary) as an
-            `~algebra.Operand`.
+            (with default coefficient and exponent, if necessary) as an instance
+            of `~algebra.Operand`.
 
         Returns
         -------
@@ -490,9 +498,10 @@ class OperandFactory(PartFactory):
         parse a general algebraic operand into simpler operands (i.e. algebraic
         terms). In other words, it will do as little work as possible to extract
         a coefficient and exponent, and the expression on which they operate. If
-        all attempts to determine appropriate attributes fail, it will simply
-        return the string representation of the initial argument with default
-        coefficient and exponent.
+        all attempts to determine appropriate attributes fail, the value of
+        `strict` controls its return behavior.
+        
+        See note at `parse` for differences between this method and that.
 
         The following examples use the general algebraic operands described in
         `~algebra.Operand` to illustrate the minimal parsing described above::
@@ -501,96 +510,98 @@ class OperandFactory(PartFactory):
         * `'2(a * b^2)'` -> `2, 'a * b^2', 1`
         * `'(a * b^2)^3'` -> `1, 'a * b^2', 3`
         * `'2(a * b^2)^3'` -> `2, 'a * b^2', 3`
-        * `'(a * b^2)^3/2'` -> `'a * b^2', '3/2'`
-        * `'((a / b^2)^3 * c)^2'` -> `'(a / b^2)^3 * c', 2`
-        * `'(a / b^2)^3 * c^2'` -> `'(a / b^2)^3 * c^2', 1`
+        * `'(a * b^2)^3/2'` -> `1, 'a * b^2', '3/2'`
+        * `'((a / b^2)^3 * c)^2'` -> `1, '(a / b^2)^3 * c', 2`
+        * `'(a / b^2)^3 * c^2'` -> `1, '(a / b^2)^3 * c^2', 1`
         """
         c0, b0, e0 = self.normalize(*args).values()
         ends = (b0[0], b0[-1])
         if any(self.patterns['raising'].match(c) for c in ends):
             raise OperandValueError(b0) from None
-        recipe = self.recipes['simplex']
-        if match := self.match_maker(b0, recipe['fullmatch']):
-            standard = self.standardize(**match.groupdict(), fill=True)
-            c1, base, e1 = standard.values()
-            if base == '1':
-                coefficient = c0 * (c1 ** e1) ** e0
-                return recipe['type'](float(coefficient))
-            coefficient = c0 * (c1 ** e0)
-            exponent = e1 * e0
-            return recipe['type'](coefficient, base, exponent)
-        recipe = self.recipes['complex']
-        if match := self.match_maker(b0, recipe['fullmatch']):
-            standard = self.standardize(**match.groupdict(), fill=True)
-            c1, base, e1 = standard.values()
-            coefficient = c0 * (c1 ** e0)
-            exponent = e1 * e0
-            # TODO: Generalize the following so we can loop over recipes.
-            inside = self.unpack(base)
-            if interior := self.create(inside):
-                exponent *= interior.exponent
+        match = self.search(b0, mode='fullmatch')
+        if not match:
+            if not strict:
+                return Operand(c0, b0, e0)
+            return
+        if not isinstance(match.result, Operand):
+            raise TypeError(
+                f"Expected Operand but got {type(match.result)}"
+            ) from None
+        c1, base, e1 = match.result.attrs
+        coefficient = c0 * (c1 ** e0)
+        exponent = e1 * e0
+        if not isinstance(match.result, Term):
+            interior = self.create(base)
+            if isinstance(interior, Term):
                 coefficient *= interior.coefficient ** exponent
                 base = interior.base
-            else:
-                base = inside
-            return recipe['type'](coefficient, base, exponent)
-        if not strict:
-            return Operand(c0, b0, e0)
+                exponent *= interior.exponent
+                return Term(
+                    coefficient=coefficient,
+                    base=base,
+                    exponent=exponent,
+                )
+            return Operand(
+                coefficient=coefficient,
+                base=base,
+                exponent=exponent,
+            )
+        return Term(
+            coefficient=coefficient,
+            base=base,
+            exponent=exponent,
+        )
 
     def parse(self, string: str):
-        """Extract an operand at the start of `string`, possible."""
+        """Extract an operand at the start of `string`, possible.
+        
+        Notes
+        -----
+        The primary difference between `~create` and `~parse` is as follows::
+        * `~create` resolves input into (coefficient, base, exponent), then
+          creates an appropriate operand from the base string, then applies the
+          input coefficient and exponent, and finally returns the operand.
+        * `~parse` attempts to match an operand at the start of a string, then
+          creates an appropriate operand from only that substring, and finally
+          returns the operand and the remainder of the string.
+        """
         stripped = string.strip()
-        for recipe in self.recipes.values():
-            if match := self.match_maker(stripped, recipe['match']):
-                standard = self.standardize(**match.groupdict(), fill=True)
-                return Parsed(
-                    result=recipe['type'](*standard.values()),
-                    remainder=stripped[match.end():],
-                    end=match.end(),
-                )
-        return Parsed(result=None, remainder=string)
+        if match := self.search(stripped):
+            return match
 
-    def match_maker(
-        self,
-        string: str,
-        func: Callable[[str], Matched],
-    ) -> Optional[Matched]:
-        """Makes you a match.
-
-        This method will create a new string by removing bounding parentheses
-        (if they exist), then pass the updated string to the given function, and
-        returns the result if it satisfies certain criteria.
-
+    def search(self, string: str, **kwargs):
+        """Search for an operand in the given string.
+        
         Parameters
         ----------
         string
-            The string to match.
+            The string to which to apply pattern-matching methods in an attempt
+            to find an appropriate operand.
 
-        func : callable(str) -> Matched or mapping
-            A callable object that takes a single string argument and possibly
-            returns an object that either conforms to the `~algebra.Matched`
-            protocol (e.g., `re.Match` or `~algebra.MatchResult`) or exposes a
-            mapping that can initialize an instance of `~algebra.MatchResult`.
+        **kwargs
+            Keyword arguments to pass to the pattern-matching methods.
 
         Returns
         -------
-        A Matched object or `None`
+        `~algebra.PartMatch` or `None`
+            An object representing the matched substring and contextual
+            information, if any attemp to match was successful. If no method
+            found an operand in `string` (subject to any given keyword
+            arguments), this method will return `None`.
         """
-        result = func(string)
-        if not result:
-            return
-        if isinstance(result, Matched):
-            return result
-        if isinstance(result, Mapping):
-            return MatchResult(**result)
-
-    def _fullmatch_simplex(self, string: str):
-        """Attempt to match `string` to a full term pattern."""
-        match = self._match_simplex(string)
-        if match and match.end() == len(string):
+        methods = (
+            self._match_simplex,
+            self._match_complex,
+        )
+        if match := iterables.apply(methods, string, **kwargs):
             return match
 
-    def _match_simplex(self, string: str):
+    def _match_simplex(
+        self,
+        string: str,
+        mode: str='match',
+        start: int=0,
+    ) -> Optional[PartMatch]:
         """Attempt to find an irreducible term at the start of `string`.
 
         Notes
@@ -599,33 +610,138 @@ class OperandFactory(PartFactory):
         pattern because `re.match` will find a match for 'constant' at the start
         of any variable term with an explicit coefficient.
         """
+        target = string[start:]
         for key in ('variable', 'constant'):
-            if match := self.patterns[key].match(string):
-                return MatchResult(match=match)
+            match_method = self._get_match_method(key, mode)
+            build_method = self._get_build_method(key)
+            if match := match_method(target):
+                return build_method(match)
 
-    def _fullmatch_complex(self, string: str):
-        """Attempt to match `string` to the form of a complex operand."""
-        match = self._match_complex(string)
-        if match and match.end() == len(string):
-            return match
+    def _get_match_method(
+        self,
+        pattern: str,
+        mode: str,
+    ) -> Callable[[str], re.Match]:
+        """Look up the appropriate matching method for `pattern` and `mode`."""
+        return getattr(self.patterns[pattern], mode)
 
-    def _match_complex(self, string: str, start: int=0):
+    def _get_build_method(
+        self,
+        pattern: str,
+    ) -> Callable[[re.Match], PartMatch]:
+        """Look up the appropriate building method for `pattern`."""
+        return getattr(self, f'_build_{pattern}')
+
+    def _build_variable(self, match: re.Match):
+        """Build a variable term from a match object."""
+        standard = self.standardize(**match.groupdict(), fill=True)
+        return PartMatch(
+            result=Term(**standard),
+            context=match,
+        )
+
+    def _build_constant(self, match: re.Match):
+        """Build a constant term from a match object."""
+        standard = self.standardize(**match.groupdict(), fill=True)
+        coefficient = standard['coefficient'] ** standard['exponent']
+        return PartMatch(
+            result=Term(coefficient=float(coefficient)),
+            context=match,
+        )
+
+    def _match_complex(
+        self,
+        string: str,
+        mode: str='match',
+        start: int=0,
+    ) -> Optional[PartMatch]:
         """Attempt to match a complex operand at the start of `string`."""
         target = string[start:]
-        bounds = self._find_bounds(target)
+        bounds = self.find_bounds(target)
         if not bounds:
             return
-        start, end = bounds
-        if start != 0:
+        i0, end = bounds
+        result = {'base': target[i0+1:end-1]}
+        if match := self._match_simplex(target[:i0], mode='fullmatch'):
+            result['coefficient'] = match.result.coefficient
+            i0 = 0
+        if mode == 'match' and i0 != 0:
             return
-        result = {'base': target[1:end-1]}
         if exp := self.patterns['exponent'].match(target[end:]):
             result['exponent'] = exp[0]
             end += exp.end()
-        return MatchResult(groupdict=result, end=end)
+        if mode == 'fullmatch' and (i0, end) != (0, len(target)):
+            return
+        standard = self.standardize(**result, fill=True)
+        return PartMatch(
+            result=Operand(**standard),
+            context={'end': end, 'start': start, 'string': string},
+        )
 
-    def _find_bounds(self, string: str):
-        """Find the outermost separators bounding `string`, if any."""
+    def find_bounds(self, string: str):
+        """Find the indices of the first bounded substring, if any.
+        
+        A bounded substring is any portion of `string` that is bounded on the
+        left by the opening separator and on the right by the closing separator.
+        Opening and closing separators are an immutable attribute of an instance
+        of this class.
+
+        Parameters
+        ----------
+        string
+            The string in which to search for a bounded substring.
+
+        Returns
+        -------
+        tuple of int, or `None`
+            The index of the leftmost opening separator and the index of the
+            first character beyond the rightmost closing separator (possibly the
+            end), if there is a bounded substring; otherwise, `None`. The
+            convention is such that if `start, end = find_bounds(string)`,
+            `string[start:end]` will produce the bounded substring with bounds.
+
+        Examples
+        --------
+        Define a list of test strings::
+
+            >>> strings = [
+            ...     '(a*b)',
+            ...     '(a*b)^2',
+            ...     '3(a*b)',
+            ...     '3(a*b)^2',
+            ...     '3(a*b)^2 * (c*d)',
+            ...     '4a^4',
+            ...     '3(4a^4)^3',
+            ...     '2(3(4a^4)^3)^2',
+            ... ]
+
+        Create an instance of this class with the default operators and
+        separators::
+
+            >>> operand = algebra.OperandFactory()
+
+        Find the bounding indices of each test string, if any, and display the
+        corresponding substring::
+
+            >>> for string in strings:
+            ...     bounds = operand.find_bounds(string)
+            ...     print(f"{bounds}: {string!r} -> ", end='')
+            ...     if bounds:
+            ...         start, end = bounds
+            ...         result = f"{string[start:end]}"
+            ...     else:
+            ...         result = string
+            ...     print(f"{result!r}")
+            ... 
+            (0, 5): '(a*b)' -> '(a*b)'
+            (0, 5): '(a*b)^2' -> '(a*b)'
+            (1, 6): '3(a*b)' -> '(a*b)'
+            (1, 6): '3(a*b)^2' -> '(a*b)'
+            (1, 6): '3(a*b)^2 * (c*d)' -> '(a*b)'
+            None: '4a^4' -> '4a^4'
+            (1, 7): '3(4a^4)^3' -> '(4a^4)'
+            (1, 12): '2(3(4a^4)^3)^2' -> '(3(4a^4)^3)'
+        """
         initialized = False
         count = 0
         i0 = 0
@@ -694,84 +810,6 @@ class OperandFactory(PartFactory):
         )
         return given
 
-    def find_bounded(
-        self,
-        string: str,
-        strip: bool=False,
-        match: bool=False,
-    ) -> Optional[Parsed]:
-        """Find the first bounded operand in `string`.
-        
-        A bounded operand is any collection of valid operands or operators that
-        is bounded on the left by the opening separator and on the right by the
-        closing separator. Opening and closing separators are an immutable
-        attribute of an instance of this class.
-
-        Parameters
-        ----------
-        string
-            The string in which to search for a bounded operand.
-
-        strip : bool, default=False
-            If True, remove the bounding separators from the result.
-
-        match : bool, default=False
-            If True, restrict search to beginning of string (similar to
-            the `match` functions of the `re` module).
-
-        Returns
-        -------
-        Parsed
-            A `~algebra.Parsed` object built from the result, if found;
-            otherwise, `None`.
-        """
-        initialized = False
-        count = 0
-        start = 0
-        for i, c in enumerate(string):
-            if self.patterns['opening'].match(c):
-                count += 1
-                if not initialized:
-                    start = i
-                    initialized = True
-            elif self.patterns['closing'].match(c):
-                count -= 1
-            if match and start > 0:
-                return
-            if initialized and count == 0:
-                end = i+1
-                if exp := self.patterns['exponent'].match(string[end:]):
-                    end += exp.end()
-                result = string[start:end]
-                remainder = string[end:]
-                if strip:
-                    result = self.strip_separators(result)
-                return Parsed(
-                    result=result,
-                    remainder=remainder,
-                    start=start,
-                    end=end,
-                )
-
-    def entire(self, string: str):
-        """True if `string` is completely bounded by separators."""
-        opened = self.patterns['opening'].match(string[0])
-        closed = self.patterns['closing'].match(string[-1])
-        if not (opened and closed):
-            return False
-        if bounded := self.find_bounded(string):
-            return not bounded.remainder
-
-    def unpack(self, string: str):
-        """Remove bounding separators from `string`."""
-        if not self.entire(string):
-            return string
-        inside = self.strip_separators(string)
-        while self.entire(inside):
-            inside = self.strip_separators(inside)
-        return inside
-
-    # TODO: Refactor to reuse code with `entire`.
     def strip_separators(self, string: str):
         """Remove one opening and one closing separator."""
         opened = self.patterns['opening'].match(string[0])
@@ -902,25 +940,32 @@ class Parser:
     def _parse_complex(self, string: str) -> List[Part]:
         """Parse an algebraic expression while preserving nested groups."""
         parts = []
+        methods = (
+            self.operands.parse,
+            self.operators.parse,
+        )
+        n_methods = len(methods)
+        method = itertools.cycle(methods)
         current = string
-        parsing = self._apply_parsers(current)
-        while parsing:
-            parts.append(parsing.result)
-            current = parsing.remainder
-            parsing = self._apply_parsers(current)
         errstr = repr(string)
-        if current:
-            if current != string:
-                errstr = f"{current!r} in {errstr}"
-            raise ParsingValueError(
-                f"Failed to find a match for {errstr}"
-            ) from None
+        n_tried = 0
+        last = current
+        while current:
+            parse = next(method)
+            if parsed := parse(current):
+                parts.append(parsed.result)
+                current = parsed.remainder
+            n_tried += 1
+            if n_tried == n_methods:
+                if current == last:
+                    if current != string:
+                        errstr = f"{current!r} in {errstr}"
+                    raise ParsingValueError(
+                        f"Failed to find a match for {errstr}"
+                    ) from None
+                n_tried = 0
+                last = current
         return parts
-
-    def _apply_parsers(self, string: str):
-        """Apply the available parsers in sequence."""
-        gen = (parser.parse(string) for parser in self.parsers)
-        return next((result for result in gen if result), None)
 
     def _insert_multiply(self, parts: Iterable[Part]):
         """Insert a multiplication operator between adjacent terms.

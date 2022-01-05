@@ -64,8 +64,7 @@ def test_simple_term_operators():
     assert z == algebra.Term(1, 'z', -3)
 
 
-@pytest.mark.xfail
-def test_part_init():
+def test_create_operand():
     """Test the object representing a part of an expression."""
     cases = {
         (4, '1', 1): [['4'], [1, '4', 1]],
@@ -89,6 +88,41 @@ def test_part_init():
                 assert part.coefficient == ref[0]
                 assert part.base == ref[1]
                 assert part.exponent == fractions.Fraction(ref[2])
+
+
+def test_find_bounds():
+    """Test OperandFactory.find_bounds."""
+    strings = {
+        '(a*b)': [(0, 5), '(a*b)'],
+        '(a*b)^2': [(0, 5), '(a*b)'],
+        '3(a*b)': [(1, 6), '(a*b)'],
+        '3(a*b)^2': [(1, 6), '(a*b)'],
+        '3(a*b)^2 * (c*d)': [(1, 6), '(a*b)'],
+        '4a^4': [None, '4a^4'],
+        '3(4a^4)^3': [(1, 7), '(4a^4)'],
+        '2(3(4a^4)^3)^2': [(1, 12), '(3(4a^4)^3)'],
+    }
+    operand = algebra.OperandFactory()
+    for string, (bounds, substring) in strings.items():
+        found = operand.find_bounds(string)
+        assert found == bounds
+        if found:
+            start, end = bounds
+            assert string[start:end] == substring
+
+
+def test_strip_separators():
+    """Test OperandFactory.strip_separators."""
+    strings = {
+        '(a*b)': 'a*b',
+        '((a*b))': '(a*b)',
+        '(a*b)^2': '(a*b)^2',
+        '3(a*b)': '3(a*b)',
+        '((a^2 / b) / (c^4 / d))': '(a^2 / b) / (c^4 / d)',
+    }
+    operand = algebra.OperandFactory()
+    for string, stripped in strings.items():
+        assert operand.strip_separators(string) == stripped
 
 
 @pytest.mark.expression
@@ -223,6 +257,15 @@ def test_expression_parser():
         },
         '(3) * (2a)': {
             'terms': ['a', '6'],
+        },
+        '4a^4': {
+            'terms': ['a^4', '4'],
+        },
+        '3(4a^4)^3': {
+            'terms': ['a^12', '192'],
+        },
+        '2(3(4a^4)^3)^2': {
+            'terms': ['a^24', '73728'],
         },
     }
     for test, expected in cases.items():
