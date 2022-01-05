@@ -387,6 +387,16 @@ class OperandFactory(PartFactory):
         }
         """Compiled regular expressions for algebraic operands."""
 
+    _argtypes = {
+        'coefficient': numbers.Real,
+        'base': str,
+        'exponent': (numbers.Real, str),
+    }
+    @classmethod
+    def isvalid(cls, name: str, this: Any):
+        """True if `this` is valid for use as the named attribute."""
+        return isinstance(this, cls._argtypes[name])
+
     def normalize(self, *args):
         """Extract attributes from the given argument(s)."""
         try:
@@ -416,10 +426,11 @@ class OperandFactory(PartFactory):
         value for the missing attributes; otherwise, it will raise an exception.
         """
         arg = args[0]
-        if isinstance(arg, str):
-            return self.standardize(base=arg, fill=True)
-        if isinstance(arg, numbers.Real):
-            return self.standardize(coefficient=arg, fill=True)
+        names = ('base', 'coefficient')
+        for name in names:
+            given = {name: arg}
+            if self.isvalid(name, arg):
+                return self.standardize(fill=True, **given)
         raise OperandTypeError(
             "A single argument may be either"
             " a coefficient <Real> or a base <str>;"
@@ -437,30 +448,11 @@ class OperandFactory(PartFactory):
         If it has one of these forms, this method will substitute the default
         value for the missing attribute; otherwise, it will raise an exception.
         """
-        argtypes = zip(args, (str, (numbers.Real, str)))
-        implied_coefficient = all(isinstance(a, t) for a, t in argtypes)
-        if implied_coefficient:
-            return self.standardize(
-                base=args[0],
-                exponent=args[1],
-                fill=True,
-            )
-        argtypes = zip(args, (numbers.Real, (numbers.Real, str)))
-        implied_base = all(isinstance(a, t) for a, t in argtypes)
-        if implied_base:
-            return self.standardize(
-                coefficient=args[0],
-                exponent=args[1],
-                fill=True,
-            )
-        argtypes = zip(args, (numbers.Real, str))
-        implied_exponent = all(isinstance(a, t) for a, t in argtypes)
-        if implied_exponent:
-            return self.standardize(
-                coefficient=args[0],
-                base=args[1],
-                fill=True,
-            )
+        combinations = itertools.combinations(self._argtypes, 2)
+        for names in combinations:
+            given = dict(zip(names, args))
+            if all(self.isvalid(name, arg) for name, arg in given.items()):
+                return self.standardize(fill=True, **given)
         badtypes = [type(arg) for arg in args]
         raise OperandTypeError(
             "Acceptable two-argument forms are"
