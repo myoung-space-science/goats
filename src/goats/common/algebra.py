@@ -394,75 +394,95 @@ class OperandFactory(PartFactory):
         except TypeError:
             raise OperandTypeError(args) from None
         if nargs == 1:
-            # A length-1 `args` may represent either:
-            # - coefficient <Real>
-            # - base <str>
-            #
-            # If it has one of these forms, substitute the default value for the
-            # missing attributes. Otherwise, raise an exception.
-            arg = args[0]
-            if isinstance(arg, str):
-                return self.standardize(base=arg, fill=True)
-            if isinstance(arg, numbers.Real):
-                return self.standardize(coefficient=arg, fill=True)
-            raise OperandTypeError(
-                "A single argument may be either"
-                " a coefficient <Real> or a base <str>;"
-                f" not {type(arg)}"
-            )
+            return self._length_1(args)
         if nargs == 2:
-            # A length-2 `args` may represent either:
-            # - (base <str>, exponent <Real or str>)
-            # - (coefficient <Real>, exponent <Real or str>)
-            # - (coefficient <Real>, base <str>)
-            #
-            # If it has one of these forms, substitute the default value for the
-            # missing attribute. Otherwise, raise an exception.
-            argtypes = zip(args, (str, (numbers.Real, str)))
-            implied_coefficient = all(isinstance(a, t) for a, t in argtypes)
-            if implied_coefficient:
-                return self.standardize(
-                    base=args[0],
-                    exponent=args[1],
-                    fill=True,
-                )
-            argtypes = zip(args, (numbers.Real, (numbers.Real, str)))
-            implied_base = all(isinstance(a, t) for a, t in argtypes)
-            if implied_base:
-                return self.standardize(
-                    coefficient=args[0],
-                    exponent=args[1],
-                    fill=True,
-                )
-            argtypes = zip(args, (numbers.Real, str))
-            implied_exponent = all(isinstance(a, t) for a, t in argtypes)
-            if implied_exponent:
-                return self.standardize(
-                    coefficient=args[0],
-                    base=args[1],
-                    fill=True,
-                )
-            badtypes = [type(arg) for arg in args]
-            raise OperandTypeError(
-                "Acceptable two-argument forms are"
-                " (base <str>, exponent <Real or str>),"
-                " (coefficient <Real>, exponent <Real or str>),"
-                " or"
-                " (coefficient <Real>, base <str>);"
-                " not"
-                f"({', '.join(str(t) for t in badtypes)})"
-            )
+            return self._length_2(args)
         if nargs == 3:
-            return self.standardize(
-                coefficient=args[0],
-                base=args[1],
-                exponent=args[2],
-                fill=True,
-            )
+            return self._length_3(args)
         raise OperandValueError(
             f"{self.__class__.__qualname__}"
             f" accepts 1, 2, or 3 arguments"
             f" (got {nargs})"
+        )
+
+    def _length_1(self, args: Any):
+        """Normalize a length-1 argument tuple, if possible.
+
+        A length-1 tuple may represent either:
+        - coefficient <Real>
+        - base <str>
+
+        If it has one of these forms, this method will substitute the default
+        value for the missing attributes; otherwise, it will raise an exception.
+        """
+        arg = args[0]
+        if isinstance(arg, str):
+            return self.standardize(base=arg, fill=True)
+        if isinstance(arg, numbers.Real):
+            return self.standardize(coefficient=arg, fill=True)
+        raise OperandTypeError(
+            "A single argument may be either"
+            " a coefficient <Real> or a base <str>;"
+            f" not {type(arg)}"
+        )
+
+    def _length_2(self, args: Any):
+        """Normalize a length-2 argument tuple, if possible.
+
+        A length-2 tuple may represent either:
+        - (base <str>, exponent <Real or str>)
+        - (coefficient <Real>, exponent <Real or str>)
+        - (coefficient <Real>, base <str>)
+
+        If it has one of these forms, this method will substitute the default
+        value for the missing attribute; otherwise, it will raise an exception.
+        """
+        argtypes = zip(args, (str, (numbers.Real, str)))
+        implied_coefficient = all(isinstance(a, t) for a, t in argtypes)
+        if implied_coefficient:
+            return self.standardize(
+                base=args[0],
+                exponent=args[1],
+                fill=True,
+            )
+        argtypes = zip(args, (numbers.Real, (numbers.Real, str)))
+        implied_base = all(isinstance(a, t) for a, t in argtypes)
+        if implied_base:
+            return self.standardize(
+                coefficient=args[0],
+                exponent=args[1],
+                fill=True,
+            )
+        argtypes = zip(args, (numbers.Real, str))
+        implied_exponent = all(isinstance(a, t) for a, t in argtypes)
+        if implied_exponent:
+            return self.standardize(
+                coefficient=args[0],
+                base=args[1],
+                fill=True,
+            )
+        badtypes = [type(arg) for arg in args]
+        raise OperandTypeError(
+            "Acceptable two-argument forms are"
+            " (base <str>, exponent <Real or str>),"
+            " (coefficient <Real>, exponent <Real or str>),"
+            " or"
+            " (coefficient <Real>, base <str>);"
+            " not"
+            f"({', '.join(str(t) for t in badtypes)})"
+        )
+
+    def _length_3(self, args: Any):
+        """Normalize a length-3 argument tuple.
+
+        A length-3 tuple must have the form (coefficient <Real>, base <str>,
+        exponent <Real or str>).
+        """
+        return self.standardize(
+            coefficient=args[0],
+            base=args[1],
+            exponent=args[2],
+            fill=True,
         )
 
     def create(self, *args, strict: bool=False):
