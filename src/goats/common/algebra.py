@@ -918,124 +918,49 @@ class Parser:
 
     def _resolve_operations(self, current: Operand) -> List[Term]:
         """Separate an algebraic group into operators and operands."""
-        parts = self._parse_expression(current.base)
-        resolved = self._resolve_operators(current, parts)
+        operands = self._parse_operand(current)
         return [
-            term for operand in resolved
+            term for operand in operands
             for term in self._update_terms(operand)
         ] + [Term(coefficient=current.coefficient)]
 
-    def _parse_expression(self, string: str) -> List[Part]:
-        """Parse an algebraic expression into operators and operands.
+    def _parse_operand(self, initial: Operand) -> List[Operand]:
+        """Resolve a general operand into simpler operands.
 
-        This method sequentially extracts known operators and operands while
-        preserving nested groups in the latter. Calling code may then pass those
-        nested groups back in for further parsing.
+        This method parses known operators and operands from the initial operand
+        while preserving nested groups in the latter. Calling code may then pass
+        those nested groups back in for further parsing.
         """
-        parts = []
-        methods = (
-            self.operators.parse,
-            self.operands.parse,
-        )
-        n_methods = len(methods)
-        method = itertools.cycle(methods)
-        current = string
-        errstr = repr(string)
-        n_tried = 0
-        last = current
-        while current:
-            parse = next(method)
-            if parsed := parse(current):
-                parts.append(parsed.result)
-                current = parsed.remainder
-            n_tried += 1
-            if n_tried == n_methods:
-                if current == last:
-                    if current != string:
-                        errstr = f"{current!r} in {errstr}"
-                    raise ParsingValueError(
-                        f"Failed to find a match for {errstr}"
-                    ) from None
-                n_tried = 0
-                last = current
-        return parts
-
-    def _resolve_operators(
-        self,
-        original: Operand,
-        parts: Iterable[Part],
-    ) -> List[Operand]:
-        """Evaluate pairs of operators and operands parsed from `original`."""
-        tmp = self._insert_operators(parts)
-        operators = tmp[::2]
-        operands = tmp[1::2]
-        if exception := self._check_operators(operators):
-            raise exception(original.base) from None
-        return [
-            self._evaluate(operator, operand) ** original.exponent
-            for operator, operand in zip(operators, operands)
-        ]
-
-    def _update_terms(self, operand: Operand):
-        """Store a new term or initiate further parsing."""
-        # TODO: Consider extracting all coefficients, at least as separate
-        # constant terms.
-        if isinstance(operand, Term):
-            return [operand]
-        return self._resolve_operations(operand)
-
-    def _insert_operators(self, parts: Iterable[Part]):
-        """Insert implied operators.
-
-        Notes
-        -----
-        - Implied multiplication: NIST guidelines permit the use of a space
-          character to indicate multiplication between unit symbols, and this is
-          a common practice when writing algebraic expressions in general. This
-          method places a multiplication operator of the appropriate form
-          between adjacent terms in order to make that operation explicit
-        """
-        result = []
-        if isinstance(parts[0], Operand):
-            result.append(Operator('identity'))
-        last = parts[0]
-        for this in parts[1:]:
-            if all(isinstance(part, Operand) for part in (last, this)):
-                result.extend([last, Operator('multiply')])
-            else:
-                result.append(last)
-            last = this
-        result.append(last)
-        return result
-
-    def _check_operators(
-        self,
-        operators: Sequence[Operator],
-    ) -> Optional[ParsingError]:
-        """Check for operator-related exceptions.
-
-        This method checks for the following errors and returns the appropriate
-        exception class if it finds one:
-        - Multiple divisions on a single level (e.g., `'a / b / c'`), which
-          results in a `RatioError`.
-        - Multiplication after division on the same level (e.g., `'a / b * c'`),
-          which results in a `ProductError`.
-
-        Both of the examples shown above result in errors because they each
-        introduce an ambiguous order of operations. Users can resolve the
-        ambiguity by properly grouping terms in the expression. Continuing with
-        the above examples, `'a / b / c'` should become `'(a / b) / c'` or `'a /
-        (b / c)'`, and `'a / b * c'` should become `'(a / b) * c'` or `'a / (b *
-        c)'`.
-        """
-        n_div = operators.count('divide')
-        i_div = operators.index('divide') if n_div > 0 else -1
-        n_mul = operators.count('multiply')
-        i_mul = operators.index('multiply') if n_mul > 0 else -1
-        if n_div > 1:
-            return RatioError
-        if n_div == 1 and i_mul > i_div:
-            return ProductError
+        operator = None
+        operand = None
+        operands = []
+        string = initial.base
+        while string:
+            original = string
+            if parsed := self.operators.parse(string):
+                if operator == 'divide':
+                    if parsed.result == 'divide':
+                        raise RatioError(initial)
+                    if parsed.result == 'multiply':
+                        raise ProductError(initial)
+                operator = parsed.result
+                string = parsed.remainder
+            if parsed := self.operands.parse(string):
+                operand = parsed.result ** initial.exponent
+                string = parsed.remainder
+            if string == original:
+                if string == initial.base:
+                    raise ParsingValueError(f"Failed to parse {string!r}")
+                raise ParsingValueError(
+                    f"Failed to find a match for {string!r} in {initial.base!r}"
+                )
+            if operand:
+                if operator:
+                    evaluated = self._evaluate(operator, operand)
+                    operands.append(evaluated)
+                else:
+                    operands.append(operand)
+        return operands
 
     def _evaluate(self, operator: Operator, operand: Operand):
         """Compute the effect of `operator` on `operand`."""
@@ -1046,6 +971,14 @@ class Parser:
         if operator == 'sqrt':
             return operand ** 0.5
         raise ValueError(f"Unrecognized operator {operator!r}")
+
+    def _update_terms(self, operand: Operand):
+        """Store a new term or initiate further parsing."""
+        # TODO: Consider extracting all coefficients, at least as separate
+        # constant terms.
+        if isinstance(operand, Term):
+            return [operand]
+        return self._resolve_operations(operand)
 
 
 class OperandError(TypeError):
