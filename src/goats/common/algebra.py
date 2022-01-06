@@ -325,12 +325,13 @@ class OperatorFactory(PartFactory):
             'divide': re.compile(
                 fr'(?<!{mul})(\s*{div}\s*)(?!{mul})'
             ),
+            'sqrt': re.compile(r'sqrt')
         }
         """Compiled regular expressions for algebraic operators."""
 
     def parse(self, string: str):
         """Extract an operator at the start of `string`, possible."""
-        for key in ('multiply', 'divide'):
+        for key in self.patterns:
             if match := self.patterns[key].match(string):
                 return PartMatch(
                     result=Operator(key),
