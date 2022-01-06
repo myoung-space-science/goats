@@ -913,12 +913,7 @@ class Parser:
 
     def parse(self, string: str):
         """Resolve the given string into individual terms."""
-        standard = iterables.batch_replace(string, self.tokens)
-        operand = self.operands.create(standard)
-        if not operand:
-            return []
-        if isinstance(operand, Term):
-            return [operand]
+        operand = Operand(base=string)
         return self._resolve_operations(operand)
 
     def _resolve_operations(self, current: Operand) -> List[Term]:
@@ -939,8 +934,8 @@ class Parser:
         """
         parts = []
         methods = (
-            self.operands.parse,
             self.operators.parse,
+            self.operands.parse,
         )
         n_methods = len(methods)
         method = itertools.cycle(methods)
@@ -972,20 +967,25 @@ class Parser:
     ) -> List[Operand]:
         """Evaluate pairs of operators and operands parsed from `original`."""
         tmp = self._insert_operators(parts)
-        operands = tmp[::2]
-        operators = tmp[1::2]
+        operators = tmp[::2]
+        operands = tmp[1::2]
         if exception := self._check_operators(operators):
             raise exception(original.base) from None
-        pairs = zip(operands[::-1], operators[::-1])
-        exponent = original.exponent
-        resolved = [operands[0] ** +exponent]
-        for (operand, operator) in pairs:
-            exp = -exponent if operator == 'divide' else +exponent
-            resolved.append(operand ** exp)
-        return resolved
+        return [
+            self._evaluate(operator, operand) ** original.exponent
+            for operator, operand in zip(operators, operands)
+        ]
+
+    def _update_terms(self, operand: Operand):
+        """Store a new term or initiate further parsing."""
+        # TODO: Consider extracting all coefficients, at least as separate
+        # constant terms.
+        if isinstance(operand, Term):
+            return [operand]
+        return self._resolve_operations(operand)
 
     def _insert_operators(self, parts: Iterable[Part]):
-        """Insert implied operators between adjacent terms.
+        """Insert implied operators.
 
         Notes
         -----
@@ -996,6 +996,8 @@ class Parser:
           between adjacent terms in order to make that operation explicit
         """
         result = []
+        if isinstance(parts[0], Operand):
+            result.append(Operator('identity'))
         last = parts[0]
         for this in parts[1:]:
             if all(isinstance(part, Operand) for part in (last, this)):
@@ -1035,13 +1037,15 @@ class Parser:
         if n_div == 1 and i_mul > i_div:
             return ProductError
 
-    def _update_terms(self, operand: Operand):
-        """Store a new term or initiate further parsing."""
-        # TODO: Consider extracting all coefficients, at least as separate
-        # constant terms.
-        if isinstance(operand, Term):
-            return [operand]
-        return self._resolve_operations(operand)
+    def _evaluate(self, operator: Operator, operand: Operand):
+        """Compute the effect of `operator` on `operand`."""
+        if operator in {'multiply', 'identity'}:
+            return operand
+        if operator == 'divide':
+            return operand ** -1
+        if operator == 'sqrt':
+            return operand ** 0.5
+        raise ValueError(f"Unrecognized operator {operator!r}")
 
 
 class OperandError(TypeError):

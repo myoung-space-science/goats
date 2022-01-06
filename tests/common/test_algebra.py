@@ -309,6 +309,18 @@ def test_init_collection():
 
 
 @pytest.mark.expression
+def test_parse_function():
+    """Test the ability to detect a known function in an expression."""
+    cases = {
+        'sqrt(2a)': ['a^1/2', '2^1/2'],
+    }
+    for string, terms in cases.items():
+        expression = algebra.Expression(string)
+        expected = algebra.asterms(terms)
+        assert expression.terms == expected
+
+
+@pytest.mark.expression
 def test_parser_operators():
     """Test the algebraic parser with non-standard operators."""
     expression = algebra.Expression('a @ b^2 $ c', multiply='@', divide='$')
