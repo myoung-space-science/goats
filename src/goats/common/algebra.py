@@ -475,7 +475,7 @@ class OperandFactory(PartFactory):
             fill=True,
         )
 
-    def create(self, *args, strict: bool=False):
+    def create(self, *args, strict: bool=False) -> Optional[Operand]:
         """Create an operand from input.
 
         Parameters
