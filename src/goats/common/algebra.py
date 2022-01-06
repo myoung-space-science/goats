@@ -1005,9 +1005,9 @@ class Parser:
 
         This method checks for the following errors and returns the appropriate
         exception class if it finds one:
-        * Multiple divisions on a single level (e.g., `'a / b / c'`), which
+        - Multiple divisions on a single level (e.g., `'a / b / c'`), which
           results in a `RatioError`.
-        * Multiplication after division on the same level (e.g., `'a / b * c'`),
+        - Multiplication after division on the same level (e.g., `'a / b * c'`),
           which results in a `ProductError`.
 
         Both of the examples shown above result in errors because they each
