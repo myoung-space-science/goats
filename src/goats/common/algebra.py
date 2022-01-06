@@ -211,7 +211,8 @@ class OperandValueError(ValueError):
     pass
 
 
-class PartMatch(iterables.ReprStrMixin):
+T = TypeVar('T', bound=Part)
+class PartMatch(Generic[T], iterables.ReprStrMixin):
     """An object that represents the result of a RE pattern match."""
 
     def __new__(cls, result, context):
@@ -227,9 +228,6 @@ class PartMatch(iterables.ReprStrMixin):
                 f", not {type(context)}"
             )
         return super().__new__(cls)
-
-    T = TypeVar('T', bound=Part)
-    T = Union[Operand, Operator]
 
     def __init__(
         self,
@@ -613,7 +611,7 @@ class OperandFactory(PartFactory):
         string: str,
         mode: str='match',
         start: int=0,
-    ) -> Optional[PartMatch]:
+    ) -> Optional[PartMatch[Operand]]:
         """Attempt to find an irreducible term at the start of `string`.
 
         Notes
@@ -640,7 +638,7 @@ class OperandFactory(PartFactory):
     def _get_build_method(
         self,
         pattern: str,
-    ) -> Callable[[re.Match], PartMatch]:
+    ) -> Callable[[re.Match], PartMatch[Operand]]:
         """Look up the appropriate building method for `pattern`."""
         return getattr(self, f'_build_{pattern}')
 
@@ -666,7 +664,7 @@ class OperandFactory(PartFactory):
         string: str,
         mode: str='match',
         start: int=0,
-    ) -> Optional[PartMatch]:
+    ) -> Optional[PartMatch[Operand]]:
         """Attempt to match a complex operand at the start of `string`."""
         target = string[start:]
         bounds = self.find_bounds(target)
