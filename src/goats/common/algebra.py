@@ -28,6 +28,10 @@ class Operator(Part):
         """A simplified representation of this object."""
         return self.operation
 
+    def __hash__(self) -> str:
+        """Compute instance hash (e.g., for use as `dict` key)."""
+        return hash(self.operation)
+
     def __eq__(self, other) -> bool:
         """True if two operators represent the same operation."""
         if isinstance(other, Operator):
