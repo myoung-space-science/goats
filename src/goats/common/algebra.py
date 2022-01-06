@@ -4,8 +4,8 @@ import fractions
 import functools
 import itertools
 import numbers
-import operator
 import re
+from operator import attrgetter
 from typing import *
 from typing import Pattern
 
@@ -1121,7 +1121,7 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
             other = self._convert(other)
         if len(self._terms) != len(other._terms):
             return False
-        key = operator.attrgetter('base', 'exponent', 'coefficient')
+        key = attrgetter('base', 'exponent', 'coefficient')
         return sorted(self._terms, key=key) == sorted(other._terms, key=key)
 
     def __mul__(self, other: 'Expression'):
