@@ -916,39 +916,22 @@ class Parser:
             return [operand]
         return self._resolve_operations(operand)
 
-    # TODO: Refactor this method at the comment breaks.
-    def _resolve_operations(self, current: Operand):
+    def _resolve_operations(self, current: Operand) -> List[Term]:
         """Separate an algebraic group into operators and operands."""
-        # Parse the base string into operands and operators.
-        parts = self._parse_complex(current.base)
-        # Insert explicit multiplication operators where implied.
-        tmp = self._insert_multiply(parts)
-        # Gather operands, invert if necessary, and catch operator errors.
-        exponent = current.exponent
-        operands = tmp[::2]
-        operators = tmp[1::2]
-        if exception := self._check_operators(operators):
-            raise exception(current)
-        pairs = zip(operands[::-1], operators[::-1])
-        resolved = [operands[0] ** +exponent]
-        for (operand, operator) in pairs:
-            exp = -exponent if operator == 'divide' else +exponent
-            resolved.append(operand ** exp)
-        # Store terms and parse remaining groups.
-        terms = [self.operands.create(current.coefficient)]
-        for operand in resolved:
-            if isinstance(operand, Term):
-                terms.append(operand)
-            elif isinstance(operand, Operand):
-                terms.extend(self._resolve_operations(operand))
-            else:
-                raise TypeError(f"Unknown operand type: {operand!r}")
-        # TODO: Consider extracting all coefficients, at least as separate
-        # constant terms.
-        return terms
+        parts = self._parse_expression(current.base)
+        resolved = self._resolve_operators(current, parts)
+        return [
+            term for operand in resolved
+            for term in self._update_terms(operand)
+        ] + [Term(coefficient=current.coefficient)]
 
-    def _parse_complex(self, string: str) -> List[Part]:
-        """Parse an algebraic expression while preserving nested groups."""
+    def _parse_expression(self, string: str) -> List[Part]:
+        """Parse an algebraic expression into operators and operands.
+
+        This method sequentially extracts known operators and operands while
+        preserving nested groups in the latter. Calling code may then pass those
+        nested groups back in for further parsing.
+        """
         parts = []
         methods = (
             self.operands.parse,
@@ -977,14 +960,35 @@ class Parser:
                 last = current
         return parts
 
-    def _insert_multiply(self, parts: Iterable[Part]):
-        """Insert a multiplication operator between adjacent terms.
+    def _resolve_operators(
+        self,
+        original: Operand,
+        parts: Iterable[Part],
+    ) -> List[Operand]:
+        """Evaluate pairs of operators and operands parsed from `original`."""
+        tmp = self._insert_operators(parts)
+        operands = tmp[::2]
+        operators = tmp[1::2]
+        if exception := self._check_operators(operators):
+            raise exception(original.base) from None
+        pairs = zip(operands[::-1], operators[::-1])
+        exponent = original.exponent
+        resolved = [operands[0] ** +exponent]
+        for (operand, operator) in pairs:
+            exp = -exponent if operator == 'divide' else +exponent
+            resolved.append(operand ** exp)
+        return resolved
 
-        NIST guidelines permit the use of a space character to indicate
-        multiplication between unit symbols, and this is a common practice when
-        writing algebraic expressions in general. This method places a
-        multiplication operator of the appropriate form between adjacent terms
-        in order to make that operation explicit
+    def _insert_operators(self, parts: Iterable[Part]):
+        """Insert implied operators between adjacent terms.
+
+        Notes
+        -----
+        - Implied multiplication: NIST guidelines permit the use of a space
+          character to indicate multiplication between unit symbols, and this is
+          a common practice when writing algebraic expressions in general. This
+          method places a multiplication operator of the appropriate form
+          between adjacent terms in order to make that operation explicit
         """
         result = []
         last = parts[0]
@@ -1025,6 +1029,14 @@ class Parser:
             return RatioError
         if n_div == 1 and i_mul > i_div:
             return ProductError
+
+    def _update_terms(self, operand: Operand):
+        """Store a new term or initiate further parsing."""
+        # TODO: Consider extracting all coefficients, at least as separate
+        # constant terms.
+        if isinstance(operand, Term):
+            return [operand]
+        return self._resolve_operations(operand)
 
 
 class OperandError(TypeError):
