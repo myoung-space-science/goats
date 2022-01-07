@@ -895,7 +895,7 @@ class Iteration(iterables.ReprStrMixin):
 
     def __str__(self):
         """A simplified representation of this object."""
-        return ', '.join(f"{k}={v}" for k, v in self._attrs.items())
+        return ', '.join(f"{k}={v!r}" for k, v in self._attrs.items())
 
 
 class Parser:
@@ -962,41 +962,15 @@ class Parser:
         """
         operands = []
         current = Iteration(initial.base)
+        previous = current.copy()
         while current.string:
-            previous = current.copy()
             current = self._get_operator(initial, current, previous)
             current = self._get_operand(initial, current)
-            self._check_progress(initial, current, previous)
             if new := self._compute_operand(current):
                 operands.append(new)
+            previous = current.copy()
+            current = Iteration(previous.string)
         return operands
-
-    def _compute_operand(self, current: Iteration):
-        """Create a new operand from the current iteration."""
-        if current.operand:
-            if current.operator:
-                return self._evaluate(
-                        current.operator,
-                        current.operand,
-                    )
-            return current.operand
-
-    def _check_progress(
-        self,
-        initial: Operand,
-        current: Iteration,
-        previous: Iteration,
-    ) -> None:
-        """Raise an error if the string has not changed."""
-        if current.string == previous.string:
-            if current.string == initial.base:
-                raise ParsingValueError(
-                        f"Failed to parse {current.string!r}"
-                    )
-            raise ParsingValueError(
-                    "Failed to find a match for"
-                    f" {current.string!r} in {initial.base!r}"
-                )
 
     def _get_operator(
         self,
@@ -1024,6 +998,16 @@ class Parser:
             current.operand = parsed.result ** initial.exponent
             current.string = parsed.remainder
         return current
+
+    def _compute_operand(self, current: Iteration):
+        """Create a new operand from the current iteration."""
+        if current.operand and current.operator:
+            return self._evaluate(current.operator, current.operand)
+        if current.operand:
+            return current.operand
+        if current.operator:
+            raise ParsingValueError("Operator without operand")
+        raise ParsingValueError("Failed to parse string")
 
     def _operator_error(self, current: Operator, previous: Operator):
         """Check for known operator-related errors.

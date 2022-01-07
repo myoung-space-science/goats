@@ -367,6 +367,7 @@ def test_parsing_errors():
     invalid = [
         '(a*b))',
         'a / (a*b',
+        'a/',
     ]
     for string in invalid:
         with pytest.raises(algebra.ParsingValueError):
