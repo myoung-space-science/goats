@@ -64,6 +64,20 @@ def test_simple_term_operators():
     assert z == algebra.Term(1, 'z', -3)
 
 
+@pytest.mark.term
+def test_term_substitute():
+    """Test the ability to substitute a value in a variable term."""
+    term = algebra.Term(3, 'a', 2)
+    values = [4, -7, 11.3]
+    for value in values:
+        new = term(value)
+        assert isinstance(new, algebra.Term)
+        assert float(new) == 3 * (value ** 2)
+    with pytest.raises(TypeError):
+        term = algebra.Term(9)
+        term(2)
+
+
 def test_create_operand():
     """Test the object representing a part of an expression."""
     cases = {

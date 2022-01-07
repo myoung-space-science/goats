@@ -156,6 +156,14 @@ class Operand(Part):
 class Term(Operand):
     """An algebraic operand with an irreducible base."""
 
+    def __call__(self, value: numbers.Real):
+        """Evaluate a variable term at this value."""
+        if self.base != '1':
+            coefficient = self.coefficient * (value ** self.exponent)
+            return type(self)(coefficient=coefficient)
+        errmsg = f"Can't evaluate term with base {self.base!r}"
+        raise TypeError(errmsg)
+
     def format(self, style: str=None):
         """Format this term."""
         coefficient = self._format_coefficient()
