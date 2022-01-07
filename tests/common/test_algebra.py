@@ -267,6 +267,9 @@ def test_expression_parser():
         '2(3(4a^4)^3)^2': {
             'terms': ['a^24', '73728'],
         },
+        '1.0e2': {
+            'terms': ['100'],
+        }
     }
     for test, expected in cases.items():
         expression = algebra.Expression(test)

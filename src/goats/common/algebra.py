@@ -626,11 +626,20 @@ class OperandFactory(PartFactory):
         of any variable term with an explicit coefficient.
         """
         target = string[start:]
-        for key in ('variable', 'constant'):
-            match_method = self._get_match_method(key, mode)
+        matches = {
+            key: self._get_match_method(key, mode)(target)
+            for key in ('variable', 'constant')
+        }
+        if not any(matches.values()):
+            return
+        if all(matches.values()):
+            same = matches['variable'][0] == matches['constant'][0]
+            key = 'constant' if same else 'variable'
             build_method = self._get_build_method(key)
-            if match := match_method(target):
-                return build_method(match)
+            return build_method(matches[key])
+        for key, match in matches.items():
+            if match:
+                return self._get_build_method(key)(match)
 
     def _get_match_method(
         self,
