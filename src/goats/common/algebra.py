@@ -908,6 +908,7 @@ class Parser:
         opening: str='(',
         closing: str=')',
         raising: str='^',
+        operator_order: str='error',
     ) -> None:
         """
         Initialize a parser with fixed tokens.
@@ -928,6 +929,12 @@ class Parser:
 
         raising : string, default='^'
             The token that represents raising to a power (exponentiation).
+
+        operator_order : {'error', 'ignore'}
+            How to respond when operator order violates NIST guidelines. If set
+            to `'error'` (default), the parser will raise an exception based on
+            the type of violation. If set to `'ignore'`, it will treat operators
+            independent of one another.
         """
         self.operands = OperandFactory(opening, closing, raising)
         self.operators = OperatorFactory(multiply, divide)
@@ -939,6 +946,7 @@ class Parser:
             'closing': closing,
             'raising': raising,
         }
+        self._operator_order = operator_order
 
     def parse(self, string: str):
         """Resolve the given string into individual terms."""
@@ -1026,6 +1034,8 @@ class Parser:
         (b / c)'`, and `'a / b * c'` should become `'(a / b) * c'` or `'a / (b *
         c)'`.
         """
+        if self._operator_order == 'ignore':
+            return
         if previous == 'divide':
             if current == 'divide':
                 return RatioError

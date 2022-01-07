@@ -375,6 +375,18 @@ def test_parsing_errors():
 
 
 @pytest.mark.expression
+def test_ignore_operator_order():
+    """Test the option to ignore operator order."""
+    cases = {
+        'a/b/c': ['a', 'b^-1', 'c^-1'],
+        'a/b*c': ['a', 'b^-1', 'c'],
+    }
+    for string, terms in cases.items():
+        expression = algebra.Expression(string, operator_order='ignore')
+        expected = algebra.asterms(terms)
+        assert expression.terms == expected
+
+@pytest.mark.expression
 def test_formatted_expression():
     """Test the ability to format terms in an algebraic expression."""
     string = 'a0^2 * (a1*a2) / (a3 * a4^2 * (a5/a6))'
