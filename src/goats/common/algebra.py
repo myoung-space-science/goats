@@ -325,7 +325,7 @@ class OperatorFactory(PartFactory):
             'divide': re.compile(
                 fr'(?<!{mul})(\s*{div}\s*)(?!{mul})'
             ),
-            'sqrt': re.compile(r'sqrt')
+            'sqrt': re.compile(r'\s*sqrt\s*')
         }
         """Compiled regular expressions for algebraic operators."""
 
