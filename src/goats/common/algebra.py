@@ -179,15 +179,12 @@ class Term(Operand):
         """Format the coefficient for printing."""
         if self.base != '1' and self.coefficient == 1:
             return ''
+        if isinstance(self.coefficient, fractions.Fraction):
+            if self.base != '1' and self.coefficient.denominator != 1:
+                return f"({self.coefficient})"
+            return str(float(self.coefficient))
         if float(self.coefficient) == int(self.coefficient):
             return str(int(self.coefficient))
-        if (
-            isinstance(self.coefficient, fractions.Fraction)
-            and
-            self.base != '1'
-            and
-            self.coefficient.denominator != 1
-        ): return f"({self.coefficient})"
         return str(self.coefficient)
 
     def _format_exponent(self, style: str):
