@@ -925,7 +925,7 @@ class Parser:
         opening: str='(',
         closing: str=')',
         raising: str='^',
-        operator_order: str='error',
+        operator_order: str='ignore',
     ) -> None:
         """
         Initialize a parser with fixed tokens.
@@ -947,11 +947,11 @@ class Parser:
         raising : string, default='^'
             The token that represents raising to a power (exponentiation).
 
-        operator_order : {'error', 'ignore'}
-            How to respond when operator order violates NIST guidelines. If set
-            to `'error'` (default), the parser will raise an exception based on
-            the type of violation. If set to `'ignore'`, it will treat operators
-            independent of one another.
+        operator_order : {'ignore', 'error'}
+            Determines how the parser responds when operator order violates NIST
+            guidelines. If set to `'ignore'` (default), it will treat operators
+            independent of one another. If set to `'error'`, the parser will
+            raise an exception based on the type of violation.
         """
         self.operands = OperandFactory(opening, closing, raising)
         self.operators = OperatorFactory(multiply, divide)

@@ -384,11 +384,11 @@ def test_nonstandard_chars():
 
 @pytest.mark.expression
 def test_parsing_errors():
-    """Make sure the parser catches invalid expressions."""
+    """Make sure the parser correctly catches errors."""
     with pytest.raises(algebra.RatioError):
-        algebra.Expression('a/b/c')
+        algebra.Expression('a/b/c', operator_order='error')
     with pytest.raises(algebra.ProductError):
-        algebra.Expression('a/b*c')
+        algebra.Expression('a/b*c', operator_order='error')
     invalid = [
         '(a*b))',
         'a / (a*b',
