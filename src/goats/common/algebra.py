@@ -869,6 +869,35 @@ class ParsingValueError(ValueError):
     pass
 
 
+class Iteration(iterables.ReprStrMixin):
+    """An object that keeps track of parsing attributes."""
+
+    __slots__ = ('string', 'operator', 'operand')
+
+    def __init__(
+        self,
+        string: str,
+        operator: Operator=None,
+        operand: Operand=None,
+    ) -> None:
+        self.string = string
+        self.operator = operator
+        self.operand = operand
+
+    @property
+    def _attrs(self):
+        """Internal mapping of current attribute values."""
+        return {name: getattr(self, name) for name in self.__slots__}
+
+    def copy(self):
+        """Make a copy of this instance."""
+        return type(self)(**self._attrs)
+
+    def __str__(self):
+        """A simplified representation of this object."""
+        return ', '.join(f"{k}={v}" for k, v in self._attrs.items())
+
+
 class Parser:
     """A tool for parsing algebraic expressions."""
 
@@ -931,36 +960,62 @@ class Parser:
         while preserving nested groups in the latter. Calling code may then pass
         those nested groups back in for further parsing.
         """
-        operator = None
-        operand = None
         operands = []
-        string = initial.base
-        while string:
-            original = string
-            if parsed := self.operators.parse(string):
-                if operator == 'divide':
-                    if parsed.result == 'divide':
-                        raise RatioError(initial)
-                    if parsed.result == 'multiply':
-                        raise ProductError(initial)
-                operator = parsed.result
-                string = parsed.remainder
-            if parsed := self.operands.parse(string):
-                operand = parsed.result ** initial.exponent
-                string = parsed.remainder
-            if string == original:
-                if string == initial.base:
-                    raise ParsingValueError(f"Failed to parse {string!r}")
+        current = Iteration(initial.base)
+        while current.string:
+            previous = current.copy()
+            if parsed := self.operators.parse(current.string):
+                current.operator = parsed.result
+                if exception := self._operator_error(
+                    current.operator,
+                    previous.operator,
+                ): raise exception(initial)
+                current.string = parsed.remainder
+            if parsed := self.operands.parse(current.string):
+                current.operand = parsed.result ** initial.exponent
+                current.string = parsed.remainder
+            if current.string == previous.string:
+                if current.string == initial.base:
+                    raise ParsingValueError(
+                        f"Failed to parse {current.string!r}"
+                    )
                 raise ParsingValueError(
-                    f"Failed to find a match for {string!r} in {initial.base!r}"
+                    "Failed to find a match for"
+                    f" {current.string!r} in {initial.base!r}"
                 )
-            if operand:
-                if operator:
-                    evaluated = self._evaluate(operator, operand)
+            if current.operand:
+                if current.operator:
+                    evaluated = self._evaluate(
+                        current.operator,
+                        current.operand,
+                    )
                     operands.append(evaluated)
                 else:
-                    operands.append(operand)
+                    operands.append(current.operand)
         return operands
+
+    def _operator_error(self, current: Operator, previous: Operator):
+        """Check for known operator-related errors.
+        
+        This method checks for the following errors and returns the appropriate
+        exception class if it finds one:
+        - Multiple divisions on a single level (e.g., `'a / b / c'`), which
+          results in a `RatioError`.
+        - Multiplication after division on the same level (e.g., `'a / b * c'`),
+          which results in a `ProductError`.
+
+        Both of the examples shown above result in errors because they each
+        introduce an ambiguous order of operations. Users can resolve the
+        ambiguity by properly grouping terms in the expression. Continuing with
+        the above examples, `'a / b / c'` should become `'(a / b) / c'` or `'a /
+        (b / c)'`, and `'a / b * c'` should become `'(a / b) * c'` or `'a / (b *
+        c)'`.
+        """
+        if previous == 'divide':
+            if current == 'divide':
+                return RatioError
+            if current == 'multiply':
+                return ProductError
 
     def _evaluate(self, operator: Operator, operand: Operand):
         """Compute the effect of `operator` on `operand`."""
