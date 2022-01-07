@@ -158,6 +158,9 @@ class Term(Operand):
 
     def __call__(self, value: numbers.Real):
         """Evaluate a variable term at this value."""
+        if not isinstance(value, numbers.Real):
+            errmsg = f"Can't evaluate term with value {value!r}"
+            raise TypeError(errmsg)
         if self.base != '1':
             coefficient = self.coefficient * (value ** self.exponent)
             return type(self)(coefficient=coefficient)
