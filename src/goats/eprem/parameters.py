@@ -599,8 +599,7 @@ class Parameters(iterables.AliasedMapping):
         }
         super().__init__(mapping=mapping)
         self.config = config
-        aliasmap = {name: info for name, info in _metadata.items()}
-        self._namemap = iterables.NameMap(_metadata.keys(), aliasmap)
+        self._namemap = iterables.NameMap(_metadata.keys(), dict(_metadata))
         self._options = metadata['options']
         self._constraints = metadata['constraints']
         self._assumptions = metadata['assumptions']
