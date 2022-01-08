@@ -202,17 +202,21 @@ class BaseTypes(iterables.MappingBase):
     def __init__(self, src: typing.Union[str, pathlib.Path]=None) -> None:
         self.path = iotools.ReadOnlyPath(src or '.') / 'baseTypes.h'
         self._definitions = None
-        self._mapping = {k: self._evaluate(k) for k in self.definitions}
-        super().__init__(self._mapping)
+        super().__init__(tuple(self.definitions))
+        self._cache = {}
 
     def __getitem__(self, name: str):
         """Access constants by name."""
-        if name in self._mapping:
-            value = self._mapping[name]
+        if name in self._cache:
+            return self._cache[name]
+        if name in self:
+            value = self._compute(name)
             reference = _BASETYPES_H.get(name)
             unit = reference.get('unit')
             info = reference.get('info')
-            return constants.Constant(value, unit=unit, info=info)
+            result = constants.Constant(value, unit=unit, info=info)
+            self._cache[name] = result
+            return result
         raise KeyError(f"No {name!r} in baseTypes.h")
 
     @property
@@ -236,7 +240,7 @@ class BaseTypes(iterables.MappingBase):
             self._definitions = definitions
         return self._definitions
 
-    def _evaluate(self, key: str) -> numbers.Real:
+    def _compute(self, key: str) -> numbers.Real:
         """Compute the value of a defined constant."""
         target = self.definitions[key]
         if isinstance(target, numbers.Real):
@@ -245,7 +249,7 @@ class BaseTypes(iterables.MappingBase):
             value = 1.0
             for term in target:
                 if term.base in self.definitions:
-                    value *= float(term(self._evaluate(term.base)))
+                    value *= float(term(self._compute(term.base)))
                 elif term.base == '1':
                     value *= float(term)
             return value
