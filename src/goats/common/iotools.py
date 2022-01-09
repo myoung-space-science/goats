@@ -1,6 +1,8 @@
 import os
 import pathlib
-from typing import *
+import typing
+
+from goats.common import iterables
 
 
 class SelectiveSingleton:
@@ -15,7 +17,7 @@ class SelectiveSingleton:
     """
     _instances = {}
     _singletons = None
-    def __new__(cls, key: Hashable, *args, **kwargs) -> Any:
+    def __new__(cls, key: typing.Hashable, *args, **kwargs) -> typing.Any:
         """Create a new instance or return an existing instance."""
         if cls._singletons is None:
             message = f"Singleton cases must be iterable, not {cls._singletons}"
@@ -40,7 +42,7 @@ class SingleInstance(type):
     See https://refactoring.guru/design-patterns/singleton/python/example
     """
     _instances = {}
-    def __call__(cls, path: Union[str, pathlib.Path], *args, **kwargs):
+    def __call__(cls, path: typing.Union[str, pathlib.Path], *args, **kwargs):
         """Ensure that only one instance of the given object exists."""
         if path not in cls._instances:
             cls._instances[path] = super(
@@ -111,14 +113,83 @@ class ReadOnlyPath(pathlib.Path):
         raise ReadOnlyPathError(self.__class__)
 
 
-def file_lines(file: Union[str, pathlib.Path]) -> int:
+Parsable = typing.TypeVar('Parsable')
+Parsable = typing.Dict[str, typing.Any]
+
+
+class TextFile(iterables.ReprStrMixin):
+    """A representation of a text file with pattern-based search."""
+
+    def __init__(self, path: typing.Union[str, pathlib.Path]) -> None:
+        """
+        Parameters
+        ----------
+        path : string or `pathlib.Path`
+            The path to the target text file. May be relative and contain
+            wildcards.
+        """
+        self._path = path
+        self._lines = None
+
+    @property
+    def lines(self):
+        """The lines of text in this file."""
+        if self._lines is None:
+            with self.path.open('r') as fp:
+                self._lines = fp.readlines()
+        return self._lines
+
+    @property
+    def path(self):
+        """The fully resolved, read-only path."""
+        return ReadOnlyPath(self._path)
+
+    _KT = typing.TypeVar('_KT', bound=typing.Hashable)
+    _VT = typing.TypeVar('_VT')
+    def search(
+        self,
+        pattern: typing.Pattern,
+        parse: typing.Callable[[Parsable], typing.Tuple[_KT, _VT]],
+    ) -> typing.Dict[_KT, _VT]:
+        """Search and parse each line with the given parser.
+        
+        Parameters
+        ----------
+        pattern : regular expression
+            A compiled regular expression that defines the pattern to match in
+            lines of text.
+        parse : callable
+            Any callable object that takes the output of `re.Match.groupdict()`,
+            and returns a tuple containing a valid mapping key and a value.
+
+        Returns
+        -------
+        dict
+            A dictionary constructed from the tuples output by the given parser.
+        """
+        matches = [
+            pattern.match(line.strip())
+            for line in self.lines
+        ]
+        parsed = [
+            parse(match.groupdict())
+            for match in matches if match
+        ]
+        return dict(parsed)
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return str(self.path)
+
+
+def file_lines(file: typing.Union[str, pathlib.Path]) -> int:
     """Count the number of lines in a file."""
     with pathlib.Path(file).open('r') as fp:
         nlines = len(fp.readlines())
     return nlines
 
 
-def strip_inline_comments(string: str, comments: List[str]) -> str:
+def strip_inline_comments(string: str, comments: typing.List[str]) -> str:
     """Remove inline comments from a string."""
     for c in comments:
         parts = string.split(c)
