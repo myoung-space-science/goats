@@ -5,6 +5,9 @@ import typing
 from goats.common import iterables
 
 
+PathLike = typing.TypeVar('PathLike')
+PathLike = typing.Union[str, pathlib.Path]
+
 class SelectiveSingleton:
     """A base object for creating classes with special singleton instances.
 
@@ -42,7 +45,7 @@ class SingleInstance(type):
     See https://refactoring.guru/design-patterns/singleton/python/example
     """
     _instances = {}
-    def __call__(cls, path: typing.Union[str, pathlib.Path], *args, **kwargs):
+    def __call__(cls, path: PathLike, *args, **kwargs):
         """Ensure that only one instance of the given object exists."""
         if path not in cls._instances:
             cls._instances[path] = super(
@@ -120,7 +123,7 @@ Parsable = typing.Dict[str, typing.Any]
 class TextFile(iterables.ReprStrMixin):
     """A representation of a text file with pattern-based search."""
 
-    def __init__(self, path: typing.Union[str, pathlib.Path]) -> None:
+    def __init__(self, path: PathLike) -> None:
         """
         Parameters
         ----------
@@ -180,7 +183,7 @@ class TextFile(iterables.ReprStrMixin):
         return str(self.path)
 
 
-def file_lines(file: typing.Union[str, pathlib.Path]) -> int:
+def file_lines(file: PathLike) -> int:
     """Count the number of lines in a file."""
     with pathlib.Path(file).open('r') as fp:
         nlines = len(fp.readlines())
