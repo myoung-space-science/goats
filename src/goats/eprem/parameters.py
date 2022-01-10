@@ -14,10 +14,14 @@ of the latter type, and user code should take care to distuinguish between the
 various meanings.
 """
 
-import collections.abc
-from pathlib import Path
-from typing import *
+import functools
+import numbers
+import pathlib
+import re
+import typing
 
+from goats.common import algebra
+from goats.common import constants
 from goats.common import iotools
 from goats.common import iterables
 from goats.common import quantities
@@ -372,11 +376,448 @@ _metadata = {
 metadata = {k: iterables.AliasedMapping.of(v) for k, v in _metadata.items()}
 
 
+_BASETYPES_H = {
+    'T': {
+        'info': 'True',
+        'type': int,
+    },
+    'F': {
+        'info': 'False',
+        'type': int,
+    },
+    'PI': {
+        'info': 'The value of π.',
+        'type': float,
+    },
+    'TWO_PI': {
+        'info': 'The value of 2π.',
+        'type': float,
+    },
+    'VERYSMALL': {
+        'info': 'A very small value.',
+        'type': float,
+    },
+    'BADVALUE': {
+        'info': 'A bad (invalid) float value.',
+        'type': float,
+    },
+    'BADINT': {
+        'info': 'A bad (invalid) integer value.',
+        'type': int,
+    },
+    'MP': {
+        'info': 'The proton mass.',
+        'unit': 'g',
+        'type': float,
+    },
+    'EV': {
+        'info': 'The conversion from eVs to ergs.',
+        'unit': 'erg/eV',
+        'type': float,
+    },
+    'MEV': {
+        'info': 'The conversion from MeVs to ergs.',
+        'unit': 'erg/MeV',
+        'type': float,
+    },
+    'GEV': {
+        'info': 'The conversion from GeVs to ergs.',
+        'unit': 'erg/GeV',
+        'type': float,
+    },
+    'Q': {
+        'info': 'The proton charge.',
+        'unit': 'statC',
+        'type': float,
+    },
+    'C': {
+        'info': 'The speed of light.',
+        'unit': 'cm/s',
+        'type': float,
+    },
+    'MZERO': {
+        'info': 'The proton rest-mass energy in GeV.',
+        'unit': 'GeV',
+        'formula': 'MP * C^2 * GEV^-1',
+        'type': float,
+    },
+    'AU': {
+        'info': 'One astronomical unit.',
+        'unit': 'cm',
+        'type': float,
+    },
+    'RSUN': {
+        'info': 'The value of the solar radius.',
+        'unit': 'cm',
+        'type': float,
+    },
+    'RSAU': {
+        'info': 'The number of solar radii per au.',
+        'formula': 'RSUN * AU^-1',
+        'type': float,
+    },
+    'TAU': {
+        'info': 'The canonical EPREM time scale.',
+        'unit': 's',
+        'formula': 'AU * C^-1',
+        'type': float,
+    },
+    'DAY': {
+        'info': 'The conversion from EPREM time steps to Julian days.',
+        'unit': 'day',
+        'formula': 'TAU * 1.1574074074074072e-05', 
+        'type': float,
+    },
+    'MHD_DENSITY_NORM': {
+        'info': 'The normalization factor for density.',
+        'type': float,
+    },
+    'MHD_B_NORM': {
+        'info': 'The normalization for magnetic fields.',
+        'formula': 'MP^0.5 * MHD_DENSITY_NORM^0.5 * C',
+        'type': float,
+    },
+    'OM': {
+        'info': 'The normalization for ion gyrofrequency.',
+        'formula': 'MHD_B_NORM * Q * AU * MP^-1 * C^-2',
+        'type': float,
+    },
+    'FCONVERT': {
+        'info': 'The conversion from distribution to flux.',
+        'formula': 'C^-4 * 1e+30',
+        'type': float,
+    },
+    'VOLT': {
+        'info': 'The conversion from volts to statvolts.',
+        'type': float,
+    },
+    'THRESH': {
+        'info': 'The threshold for perpendicular diffusion.',
+        'type': float,
+    },
+    'MAS_TIME_NORM': {
+        'info': 'The MAS time normalization factor.',
+        'type': float,
+    },
+    'MAS_LENGTH_NORM': {
+        'info': 'The MAS length normalization factor.',
+        'type': float,
+    },
+    'MAS_RHO_NORM': {
+        'info': 'The MAS plasma-density normalization.',
+        'type': float,
+    },
+    'MAS_TIME_CONVERT': {
+        'info': 'The time conversion from MAS units.',
+        'formula': 'MAS_TIME_NORM * 1.1574074074074072e-05',
+        'type': float,
+    },
+    'MAS_V_CONVERT': {
+        'info': 'The velocity conversion from MAS units.',
+        'formula': 'MAS_LENGTH_NORM * MAS_TIME_NORM^-1 * C^-1',
+        'type': float,
+    },
+    'MAS_RHO_CONVERT': {
+        'info': 'The density conversion from MAS units.',
+        'formula': 'MAS_RHO_NORM * MP^-1 * MHD_DENSITY_NORM^-1',
+        'type': float,
+    },
+    'MAS_B_CONVERT': {
+        'info': 'The magnetic field conversion from MAS units.',
+        'formula': (
+            'PI^0.5 * MAS_RHO_NORM^0.5 * MAS_LENGTH_NORM * MAS_TIME_NORM^-1 '
+            '* MHD_B_NORM^-1 * 2.0'
+        ),
+        'type': float,
+    },
+    'MAX_STRING_SIZE': {
+        'type': int,
+    },
+    'MHD_DEFAULT': {
+        'info': 'Use the default MHD solver.',
+        'type': int,
+    },
+    'MHD_ENLIL': {
+        'info': 'Use ENLIL for MHD values.',
+        'type': int,
+    },
+    'MHD_LFMH': {
+        'info': 'Use LFM for MHD values.',
+        'type': int,
+    },
+    'MHD_BATSRUS': {
+        'info': 'Use BATS-R-US for MHD values.',
+        'type': int,
+    },
+    'MHD_MAS': {
+        'info': 'Use MAS for MHD values.',
+        'type': int,
+    },
+    'NUM_MPI_BOUNDARY_FLDS': {
+        'info': 'Number of MPI psuedo-fields for use in creating MPI typedefs.',
+        'type': int,
+    },
+}
+
+
+class BaseTypesH(iterables.MappingBase):
+    """A representation of EPREM `baseTypes.h`."""
+
+    def __init__(self, src: typing.Union[str, pathlib.Path]=None) -> None:
+        self.path = iotools.ReadOnlyPath(src or '.') / 'baseTypes.h'
+        self._definitions = None
+        super().__init__(tuple(self.definitions))
+        self._cache = {}
+
+    def __getitem__(self, name: str):
+        """Access constants by name."""
+        if name in self._cache:
+            return self._cache[name]
+        if name in self:
+            value = self._compute(name)
+            reference = _BASETYPES_H.get(name)
+            unit = reference.get('unit')
+            info = reference.get('info')
+            result = constants.Constant(value, unit=unit, info=info)
+            self._cache[name] = result
+            return result
+        raise KeyError(f"No {name!r} in baseTypes.h")
+
+    @property
+    def definitions(self):
+        """The definition of each constant in the simulation source code."""
+        if self._definitions is None:
+            with self.path.open('r') as fp:
+                lines = fp.readlines()
+            definitions = {}
+            for line in lines:
+                if line.startswith('#define'):
+                    parts = line.strip('#define').rstrip('\n').split(maxsplit=1)
+                    if len(parts) == 2:
+                        key, value = parts
+                        metadata = _BASETYPES_H.get(key, {})
+                        if 'formula' in metadata:
+                            definitions[key] = algebra.Expression(value)
+                        else:
+                            cast = metadata.get('type', str)
+                            definitions[key] = cast(value)
+            self._definitions = definitions
+        return self._definitions
+
+    def _compute(self, key: str) -> numbers.Real:
+        """Compute the value of a defined constant."""
+        target = self.definitions[key]
+        if isinstance(target, numbers.Real):
+            return target
+        if isinstance(target, algebra.Expression):
+            value = 1.0
+            for term in target:
+                if term.base in self.definitions:
+                    value *= float(term(self._compute(term.base)))
+                elif term.base == '1':
+                    value *= float(term)
+            return value
+        raise TypeError(target)
+
+    def print(self, tabsize: int=4, stream: typing.TextIO=None):
+        """Print formatted reference information."""
+        indent = ' ' * tabsize
+        print("{", file=stream)
+        for key, definition in self.definitions.items():
+            formula = (
+                definition.format(separator=' * ')
+                if isinstance(definition, algebra.Expression)
+                else None
+            )
+            print(
+                f"{indent}{key!r}: {'{'}\n"
+                f"{indent}{indent}'value': {self[key]},\n"
+                f"{indent}{indent}'formula': {formula!r},\n"
+                f"{indent}{'},'}",
+                file=stream,
+            )
+        print("}", file=stream)
+
+
+class FunctionCall:
+    """Pattern parser for function calls."""
+
+    # TODO: 
+    # - __init__ should take arguments that allow the user to define possible
+    #   function names (e.g., 'readInt', 'readDouble') and target-variable
+    #   prefix (e.g., 'config').
+    # - It may be better to just grab everything in parentheses as `args` and
+    #   let `parse` sort them out.
+
+    @property
+    def pattern(self):
+        return re.compile(r"""
+            # the start of the string, followed by optional whitespace
+            \A\s*
+            # the name of the C struct
+            config\.
+            # the name of the attribute
+            (?P<name>\w+)
+            # equals sign surrounded by optional whitespace
+            \s*=\s*
+            # kludge for `(char*)readString(...)`
+            (?:\(char\*\))?
+            # the name of the file-reading method
+            (?P<mode>read(?:Int|Double|DoubleArray|String))
+            # beginning of function call
+            \(
+                # parameter name in config file
+                (?P<alias>\"\w*\")
+                # optional whitespace followed by a comma
+                \s*\,
+                # the remaining arguments
+                (?P<args>.*?)
+            # end of function call
+            \)
+            # C statement terminator
+            \;
+            # optional whitespace, followed by the end of the string
+            \s*\Z
+        """, re.VERBOSE)
+
+    def match(self, line: str):
+        """Identify lines that read config-file input."""
+        if match := self.pattern.match(line.strip()):
+            return match.groupdict()
+
+    def parse(self, parsable: typing.Dict[str, str]):
+        """Parse a line that reads config-file input."""
+        parsed = {}
+        name = parsable['name']
+        if alias := parsable['alias']:
+            a = alias.strip('"')
+            if a != name:
+                parsed['alias'] = a
+        parsed['mode'] = parsable['mode']
+        args = parsable['args'].split(',')
+        parsed['args'] = [arg.strip() for arg in args]
+        return name, parsed
+
+
+class VariableDefinition:
+    """Pattern parser for variable definitions."""
+
+    # TODO:
+    # - __init__ should take arguments that allow the user to define the
+    #   variable type (e.g., 'Scalar_t').
+    # - Can the pattern identify things like `size` and `value` with optional
+    #   user input, or does `parse` need to handle that?
+
+    @property
+    def pattern(self):
+        return re.compile(r"""
+            # the start of the string, followed by optional whitespace
+            \A\s*
+            # type declaration
+            Scalar\_t
+            # optional whitespace
+            \s*
+            # variable name
+            (?P<name>\w+)
+            # array size
+            \[(?P<size>\d+)\]
+            # equals sign surrounded by optional whitespace
+            \s*=\s*
+            # array value(s)
+            \{(?P<value>\d*(?:\.\d+)?)\}
+            # C statement terminator
+            \;
+            # optional whitespace, followed by the end of the string
+            \s*\Z
+        """, re.VERBOSE)
+
+    def match(self, line: str):
+        """Identify lines that define a variable."""
+        if match := self.pattern.match(line.strip()):
+            return match.groupdict()
+
+    def parse(self, parsable: typing.Dict[str, str]):
+        """Parse information about a defined variable."""
+        parsed = {
+            'size': int(parsable['size']),
+            'value': parsable['value'],
+        }
+        return parsable['name'], parsed
+
+
+class ConfigurationC(iterables.MappingBase):
+    """A representation of EPREM `configuration.c`."""
+
+    def __init__(self, src: typing.Union[str, pathlib.Path]=None) -> None:
+        path = pathlib.Path(src or '.') / 'configuration.c'
+        self.file = iotools.TextFile(path)
+        readline = FunctionCall()
+        self._defined = self.file.extract(readline.match, readline.parse)
+        super().__init__(tuple(self._defined))
+        scalar_t = VariableDefinition()
+        self._defaults = self.file.extract(scalar_t.match, scalar_t.parse)
+        self._path = path
+
+    @property
+    def path(self):
+        """The path to the relevant EPREM distribution."""
+        return iotools.ReadOnlyPath(self._path)
+
+    def __getitem__(self, key: str):
+        """"""
+        if key in self:
+            return self._prepare(self._defined[key])
+        raise KeyError(f"No default for {key!r}")
+
+    def _prepare(self, defined: str):
+        """"""
+        mode = defined['mode']
+        args = self._normalize(defined['args'])
+        if mode == 'readInt':
+            keys = ('default', 'minimum', 'maximum')
+            return {'type': int, **dict(zip(keys, args))}
+        if mode == 'readDouble':
+            keys = ('default', 'minimum', 'maximum')
+            return {'type': float, **dict(zip(keys, args))}
+        if mode == 'readString':
+            return {'type': str, 'default': args[0].strip('"')}
+        if mode == 'readDoubleArray':
+            return {'type': list, 'default': args[1]}
+        raise ValueError(f"Unknown configuration mode {mode!r}")
+
+    def _normalize(self, args: typing.Iterable[str]) -> typing.List[str]:
+        """"""
+        result = []
+        for arg in args:
+            if arg in self._defaults:
+                result.append(self._defaults[arg]['value'])
+            else:
+                result.append(arg)
+        return result
+
+    def print(self, tabsize: int=4, stream: typing.TextIO=None):
+        """Print formatted reference information."""
+        indent = ' ' * tabsize
+        print("{", file=stream)
+        for key, defined in self.items():
+            args = ''.join(
+                f"{indent}{indent}{k!r}: {v!r},\n"
+                for k, v in defined.items()
+            )
+            print(
+                f"{indent}{key!r}: {'{'}\n"
+                f"{args}",
+                f"{indent}{'},'}",
+                file=stream,
+            )
+        print("}", file=stream)
+
+
 class ConfigKeyError(KeyError):
     pass
 
 
-class ConfigManager(collections.abc.Mapping):
+class ConfigFile(iterables.MappingBase):
     """A class to handle EPREM run configuration files.
 
     Parameters
@@ -402,36 +843,21 @@ class ConfigManager(collections.abc.Mapping):
       strings. This only applies to each instance as a whole, since the object
       returned by look-up methods may perform type casting.
     - The unit associated with a specific value, when available, are those
-      consistent with the convetions of EPREM (cf. configuration.h) and do not
+      consistent with the convetions of EPREM (cf. configuration.c) and do not
       necessarily conform to a particular unit system. For example, many
       reference lengths or distances (e.g., reference mean free path or observer
       positions) are in au despite the fact that EPREM works with lengths in cm.
     """
     def __init__(
         self,
-        filepath: Union[str, Path],
-        comments: List[str]=None,
+        filepath: typing.Union[str, pathlib.Path],
+        comments: typing.List[str]=None,
     ) -> None:
         self.filepath = iotools.ReadOnlyPath(filepath)
         self.comments = comments or ['#']
         self.KeyError = ConfigKeyError
-        self._parsed = None
-
-    def __iter__(self) -> Iterator:
-        return iter(self.parsed)
-
-    def __len__(self) -> int:
-        return len(self.parsed)
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.parsed
-
-    @property
-    def parsed(self) -> Dict[str, Any]:
-        """Key-value pairs parsed from the configuration file."""
-        if self._parsed is None:
-            self._parsed = self._parse()
-        return self._parsed
+        self.parsed = self._parse()
+        super().__init__(tuple(self.parsed))
 
     def __getitem__(self, key: str):
         """Get a value and unit for a configuration option."""
@@ -439,7 +865,7 @@ class ConfigManager(collections.abc.Mapping):
             return self.parsed[key]
         raise self.KeyError(key)
 
-    def _parse(self) -> None:
+    def _parse(self) -> typing.Dict[str, str]:
         """Parse an EPREM config file into a dictionary.
 
         This method opens the file that the given filepath points to and reads
@@ -458,15 +884,76 @@ class ConfigManager(collections.abc.Mapping):
                 pairs[key] = value
         return pairs
 
-    def __repr__(self) -> str:
-        """An unambiguous representation of this object."""
-        return f"{self.__class__.__qualname__}({self.parsed!r})"
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return str(self.parsed)
+
+
+class ConfigManager(iterables.MappingBase):
+    """Interface to EPREM runtime configuration."""
+
+    def __init__(
+        self,
+        src: typing.Union[str, pathlib.Path],
+        filepath: typing.Union[str, pathlib.Path],
+        **kwargs
+    ) -> None:
+        self._defaults = ConfigurationC(src)
+        super().__init__(tuple(self._defaults))
+        self._basetypes = BaseTypesH(src)
+        self._runtime = ConfigFile(filepath, **kwargs)
+
+    def __getitem__(self, key: str):
+        """"""
+        if key in self:
+            return self._get_value(key)
+        raise KeyError(f"Unknown configuration parameter {key!r}")
+
+    def _get_value(self, key: str):
+        """"""
+        parameter = self._defaults[key]
+        realtype = parameter['type']
+        if key in self._runtime:
+            value = self._runtime[key]
+            convert = (
+                iterables.string_to_list if realtype == list
+                else realtype
+            )
+            return convert(value)
+        return self._evaluate(parameter['default'], realtype)
+
+    _special_cases = {
+        'N_PROCS': None,
+        'third': 1/3,
+    }
+
+    def _evaluate(
+        self,
+        arg: typing.Union[str, numbers.Real],
+        realtype: typing.Type,
+    ) -> numbers.Real:
+        """Compute the default numerical value from a definition."""
+        if isinstance(arg, numbers.Real):
+            return arg
+        if arg in self._basetypes:
+            return self._basetypes[arg]
+        if arg in self._special_cases:
+            return self._special_cases[arg]
+        # TODO: Handle arguments that refer back to `config`. May require
+        # updates to `algebra.Expression`.
+        if any(c in arg for c in {'*', '/'}):
+            tmp = algebra.Expression(arg)
+            return functools.reduce(
+                lambda x,y: x*y,
+                [self._evaluate(term.base) for term in tmp.terms],
+            )
+        return realtype(arg)
 
 
 class Reference(iterables.ReprStrMixin):
     """Reference metadata for an EPREM parameter."""
 
-    def __init__(self, metadata: Dict[str, Any]) -> None:
+    def __init__(self, metadata: typing.Dict[str, typing.Any]) -> None:
         self._metadata = metadata or {}
         self._unit = None
         self._value = None
@@ -508,12 +995,12 @@ class Reference(iterables.ReprStrMixin):
 class Parameter(iterables.ReprStrMixin):
     """Base class for EPREM parameters."""
 
-    def __init__(self, reference: Reference, value: Any=None) -> None:
+    def __init__(self, reference: Reference, value: typing.Any=None) -> None:
         self.reference = reference
         self._types = tuple({str, reference.realtype})
         self.value = self._normalize(value) if value else reference.value
 
-    def update(self, value: Any):
+    def update(self, value: typing.Any):
         """Update this parameter's value."""
         self.value = self._normalize(value)
         return self
