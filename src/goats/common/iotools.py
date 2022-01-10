@@ -144,37 +144,35 @@ class TextFile(iterables.ReprStrMixin):
         """The fully resolved, read-only path."""
         return ReadOnlyPath(self._path)
 
-    _KT = typing.TypeVar('_KT', bound=typing.Hashable)
-    _VT = typing.TypeVar('_VT')
-    def search(
+    KT = typing.TypeVar('KT', bound=typing.Hashable)
+    VT = typing.TypeVar('VT')
+    Matched = typing.TypeVar('Matched')
+    Parsed = typing.TypeVar('Parsed', bound=tuple)
+    Parsed = typing.Tuple[KT, VT]
+    def extract(
         self,
-        pattern: typing.Pattern,
-        parse: typing.Callable[[Parsable], typing.Tuple[_KT, _VT]],
-    ) -> typing.Dict[_KT, _VT]:
-        """Search and parse each line with the given parser.
+        match: typing.Callable[[str], Matched],
+        parse: typing.Callable[[Matched], Parsed],
+    ) -> typing.Dict[KT, VT]:
+        """Search each line and parse those that meet given criteria.
         
         Parameters
         ----------
-        pattern : regular expression
-            A compiled regular expression that defines the pattern to match in
-            lines of text.
+        match : callable
+            A callable object that takes a string and returns matches to a
+            pattern.
         parse : callable
-            Any callable object that takes the output of `re.Match.groupdict()`,
-            and returns a tuple containing a valid mapping key and a value.
+            A callable object that takes the output of `match`, and returns a
+            tuple containing a valid mapping key and corresponding value. It may
+            assume that the input is not empty.
 
         Returns
         -------
         dict
-            A dictionary constructed from the tuples output by the given parser.
+            A dictionary constructed from the tuples output by `parse`.
         """
-        matches = [
-            pattern.match(line.strip())
-            for line in self.lines
-        ]
-        parsed = [
-            parse(match.groupdict())
-            for match in matches if match
-        ]
+        matches = [match(line) for line in self.lines]
+        parsed = [parse(match) for match in matches if match]
         return dict(parsed)
 
     def __str__(self) -> str:
