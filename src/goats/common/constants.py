@@ -131,7 +131,7 @@ class Constant(quantities.Scalar):
     def __init__(
         self,
         value: float,
-        unit: Union[str, quantities.Unit] = None,
+        unit: Union[str, quantities.Unit]=None,
         info: str=None,
     ) -> None:
         super().__init__(value, unit=unit)
