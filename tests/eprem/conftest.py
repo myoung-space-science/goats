@@ -15,3 +15,23 @@ def rootpath() -> pathlib.Path:
     pkgpath = cwd.parent.parent
     return pkgpath / 'data' / 'eprem'
 
+
+@pytest.fixture
+def datadirs(rootpath: pathlib.Path):
+    """Directories containing datasets."""
+    bases = (
+        'cone',
+        'wind',
+    )
+    names = (
+        'obs',
+        'p_obs',
+        'flux',
+    )
+    return {
+        base: {
+            name: rootpath / base / name
+            for name in names
+        } for base in bases
+    }
+

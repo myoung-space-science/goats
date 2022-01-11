@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 import numpy
 
@@ -8,9 +6,9 @@ from goats.eprem import datasets
 
 
 @pytest.fixture
-def dataset(rootpath: Path):
+def dataset(datadirs: dict):
     """An EPREM dataset."""
-    datapath = rootpath / 'cone' / 'obs' / 'obs000000.nc'
+    datapath = datadirs['cone']['obs'] / 'obs000000.nc'
     return datasets.DatasetView(datapath, 'mks')
 
 
