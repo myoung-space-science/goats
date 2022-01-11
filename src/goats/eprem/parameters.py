@@ -575,12 +575,8 @@ class BaseTypesH(iterables.MappingBase):
             return self._cache[name]
         if name in self:
             value = self._compute(name)
-            reference = _BASETYPES_H.get(name)
-            unit = reference.get('unit')
-            info = reference.get('info')
-            result = constants.Constant(value, unit=unit, info=info)
-            self._cache[name] = result
-            return result
+            self._cache[name] = value
+            return value
         raise KeyError(f"No {name!r} in baseTypes.h")
 
     @property
