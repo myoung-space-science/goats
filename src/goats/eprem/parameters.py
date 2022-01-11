@@ -798,6 +798,8 @@ class ConfigurationC(iterables.MappingBase):
         for key, defined in self.items():
             args = ''.join(
                 f"{indent}{indent}{k!r}: {v!r},\n"
+                if not isinstance(v, type) else
+                f"{indent}{indent}{k!r}: {v.__qualname__},\n"
                 for k, v in defined.items()
             )
             print(
