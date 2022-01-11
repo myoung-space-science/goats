@@ -940,6 +940,8 @@ class ConfigManager(iterables.MappingBase):
             return self._get_value(key)
         raise KeyError(f"Unknown configuration parameter {key!r}")
 
+    # TODO: Either cache requested values or pre-evaluate all values.
+
     def _get_value(self, key: str):
         """"""
         parameter = self.defaults[key]
@@ -959,6 +961,9 @@ class ConfigManager(iterables.MappingBase):
     }
 
     _struct_member = re.compile(r'\Aconfig\.\w*\Z')
+
+    # TODO: Consider running through defaults once and attempting to convert as
+    # many values as possible to their respective real type.
 
     def _evaluate(
         self,
@@ -982,7 +987,9 @@ class ConfigManager(iterables.MappingBase):
         if any(c in arg for c in {'*', '/'}):
             expression = algebra.Expression(arg)
             evaluated = [
-                self._evaluate(term.base, realtype)
+                term.coefficient * self._evaluate(
+                    term.base, realtype
+                ) ** term.exponent
                 for term in expression
             ]
             return functools.reduce(lambda x,y: x*y, evaluated)
@@ -996,16 +1003,22 @@ class ConfigManager(iterables.MappingBase):
         realtype: typing.Type,
     ) -> numbers.Real:
         """"""
-        # HACK: This is only designed to handle strings that contain a
-        # single additive operator joining two arguments that `_evaluate`
-        # already knows how to handle.
+        # HACK: This is only designed to handle strings that contain a single
+        # additive operator joining two arguments that `_evaluate` already knows
+        # how to handle. It first needs to catch strings with '+/-' in
+        # exponential notation.
         for operator in ('+', '-'):
             if operator in arg:
-                terms = [
-                    self._evaluate(s.strip(), realtype)
-                    for s in arg.split(operator)
-                ]
-                return terms[0] + float(f'{operator}1')*terms[1]
+                try:
+                    asfloat = float(arg)
+                except ValueError:
+                    terms = [
+                        self._evaluate(s.strip(), realtype)
+                        for s in arg.split(operator)
+                    ]
+                    return terms[0] + float(f'{operator}1')*terms[1]
+                else:
+                    return asfloat
 
     def _convert(
         self,
@@ -1014,8 +1027,7 @@ class ConfigManager(iterables.MappingBase):
     ) -> numbers.Real:
         """"""
         if realtype == list:
-            # HACK: Handles most common case but isn't sufficient.
-            return [float(v) for v in arg]
+            return [float(v) for v in iterables.Separable(arg)]
         return realtype(arg)
 
     def __str__(self) -> str:

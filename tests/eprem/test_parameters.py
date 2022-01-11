@@ -1,19 +1,39 @@
+import pytest
+
 from goats.eprem import parameters
 
 
-def test_basetypes_h():
+@pytest.fixture
+def source_path():
+    """The path to the reference EPREM distribution."""
+    return '~/emmrem/epicMas/source/eprem/src'
+
+
+@pytest.fixture
+def config_path(datadirs):
+    """The path to the test configuration file"""
+    return datadirs['cone']['obs'] / 'eprem_input_file'
+
+
+def test_basetypes_h(source_path):
     """Regression test for values defined in src/baseTypes.h."""
-    b = parameters.BaseTypesH('~/emmrem/epicMas/source/eprem/src')
+    b = parameters.BaseTypesH(source_path)
     for key, value in _BASETYPES_H.items():
         assert b[key] == value
 
 
-def test_configuration_c():
-    """Regression test for some values defined in src/configuration.c."""
-    b = parameters.ConfigurationC('~/emmrem/epicMas/source/eprem/src')
-    for key, value in _CONFIGURATION_C.items():
-        if isinstance(value, (int, float)):
-            assert b[key] == value
+def test_configuration_c(source_path):
+    """Make sure the object contains everything in src/configuration.c."""
+    c = parameters.ConfigurationC(source_path)
+    assert len(c) == len(_CONFIGURATION_C)
+    assert all(key in c for key in _CONFIGURATION_C)
+
+
+def test_default_values(source_path):
+    """Compare the values of all parameters to reference values."""
+    cfg = parameters.ConfigManager(source_path)
+    for key, parameter in _CONFIGURATION_C.items():
+        assert cfg[key] == parameter['default']
 
 
 _BASETYPES_H = {
@@ -61,129 +81,129 @@ _BASETYPES_H = {
 _CONFIGURATION_C = {
     'numNodesPerStream': {
         'type': int,
-        'default': 'N_PROCS',
-        'minimum': 'N_PROCS',
-        'maximum': 'BADINT',
+        'default': None,
+        'minimum': None,
+        'maximum': _BASETYPES_H['BADINT'],
      },
     'numRowsPerFace': {
         'type': int,
         'default': 2,
         'minimum': 1,
-        'maximum': 'BADINT',
+        'maximum': _BASETYPES_H['BADINT'],
      },
     'numColumnsPerFace': {
         'type': int,
         'default': 2,
         'minimum': 1,
-        'maximum': 'BADINT',
+        'maximum': _BASETYPES_H['BADINT'],
      },
     'numEnergySteps': {
         'type': int,
         'default': 20,
         'minimum': 2,
-        'maximum': 'BADINT',
+        'maximum': _BASETYPES_H['BADINT'],
      },
     'numMuSteps': {
         'type': int,
         'default': 20,
         'minimum': 2,
-        'maximum': 'BADINT',
+        'maximum': _BASETYPES_H['BADINT'],
      },
     'rScale': {
         'type': float,
         'default': 0.005,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'flowMag': {
         'type': float,
         'default': 400.0e5,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'mhdDensityAu': {
         'type': float,
         'default': 8.30,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'mhdBAu': {
         'type': float,
         'default': 1.60e-5,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'simStartTime': {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'tDel': {
         'type': float,
         'default': 0.01041666666667,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'simStopTime': {
         'type': float,
-        'default': 'config.simStartTime + config.tDel',
-        'minimum': 'config.simStartTime',
-        'maximum': 'BADVALUE',
+        'default': 0.01041666666667,
+        'minimum': 0.0,
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'numEpSteps': {
         'type': int,
         'default': 30,
         'minimum': 1,
-        'maximum': 'BADINT',
+        'maximum': _BASETYPES_H['BADINT'],
      },
     'aziSunStart': {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'omegaSun': {
         'type': float,
-        'default': '(0.004144/MAS_TIME_NORM)*TAU',
+        'default': 0.004144*_BASETYPES_H['TAU']/_BASETYPES_H['MAS_TIME_NORM'],
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'lamo': {
         'type': float,
         'default': 1.0,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'dsh_min': {
         'type': float,
         'default': 5.0e-5,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'dsh_hel_min': {
         'type': float,
         'default': 2.5e-4,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'kperxkpar': {
         'type': float,
         'default': 0.01,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'mfpRadialPower': {
         'type': float,
         'default': 2.0,
-        'minimum': '-1.0 * BADVALUE',
-        'maximum': 'BADVALUE',
+        'minimum': -1.0 * _BASETYPES_H['BADVALUE'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'rigidityPower': {
         'type': float,
-        'default': 'third',
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'default': 1 / 3,
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'focusingLimit': {
         'type': float,
@@ -194,14 +214,14 @@ _CONFIGURATION_C = {
     'eMin': {
         'type': float,
         'default': 1.0,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'eMax': {
         'type': float,
         'default': 1000.0,
-        'minimum': 'config.eMin',
-        'maximum': 'BADVALUE',
+        'minimum': 1.0,
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'useStochastic': {
         'type': int,
@@ -236,14 +256,14 @@ _CONFIGURATION_C = {
     'gammaEhigh': {
         'type': float,
         'default': 0.0,
-        'minimum': '-1.0 * BADVALUE',
-        'maximum': 'BADVALUE',
+        'minimum': -1.0 * _BASETYPES_H['BADVALUE'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'gammaElow': {
         'type': float,
         'default': 0.0,
-        'minimum': '-1.0 * BADVALUE',
-        'maximum': 'BADVALUE',
+        'minimum': -1.0 * _BASETYPES_H['BADVALUE'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'FailModeDump': {
         'type': int,
@@ -267,7 +287,7 @@ _CONFIGURATION_C = {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'pointObserverOutput': {
         'type': int,
@@ -279,7 +299,7 @@ _CONFIGURATION_C = {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'streamFluxOutput': {
         'type': int,
@@ -291,7 +311,7 @@ _CONFIGURATION_C = {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'subTimeCouple': {
         'type': int,
@@ -309,7 +329,7 @@ _CONFIGURATION_C = {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'unstructuredDomain': {
         'type': int,
@@ -321,7 +341,7 @@ _CONFIGURATION_C = {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'useAdiabaticChange': {
         'type': int,
@@ -361,11 +381,11 @@ _CONFIGURATION_C = {
      },
     'mass': {
         'type': list,
-        'default': 1.0,
+        'default': [1.0],
      },
     'charge': {
         'type': list,
-        'default': 1.0,
+        'default': [1.0],
      },
     'numObservers': {
         'type': int,
@@ -375,21 +395,21 @@ _CONFIGURATION_C = {
      },
     'obsR': {
         'type': list,
-        'default': 0,
+        'default': [0],
      },
     'obsTheta': {
         'type': list,
-        'default': 0,
+        'default': [0],
      },
     'obsPhi': {
         'type': list,
-        'default': 0,
+        'default': [0],
      },
     'idw_p': {
         'type': float,
         'default': 3.0,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'masTriLinear': {
         'type': int,
@@ -469,49 +489,49 @@ _CONFIGURATION_C = {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'epEquilibriumCalcDuration': {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'preEruptionDuration': {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'masRadialMin': {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'masRadialMax': {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'masHelRadialMin': {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'masHelRadialMax': {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'masVmin': {
         'type': float,
         'default': 50.0e5,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'masInitFromOuterBoundary': {
         'type': int,
@@ -529,19 +549,19 @@ _CONFIGURATION_C = {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'masInitTimeStep': {
         'type': float,
         'default': 0.000011574074074,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'parallelFlow': {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'fieldAligned': {
         'type': int,
@@ -559,25 +579,25 @@ _CONFIGURATION_C = {
         'type': float,
         'default': 1.570796,
         'minimum': 0.0,
-        'maximum': 'PI',
+        'maximum': _BASETYPES_H['PI'],
      },
     'nodeClusterPhi': {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': '2.0 * PI',
+        'maximum': 2.0 * _BASETYPES_H['PI'],
      },
     'nodeClusterWidth': {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'PI',
+        'maximum': _BASETYPES_H['PI'],
      },
     'epCalcStartTime': {
         'type': float,
-        'default': 'config.simStartTime',
+        'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'masRotateSolution': {
         'type': int,
@@ -600,32 +620,32 @@ _CONFIGURATION_C = {
     'boundaryFunctAmplitude': {
         'type': float,
         'default': 1.0,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'boundaryFunctXi': {
         'type': float,
         'default': 1.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'boundaryFunctGamma': {
         'type': float,
         'default': 2.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'boundaryFunctBeta': {
         'type': float,
         'default': 1.7,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'boundaryFunctEcutoff': {
         'type': float,
         'default': 1.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'shockSolver': {
         'type': int,
@@ -637,19 +657,19 @@ _CONFIGURATION_C = {
         'type': float,
         'default': 1.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'minInjectionEnergy': {
         'type': float,
         'default': 0.01,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'shockInjectionFactor': {
         'type': float,
         'default': 1.0,
         'minimum': 0.0,
-        'maximum': 'BADVALUE',
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'idealShock': {
         'type': int,
@@ -660,50 +680,50 @@ _CONFIGURATION_C = {
     'idealShockSharpness': {
         'type': float,
         'default': 1.0,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'idealShockScaleLength': {
         'type': float,
         'default': 0.0046491,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'idealShockJump': {
         'type': float,
         'default': 4.0,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'idealShockSpeed': {
         'type': float,
         'default': 1500e5,
-        'minimum': 'VERYSMALL',
-        'maximum': 'BADVALUE',
+        'minimum': _BASETYPES_H['VERYSMALL'],
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'idealShockInitTime': {
         'type': float,
-        'default': 'config.simStartTime',
-        'minimum': 'config.simStartTime',
-        'maximum': 'BADVALUE',
+        'default': 0.0,
+        'minimum': 0.0,
+        'maximum': _BASETYPES_H['BADVALUE'],
      },
     'idealShockTheta': {
         'type': float,
         'default': 1.570796,
         'minimum': 0.0,
-        'maximum': 'PI',
+        'maximum': _BASETYPES_H['PI'],
      },
     'idealShockPhi': {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': '2.0 * PI',
+        'maximum': 2.0 * _BASETYPES_H['PI'],
      },
     'idealShockWidth': {
         'type': float,
         'default': 0.0,
         'minimum': 0.0,
-        'maximum': 'PI',
+        'maximum': _BASETYPES_H['PI'],
      },
     'dumpFreq': {
         'type': int,
