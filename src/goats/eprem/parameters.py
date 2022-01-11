@@ -741,6 +741,46 @@ class VariableDefinition:
         return parsable['name'], parsed
 
 
+_RT = typing.TypeVar('_RT')
+def soft_convert(
+    string: str,
+    convert: typing.Callable[[str], _RT],
+    acceptable: typing.Union[Exception, typing.Tuple[Exception]]=Exception,
+) -> typing.Union[str, _RT]:
+    """Convert a string to a different type, if possible.
+
+    This function will use the given callable to attempt to convert the given
+    string to a different type. If the conversion fails, this function will
+    return the unconverted string.
+
+    Parameters
+    ----------
+    string
+        The string to convert.
+
+    convert : callable
+        A callable object that accepts a string argument and returns the
+        converted value.
+
+    acceptable : exception or iterable of exceptions
+        One or more types of valid exception classes that this function should
+        ignore when attempting to convert `string`. The default behavior is to
+        accept any subclass of `Exception`. Passing arguments to this keyword
+        therefore allows the caller to limit the scope of ignorable errors.
+
+    Returns
+    -------
+    converted type or string
+        The converted value of the given string, if conversion succeeded, or the
+        unconverted string.
+    """
+    try:
+        value = convert(string)
+    except acceptable or Exception:
+        return string
+    return value
+
+
 class ConfigurationC(iterables.MappingBase):
     """A representation of EPREM `configuration.c`."""
 
