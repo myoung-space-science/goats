@@ -25,14 +25,14 @@ def test_basetypes_h(source_path):
 def test_configuration_c(source_path):
     """Make sure the object contains everything in src/configuration.c."""
     c = parameters.ConfigurationC(source_path)
-    assert len(c) == len(_CONFIGURATION_C)
-    assert all(key in c for key in _CONFIGURATION_C)
+    for key, value in _CONFIGURATION_C.items():
+        assert c[key] == value
 
 
 def test_default_values(source_path):
     """Compare the values of all parameters to reference values."""
     cfg = parameters.ConfigManager(source_path)
-    for key, parameter in _CONFIGURATION_C.items():
+    for key, parameter in reference.items():
         assert cfg[key] == parameter['default']
 
 
@@ -77,8 +77,689 @@ _BASETYPES_H = {
     'MHD_MAS': 4,
     'NUM_MPI_BOUNDARY_FLDS': 2,
 }
+"""Numerical values of constants defined in EPREM `src/baseTypes.h`."""
+
 
 _CONFIGURATION_C = {
+    'numNodesPerStream': {
+        'type': int,
+        'default': 'N_PROCS',
+        'minimum': 'N_PROCS',
+        'maximum': 'BADINT',
+     },
+    'numRowsPerFace': {
+        'type': int,
+        'default': '2',
+        'minimum': '1',
+        'maximum': 'BADINT',
+     },
+    'numColumnsPerFace': {
+        'type': int,
+        'default': '2',
+        'minimum': '1',
+        'maximum': 'BADINT',
+     },
+    'numEnergySteps': {
+        'type': int,
+        'default': '20',
+        'minimum': '2',
+        'maximum': 'BADINT',
+     },
+    'numMuSteps': {
+        'type': int,
+        'default': '20',
+        'minimum': '2',
+        'maximum': 'BADINT',
+     },
+    'rScale': {
+        'type': float,
+        'default': '0.005',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'flowMag': {
+        'type': float,
+        'default': '400.0e5',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'mhdDensityAu': {
+        'type': float,
+        'default': '8.30',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'mhdBAu': {
+        'type': float,
+        'default': '1.60e-5',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'simStartTime': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'tDel': {
+        'type': float,
+        'default': '0.01041666666667',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'simStopTime': {
+        'type': float,
+        'default': 'config.simStartTime + config.tDel',
+        'minimum': 'config.simStartTime',
+        'maximum': 'BADVALUE',
+     },
+    'numEpSteps': {
+        'type': int,
+        'default': '30',
+        'minimum': '1',
+        'maximum': 'BADINT',
+     },
+    'aziSunStart': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'omegaSun': {
+        'type': float,
+        'default': '(0.004144/MAS_TIME_NORM)*TAU',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'lamo': {
+        'type': float,
+        'default': '1.0',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'dsh_min': {
+        'type': float,
+        'default': '5.0e-5',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'dsh_hel_min': {
+        'type': float,
+        'default': '2.5e-4',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'kperxkpar': {
+        'type': float,
+        'default': '0.01',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'mfpRadialPower': {
+        'type': float,
+        'default': '2.0',
+        'minimum': '-1.0 * BADVALUE',
+        'maximum': 'BADVALUE',
+     },
+    'rigidityPower': {
+        'type': float,
+        'default': 'third',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'focusingLimit': {
+        'type': float,
+        'default': '1.0',
+        'minimum': '0.0',
+        'maximum': '1.0',
+     },
+    'eMin': {
+        'type': float,
+        'default': '1.0',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'eMax': {
+        'type': float,
+        'default': '1000.0',
+        'minimum': 'config.eMin',
+        'maximum': 'BADVALUE',
+     },
+    'useStochastic': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'useEPBoundary': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'checkSeedPopulation': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'seedFunctionTest': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'fluxLimiter': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'gammaEhigh': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '-1.0 * BADVALUE',
+        'maximum': 'BADVALUE',
+     },
+    'gammaElow': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '-1.0 * BADVALUE',
+        'maximum': 'BADVALUE',
+     },
+    'FailModeDump': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'outputFloat': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'unifiedOutput': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'unifiedOutputTime': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'pointObserverOutput': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'pointObserverOutputTime': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'streamFluxOutput': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'streamFluxOutputTime': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'subTimeCouple': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'epremDomain': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'epremDomainOutputTime': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'unstructuredDomain': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'unstructuredDomainOutputTime': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'useAdiabaticChange': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'useAdiabaticFocus': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'useShellDiffusion': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'useParallelDiffusion': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'useDrift': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'numSpecies': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '100',
+     },
+    'mass': {
+        'type': list,
+        'default': '1.0',
+     },
+    'charge': {
+        'type': list,
+        'default': '1.0',
+     },
+    'numObservers': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1000',
+     },
+    'obsR': {
+        'type': list,
+        'default': '0',
+     },
+    'obsTheta': {
+        'type': list,
+        'default': '0',
+     },
+    'obsPhi': {
+        'type': list,
+        'default': '0',
+     },
+    'idw_p': {
+        'type': float,
+        'default': '3.0',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'masTriLinear': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'masCouple': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'masCorRotateFake': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'masHelCouple': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'masNumFiles': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '32767',
+     },
+    'masHelNumFiles': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '32767',
+     },
+    'useMasSteadyStateDt': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'masSteadyState': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'masDirectory': {
+        'type': str,
+        'default': ' ',
+     },
+    'masHelDirectory': {
+        'type': str,
+        'default': ' ',
+     },
+    'masDigits': {
+        'type': int,
+        'default': '3',
+        'minimum': '0',
+        'maximum': '32767',
+     },
+    'masHelDigits': {
+        'type': int,
+        'default': '3',
+        'minimum': '0',
+        'maximum': '32767',
+     },
+    'masCoupledTime': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'masStartTime': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'epEquilibriumCalcDuration': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'preEruptionDuration': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'masRadialMin': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'masRadialMax': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'masHelRadialMin': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'masHelRadialMax': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'masVmin': {
+        'type': float,
+        'default': '50.0e5',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'masInitFromOuterBoundary': {
+        'type': int,
+        'default': '2',
+        'minimum': '0',
+        'maximum': '2',
+     },
+    'masInitMonteCarlo': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'masInitRadius': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'masInitTimeStep': {
+        'type': float,
+        'default': '0.000011574074074',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'parallelFlow': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'fieldAligned': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'clusterNodes': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'nodeClusterTheta': {
+        'type': float,
+        'default': '1.570796',
+        'minimum': '0.0',
+        'maximum': 'PI',
+     },
+    'nodeClusterPhi': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': '2.0 * PI',
+     },
+    'nodeClusterWidth': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'PI',
+     },
+    'epCalcStartTime': {
+        'type': float,
+        'default': 'config.simStartTime',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'masRotateSolution': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'useBoundaryFunction': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'boundaryFunctionInitDomain': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'boundaryFunctAmplitude': {
+        'type': float,
+        'default': '1.0',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'boundaryFunctXi': {
+        'type': float,
+        'default': '1.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'boundaryFunctGamma': {
+        'type': float,
+        'default': '2.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'boundaryFunctBeta': {
+        'type': float,
+        'default': '1.7',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'boundaryFunctEcutoff': {
+        'type': float,
+        'default': '1.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'shockSolver': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'shockDetectPercent': {
+        'type': float,
+        'default': '1.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'minInjectionEnergy': {
+        'type': float,
+        'default': '0.01',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'shockInjectionFactor': {
+        'type': float,
+        'default': '1.0',
+        'minimum': '0.0',
+        'maximum': 'BADVALUE',
+     },
+    'idealShock': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'idealShockSharpness': {
+        'type': float,
+        'default': '1.0',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'idealShockScaleLength': {
+        'type': float,
+        'default': '0.0046491',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'idealShockJump': {
+        'type': float,
+        'default': '4.0',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'idealShockSpeed': {
+        'type': float,
+        'default': '1500e5',
+        'minimum': 'VERYSMALL',
+        'maximum': 'BADVALUE',
+     },
+    'idealShockInitTime': {
+        'type': float,
+        'default': 'config.simStartTime',
+        'minimum': 'config.simStartTime',
+        'maximum': 'BADVALUE',
+     },
+    'idealShockTheta': {
+        'type': float,
+        'default': '1.570796',
+        'minimum': '0.0',
+        'maximum': 'PI',
+     },
+    'idealShockPhi': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': '2.0 * PI',
+     },
+    'idealShockWidth': {
+        'type': float,
+        'default': '0.0',
+        'minimum': '0.0',
+        'maximum': 'PI',
+     },
+    'dumpFreq': {
+        'type': int,
+        'default': '1',
+        'minimum': '0',
+        'maximum': '1000000',
+     },
+    'outputRestart': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1000000',
+     },
+    'dumpOnAbort': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'saveRestartFile': {
+        'type': int,
+        'default': '0',
+        'minimum': '0',
+        'maximum': '1',
+     },
+    'warningsFile': {
+        'type': str,
+        'default': 'warningsXXX.txt',
+     },
+}
+"""All raw parameter defaults from EPREM `src/configuration.c`."""
+
+
+reference = {
     'numNodesPerStream': {
         'type': int,
         'default': None,
@@ -754,3 +1435,5 @@ _CONFIGURATION_C = {
         'default': 'warningsXXX.txt',
      },
 }
+"""All parameter references, converted to underlying type."""
+
