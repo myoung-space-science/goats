@@ -1,4 +1,4 @@
-from goats.eprem import basetypes
+from goats.eprem import parameters
 
 
 reference = {
@@ -43,8 +43,8 @@ reference = {
     'NUM_MPI_BOUNDARY_FLDS': 2,
 }
 
-def test_all():
-    """Regression test for values."""
-    b = basetypes.BaseTypes('~/emmrem/epicMas/source/eprem/src')
+def test_basetypes():
+    """Regression test for values defined in src/baseTypes.h."""
+    b = parameters.BaseTypesH('~/emmrem/epicMas/source/eprem/src')
     for key, value in reference.items():
-        assert b[key].value == value
+        assert b[key] == value
