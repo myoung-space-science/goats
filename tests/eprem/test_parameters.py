@@ -46,6 +46,13 @@ def test_paths(source_path, config_path):
     assert cfg == parameters.ConfigManager(source_path, config_path)
 
 
+def test_read_config(source_path, config_path):
+    """Make sure we get updated runtime values from a config-file."""
+    cfg = parameters.ConfigManager(source_path, config_path)
+    assert cfg['numNodesPerStream'] == 2000
+    assert cfg['simStopTime'] == 5.0
+
+
 _BASETYPES_H = {
     'T': 1,
     'F': 0,
