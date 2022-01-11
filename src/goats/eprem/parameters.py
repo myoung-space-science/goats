@@ -894,14 +894,63 @@ class ConfigManager(iterables.MappingBase):
 
     def __init__(
         self,
-        src: typing.Union[str, pathlib.Path],
-        filepath: typing.Union[str, pathlib.Path],
+        source_path: iotools.PathLike,
+        config_path: iotools.PathLike=None,
         **kwargs
     ) -> None:
-        self._defaults = ConfigurationC(src)
-        super().__init__(tuple(self._defaults))
-        self._basetypes = BaseTypesH(src)
-        self._runtime = ConfigFile(filepath, **kwargs)
+        self._paths = {
+            'source': source_path,
+            'config': config_path,
+        }
+        super().__init__(tuple(self.defaults))
+        self._kwargs = kwargs
+
+    def source_path(self, new: iotools.PathLike=None):
+        """Get or set the path to the C source files."""
+        if new:
+            self._source_path = iotools.ReadOnlyPath(new)
+            return self
+        return self._source_path
+
+    def config_path(self, new: iotools.PathLike=None):
+        """Get or set the path to the runtime config file."""
+        if new:
+            self._config_path = iotools.ReadOnlyPath(new)
+            return self
+        return self._config_path
+
+    def path_to(self, *current: str, **new: iotools.PathLike):
+        """Get or set paths."""
+        if current and new:
+            raise TypeError("Can't simultaneously get an set paths")
+        if current:
+            if len(current) == 1:
+                return self._paths[current]
+            return [self._paths[name] for name in current]
+        if new:
+            self._paths.update(new)
+            return self
+        raise TypeError("No paths to get or set")
+
+    # TODO: Keep track of updates to prevent creating new instances with every
+    # call to `runtime`, `defaults`, and `basetypes`.
+
+    @property
+    def runtime(self) -> typing.Mapping[str, str]:
+        """The runtime parameter values."""
+        if path := self._paths['config']:
+            return ConfigFile(path, **self._kwargs)
+        return {}
+
+    @property
+    def defaults(self):
+        """Default parameter definitions in `configuration.c`."""
+        return ConfigurationC(self._paths['source'])
+
+    @property
+    def basetypes(self):
+        """Values of constants defined in `baseTypes.h`."""
+        return BaseTypesH(self._paths['source'])
 
     def __getitem__(self, key: str):
         """"""
@@ -911,10 +960,10 @@ class ConfigManager(iterables.MappingBase):
 
     def _get_value(self, key: str):
         """"""
-        parameter = self._defaults[key]
+        parameter = self.defaults[key]
         realtype = parameter['type']
-        if key in self._runtime:
-            value = self._runtime[key]
+        if key in self.runtime:
+            value = self.runtime[key]
             convert = (
                 iterables.string_to_list if realtype == list
                 else realtype
@@ -927,6 +976,8 @@ class ConfigManager(iterables.MappingBase):
         'third': 1/3,
     }
 
+    _struct_member = re.compile(r'\Aconfig\.\w*\Z')
+
     def _evaluate(
         self,
         arg: typing.Union[str, numbers.Real],
@@ -935,19 +986,63 @@ class ConfigManager(iterables.MappingBase):
         """Compute the default numerical value from a definition."""
         if isinstance(arg, numbers.Real):
             return arg
-        if arg in self._basetypes:
-            return self._basetypes[arg]
+        if arg in self.basetypes:
+            return self.basetypes[arg]
         if arg in self._special_cases:
             return self._special_cases[arg]
-        # TODO: Handle arguments that refer back to `config`. May require
-        # updates to `algebra.Expression`.
-        if any(c in arg for c in {'*', '/'}):
-            tmp = algebra.Expression(arg)
-            return functools.reduce(
-                lambda x,y: x*y,
-                [self._evaluate(term.base) for term in tmp.terms],
+        if self._struct_member.match(arg):
+            return self._evaluate(
+                arg.replace('config.', ''),
+                realtype,
             )
+        if result := self._compute_sum(arg, realtype):
+            return result
+        if any(c in arg for c in {'*', '/'}):
+            expression = algebra.Expression(arg)
+            evaluated = [
+                self._evaluate(term.base, realtype)
+                for term in expression
+            ]
+            return functools.reduce(lambda x,y: x*y, evaluated)
+        if arg in self.defaults:
+            return self._convert(self.defaults[arg]['default'], realtype)
+        return self._convert(arg, realtype)
+
+    def _compute_sum(
+        self,
+        arg: str,
+        realtype: typing.Type,
+    ) -> numbers.Real:
+        """"""
+        # HACK: This is only designed to handle strings that contain a
+        # single additive operator joining two arguments that `_evaluate`
+        # already knows how to handle.
+        for operator in ('+', '-'):
+            if operator in arg:
+                terms = [
+                    self._evaluate(s.strip(), realtype)
+                    for s in arg.split(operator)
+                ]
+                return terms[0] + float(f'{operator}1')*terms[1]
+
+    def _convert(
+        self,
+        arg: str,
+        realtype: typing.Type,
+    ) -> numbers.Real:
+        """"""
+        if realtype == list:
+            # HACK: Handles most common case but isn't sufficient.
+            return [float(v) for v in arg]
         return realtype(arg)
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        paths = ''.join(
+            f"    {k}: {v},\n"
+            for k, v in self._paths.items()
+        )
+        return '{\n'f"{paths}"'}'
 
 
 class Reference(iterables.ReprStrMixin):
