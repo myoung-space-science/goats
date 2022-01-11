@@ -36,6 +36,16 @@ def test_default_values(source_path):
         assert cfg[key] == parameter['default']
 
 
+def test_paths(source_path, config_path):
+    """Test the ability to get and set paths."""
+    cfg = parameters.ConfigManager(source_path)
+    assert cfg.path_to('source') == source_path
+    assert cfg.path_to('config') is None
+    cfg.path_to(config=config_path)
+    assert cfg.path_to('config') == config_path
+    assert cfg == parameters.ConfigManager(source_path, config_path)
+
+
 _BASETYPES_H = {
     'T': 1,
     'F': 0,

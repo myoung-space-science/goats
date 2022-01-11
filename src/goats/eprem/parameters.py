@@ -900,6 +900,9 @@ class ConfigManager(iterables.MappingBase):
             'source': source_path,
             'config': config_path,
         }
+        self._runtime = None
+        self._basetypes = None
+        self._defaults = None
         super().__init__(tuple(self.defaults))
         self._kwargs = kwargs
 
@@ -913,28 +916,37 @@ class ConfigManager(iterables.MappingBase):
             return [self._paths[name] for name in current]
         if new:
             self._paths.update(new)
+            if 'config' in new:
+                self._runtime = None
+            if 'source' in new:
+                self._basetypes = None
+                self._defaults = None
             return self
         raise TypeError("No paths to get or set")
-
-    # TODO: Keep track of updates to prevent creating new instances with every
-    # call to `runtime`, `defaults`, and `basetypes`.
 
     @property
     def runtime(self) -> typing.Mapping[str, str]:
         """The runtime parameter values."""
-        if path := self._paths['config']:
-            return ConfigFile(path, **self._kwargs)
-        return {}
+        if self._runtime is None:
+            if path := self._paths['config']:
+                self._runtime = ConfigFile(path, **self._kwargs)
+            else:
+                self._runtime = {}
+        return self._runtime
 
     @property
     def defaults(self):
         """Default parameter definitions in `configuration.c`."""
-        return ConfigurationC(self._paths['source'])
+        if self._defaults is None:
+            self._defaults = ConfigurationC(self._paths['source'])
+        return self._defaults
 
     @property
     def basetypes(self):
         """Values of constants defined in `baseTypes.h`."""
-        return BaseTypesH(self._paths['source'])
+        if self._basetypes is None:
+            self._basetypes = BaseTypesH(self._paths['source'])
+        return self._basetypes
 
     def __getitem__(self, key: str):
         """"""
