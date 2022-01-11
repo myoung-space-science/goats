@@ -901,27 +901,13 @@ class ConfigManager(iterables.MappingBase):
         super().__init__(tuple(self.defaults))
         self._kwargs = kwargs
 
-    def source_path(self, new: iotools.PathLike=None):
-        """Get or set the path to the C source files."""
-        if new:
-            self._source_path = iotools.ReadOnlyPath(new)
-            return self
-        return self._source_path
-
-    def config_path(self, new: iotools.PathLike=None):
-        """Get or set the path to the runtime config file."""
-        if new:
-            self._config_path = iotools.ReadOnlyPath(new)
-            return self
-        return self._config_path
-
     def path_to(self, *current: str, **new: iotools.PathLike):
         """Get or set paths."""
         if current and new:
             raise TypeError("Can't simultaneously get an set paths")
         if current:
             if len(current) == 1:
-                return self._paths[current]
+                return self._paths[current[0]]
             return [self._paths[name] for name in current]
         if new:
             self._paths.update(new)
