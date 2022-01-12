@@ -787,11 +787,10 @@ class ConfigurationC(iterables.MappingBase):
     def __init__(self, src: typing.Union[str, pathlib.Path]=None) -> None:
         path = pathlib.Path(src or '.') / 'configuration.c'
         self.file = iotools.TextFile(path)
-        readline = FunctionCall()
-        self._defined = self.file.extract(readline.match, readline.parse)
-        super().__init__(tuple(self._defined))
-        scalar_t = VariableDefinition()
-        self._defaults = self.file.extract(scalar_t.match, scalar_t.parse)
+        self._assignment = FunctionCall()
+        self._array_default = VariableDefinition()
+        self._definitions = None
+        super().__init__(tuple(self.definitions))
         self._path = path
 
     @property
@@ -800,42 +799,61 @@ class ConfigurationC(iterables.MappingBase):
         return iotools.ReadOnlyPath(self._path)
 
     def __getitem__(self, key: str):
-        """"""
+        """Request a reference object by parameter name."""
         if key in self:
-            return self._prepare(self._defined[key])
-        raise KeyError(f"No default for {key!r}")
+            return self.definitions[key]
+        raise KeyError(f"No reference information for {key!r}")
 
-    def _prepare(self, defined: str):
-        """"""
-        mode = defined['mode']
-        args = self._normalize(defined['args'])
+    @property
+    def definitions(self):
+        """Unconverted reference values from the source code."""
+        if self._definitions is None:
+            assignments = self.file.extract(
+                self._assignment.match,
+                self._assignment.parse,
+            )
+            self._definitions = {
+                k: self._prepare(v)
+                for k, v in assignments.items()
+            }
+        return self._definitions
+
+    def _prepare(
+        self,
+        metadata: typing.Dict[str, typing.Union[str, type]],
+    ) -> typing.Dict[str, typing.Union[str, type]]:
+        """Create a reference object from parameter metadata."""
+        mode = metadata['mode']
         if mode == 'readInt':
             keys = ('default', 'minimum', 'maximum')
+            args = metadata['args']
             return {'type': int, **dict(zip(keys, args))}
         if mode == 'readDouble':
             keys = ('default', 'minimum', 'maximum')
+            args = metadata['args']
             return {'type': float, **dict(zip(keys, args))}
         if mode == 'readString':
-            return {'type': str, 'default': args[0].strip('"')}
+            arg = metadata['args'][0]
+            return {'type': str, 'default': arg.strip('"')}
         if mode == 'readDoubleArray':
-            return {'type': list, 'default': args[1]}
+            defaults = self.file.extract(
+                self._array_default.match,
+                self._array_default.parse,
+            )
+            args = [
+                defaults[arg]['value']
+                if arg in defaults else arg
+                for arg in metadata['args']
+            ]
+            keys = ('size', 'default')
+            return {'type': list, **dict(zip(keys, args))}
         raise ValueError(f"Unknown configuration mode {mode!r}")
-
-    def _normalize(self, args: typing.Iterable[str]) -> typing.List[str]:
-        """"""
-        result = []
-        for arg in args:
-            if arg in self._defaults:
-                result.append(self._defaults[arg]['value'])
-            else:
-                result.append(arg)
-        return result
 
     def print(self, tabsize: int=4, stream: typing.TextIO=None):
         """Print formatted reference information."""
         indent = ' ' * tabsize
         print("{", file=stream)
-        for key, defined in self.items():
+        for key, defined in self.definitions.items():
             args = ''.join(
                 f"{indent}{indent}{k!r}: {v!r},\n"
                 if not isinstance(v, type) else
