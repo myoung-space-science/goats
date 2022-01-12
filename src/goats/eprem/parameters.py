@@ -592,7 +592,7 @@ class BaseTypesH(iterables.MappingBase):
                     if len(parts) == 2:
                         key, value = parts
                         metadata = _BASETYPES_H.get(key, {})
-                        if 'formula' in metadata:
+                        if any(c in value for c in {'*', '/', 'sqrt'}):
                             definitions[key] = algebra.Expression(value)
                         else:
                             cast = metadata.get('type', str)
