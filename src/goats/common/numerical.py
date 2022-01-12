@@ -93,13 +93,44 @@ def find_nearest(
     return Nearest(index=index, value=array[index])
 
 
-def cast(arg) -> typing.Union[int, float]:
-    """Convert `arg` to an appropriate numeric type, if necessary."""
+_T = typing.TypeVar('_T', bound=numbers.Number)
+
+def cast(
+    arg: _T,
+    strict: bool=True,
+) -> typing.Union[int, float, complex, _T]:
+    """Attempt to convert `arg` to an appropriate numeric type.
+    
+    Parameters
+    ----------
+    arg
+        The object to convert. May be of any type. If it has a numeric type,
+        this function will immediately return it.
+
+    strict : bool, default=True
+        If true (default), this function will raise an exception if it can't
+        convert `arg` to a numerical type. If false, this function will silently
+        return upon failure to convert.
+
+    Returns
+    -------
+    number
+        The numerical value of `arg`, if possible. See description of `strict`
+        for behavior after failed conversion.
+    """
     if isinstance(arg, numbers.Number):
         return arg
-    try:
-        return int(arg)
-    except ValueError:
-        return float(arg)
+    types = (
+        int,
+        float,
+        complex,
+    )
+    for t in types:
+        try:
+            return t(arg)
+        except ValueError:
+            pass
+    if strict:
+        raise TypeError(f"Can't convert {arg!r} to a number") from None
 
 

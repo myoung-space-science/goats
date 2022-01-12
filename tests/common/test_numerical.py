@@ -1,3 +1,5 @@
+import pytest
+
 from goats.common import numerical
 
 
@@ -28,6 +30,11 @@ def test_cast():
         (1, int(1)),
         ('1.1', float(1.1)),
         (1.1, float(1.1)),
+        ('1.1+2.2j', complex(1.1, 2.2)),
+        (1.1+2.2j, complex(1.1, 2.2)),
     ]
     for (arg, expected) in cases:
         assert numerical.cast(arg) == expected
+    assert numerical.cast('a', strict=False) is None
+    with pytest.raises(TypeError):
+        numerical.cast('a')
