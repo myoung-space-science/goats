@@ -744,7 +744,7 @@ class VariableDefinition:
 _RT = typing.TypeVar('_RT')
 def soft_convert(
     string: str,
-    convert: typing.Callable[[str], _RT],
+    convert: typing.Union[_RT, typing.Callable[[str], _RT]],
     acceptable: typing.Union[Exception, typing.Tuple[Exception]]=Exception,
 ) -> typing.Union[str, _RT]:
     """Convert a string to a different type, if possible.
