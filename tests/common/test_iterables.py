@@ -488,23 +488,39 @@ def test_namemap():
         {'b': {'aliases': 'B'}, 'c': {'aliases': ['c0', 'C']}},
     ]
     n_aliases = 6 # Non-trivial to compute for an arbitrary case in cases
-    for names in references:
-        for aliases in cases:
-            namemap = iterables.NameMap(names, aliases)
-            assert namemap['a'] == 'a'
-            for alias in ['b', 'B']:
-                assert namemap[alias] == 'b'
-            for alias in ['c', 'C', 'c0']:
-                assert namemap[alias] == 'c'
-            assert len(namemap) == n_aliases
-            assert all(name in namemap for name in names)
+    for aliases in cases:
+        if isinstance(aliases, Mapping):
+            namemap = iterables.NameMap(aliases)
+            check_namemap_defs_only(namemap)
+        else:
+            with pytest.raises(TypeError):
+                namemap = iterables.NameMap(aliases)
+        for names in references:
+            namemap = iterables.NameMap(aliases, refs=names)
+            check_namemap_with_refs(namemap, n_aliases, names)
+
+
+def check_namemap_defs_only(namemap):
+    """Helper for `test_namemap` without given `refs`."""
+    for alias in ['b', 'B']:
+        assert namemap[alias] == 'b'
+    for alias in ['c', 'C', 'c0']:
+        assert namemap[alias] == 'c'
+
+
+def check_namemap_with_refs(namemap, n_aliases, names):
+    """Helper for `test_namemap` with given `refs`."""
+    check_namemap_defs_only(namemap)
+    assert namemap['a'] == 'a'
+    assert len(namemap) == n_aliases
+    assert all(name in namemap for name in names)
 
 
 def test_namemap_copy():
     """Test the copy method of the alias -> name mapping."""
     names = ['a', 'b', 'c']
     aliases = {'b': {'alt': 'B'}, 'c': {'alt': ['c0', 'C']}}
-    namemap = iterables.NameMap(names, aliases, key='alt')
+    namemap = iterables.NameMap(aliases, names, key='alt')
     copied = namemap.copy()
     assert copied.keys() == namemap.keys()
     assert copied.values() == namemap.values()
@@ -515,7 +531,7 @@ def test_namemap_key():
     """Test the alias -> name mapping with non-default alias key"""
     names = ['a', 'b', 'c']
     aliases = {'b': {'alt': 'B'}, 'c': {'alt': ['c0', 'C']}}
-    namemap = iterables.NameMap(names, aliases, key='alt')
+    namemap = iterables.NameMap(aliases, names, key='alt')
     assert namemap['a'] == 'a'
     for alias in ['b', 'B']:
         assert namemap[alias] == 'b'
@@ -527,7 +543,7 @@ def test_namemap_invert():
     """Test the ability to invert an aliases -> name mapping."""
     names = ['a', 'b', 'c']
     aliases = [['b', 'B'], ['c', 'c0', 'C']]
-    namemap = iterables.NameMap(names, aliases).invert()
+    namemap = iterables.NameMap(aliases, names).invert()
     assert sorted(namemap['a']) == sorted(['a'])
     assert sorted(namemap['b']) == sorted(['b', 'B'])
     assert sorted(namemap['c']) == sorted(['c', 'c0', 'C'])

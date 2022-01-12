@@ -1327,13 +1327,6 @@ class NameMap(MappingBase):
     See note on lengths at `~AliasedMapping`.
     """
 
-    def __new__(cls, refs, *args, **kwargs):
-        try:
-            iter(refs)
-        except TypeError:
-            raise TypeError("Reference names must be iterable") from None
-        return super().__new__(cls)
-
     _DefinesAliases = TypeVar(
         '_DefinesAliases',
         Iterable[Iterable[str]],
@@ -1348,14 +1341,30 @@ class NameMap(MappingBase):
 
     def __init__(
         self,
-        refs: Union[Iterable[str], Mapping[str, Any]],
         defs: _DefinesAliases,
+        refs: Union[Iterable[str], Mapping[str, Any]]=None,
         key: str='aliases',
     ) -> None:
-        names = refs.keys() if isinstance(refs, Mapping) else refs
+        names = self._get_names(defs, refs)
         self._mapping = self._build_mapping(names, defs, key)
         super().__init__(self._mapping.keys())
         self._init = {'refs': refs, 'defs': defs, 'key': key}
+
+    def _get_names(
+        self,
+        defs: _DefinesAliases,
+        refs: Union[Iterable[str], Mapping[str, Any]]=None,
+    ) -> Union[Iterable[str], Iterable[Iterable[str]]]:
+        """Create an iterable of canonical names, if possible."""
+        if isinstance(refs, Mapping):
+            return refs.keys()
+        if isinstance(refs, Iterable):
+            return refs
+        if isinstance(defs, Mapping):
+            return defs.keys()
+        raise TypeError(
+            f"Can't create name map from {defs!r} and {refs!r}"
+        ) from None
 
     def _build_mapping(self, names, aliases, key):
         """Build the internal mapping from aliases to canonical names.
