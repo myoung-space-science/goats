@@ -1294,15 +1294,16 @@ class MetricSearchError(KeyError):
 class MetricSystem(iterables.MappingBase, iterables.ReprStrMixin):
     """Representations of physical quantities within a given metric system."""
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, arg: Union[str, 'MetricSystem']) -> None:
         """Initialize this instance.
 
         Parameters
         ----------
-        name : str
-            The name of a known metric system (e.g., 'mks').
+        arg : str or instance
+            The name of a known metric system (e.g., 'mks') or an existing
+            instance of this class from which to initialize this instance.
         """
-        self.name = name.lower()
+        self.name = arg.lower() if isinstance(arg, str) else arg.name
         super().__init__(definitions.keys())
         self.dimensions = {
             get_property(q, 'dimensions')[self.name]: q
