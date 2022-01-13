@@ -326,9 +326,9 @@ base_quantities = iterables.Table(
     ]
 )
 
-# NOTE: We need to define these here, rather than via constants.py, in order to
-# avoid the circular import that results from constants.Constant being a
-# subclass of quantities.Scalar.
+# NOTE: We need to define these here, rather than via physical.py, in order to
+# avoid the circular import that results from physical.Constant being a subclass
+# of quantities.Scalar.
 C = 2.99792458e10
 """The speed of light in cm/s."""
 PI = np.pi

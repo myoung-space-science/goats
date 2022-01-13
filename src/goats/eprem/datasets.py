@@ -9,7 +9,7 @@ from goats.common import quantities
 from goats.common import indexing
 from goats.common import iterables
 from goats.common import iotools
-from goats.common import elements
+from goats.common import physical
 from goats.common import numerical
 from goats.eprem import parameters
 
@@ -345,7 +345,7 @@ class IndexerFactory(iterables.MappingBase):
             self._arrays = {
                 'time': self.variables['time'],
                 'shell': np.array(self.variables['shell'], dtype=int),
-                'species': elements.symbols(mass, charge),
+                'species': physical.elements(mass, charge),
                 'energy': self.variables['egrid'],
                 'mu': self.variables['mu'],
             }
