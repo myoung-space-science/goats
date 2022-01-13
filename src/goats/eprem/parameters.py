@@ -15,10 +15,30 @@ This module includes the following objects::
   supports aliased access to simulation and post-processing parameters, given an
   instance of `~parameters.Arguments`.
 
-Note that the word "parameter" can have multiple meanings in the contexts to
-which this module is relevant. The python built-in module `inspect` uses
-"parameters" to mean the names representing positional and keyword arguments.
-This is consistent with formal definitions of a function parameter (cf.
+Notes
+=====
+
+Metadata
+--------
+* `~parameters.Arguments` represents the full set of parameters relevant to a
+  particular simulation run in two regards: 1) the EPREM distribution (e.g.,
+  'epicMas' or 'epicEnlil'), and 2) the combination of user-provided and
+  default arguments. There is a long-term goal to develop a single modular
+  EPREM distribution, completion of which would remove the first item.
+* `~parameters._CONFIGURATION_C` contains metadata for a subset of the
+  parameters that `~parameters.Arguments` represents; `~parameters.Arguments`
+  is always the canonical collection.
+* `~parameters._BASETYPES_H` is always a proper subset of
+  `~parameters.Arguments`.
+* `~parameters.Arguments` + `~parameters._LOCAL` represents the full set of
+  parameters available to post-processing code in this package.
+
+Terminology
+-----------
+The word "parameter" can have multiple meanings in the contexts to which this
+module is relevant. The python built-in module `inspect` uses "parameters" to
+mean the names representing positional and keyword arguments. This is consistent
+with formal definitions of a function parameter (cf.
 https://developer.mozilla.org/en-US/docs/Glossary/Parameter). It is also common
 to refer to config-file options as parameters, in a way that is similar but not
 identical to the formal software defintion above. This module attempts to
