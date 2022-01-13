@@ -1,9 +1,20 @@
 import pytest
 
-from goats.common import elements
+from goats.common import physical
 
 
-def test_symbols():
+def test_constants():
+    """Test the object that represents physical constants."""
+    for key, data in physical._CONSTANTS.items():
+        for system in ('mks', 'cgs'):
+            d = data[system]
+            mapping = physical.Constants(system)
+            c = mapping[key]
+            assert float(c) == d['value']
+            assert c.unit == d['unit']
+
+
+def test_elements():
     """Test the function that translates mass and charge to element symbol."""
     # TODO: This needn't test every possible charge state, and testing every
     # known element may be overkill, but it should extend beyond H and He.
@@ -18,9 +29,9 @@ def test_symbols():
         {'in': [[1, 4], [+1, +2]], 'out': ['H+', 'He++']},
     ]
     for case in cases:
-        assert elements.symbols(*case['in']) == case['out']
+        assert physical.elements(*case['in']) == case['out']
     with pytest.raises(TypeError):
-        elements.symbols([1], [2, 3])
-    with pytest.raises(elements.MassValueError):
-        elements.symbols([2], [0])
+        physical.elements([1], [2, 3])
+    with pytest.raises(physical.MassValueError):
+        physical.elements([2], [0])
 
