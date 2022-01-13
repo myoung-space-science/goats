@@ -11,7 +11,7 @@ This module includes the following objects::
   given a path to the file.
 * `~parameters.Runtime` provides a unified interface to all parameter arguments
   used in a particular simulation run, given appropriate paths.
-* `~parameters.Interface` is an instance of `iterables.AliasedMapping` that
+* `~parameters.Arguments` is an instance of `iterables.AliasedMapping` that
   supports aliased access to simulation and post-processing parameters, given an
   instance of `~parameters.Runtime`.
 
@@ -625,8 +625,8 @@ class Runtime(iterables.MappingBase):
         return arg
 
 
-class Interface(iterables.AliasedMapping):
-    """Aliased access to EPREM parameter arguments and metadata."""
+class Arguments(iterables.AliasedMapping):
+    """Aliased access to EPREM parameter arguments."""
 
     def __init__(self, runtime: Runtime) -> None:
         """
