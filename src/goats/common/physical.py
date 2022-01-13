@@ -124,40 +124,6 @@ _CONSTANTS['H+'] = {
 }
 
 
-class Constant(quantities.Scalar):
-    """A single physical constant."""
-
-    def __init__(
-        self,
-        value: float,
-        unit: Union[str, quantities.Unit]=None,
-        info: str=None,
-    ) -> None:
-        super().__init__(value, unit=unit)
-        self.info = info
-
-    @property
-    def asscalar(self):
-        """A new `Scalar` object equivalent to this constant."""
-        return self._new()
-
-    def _new(self, value=None, unit=None):
-        """Create a new scalar from this instance.
-
-        This method overloads `quantities.Scalar._new` to explicitly return a
-        `quantities.Scalar` instance from an arithmetic operation because the
-        original object's `info` attribute may no longer be relevant.
-        """
-        return quantities.Scalar(
-            value or self.value,
-            unit=(unit or self.unit),
-        )
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        return f"{super().__str__()} : {self.info}"
-
-
 class Constants(iterables.MappingBase):
     """A class to manage sets of physical constants."""
     def __init__(self, system: str) -> None:
@@ -171,8 +137,7 @@ class Constants(iterables.MappingBase):
             definition = self._mapping[name][self.system]
             value = definition['value']
             unit = definition['unit']
-            info = self._mapping[name].get('info')
-            return Constant(value, unit=unit, info=info)
+            return quantities.Scalar(value, unit=unit)
         raise KeyError(name)
 
     def __repr__(self) -> str:
