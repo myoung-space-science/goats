@@ -9,28 +9,27 @@ This module includes the following objects::
 * `~parameters.ConfigFile` represents the contents of a named configuration file
   that contains user-provided arguments for a subset of simulation parameters,
   given a path to the file.
-* `~parameters.Arguments` provides a unified interface to all parameter
-  arguments used in a particular simulation run, given appropriate paths.
+* `~parameters.Runtime` provides a unified interface to all parameter arguments
+  used in a particular simulation run, given appropriate paths.
 * `~parameters.Interface` is an instance of `iterables.AliasedMapping` that
   supports aliased access to simulation and post-processing parameters, given an
-  instance of `~parameters.Arguments`.
+  instance of `~parameters.Runtime`.
 
 Notes
 =====
 
 Metadata
 --------
-* `~parameters.Arguments` represents the full set of parameters relevant to a
+* `~parameters.Runtime` represents the full set of parameters relevant to a
   particular simulation run in two regards: 1) the EPREM distribution (e.g.,
-  'epicMas' or 'epicEnlil'), and 2) the combination of user-provided and
-  default arguments. There is a long-term goal to develop a single modular
-  EPREM distribution, completion of which would remove the first item.
+  'epicMas' or 'epicEnlil'), and 2) the combination of user-provided and default
+  arguments. There is a long-term goal to develop a single modular EPREM
+  distribution, completion of which would remove the first item.
 * `~parameters._CONFIGURATION_C` contains metadata for a subset of the
-  parameters that `~parameters.Arguments` represents; `~parameters.Arguments`
-  is always the canonical collection.
-* `~parameters._BASETYPES_H` is always a proper subset of
-  `~parameters.Arguments`.
-* `~parameters.Arguments` + `~parameters._LOCAL` represents the full set of
+  parameters that `~parameters.Runtime` represents; `~parameters.Runtime` is
+  always the canonical collection.
+* `~parameters._BASETYPES_H` is always a proper subset of `~parameters.Runtime`.
+* `~parameters.Runtime` + `~parameters._LOCAL` represents the full set of
   parameters available to post-processing code in this package.
 
 Terminology
@@ -443,8 +442,12 @@ class ConfigFile(iterables.MappingBase):
         return str(self.parsed)
 
 
-class Arguments(iterables.MappingBase):
-    """Metadata, default values, and user arguments for EPREM parameters."""
+class Runtime(iterables.MappingBase):
+    """Parameter arguments relevant to an EPREM run.
+
+    An instance of this class represents metadata, default values, and user
+    arguments for parameters available to a specific EPREM simulation run.
+    """
 
     def __init__(
         self,
@@ -452,6 +455,24 @@ class Arguments(iterables.MappingBase):
         config_path: iotools.PathLike=None,
         **kwargs
     ) -> None:
+        """
+        Parameters
+        ----------
+        source_path : path-like
+            The location of the directory containing relevant EPREM source code.
+
+        config_path : path-like, default=None
+            The location of the EPREM configuration file containing
+            user-provided parameter values for a particular EPREM simulation
+            run. May be omitted, in which case this class will use default
+            argument values.
+
+        Notes
+        -----
+        Path-like arguments may be any path-like object (e.g., `str`,
+        `pathlib.Path`), may be relative, and may contain standard wildcard
+        characters (e.g., `~`).
+        """
         self._paths = {
             'source': source_path,
             'config': config_path,
@@ -607,8 +628,15 @@ class Arguments(iterables.MappingBase):
 class Interface(iterables.AliasedMapping):
     """Aliased access to EPREM parameter arguments and metadata."""
 
-    def __init__(self, arguments: Arguments) -> None:
-        super().__init__(mapping=self._build_mapping(arguments))
+    def __init__(self, runtime: Runtime) -> None:
+        """
+        Parameters
+        ----------
+        runtime
+            An instance of `parameters.Runtime` initialized with paths relevant
+            to the simulation run under analysis.
+        """
+        super().__init__(mapping=self._build_mapping(runtime))
 
     def __getitem__(self, key: str):
         """Get the value (and unit, if applicable) of a named parameter."""

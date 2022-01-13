@@ -31,24 +31,24 @@ def test_configuration_c(source_path):
 
 def test_default_values(source_path):
     """Compare the values of all parameters to reference values."""
-    cfg = parameters.Arguments(source_path)
+    cfg = parameters.Runtime(source_path)
     for key, parameter in reference.items():
         assert cfg[key] == parameter['default']
 
 
 def test_paths(source_path, config_path):
     """Test the ability to get and set paths."""
-    cfg = parameters.Arguments(source_path)
+    cfg = parameters.Runtime(source_path)
     assert cfg.path_to('source') == source_path
     assert cfg.path_to('config') is None
     cfg.path_to(config=config_path)
     assert cfg.path_to('config') == config_path
-    assert cfg == parameters.Arguments(source_path, config_path)
+    assert cfg == parameters.Runtime(source_path, config_path)
 
 
 def test_read_config(source_path, config_path):
     """Make sure we get updated runtime values from a config-file."""
-    cfg = parameters.Arguments(source_path, config_path)
+    cfg = parameters.Runtime(source_path, config_path)
     assert cfg['numNodesPerStream'] == 2000
     assert cfg['simStopTime'] == 5.0
 
