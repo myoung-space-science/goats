@@ -1,3 +1,5 @@
+import typing
+
 import pytest
 
 from goats.eprem import parameters
@@ -51,6 +53,39 @@ def test_read_config(source_path, config_path):
     cfg = parameters.Runtime(source_path, config_path)
     assert cfg['numNodesPerStream'] == 2000
     assert cfg['simStopTime'] == 5.0
+
+
+def test_argument(source_path, config_path):
+    """Test aliased access to parameter arguments."""
+    cfg = parameters.Runtime(source_path, config_path)
+    args = parameters.Arguments(cfg)
+    for alias in 'lam0', 'lambda0':
+        assert args[alias] == args['lamo']
+    check_scalar(args['lamo'], 0.1, 'au')
+    check_builtin(args['dumpFreq'], 1)
+    check_builtin(args['idealShock'], 1)
+    check_scalars(args['obsR'], [1.0, 1.0], ['au', 'au'])
+    check_builtin(args['warningsFile'], 'warningsXXX.txt')
+    check_scalar(args['idealShockInitTime'], 0.5, 'day')
+    check_scalar(args['omegaSun'], 0.001429813, '(rad/s)*(cm/au)')
+    check_scalar(args['simStopTime'], 5.0, 'day')
+
+
+def check_builtin(arg, value):
+    """Test the value of a built-in type."""
+    assert arg == value
+
+
+def check_scalar(arg, value, unit):
+    """Test the value and unit of a `quantities.Scalar`."""
+    assert float(arg) == value
+    assert arg.unit == unit
+
+
+def check_scalars(args, values, units):
+    """Test the values and units of an iterable of `quantities.Scalar`."""
+    assert [float(arg) for arg in args] == values
+    assert [arg.unit for arg in args] == units
 
 
 _BASETYPES_H = {
