@@ -734,6 +734,7 @@ definitions = {
             ('Bq', 'Ci'): 1.0 / 3.7e10,
         },
     },
+    'ratio': 'identity',
     'reluctance': {
         'dimensions': {
             'mks': '(I * T)^2 / (M * L^2)',
