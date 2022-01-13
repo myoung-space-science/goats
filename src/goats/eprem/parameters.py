@@ -628,14 +628,29 @@ class Runtime(iterables.MappingBase):
 class Arguments(iterables.AliasedMapping):
     """Aliased access to EPREM parameter arguments."""
 
-    def __init__(self, runtime: Runtime) -> None:
-        """
+    def __init__(
+        self,
+        runtime: Runtime=None,
+        **runtime_init,
+    ) -> None:
+        """Initialize an instance of this class.
+
+        The caller may pass an existing instance of `~parameters.Runtime` or the
+        arguments necessary to create the appropriate instance. See
+        documentation at `~parameters.Runtime` for information. Note that this
+        class will use an existing instance of `~parameters.Runtime` if
+        available, without checking for the presence of additional arguments.
+
         Parameters
         ----------
-        runtime
+        runtime : optional
             An instance of `parameters.Runtime` initialized with paths relevant
             to the simulation run under analysis.
+
+        **runtime_init : optional
+            See `~parameters.Runtime`.
         """
+        runtime = runtime or Runtime(**runtime_init)
         super().__init__(mapping=self._build_mapping(runtime))
 
     def __getitem__(self, key: str):
@@ -651,7 +666,7 @@ class Arguments(iterables.AliasedMapping):
             return value
         raise KeyError(f"No parameter corresponding to '{key}'")
 
-    def _build_mapping(self, runtime: typing.Iterable):
+    def _build_mapping(self, runtime: Runtime):
         """Build the mapping of available parameters."""
         values = {
             **{
