@@ -588,32 +588,7 @@ class Interface(iterables.AliasedMapping):
     """Aliased access to EPREM parameter arguments and metadata."""
 
     def __init__(self, arguments: Arguments) -> None:
-        metadata = {**_LOCAL, **_CONFIGURATION_C}
-        aliases = {
-            key: info.get('aliases')
-            for key, info in metadata.items()
-        }
-        units = {
-            key: info.get('unit')
-            for key, info in metadata.items()
-        }
-        values = {
-            **{
-                key: info.get('default')
-                for key, info in _LOCAL.items()
-            },
-            **dict(arguments),
-        }
-        keys = tuple(_LOCAL) + tuple(arguments)
-        base = {
-            tuple([key, *aliases.get(key, [])]): {
-                'unit': units.get(key),
-                'value': values.get(key),
-            }
-            for key in keys
-        }
-        mapping = iterables.AliasedMutableMapping(base)
-        super().__init__(mapping=mapping)
+        super().__init__(mapping=self._build_mapping(arguments))
 
     def __getitem__(self, key: str):
         """Get the value (and unit, if applicable) of a named parameter."""
@@ -627,6 +602,25 @@ class Interface(iterables.AliasedMapping):
                 return quantities.Scalar(value, unit)
             return value
         raise KeyError(f"No parameter corresponding to '{key}'")
+
+    def _build_mapping(self, runtime: typing.Iterable):
+        """Build the mapping of available parameters."""
+        values = {
+            **{
+                key: info.get('default')
+                for key, info in _LOCAL.items()
+            },
+            **dict(runtime),
+        }
+        keys = tuple(set(tuple(_LOCAL) + tuple(runtime)))
+        base = {
+            tuple([key, *_ALIASES.get(key, [])]): {
+                'unit': _UNITS.get(key),
+                'value': values.get(key),
+            }
+            for key in keys
+        }
+        return iterables.AliasedMutableMapping(base)
 
 
 _LOCAL = {
@@ -1155,5 +1149,20 @@ _BASETYPES_H = {
     },
 }
 """Metadata for parameters defined in `baseTypes.h`."""
+
+_metadata = {**_LOCAL, **_CONFIGURATION_C, **_BASETYPES_H}
+"""Combined metadata dictionary for internal use."""
+
+_ALIASES = {
+    key: info.get('aliases')
+    for key, info in _metadata.items()
+}
+"""Collection of aliases from metadata."""
+
+_UNITS = {
+    key: info.get('unit')
+    for key, info in _metadata.items()
+}
+"""Collection of units from metadata."""
 
 
