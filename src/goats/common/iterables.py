@@ -5,12 +5,12 @@ import inspect
 from itertools import product
 import functools
 import numbers
-from typing import *
+import typing
 
 from goats.common import numerical
 
 
-def unique(target: Container, options: Iterable):
+def unique(target: typing.Container, options: typing.Iterable):
     """Search `target` for a unique element from `options`."""
     for option in options:
         others = set(options) - {option}
@@ -19,8 +19,10 @@ def unique(target: Container, options: Iterable):
             return option
 
 
-T = TypeVar('T')
-def unwrap(obj: Union[T, Iterable]) -> Union[T, list, tuple]:
+T = typing.TypeVar('T')
+def unwrap(
+    obj: typing.Union[T, typing.Iterable],
+) -> typing.Union[T, list, tuple]:
     """Remove redundant outer lists and tuples.
 
     This function will strip away enclosing instances of `list` or `tuple`, as
@@ -91,7 +93,7 @@ def unwrap(obj: Union[T, Iterable]) -> Union[T, list, tuple]:
     return seed
 
 
-def get_nested_element(mapping: Mapping, levels: Iterable):
+def get_nested_element(mapping: typing.Mapping, levels: typing.Iterable):
     """Walk a mapping to get the element at the last level."""
     this = mapping[levels[0]]
     if len(levels) > 1:
@@ -100,7 +102,7 @@ def get_nested_element(mapping: Mapping, levels: Iterable):
     return this
 
 
-def missing(this: Any) -> bool:
+def missing(this: typing.Any) -> bool:
     """True if `this` is null or empty.
 
     This function allows the user to programmatically test for objects that are
@@ -109,7 +111,7 @@ def missing(this: Any) -> bool:
     return False if isinstance(this, numbers.Number) else not bool(this)
 
 
-def transpose_list(list_in: List[list]) -> List[list]:
+def transpose_list(list_in: typing.List[list]) -> typing.List[list]:
     """Transpose a logically 2-D list.
 
     This function works by collecting the item at index `i` in each element of
@@ -154,7 +156,7 @@ def string_to_list(string: str) -> list:
     return [numerical.cast(i) for i in string.strip('[]').split(',')]
 
 
-def naked(targets: Any) -> bool:
+def naked(targets: typing.Any) -> bool:
     """True if the target objects are not wrapped in an iterable.
 
     This truth value can be useful in sitations when the user needs to parse
@@ -169,7 +171,11 @@ def naked(targets: Any) -> bool:
     )
 
 
-def show_at_most(n: int, values: Iterable[Any], separator: str=',') -> str:
+def show_at_most(
+    n: int,
+    values: typing.Iterable[typing.Any],
+    separator: str=',',
+) -> str:
     """Create a string with at most `n` values."""
     seq = list(values)
     if len(seq) <= n:
@@ -309,7 +315,7 @@ class CollectionMixin:
         self._collection_name = name
 
     @property
-    def _collection(self) -> Collection:
+    def _collection(self) -> typing.Collection:
         """The base collection."""
         try:
             this = getattr(self, self._collection_name, ())
@@ -331,7 +337,7 @@ class CollectionMixin:
         """The number of members in this collection."""
         return len(self._collection)
 
-    def __iter__(self) -> Iterator:
+    def __iter__(self) -> typing.Iterator:
         """Iterate over members of this collection."""
         return iter(self._collection)
 
@@ -383,7 +389,7 @@ class MappingBase(collections.abc.Mapping):
 
     """
 
-    def __init__(self, __collection: Collection) -> None:
+    def __init__(self, __collection: typing.Collection) -> None:
         """Initialize this instance with the base collection.
 
         Parameters
@@ -403,7 +409,7 @@ class MappingBase(collections.abc.Mapping):
         """The number of members in this collection."""
         return len(self.__collection)
 
-    def __iter__(self) -> Iterator:
+    def __iter__(self) -> typing.Iterator:
         """Iterate over members of this collection."""
         return iter(self.__collection)
 
@@ -413,8 +419,8 @@ class UniformMapping(MappingBase):
 
     def __init__(
         self,
-        __mapping: Mapping[str, Mapping],
-        __type: Type,
+        __mapping: typing.Mapping[str, typing.Mapping],
+        __type: typing.Type,
     ) -> None:
         """
         Parameters
@@ -506,8 +512,8 @@ class AliasedKeyError(Exception):
         return f"'{self.key}' is not a known name or alias."
 
 
-Aliases = TypeVar('Aliases', bound=Union[str, Iterable[str]])
-Aliases = Union[str, Iterable[str]]
+Aliases = typing.TypeVar('Aliases')
+Aliases = typing.Union[str, typing.Iterable[str]]
 
 class AliasedKey(collections.abc.Collection):
     """A type that supports aliased-mapping keys."""
@@ -524,7 +530,7 @@ class AliasedKey(collections.abc.Collection):
             else a
         )
 
-    def __iter__(self) -> Iterator:
+    def __iter__(self) -> typing.Iterator:
         return iter(self._aliases)
 
     def __len__(self) -> int:
@@ -551,13 +557,13 @@ class AliasedKey(collections.abc.Collection):
         # indices, raising exceptions, etc. down to the `tuple` class.
         return self._aliases[index]
 
-    def __add__(self, other: Union[Aliases, 'AliasedKey']):
+    def __add__(self, other: typing.Union[Aliases, 'AliasedKey']):
         """Combine these aliases with `other`."""
         if isinstance(other, str):
             other = (other,)
         return self._type(set(self) | set(other))
 
-    def __sub__(self, other: Union[Aliases, 'AliasedKey']):
+    def __sub__(self, other: typing.Union[Aliases, 'AliasedKey']):
         """Remove `other` from these aliases."""
         if isinstance(other, str):
             other = (other,)
@@ -582,9 +588,7 @@ class AliasedKey(collections.abc.Collection):
         return ' | '.join(self._aliases)
 
 
-_VT = TypeVar('_VT')
-
-
+_VT = typing.TypeVar('_VT')
 class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
     """A mapping class that supports aliased keys.
     
@@ -689,12 +693,12 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
 
     """
 
-    Aliasable = TypeVar('Aliasable', bound=Mapping)
-    Aliasable = Mapping[Aliases, _VT]
+    Aliasable = typing.TypeVar('Aliasable', bound=typing.Mapping)
+    Aliasable = typing.Mapping[Aliases, _VT]
 
     def __init__(
         self,
-        mapping: Union[Aliasable, 'AliasedMapping']=None
+        mapping: typing.Union[Aliasable, 'AliasedMapping']=None
     ) -> None:
         self._aliased = self._build_aliased(mapping)
         self._flat_keys = None
@@ -704,23 +708,23 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
         """Define a flat list of all the keys in this mapping."""
         self._flat_keys = [key for keys in self._aliased.keys() for key in keys]
 
-    def __iter__(self) -> Iterator:
+    def __iter__(self) -> typing.Iterator:
         return iter(self._flat_keys)
 
     def __len__(self) -> int:
         return len(self._flat_keys)
 
-    def __contains__(self, key: Union[str, AliasedKey]) -> bool:
+    def __contains__(self, key: typing.Union[str, AliasedKey]) -> bool:
         if isinstance(key, AliasedKey):
             return key in self._aliased.keys()
         return key in self._flat_keys
 
-    T = TypeVar('T')
+    T = typing.TypeVar('T')
 
     def _build_aliased(
         self,
-        mapping: Union[Aliasable, 'AliasedMapping'],
-    ) -> Dict[AliasedKey, _VT]:
+        mapping: typing.Union[Aliasable, 'AliasedMapping'],
+    ) -> typing.Dict[AliasedKey, _VT]:
         """Build a `dict` that maps aliased keys to user values."""
         if isinstance(mapping, AliasedMapping):
             return dict(mapping.items().aliased)
@@ -731,14 +735,14 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
         }
 
     @property
-    def flat(self) -> Dict[str, _VT]:
+    def flat(self) -> typing.Dict[str, _VT]:
         """Expand aliased items into a standard dictionary."""
         return {key: self[key] for key in self._flat_keys}
 
     @classmethod
     def of(
         cls,
-        user: Mapping[str, Mapping[str, Any]],
+        user: typing.Mapping[str, typing.Mapping[str, typing.Any]],
         alias_key: str='aliases',
         value_key: str=None,
     ): # How do I annotate this so it's correct for subclasses?
@@ -838,9 +842,9 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
     @classmethod
     def fromkeys(
         cls,
-        user: Mapping[str, Mapping[str, Any]],
+        user: typing.Mapping[str, typing.Mapping[str, typing.Any]],
         alias_key: str='aliases',
-        value: Any=None,
+        value: typing.Any=None,
     ): # How do I annotate this so it's correct for subclasses?
         """Create an aliased mapping based on another mapping's keys.
         
@@ -881,9 +885,9 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
     @classmethod
     def extract_keys(
         cls,
-        user: Mapping[str, Mapping[str, Any]],
+        user: typing.Mapping[str, typing.Mapping[str, typing.Any]],
         alias_key: str='aliases',
-    ) -> List[AliasedKey]:
+    ) -> typing.List[AliasedKey]:
         """Extract keys for use in an aliased mapping.
         
         Parameters
@@ -911,7 +915,7 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
             for k, v in user.items()
         ]
 
-    def __getitem__(self, key: Union[str, AliasedKey]) -> _VT:
+    def __getitem__(self, key: typing.Union[str, AliasedKey]) -> _VT:
         """Look up a value by one of its keys."""
         if isinstance(key, AliasedKey):
             key = list(key)[0]
@@ -941,7 +945,7 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
                 return self._resolve(key)
             return self._resolve(key) - key
 
-    def _not_available(self, key: str) -> NoReturn:
+    def _not_available(self, key: str) -> typing.NoReturn:
         """True if this key is not currently in use."""
         aliases = self.alias(key)
         this = ", ".join(f'{a}' for a in aliases)
@@ -949,9 +953,9 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
             this = f"({this})"
         raise KeyError(f"'{key}' is already an alias for {this!r}")
 
-    def __eq__(self, other: Mapping) -> bool:
+    def __eq__(self, other: typing.Mapping) -> bool:
         """Define equality between this and another object."""
-        if not isinstance(other, Mapping):
+        if not isinstance(other, typing.Mapping):
             return NotImplemented
         if isinstance(other, AliasedMapping):
             return self.items() == other.items()
@@ -985,7 +989,7 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
         """Create a shallow copy of this instance."""
         return type(self)(self._aliased)
 
-    __class_getitem__ = classmethod(type(List[int]))
+    __class_getitem__ = classmethod(type(typing.List[int]))
 
 
 class AliasedKeysView(collections.abc.KeysView):
@@ -1000,7 +1004,7 @@ class AliasedKeysView(collections.abc.KeysView):
         super().__init__(mapping)
         self._aliased = mapping._aliased
 
-    def __eq__(self, other: KeysView) -> bool:
+    def __eq__(self, other: typing.KeysView) -> bool:
         """The definition of equality between this and other keys views."""
         def equal(this, that) -> bool:
             """Helper function to checking equality."""
@@ -1009,7 +1013,7 @@ class AliasedKeysView(collections.abc.KeysView):
                 and
                 all(key in this for key in that)
             )
-        if not isinstance(other, KeysView):
+        if not isinstance(other, typing.KeysView):
             return NotImplemented
         this = tuple(self.aliased)
         if isinstance(other, AliasedKeysView):
@@ -1039,7 +1043,7 @@ class AliasedValuesView(collections.abc.ValuesView):
         super().__init__(mapping)
         self._aliased = mapping._aliased
 
-    def __eq__(self, other: ValuesView) -> bool:
+    def __eq__(self, other: typing.ValuesView) -> bool:
         """The definition of equality between this and other values views."""
         def equal(this, that) -> bool:
             """Helper function to checking equality."""
@@ -1048,7 +1052,7 @@ class AliasedValuesView(collections.abc.ValuesView):
                 and
                 all(value in this for value in that)
             )
-        if not isinstance(other, ValuesView):
+        if not isinstance(other, typing.ValuesView):
             return NotImplemented
         this = tuple(self.aliased)
         if isinstance(other, AliasedValuesView):
@@ -1077,7 +1081,7 @@ class AliasedItemsView(collections.abc.ItemsView):
         super().__init__(mapping)
         self._aliased = mapping._aliased
 
-    def __eq__(self, other: ItemsView) -> bool:
+    def __eq__(self, other: typing.ItemsView) -> bool:
         """The definition of equality between this and other items views."""
         def equal(this, that) -> bool:
             """Helper function to checking equality."""
@@ -1086,7 +1090,7 @@ class AliasedItemsView(collections.abc.ItemsView):
                 and
                 all(key in this for key in that)
             )
-        if not isinstance(other, ItemsView):
+        if not isinstance(other, typing.ItemsView):
             return NotImplemented
         this = tuple(self.aliased)
         if isinstance(other, AliasedItemsView):
@@ -1192,22 +1196,23 @@ class NameMap(MappingBase):
     See note on lengths at `~AliasedMapping`.
     """
 
-    _DefinesAliases = TypeVar(
-        '_DefinesAliases',
-        Iterable[Iterable[str]],
-        Mapping[str, Iterable[str]],
-        Mapping[str, Mapping[str, Iterable[str]]]
-    )
-    _DefinesAliases = Union[
-        Iterable[Iterable[str]],
-        Mapping[str, Iterable[str]],
-        Mapping[str, Mapping[str, Iterable[str]]],
+    AliasDefinitions = typing.TypeVar('AliasDefinitions')
+    AliasDefinitions = typing.Union[
+        typing.Iterable[typing.Iterable[str]],
+        typing.Mapping[str, typing.Iterable[str]],
+        typing.Mapping[str, typing.Mapping[str, typing.Iterable[str]]],
+    ]
+
+    AliasReferences = typing.TypeVar('AliasReferences')
+    AliasReferences = typing.Union[
+        typing.Iterable[str],
+        typing.Mapping[str, typing.Any],
     ]
 
     def __init__(
         self,
-        defs: _DefinesAliases,
-        refs: Union[Iterable[str], Mapping[str, Any]]=None,
+        defs: AliasDefinitions,
+        refs: AliasReferences=None,
         key: str='aliases',
     ) -> None:
         names = self._get_names(defs, refs)
@@ -1215,17 +1220,22 @@ class NameMap(MappingBase):
         super().__init__(self._mapping.keys())
         self._init = {'refs': refs, 'defs': defs, 'key': key}
 
+    RT = typing.TypeVar('RT')
+    RT = typing.Union[
+        typing.Iterable[str],
+        typing.Iterable[typing.Iterable[str]],
+    ]
     def _get_names(
         self,
-        defs: _DefinesAliases,
-        refs: Union[Iterable[str], Mapping[str, Any]]=None,
-    ) -> Union[Iterable[str], Iterable[Iterable[str]]]:
+        defs: AliasDefinitions,
+        refs: AliasReferences=None,
+    ) -> RT:
         """Create an iterable of canonical names, if possible."""
-        if isinstance(refs, Mapping):
+        if isinstance(refs, typing.Mapping):
             return refs.keys()
-        if isinstance(refs, Iterable):
+        if isinstance(refs, typing.Iterable):
             return refs
-        if isinstance(defs, Mapping):
+        if isinstance(defs, typing.Mapping):
             return defs.keys()
         raise TypeError(
             f"Can't create name map from {defs!r} and {refs!r}"
@@ -1248,10 +1258,10 @@ class NameMap(MappingBase):
         namemap.alias(**updates)
         return AliasedMapping(namemap)
 
-    def _get_aliases(self, names, defs: _DefinesAliases, key):
+    def _get_aliases(self, names, defs: AliasDefinitions, key):
         """Determine the appropriate aliases for each canonical name."""
         # Mapping <: Iterable, so we need to check Mapping first.
-        if isinstance(defs, Mapping):
+        if isinstance(defs, typing.Mapping):
             # There are two allowed types of Mapping:
             # 1) Mapping[str, Mapping[str, Iterable[str]]]
             # 2) Mapping[str, Iterable[str]]
@@ -1260,18 +1270,18 @@ class NameMap(MappingBase):
             if any(k for k in defs if not isinstance(k, str)):
                 raise TypeError("All aliases must be strings") from None
             # Again, we need to check Mapping values before Iterable values.
-            if all(isinstance(v, Mapping) for v in defs.values()):
+            if all(isinstance(v, typing.Mapping) for v in defs.values()):
                 return {
                     name: tuple(v.get(key, ()))
                     for name, v in defs.items()
                 }
-            if all(isinstance(v, Iterable) for v in defs.values()):
+            if all(isinstance(v, typing.Iterable) for v in defs.values()):
                 return {name: tuple(aliases) for name, aliases in defs.items()}
         # Alias definitions are in a non-mapping iterable. We may want to
         # further check that each member of `defs` is itself an iterable of
         # strings.
-        only_iterables = all(isinstance(d, Iterable) for d in defs)
-        if isinstance(defs, Iterable) and only_iterables:
+        only_iterables = all(isinstance(d, typing.Iterable) for d in defs)
+        if isinstance(defs, typing.Iterable) and only_iterables:
             return {
                 name: tuple(aliases)
                 for aliases in defs
@@ -1325,7 +1335,7 @@ class NameMap(MappingBase):
 class AliasMap(MappingBase):
     """A collection that associates common aliases."""
 
-    def __init__(self, __keys: Iterable[Aliases]) -> None:
+    def __init__(self, __keys: typing.Iterable[Aliases]) -> None:
         """
         Parameters
         ----------
@@ -1350,13 +1360,13 @@ class AliasMap(MappingBase):
 class AliasedCache(CollectionMixin, collections.abc.Mapping):
     """An aliased mapping that remembers requested items."""
 
-    Value = TypeVar('Value')
+    Value = typing.TypeVar('Value')
 
     def __init__(
         self,
-        mapping: Mapping[str, Value],
-        aliases: Union[Iterable[Iterable[str]], Mapping[str, Iterable[str]]],
-        fill: Any=None,
+        mapping: typing.Mapping[str, Value],
+        aliases: typing.Union[typing.Iterable[typing.Iterable[str]], typing.Mapping[str, typing.Iterable[str]]],
+        fill: typing.Any=None,
     ) -> None:
         self._datamap = mapping
         self._fill = fill
@@ -1376,13 +1386,13 @@ class AliasedCache(CollectionMixin, collections.abc.Mapping):
 
     def _update_keys(self, aliases):
         """Get appropriate aliased-key updates based on type of `aliases`."""
-        if not isinstance(aliases, (Mapping, Iterable)):
+        if not isinstance(aliases, (typing.Mapping, typing.Iterable)):
             return {}
-        if isinstance(aliases, Mapping):
+        if isinstance(aliases, typing.Mapping):
             return {name: tuple(alias) for name, alias in aliases.items()}
         # This check would be more thorough if we had could guarantee that
         # `aliases` is an iterable of iterables of strings.
-        if isinstance(aliases, Iterable):
+        if isinstance(aliases, typing.Iterable):
             return {
                 key: alias
                 for alias in aliases
@@ -1421,17 +1431,21 @@ class AliasedCache(CollectionMixin, collections.abc.Mapping):
 
 class ObjectRegistry(collections.abc.Mapping):
     """A class for associating metadata with abitrary objects."""
-    def __init__(self, base: Mapping=None, object_key: str='object') -> None:
+    def __init__(
+        self,
+        base: typing.Mapping=None,
+        object_key: str='object',
+    ) -> None:
         mapping = base or {}
         self._items = {
-            k: {object_key: v} if not isinstance(v, Mapping) else v
+            k: {object_key: v} if not isinstance(v, typing.Mapping) else v
             for k, v in mapping.items()
         }
         self._object_key = object_key
         self._init = self._items.copy()
         self._default_key_count = 1
 
-    def __iter__(self) -> Iterator:
+    def __iter__(self) -> typing.Iterator:
         return iter(self._items)
 
     def __len__(self) -> int:
@@ -1446,7 +1460,7 @@ class ObjectRegistry(collections.abc.Mapping):
         name: str=None,
         overwrite: bool=False,
         **metadata
-    ) -> Any:
+    ) -> typing.Any:
         """Register an object and any associated metadata.
 
         This function exists to decorate objects. Without any arguments, it will
@@ -1555,17 +1569,17 @@ class ObjectRegistry(collections.abc.Mapping):
 
     def _get_mapping_key(
         self,
-        obj: Any,
+        obj: typing.Any,
         user: str=None,
         overwrite: bool=False
     ) -> str:
         """Get an appropriate key to associate with this object."""
         available = user not in self._items or overwrite
-        if user and isinstance(user, Hashable) and available:
+        if user and isinstance(user, typing.Hashable) and available:
             return user
         return self._get_default_key(obj)
 
-    def _get_default_key(self, obj: Any) -> str:
+    def _get_default_key(self, obj: typing.Any) -> str:
         """Get a default key based on the object's name and existing keys."""
         options = ['__qualname__', '__name__']
         for option in options:
@@ -1581,19 +1595,19 @@ class ObjectRegistry(collections.abc.Mapping):
         """Reset the internal mapping to its initial state."""
         self._items = {**self._init}
 
-    def __getitem__(self, key: str) -> Dict[str, Any]:
+    def __getitem__(self, key: str) -> typing.Dict[str, typing.Any]:
         """Get an item from the object collection."""
         return self._items[key]
 
-    def keys(self) -> AbstractSet[str]:
+    def keys(self) -> typing.AbstractSet[str]:
         """Mapping keys. Defined here just to specify return type."""
         return super().keys()
 
-    def values(self) -> ValuesView[Dict[str, Any]]:
+    def values(self) -> typing.ValuesView[typing.Dict[str, typing.Any]]:
         """Mapping values. Defined here just to specify return type."""
         return super().values()
 
-    def items(self) -> AbstractSet[Tuple[str, Dict[str, Any]]]:
+    def items(self) -> typing.AbstractSet[typing.Tuple[str, typing.Dict[str, typing.Any]]]:
         """Mapping items. Defined here just to specify return type."""
         return super().items()
 
@@ -1617,7 +1631,7 @@ class TableKeyError(KeyError):
 class TableValueError(Exception):
     """An exception occurred during value-based look-up."""
 
-    def __init__(self, value: Any) -> None:
+    def __init__(self, value: typing.Any) -> None:
         self.value = value
 
 
@@ -1638,7 +1652,7 @@ class MissingValueError(TableValueError):
 class TableRequestError(Exception):
     """An exception occurred during standard look-up."""
 
-    def __init__(self, request: Mapping) -> None:
+    def __init__(self, request: typing.Mapping) -> None:
         self.request = request
 
 
@@ -1684,16 +1698,16 @@ class Table(MappingBase):
     returning.
     """
 
-    _KT = TypeVar('_KT', bound=str)
-    _VT = TypeVar('_VT')
-    _ET = TypeVar('_ET', bound=Mapping)
+    _KT = typing.TypeVar('_KT', bound=str)
+    _VT = typing.TypeVar('_VT')
+    _ET = typing.TypeVar('_ET', bound=typing.Mapping)
 
-    def __init__(self, entries: Collection[_ET]) -> None:
+    def __init__(self, entries: typing.Collection[_ET]) -> None:
         super().__init__(entries)
         self._entries = entries
         self._keys = None
 
-    def show(self, names: Iterable[str]=None):
+    def show(self, names: typing.Iterable[str]=None):
         """Print a formatted version of this table."""
         colpad = 2
         names = names or ()
@@ -1732,21 +1746,21 @@ class Table(MappingBase):
                 print(''.join(row))
 
     @property
-    def keys(self) -> Set[_KT]:
+    def keys(self) -> typing.Set[_KT]:
         """All the keys common to the individual mappings."""
         if self._keys is None:
             all_keys = [list(entry.keys()) for entry in self._entries]
             self._keys = set(all_keys[0]).intersection(*all_keys[1:])
         return self._keys
 
-    def __getitem__(self, key: _KT) -> Tuple[_VT]:
+    def __getitem__(self, key: _KT) -> typing.Tuple[_VT]:
         """Get all the values for a given key if it is common."""
         if key in self.keys:
             values = [entry[key] for entry in self._entries]
             return tuple(values)
         raise TableKeyError(key)
 
-    def get(self, key: _KT, default: Any=None) -> Tuple[_VT]:
+    def get(self, key: _KT, default: typing.Any=None) -> typing.Tuple[_VT]:
         """Get all the values for a given key when available."""
         try:
             return self[key]
@@ -1758,7 +1772,7 @@ class Table(MappingBase):
         self,
         value: _VT,
         unique: bool=False,
-    ) -> Union[_ET, List[_ET]]:
+    ) -> typing.Union[_ET, typing.List[_ET]]:
         """Find entries with the given value."""
         found = [entry for entry in self._entries if value in entry.values()]
         if not found:
@@ -1854,7 +1868,7 @@ class Singleton:
 class NothingType(Singleton):
     """An object that represents nothing in a variety of ways."""
 
-    def __getitem__(self, index: Any) -> None:
+    def __getitem__(self, index: typing.Any) -> None:
         """Return `None`, regardless of `index`."""
         return None
 
@@ -1870,7 +1884,7 @@ class NothingType(Singleton):
         """This object contains nothing."""
         return False
 
-    def __iter__(self) -> Iterable:
+    def __iter__(self) -> typing.Iterable:
         """Return an empty iterator.
         
         Thanks to https://stackoverflow.com/a/36658865/4739101 for this one.
@@ -1892,9 +1906,9 @@ Nothing = NothingType()
 class NonStrIterable(abc.ABCMeta):
     """A type representing a non-string iterable."""
 
-    def __instancecheck__(cls, this: Any) -> bool:
+    def __instancecheck__(cls, this: typing.Any) -> bool:
         """True if `this` is not string-like and is iterable."""
-        return not isinstance(this, (str, bytes)) and isinstance(this, Iterable)
+        return not isinstance(this, (str, bytes)) and isinstance(this, typing.Iterable)
 
 
 class SeparableTypeError(TypeError):
@@ -1945,7 +1959,7 @@ class Separable(collections.abc.Collection, metaclass=NonStrIterable):
         else:
             return arg
 
-    def __iter__(self) -> Iterator[NonStrIterable]:
+    def __iter__(self) -> typing.Iterator[NonStrIterable]:
         return iter(self.arg)
 
     def __len__(self) -> int:
@@ -1968,7 +1982,7 @@ class Separable(collections.abc.Collection, metaclass=NonStrIterable):
         """An unambiguous representation of this object."""
         return f"{self.__class__.__qualname__}({self})"
 
-    __class_getitem__ = classmethod(type(List[int]))
+    __class_getitem__ = classmethod(type(typing.List[int]))
 
 
 def distribute(a, b):
@@ -2013,19 +2027,19 @@ def isproperty(this: object) -> bool:
     return inspect.isdatadescriptor(this) and isinstance(this, property)
 
 
-def batch_replace(string: str, replacement: Mapping[str, str]) -> str:
+def batch_replace(string: str, replacement: typing.Mapping[str, str]) -> str:
     """Replace characters in a string based on a mapping."""
     for old, new in replacement.items():
         string = string.replace(old.strip(), new)
     return string
 
 
-R = TypeVar('R')
+R = typing.TypeVar('R')
 def apply(
-    methods: Iterable[Callable[..., R]],
+    methods: typing.Iterable[typing.Callable[..., R]],
     *args,
     **kwargs,
-) -> Optional[R]:
+) -> typing.Optional[R]:
     """Apply the given methods until one returns a non-null result."""
     gen = (method(*args, **kwargs) for method in methods)
     if result := next((match for match in gen if match), None):
