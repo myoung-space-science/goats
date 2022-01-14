@@ -11,35 +11,24 @@ import pytest
 from goats import common
 from goats import eprem
 
-
-def get_rootpath() -> Path:
-    """The root path to test data.
-
-    This function gets the current working directory (`cwd`) from the resolved
-    file path rather than from `pathlib.Path().cwd()` because the latter
-    returns the current working directory of the caller.
-    """
-    cwd = Path(__file__).expanduser().resolve().parent
-    pkgpath = cwd.parent.parent
-    return pkgpath / 'data' / 'eprem'
+eprem.env.source('~/emmrem/epicMas/source/eprem/src')
 
 
-def get_stream():
+def get_stream(rootpath: Path):
     """Create a stream observer.
 
     This is separated out to allow developers to create a stream outside of the
     `stream` fixture. One example application may be adding a `__main__` section
     and calling simple plotting routines for visual end-to-end tests.
     """
-    dataroot = get_rootpath()
-    datadir = dataroot / 'cone' / 'obs'
+    datadir = rootpath / 'cone' / 'obs'
     return eprem.Stream(name=0, directory=datadir)
 
 
 @pytest.fixture
-def stream():
+def stream(rootpath: Path):
     """Provide a stream observer via fixture."""
-    return get_stream()
+    return get_stream(rootpath)
 
 
 @pytest.fixture

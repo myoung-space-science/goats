@@ -5,6 +5,7 @@ from goats import common
 from goats.common import iterables
 from goats.common import iotools
 from goats.common import indexing
+from goats.common import quantities
 from goats.eprem import parameters
 from goats.eprem import datasets
 from goats.eprem import observables
@@ -23,6 +24,23 @@ def find_file_by_template(
             return test
 
 
+class Environment:
+    """The relevant EPREM runtime environment."""
+
+    def __init__(self) -> None:
+        self._source = None
+
+    def source(self, path: typing.Union[str, pathlib.Path]=None):
+        """Get or set the path to the relevant EPREM source code."""
+        if path:
+            self._source = iotools.ReadOnlyPath(path)
+            return self
+        return self._source
+
+env = Environment()
+"""Global environment manager."""
+
+
 class Observer(common.Observer):
     """Base class for EPREM observers."""
 
@@ -32,15 +50,24 @@ class Observer(common.Observer):
         name: int=None,
         directory: typing.Union[str, pathlib.Path]=None,
         path: typing.Union[str, pathlib.Path]=None,
+        confpath: typing.Union[str, pathlib.Path]=None,
         system: str='mks',
     ) -> None:
         self._templates = templates
         self._name = name
         self._directory = directory
         self._path = path
-        self.system = system
-        super().__init__(observables.Observables(self.dataset))
-        self._axes = datasets.Axes(self.dataset)
+        self._confpath = confpath or self.path.parent
+        self.system = quantities.MetricSystem(system)
+        self._dataset = None
+        self._arguments = None
+        super().__init__(
+            observables.Observables(
+                self.dataset,
+                self.system,
+                self.arguments,
+            )
+        )
 
     @property
     def path(self):
@@ -57,14 +84,23 @@ class Observer(common.Observer):
         raise TypeError(message) from None
 
     @property
-    def config(self):
-        """The configuration parameters for this observer's dataset."""
-        return parameters.ConfigManager(self.path)
-
-    @property
     def dataset(self):
         """This observer's dataset."""
-        return datasets.DatasetView(self.path, self.system)
+        if self._dataset is None:
+            return datasets.Dataset(self.path, self.system)
+        return self._dataset
+
+    @property
+    def arguments(self):
+        """The parameter arguments available to this observer."""
+        if self._arguments is None:
+            source_path = env.source()
+            config_path = self._confpath / 'eprem_input_file'
+            self._arguments = parameters.Arguments(
+                source_path=source_path,
+                config_path=config_path,
+            )
+        return self._arguments
 
     def _get_datapath(
         self,
@@ -96,7 +132,7 @@ class Observer(common.Observer):
 
     def _get_indices(self, name: str, unit: str=None, **kwargs):
         """Get the index-like object for this axis."""
-        axis = self._axes[name]
+        axis = self.dataset.axes[name]
         values = axis(**kwargs)
         if unit and isinstance(values, indexing.Coordinates):
             return values.to(unit)

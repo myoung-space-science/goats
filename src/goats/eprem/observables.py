@@ -7,7 +7,7 @@ from goats.common import quantities
 from goats.common import algebra
 from goats.common import iterables
 from goats.common import indexing
-from goats.common import constants
+from goats.common import physical
 from goats.eprem import functions
 from goats.eprem import datasets
 from goats.eprem import parameters
@@ -249,12 +249,13 @@ class Interface(common.Interface):
     def __init__(
         self,
         implementation: Implementation,
-        dataset: datasets.DatasetView,
+        dataset: datasets.Dataset,
+        system: quantities.MetricSystem,
         dependencies: Mapping[str, Dependency]=None,
     ) -> None:
         self.implementation = implementation
-        self.axes = datasets.Axes(dataset)
-        self.system = dataset.system
+        self.axes = dataset.axes
+        self.system = system
         self.dependencies = iterables.AliasedMapping(dependencies or {})
         self._result = None
         self._context = None
@@ -274,8 +275,8 @@ class Interface(common.Interface):
                 if isinstance(v, (quantities.Variable, functions.Function))
             }
         )
-        variables = datasets.Variables(dataset)
         axes_ref = {k: v.reference for k, v in self.axes.items().aliased}
+        variables = dataset.variables
         rtp_ref = {
             tuple([k, *variables.alias(k, include=True)]): variables[k]
             for k in {'radius', 'theta', 'phi'}
@@ -365,9 +366,15 @@ class Interface(common.Interface):
 class Observables(iterables.MappingBase):
     """An aliased mapping of observable quantities from an EPREM simulation."""
 
-    def __init__(self, dataset: datasets.DatasetView) -> None:
-        self.variables = datasets.Variables(dataset)
-        self.functions = functions.Functions(dataset)
+    def __init__(
+        self,
+        dataset: datasets.Dataset,
+        system: quantities.MetricSystem,
+        arguments: parameters.Arguments,
+    ) -> None:
+        self.variables = dataset.variables
+        constants = physical.Constants(system)
+        self.functions = functions.Functions(dataset, arguments, constants)
         vkeys = self.variables.keys()
         fkeys = self.functions.keys()
         self.primary = tuple(vkeys)
@@ -376,9 +383,10 @@ class Observables(iterables.MappingBase):
         super().__init__(self.names)
         akeys = tuple(vkeys.aliased) + tuple(fkeys.aliased)
         self.aliases = iterables.AliasMap(akeys)
-        self.parameters = parameters.Parameters(dataset.config)
-        self.constants = constants.Constants(dataset.system.name)
         self.dataset = dataset
+        self.system = system
+        self.arguments = arguments
+        self.constants = constants
         self._cache = {}
 
     def __getitem__(self, key: str):
@@ -407,6 +415,7 @@ class Observables(iterables.MappingBase):
             return Interface(
                 implementation,
                 self.dataset,
+                self.system,
                 dependencies=dependencies,
             )
 
@@ -458,10 +467,10 @@ class Observables(iterables.MappingBase):
             return k, v
         if name in self.constants:
             k = name
-            v = self.constants[name].asscalar
+            v = self.constants[name]
             return k, v
-        if name in self.parameters:
-            k = self.parameters.alias(name, include=True)
-            v = self.parameters[name].asscalar
+        if name in self.arguments:
+            k = self.arguments.alias(name, include=True)
+            v = self.arguments[name]
             return k, v
 
