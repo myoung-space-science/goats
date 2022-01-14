@@ -106,8 +106,8 @@ class Dataset(collections.abc.Container):
         """The variables in this dataset."""
         if self._variables is None:
             base = {
-                key: self._init_v[key].to(unit)
-                for key, unit in self.units.items()
+                key: variable.to(self.units[key])
+                for key, variable in self._init_v.items().aliased
             } if self._system else self._init_v
             self._variables = iterables.AliasedMapping(base)
         return self._variables
@@ -118,7 +118,7 @@ class Dataset(collections.abc.Container):
         if self._units is None:
             base = {
                 key: self._system.get_unit(quantity=quantity)
-                for key, quantity in self.quantities.items()
+                for key, quantity in self.quantities.items().aliased
             } if self._system else {
                 key: variable.unit
                 for key, variable in self._init_v
