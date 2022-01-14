@@ -7,7 +7,7 @@ from scipy import integrate
 
 from goats.common import numerical
 from goats.common import quantities
-from goats.common import constants
+from goats.common import physical
 from goats.common import iterables
 from goats.eprem import datasets
 from goats.eprem import parameters
@@ -71,10 +71,7 @@ _metadata = {
         'removed axes': ['mu'],
         'quantity': 'particle distribution',
     },
-    'flux': {
-        'aliases': ('J', 'J(E)'),
-        'quantity': 'number / (area * solid_angle * time * energy / mass)',
-    },
+    'flux': datasets._VARIABLES['flux'].copy(),
     'fluence': {
         'aliases': (),
         'removed axes': ['time'],
@@ -490,19 +487,22 @@ class Function(iterables.ReprStrMixin):
 class Functions(iterables.AliasedMapping):
     """Functions from variables and scalars to a single variable."""
 
-    def __init__(self, dataset: datasets.DatasetView) -> None:
-        self.methods = Methods(dataset)
+    def __init__(
+        self,
+        dataset: datasets.Dataset,
+        arguments: parameters.Arguments,
+        constants: physical.Constants,
+    ) -> None:
+        self.methods = Methods(constants)
         mapping = {
             tuple([k, *v.get('aliases', ())]): self.methods[k]
             for k, v in _metadata.items()
         }
         super().__init__(mapping=mapping)
-        self._namemap = iterables.NameMap(self.methods.names, _metadata)
+        self._namemap = iterables.NameMap(_metadata, refs=self.methods.names)
         self.dataset = dataset
-        self.variables = datasets.Variables(dataset)
-        self.axis_names = datasets.Axes(dataset).canonical
-        self.parameters = parameters.Parameters(dataset.config)
-        self.constants = constants.Constants(dataset.system.name)
+        self.arguments = arguments
+        self.constants = constants
         self._axes_cache = {}
         self._dependencies_cache = {}
 
@@ -537,14 +537,15 @@ class Functions(iterables.AliasedMapping):
     def _gather_axes(self, target: Method):
         """Recursively gather appropriate axes."""
         for parameter in target.parameters:
-            if parameter in self.variables:
-                self._accumulated.extend(self.variables[parameter].axes)
+            if parameter in self.dataset.variables:
+                axes = self.dataset.iter_axes(parameter)
+                self._accumulated.extend(axes)
             elif method := self.get_method(parameter):
                 self._removed.extend(method.metadata.get('removed axes', []))
                 self._restored.extend(method.metadata.get('restored axes', []))
                 self._accumulated.extend(self._gather_axes(method))
         unique = set(self._accumulated) - set(self._removed)
-        return tuple(name for name in self.axis_names if name in unique)
+        return self.dataset.resolve_axes(unique)
 
     def get_dependencies(self, key: str):
         """Compute the names of all dependencies of `key`."""
@@ -563,8 +564,8 @@ class Functions(iterables.AliasedMapping):
         """Recursively gather the names of the target method's dependencies."""
         resolved = []
         primary = (
-            *tuple(self.variables.keys()),
-            *tuple(self.parameters.keys()),
+            *tuple(self.dataset.variables.keys()),
+            *tuple(self.arguments.keys()),
             *tuple(self.constants.keys()),
         )
         for parameter in target.parameters:
