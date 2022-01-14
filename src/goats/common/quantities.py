@@ -1170,6 +1170,7 @@ def get_property(name: str, key: str):
     return parse_quantity(q, key)
 
 
+_operand = algebra.OperandFactory()
 def parse_quantity(string: str, key: str):
     """Parse a string representing a compound quantity."""
     if ' ' in string and all(c not in string for c in ['*', '/']):
@@ -1179,7 +1180,7 @@ def parse_quantity(string: str, key: str):
     for term in expr:
         prop = get_property(term.base.replace('_', ' '), key)
         tmp = {
-            k: algebra.OperandFactory().create(v, term.exponent)
+            k: _operand.create(v, term.exponent)
             for k, v in prop.items()
         }
         parts.append(tmp)
