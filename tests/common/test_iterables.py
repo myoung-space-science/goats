@@ -154,6 +154,7 @@ def test_aliased_key():
     key = iterables.AliasedKey('t0', 't1', 't2')
     assert key + 't3' == iterables.AliasedKey('t0', 't1', 't2', 't3')
     assert key - 't2' == iterables.AliasedKey('t0', 't1')
+    assert iterables.AliasedKey('a', 'b') == iterables.AliasedKey('b', 'a')
 
 
 def test_alias_map():
