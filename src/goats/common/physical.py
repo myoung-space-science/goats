@@ -126,8 +126,11 @@ _CONSTANTS['H+'] = {
 
 class Constants(iterables.MappingBase):
     """A class to manage sets of physical constants."""
-    def __init__(self, system: str) -> None:
-        self.system = system.lower()
+    def __init__(
+        self,
+        system: Union[str, quantities.MetricSystem],
+    ) -> None:
+        self.system = str(system).lower()
         self._mapping = _CONSTANTS.copy()
         super().__init__(self._mapping)
 
