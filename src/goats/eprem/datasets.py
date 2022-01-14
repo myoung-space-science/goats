@@ -179,7 +179,7 @@ class Dataset(collections.abc.Container):
 
     def resolve_axes(self, names: typing.Iterable[str]):
         """Compute and order the available axes in `names`."""
-        axes = self.available('axes', mode='canonical')
+        axes = self.available('axes').canonical
         return tuple(name for name in axes if name in names)
 
     def _build_variables(self, dataset: datasets.DatasetView):
