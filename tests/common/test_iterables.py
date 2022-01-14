@@ -72,23 +72,6 @@ def test_missing():
     assert not iterables.missing(0)
 
 
-def test_binary_groups():
-    """Test the class that splits items into included and excluded."""
-    groups = iterables.BinaryGroups(range(10), range(0, 10, 2))
-    assert groups.included == (0, 2, 4, 6, 8)
-    assert groups.excluded == (1, 3, 5, 7, 9)
-    groups.sorter([2, 5])
-    assert groups.included == (2, 5)
-    assert groups.excluded == (0, 1, 3, 4, 6, 7, 8, 9)
-    groups.sorter([2, 15])
-    assert groups.included == (2,)
-    assert groups.excluded == (0, 1, 3, 4, 5, 6, 7, 8, 9)
-    items = {k: v for k, v in zip(['a', 'b', 'c', 'd'], range(4))}
-    groups = iterables.BinaryGroups(items, ['a', 'd'])
-    assert groups.included == {'a': 0, 'd': 3}
-    assert groups.excluded == {'b': 1, 'c': 2}
-
-
 def test_collection_mixin():
     """Test the mixin class that provides `Collection` methods."""
     class C0(iterables.CollectionMixin, collections.abc.Collection):

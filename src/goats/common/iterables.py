@@ -106,9 +106,7 @@ def missing(this: Any) -> bool:
     This function allows the user to programmatically test for objects that are
     logically ``False`` except for numbers equivalent to 0.
     """
-    if isinstance(this, numbers.Number):
-        return False
-    return not bool(this)
+    return False if isinstance(this, numbers.Number) else not bool(this)
 
 
 def transpose_list(list_in: List[list]) -> List[list]:
@@ -499,139 +497,6 @@ class UniformMapping(MappingBase):
         raise KeyError(key) from None
 
 
-# This class is kind of awkward to use. It is only here because
-# `base.DataMapping` currently uses it.
-class AliasesMixin:
-    """An abstract mixin class to support aliased key look-up.
-
-    Classes may use this as a mixin class by defining `names` and `aliases`
-    properties. The `names` property should return a list of canonical names in
-    the underlying collection. The `aliases` property should return a mapping
-    from each canonical name to zero or more valid aliases.
-
-    With those methods defined, this class provides standard `__len__` and
-    `__iter__` methods that operate on the canonical names, as well as a
-    `__contains__` method that returns true if a given string matches a
-    canonical name or a known alias. This class also provides additional
-    properties and methods for working with aliases.
-    """
-    def __contains__(self, key: str) -> bool:
-        """Whether or not the key is a valid name or alias.
-
-        By definition, the `None` object is not a valid name or alias in any
-        collection of references. This ensures that algorithms which
-        programmatically check for inclusion based on the results of methods
-        like `dict.get` won't end up with a false positive.
-        """
-        if key is None:
-            return False
-        return key in self.labels
-
-    def __len__(self) -> int:
-        """The length of this collections."""
-        return len(self.names)
-
-    def __iter__(self):
-        """Iterate over members of this collection."""
-        return iter(self.names)
-
-    @property
-    @abc.abstractmethod
-    def names(self) -> List[str]:
-        """The canonical names in this collection."""
-        pass
-
-    @property
-    @abc.abstractmethod
-    def aliases(self) -> Mapping[str, Iterable[str]]:
-        """A mapping from canonical name to valid alias(es)."""
-        pass
-
-    @property
-    def labels(self) -> List[str]:
-        """All names and aliases in this collection.
-
-        This property is equivalent to `self.names + self.aliases` and simply
-        exists to serve as a convenient shorthand.
-        """
-        all_aliases = [
-            v for s in self.names
-            for v in self.aliases[s]
-        ]
-        return self.names + all_aliases
-
-    def translate(self, key: str) -> Optional[str]:
-        """Get the canonical name for this key, if possible."""
-        if key in self.names:
-            return key
-        for name in self.names:
-            if key in self.aliases[name]:
-                return name
-
-
-class AliasedCollection(CollectionMixin, collections.abc.Collection):
-    """An abstract collection of items with possible aliases.
-    
-    Implementations of this class must define the `_get_aliases_for` method.
-    """
-    def __init__(self, collection: Collection) -> None:
-        self._collection = collection
-        self.collect('_collection')
-        self._names = None
-        self._aliases = None
-
-    @abc.abstractmethod
-    def _get_aliases_for(self, key: str) -> List[str]:
-        """Get the alias(es) corresponding to the given key."""
-        pass
-
-    def __contains__(self, key: str) -> bool:
-        """Whether or not the key is a valid name or alias.
-
-        By definition, the `None` object is not a valid name or alias in any
-        collection of references. This ensures that algorithms which
-        programmatically check for inclusion based on the results of methods
-        like `dict.get` won't end up with a false positive.
-        """
-        if key is None:
-            return False
-        return key in self.names or key in self.aliases
-
-    @property
-    def names(self) -> List[str]:
-        """The valid names in this collection."""
-        if self._names is None:
-            self._names = list(self._collection)
-        return self._names
-
-    @property
-    def aliases(self) -> List[str]:
-        """All aliases in this collection, in a single list."""
-        if self._aliases is None:
-            self._aliases = [
-                v for s in self._collection
-                for v in self._get_aliases_for(s)
-            ]
-        return self._aliases
-
-    @property
-    def labels(self) -> List[str]:
-        """All names and aliases in this collection.
-
-        This property is equivalent to `self.names + self.aliases` and simply
-        exists to serve as a convenient shorthand.
-        """
-        return self.names + self.aliases
-
-    def translate(self, key: str) -> Optional[str]:
-        """Get the canonical name for this key, if possible."""
-        if key in self._collection:
-            return key
-        for name in self._collection:
-            if key in self._get_aliases_for(name):
-                return name
-
-
 class AliasedKeyError(Exception):
     """Key error for aliased collections."""
     def __init__(self, key: str) -> None:
@@ -858,12 +723,11 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
     ) -> Dict[AliasedKey, _VT]:
         """Build a `dict` that maps aliased keys to user values."""
         if isinstance(mapping, AliasedMapping):
-            return {
-                key: value for key, value in mapping.items().aliased
-            }
+            return dict(mapping.items().aliased)
         _mapping = mapping or {}
         return {
-            AliasedKey(key): value for key, value in _mapping.items()
+            AliasedKey(key): value
+            for key, value in _mapping.items()
         }
 
     @property
@@ -968,7 +832,7 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
                 {k: v for k, v in group.items() if k != alias_key}
                 for group in user.values()
             ]
-        d = {k: v for k, v in zip(keys, values)}
+        d = dict(zip(keys, values))
         return cls(d)
 
     @classmethod
@@ -1095,9 +959,8 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
 
     def __or__(self, other: 'AliasedMapping'):
         """Merge this aliased mapping with another."""
-        items = (*self.items().aliased, *other.items().aliased)
-        tmp = {k: v for k, v in items}
-        return type(self)(tmp)
+        items = dict((*self.items().aliased, *other.items().aliased))
+        return type(self)(items)
 
     def __str__(self) -> str:
         """A simplified representation of this instance."""
@@ -1517,9 +1380,8 @@ class AliasedCache(CollectionMixin, collections.abc.Mapping):
             return {}
         if isinstance(aliases, Mapping):
             return {name: tuple(alias) for name, alias in aliases.items()}
-        # This check would be more thorough if we had could use something like
-        # AliasedCollection to guarantee that `aliases` is an iterable of
-        # iterables of strings.
+        # This check would be more thorough if we had could guarantee that
+        # `aliases` is an iterable of iterables of strings.
         if isinstance(aliases, Iterable):
             return {
                 key: alias
@@ -1742,62 +1604,6 @@ class ObjectRegistry(collections.abc.Mapping):
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
         return f"{self.__class__.__qualname__}({self._items})"
-
-
-class BinaryGroups:
-    """A class that creates groups of included and excluded items."""
-
-    _KT = TypeVar('_KT')
-    _VT = TypeVar('_VT')
-
-    def __init__(
-        self,
-        items: Union[Iterable[_KT], Mapping[_KT, _VT]],
-        sorter: Container[_KT],
-    ) -> None:
-        self._items = items
-        self._sorter = sorter
-        self._included = None
-        self._excluded = None
-        self._sort_by(sorter)
-
-    def sorter(self, new: Container=None) -> Optional['BinaryGroups']:
-        """Get or set the definition of inclusion."""
-        if new is None:
-            return self._sorter
-        self._sort_by(new)
-        return self
-
-    def _sort_by(self, container: Container) -> None:
-        """Sort the items into groups."""
-        if isinstance(self._items, Mapping):
-            self._included = {
-                k: v for k, v in self._items.items() if k in container
-            }
-            self._excluded = {
-                k: v for k, v in self._items.items() if k not in container
-            }
-        else:
-            self._included = [
-                item for item in self._items if item in container
-            ]
-            self._excluded = [
-                item for item in self._items if item not in container
-            ]
-
-    @property
-    def included(self) -> Union[Tuple[_KT], Dict[_KT, _VT]]:
-        """The items included in the given container."""
-        if isinstance(self._items, Mapping):
-            return self._included
-        return tuple(self._included)
-
-    @property
-    def excluded(self) -> Union[Tuple[_KT], Dict[_KT, _VT]]:
-        """The items excluded from the given container."""
-        if isinstance(self._items, Mapping):
-            return self._excluded
-        return tuple(self._excluded)
 
 
 class TableKeyError(KeyError):
