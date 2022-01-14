@@ -108,18 +108,17 @@ class Application:
     def _is_reference(self, variable: quantities.Variable):
         """True if this is an axis reference variable.
 
-        This method checks strict equality between the given variable and all
-        reference objects relevant to the variable's axes. It also accounts for
-        the fact that two variables with different units are incomparable by
-        treating them as unequal.
+        This method attempts to determine if the given variable is one of the
+        axis or axis-like reference objects used for interpolation, so calling
+        code can avoid accidentally interpolating over it. NB: Two variables
+        with different units will always compare false by triggering a
+        `quantities.ComparisonError`.
         """
-        equal = []
-        for reference in self.reference.values():
-            try:
-                equal.append(variable == reference)
-            except quantities.ComparisonError:
-                equal.append(False)
-        return any(equal)
+        try:
+            truth = variable in self.reference.values()
+        except quantities.ComparisonError:
+            return False
+        return truth
 
     def _need_interp(self, axis: str):
         """True if we need to interpolate over this axis."""
