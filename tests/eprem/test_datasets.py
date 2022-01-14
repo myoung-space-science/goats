@@ -9,12 +9,12 @@ from goats.eprem import datasets
 def dataset(datadirs: dict):
     """An EPREM dataset."""
     datapath = datadirs['cone']['obs'] / 'obs000000.nc'
-    return datasets.DatasetView(datapath, 'mks')
+    return datasets.Dataset(datapath, 'mks')
 
 
-def test_axes(dataset: datasets.DatasetView):
+def test_axes(dataset: datasets.Dataset):
     """Test the axis-indexing objects."""
-    axes = datasets.Axes(dataset)
+    axes = dataset.axes
     cases = {
         'time': {
             'type': indexing.Coordinates,

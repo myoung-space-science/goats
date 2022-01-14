@@ -1,6 +1,7 @@
 from pathlib import Path
+import collections.abc
 import numbers
-from typing import *
+import typing
 
 import numpy as np
 
@@ -8,246 +9,8 @@ from goats.common import datasets
 from goats.common import quantities
 from goats.common import indexing
 from goats.common import iterables
-from goats.common import iotools
 from goats.common import physical
 from goats.common import numerical
-from goats.eprem import parameters
-
-
-_variables = {
-    'time': {
-        'aliases': ('t', 'times'),
-        'unit': 's',
-    },
-    'shell': {
-        'aliases': ('shells',),
-        'unit': '1',
-    },
-    'mu': {
-        'aliases': (
-            'mus',
-            'pitch angle', 'pitch-angle cosine',
-            'pitch angles', 'pitch-angle cosines',
-        ),
-        'unit': '1',
-    },
-    'mass': {
-        'aliases': ('m',),
-        'unit': 'g',
-    },
-    'charge': {
-        'aliases': ('q',),
-        'unit': 'statcoul',
-    },
-    'egrid': {
-        'aliases': ('energy', 'energies', 'E'),
-        'unit': 'erg',
-    },
-    'vgrid': {
-        'aliases': ('speed', 'v', 'vparticle'),
-        'unit': 'cm/s',
-    },
-    'R': {
-        'aliases': ('r', 'radius'),
-        'unit': 'cm',
-    },
-    'T': {
-        'aliases': ('theta',),
-        'unit': 'radian',
-    },
-    'P': {
-        'aliases': ('phi',),
-        'unit': 'radian',
-    },
-    'Br': {
-        'aliases': ('br',),
-        'unit': 'G',
-    },
-    'Bt': {
-        'aliases': ('bt', 'Btheta', 'btheta'),
-        'unit': 'G',
-    },
-    'Bp': {
-        'aliases': ('bp', 'Bphi', 'bphi'),
-        'unit': 'G',
-    },
-    'Vr': {
-        'aliases': ('vr',),
-        'unit': 'cm/s',
-    },
-    'Vt': {
-        'aliases': ('vt', 'Vtheta', 'vtheta'),
-        'unit': 'cm/s',
-    },
-    'Vp': {
-        'aliases': ('vp', 'Vphi', 'vphi'),
-        'unit': 'cm/s',
-    },
-    'Rho': {
-        'aliases': ('rho',),
-        'unit': '1/cm^3',
-    },
-    'Dist': {
-        'aliases': ('dist', 'f'),
-        'unit': 's^3/cm^6',
-    },
-    'flux': {
-        'aliases': ('J', 'J(E)', 'Flux', 'j', 'j(E)'),
-        'quantity': 'particle flux',
-        'unit': '# / (m^2 * sr * s * (MeV/nuc))',
-    },
-}
-
-_axes = {
-    'time': _variables['time'].copy(),
-    'shell': _variables['shell'].copy(),
-    'species': {},
-    'energy': _variables['egrid'].copy(),
-    'mu': _variables['mu'].copy(),
-}
-
-_metadata = {
-    'variables': _variables,
-    'axes': _axes,
-}
-
-
-metadata = {k: iterables.AliasedMapping.of(v) for k, v in _metadata.items()}
-"""Metadata for axes and variables."""
-
-
-class DatasetView(datasets.DatasetView, iterables.ReprStrMixin):
-    """An EPREM dataset."""
-
-    _config_names = (
-        'eprem_input_file',
-    )
-
-    def __init__(
-        self,
-        path: Union[str, Path],
-        system: str,
-    ) -> None:
-        super().__init__(path)
-        self.system = quantities.MetricSystem(system)
-        self._configpath = None
-        self._config = None
-
-    @property
-    def configpath(self):
-        """The current configuration file path."""
-        if self._configpath is None:
-            for name in self._config_names:
-                current = self.path.parent / name
-                if current.exists():
-                    self._configpath = iotools.ReadOnlyPath(current)
-        return self._configpath
-
-    @property
-    def config(self):
-        """An object representing the configuration file."""
-        if self._config is None:
-            self._config = parameters.ConfigManager(self.configpath)
-        return self._config
-
-    def with_config(
-        self,
-        new: Union[str, Path],
-        local: bool=True,
-        **kwargs
-    ) -> 'DatasetView':
-        """Associate a new configuration file with this dataset.
-        
-        Parameters
-        ----------
-        new : string or Path
-            The path of the new configuration file. The path may be relative and
-            contain wildcards, but it must exist.
-
-        local : boolean, default=True
-            If true (default), assume that `new` is relative to the directory
-            containing the dataset. Otherwise, treat `new` as an independent
-            absolute or relative path.
-
-        **kwargs
-            Any keywords to be passed to `parameters.ConfigManager`
-        """
-        path = self.path.parent / new if local else new
-        self._configpath = iotools.ReadOnlyPath(path)
-        self._config = parameters.ConfigManager(self._configpath, **kwargs)
-        return self
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        return f"path={self.path}, system={self.system}"
-
-
-unit_conversions = {
-    'julian date': 'day',
-    'shell': '1',
-    'cos(mu)': '1',
-    'e-': 'e',
-}
-"""Conversions from non-standard EPREM units."""
-
-
-T = TypeVar('T')
-
-def standardize(unit: T):
-    """Replace this unit string with a standard unit string, if possible.
-
-    This function looks for `unit` in the known conversions and returns the
-    standard unit string if it exists. If this doesn't find a standard unit
-    string, it just returns the input.
-    """
-    return unit_conversions.get(str(unit), unit)
-
-
-class Variables(iterables.AliasedMapping):
-    """An aliased mapping from variable name to `Variable` object."""
-
-    def __init__(self, dataset: DatasetView) -> None:
-        ukeys = ('unit', 'units')
-        attrmap = {
-            k: {
-                'data': v,
-                'axes': tuple(getattr(v, 'dimensions', ())),
-                'unit': next(
-                    (
-                        standardize(getattr(v, a))
-                        for a in ukeys if hasattr(v, a)
-                    ), None
-                )
-            } for k, v in dataset.variables.items()
-        }
-        mapping = {
-            tuple([k, *v.get('aliases', ())]): attrmap[k]
-            for k, v in _variables.items()
-            if k in dataset.variables
-        }
-        super().__init__(mapping=mapping)
-        self.canonical = tuple(dataset.variables.keys())
-        """The names of variables within the dataset."""
-        self.system = dataset.system
-        """The metric system of the underlying dataset."""
-
-    def __getitem__(self, key: str):
-        """Aliased access to dataset variables."""
-        if key in self:
-            stored = super().__getitem__(key)
-            data = stored['data']
-            unit = stored['unit']
-            axes = stored['axes']
-            variable = quantities.Variable(data, unit, axes)
-            return variable.to(self.system.get_unit(unit=unit))
-        raise KeyError(f"No variable corresponding to '{key!r}'") from None
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        return ', '.join(
-            f"{k}: unit={v['unit']!r}, axes={v['axes']}"
-            for k, v in self.items().aliased
-        )
 
 
 class Time(indexing.IndexComputer):
@@ -274,7 +37,7 @@ class Energy(indexing.IndexComputer):
         super().__init__(reference, size=size)
         self.map = species_map
 
-    def __call__(self, *user, species: Union[str, int]=0):
+    def __call__(self, *user, species: typing.Union[str, int]=0):
         targets = self._normalize(*user)
         if all(isinstance(value, numbers.Integral) for value in targets):
             return indexing.Indices(targets)
@@ -299,76 +62,314 @@ class Mu(indexing.IndexComputer):
     """EPREM pitch-angle cosine indexer."""
 
 
-class IndexerFactory(iterables.MappingBase):
-    """A mapping of EPREM axis names to indexing objects."""
+class SubsetKeys(typing.NamedTuple):
+    """A subset of names of attributes."""
 
-    def __init__(self, dataset: datasets.DatasetView) -> None:
-        self.variables = Variables(dataset)
-        self._indexers = None
-        self._arrays = None
-        self.names = tuple(self.indexers.keys())
-        """The names of available indexing objects."""
-        super().__init__(self.names)
-        self._sizes = dataset.sizes
-
-    def __getitem__(self, name: str):
-        """Create the indexer corresponding to the named axis."""
-        if name in self:
-            indexer = self.indexers[name]
-            reference = self.arrays[name]
-            size = self._sizes[name]
-            if indexer == Energy:
-                species_map = self['species']
-                return indexer(reference, species_map, size=size)
-            return indexer(reference, size=size)
-        raise KeyError(f"No indexer available for '{name}'") from None
-
-    @property
-    def indexers(self):
-        """The indexer (class) of each index."""
-        if self._indexers is None:
-            self._indexers = {
-                'time': Time,
-                'shell': Shell,
-                'species': Species,
-                'energy': Energy,
-                'mu': Mu,
-            }
-        return self._indexers
-
-    @property
-    def arrays(self) -> Dict[str, quantities.Variable]:
-        """The array of dataset values for each index."""
-        if self._arrays is None:
-            mass = self.variables['mass'].to('nuc')
-            charge = self.variables['charge'].to('e')
-            self._arrays = {
-                'time': self.variables['time'],
-                'shell': np.array(self.variables['shell'], dtype=int),
-                'species': physical.elements(mass, charge),
-                'energy': self.variables['egrid'],
-                'mu': self.variables['mu'],
-            }
-        return self._arrays
+    full: typing.Tuple[str]
+    aliased: typing.Tuple[iterables.AliasedKey]
+    canonical: typing.Tuple[str]
 
 
-class Axes(iterables.AliasedMapping):
-    """An aliased mapping from axis name to `Axis` object."""
+class Dataset(collections.abc.Container):
+    """Interface to an EPREM dataset."""
 
-    def __init__(self, dataset: DatasetView) -> None:
-        self.indexers = IndexerFactory(dataset)
-        mapping = {
-            tuple([k, *v.get('aliases', ())]): self.indexers[k]
-            for k, v in _axes.items()
+    def __init__(
+        self,
+        path: typing.Union[str, Path],
+        system: typing.Union[str, quantities.MetricSystem]=None,
+    ) -> None:
+        dataset = datasets.DatasetView(path)
+        self._system = quantities.MetricSystem(system) if system else None
+        self._quantities = None
+        self._units = None
+        self._variables = None
+        self._axes = None
+        self._init_v = self._build_variables(dataset)
+        self._init_a = self._build_axes(dataset)
+        self._canonical = {
+            'variables': tuple(
+                variable for variable in self._init_v
+                if variable in dataset.variables
+            ),
+            'axes': tuple(
+                axis for axis in self._init_a
+                if axis in dataset.axes
+            ),
         }
-        super().__init__(mapping=mapping)
-        self.canonical = tuple(dataset.axes)
-        """The names of axes within the dataset."""
 
-    def __getitem__(self, key: str):
-        """Aliased access to dataset axes."""
-        if key in self:
-            indexer = super().__getitem__(key)
-            return indexing.Axis(indexer)
-        raise KeyError(f"No axis corresponding to '{key!r}'") from None
+    def __contains__(self, key: str) -> bool:
+        """True if `key` corresponds to an available variable or axis."""
+        return key in self.variables or key in self.axes
+
+    @property
+    def variables(self):
+        """The variables in this dataset."""
+        if self._variables is None:
+            base = {
+                key: self._init_v[key].to(unit)
+                for key, unit in self.units.items()
+            } if self._system else self._init_v
+            self._variables = iterables.AliasedMapping(base)
+        return self._variables
+
+    @property
+    def units(self):
+        """The unit of each dataset attribute in the current system."""
+        if self._units is None:
+            base = {
+                key: self._system.get_unit(quantity=quantity)
+                for key, quantity in self.quantities.items()
+            } if self._system else {
+                key: variable.unit
+                for key, variable in self._init_v
+            }
+            self._units = iterables.AliasedMapping(base)
+        return self._units
+
+    @property
+    def quantities(self):
+        """The physical quantities of each dataset attribute."""
+        if self._quantities is None:
+            base = {
+                key: variable['quantity']
+                for key, variable in metadata['variables'].items().aliased
+                if key in self._init_v.keys().aliased
+            }
+            self._quantities = iterables.AliasedMapping(base)
+        return self._quantities
+
+    @property
+    def axes(self):
+        """The axes in this dataset."""
+        if self._axes is None:
+            axes = self._init_a
+            self._axes = iterables.AliasedMapping(axes)
+        return self._axes
+
+    def system(self, new: str=None):
+        """Get or set the metric system for this dataset."""
+        if not new:
+            return self._system
+        self._system = quantities.MetricSystem(new)
+        self._variables = None
+        self._units = None
+        return self
+
+    def available(self, key: str):
+        """Provide the names of available attributes."""
+        if key in {'variable', 'variables'}:
+            return SubsetKeys(
+                full=tuple(self._init_v),
+                aliased=tuple(self._init_v.keys().aliased),
+                canonical=self._canonical['variables'],
+            )
+        if key in {'axis', 'axes'}:
+            return SubsetKeys(
+                full=tuple(self._init_a),
+                aliased=tuple(self._init_a.keys().aliased),
+                canonical=self._canonical['axes'],
+            )
+
+    def iter_axes(self, name: str):
+        """Iterate over the axes for the named variable."""
+        if name in self._init_v:
+            variable = self._init_v[name]
+            return iter(variable.axes)
+        return iter(())
+
+    def resolve_axes(self, names: typing.Iterable[str]):
+        """Compute and order the available axes in `names`."""
+        axes = self.available('axes', mode='canonical')
+        return tuple(name for name in axes if name in names)
+
+    def _build_variables(self, dataset: datasets.DatasetView):
+        """Create a collection of variables from the dataset."""
+        meta = metadata['variables'].copy()
+        base = {
+            name: {
+                'values': data,
+                'axes': self._get_axes_from_data(data),
+                'unit': self._get_unit_from_data(data),
+            } for name, data in dataset.variables.items()
+        }
+        variable = quantities.Variable
+        variables = {
+            meta.alias(name, include=True): variable(**attrs)
+            for name, attrs in base.items()
+            if name in _VARIABLES
+        }
+        return iterables.AliasedMutableMapping(variables)
+
+    def _get_axes_from_data(self, data):
+        """Compute appropriate variable axes from a dataset object."""
+        return tuple(getattr(data, 'dimensions', ()))
+
+    _ukeys = ('unit', 'units')
+    def _get_unit_from_data(self, data):
+        """Compute appropriate variable units from a dataset object."""
+        available = (
+            standardize(getattr(data, attr))
+            for attr in self._ukeys if hasattr(data, attr)
+        )
+        return next(available, None)
+
+    def _build_axes(self, dataset: datasets.DatasetView):
+        """Create a collection of axes from the dataset."""
+        mass = self.variables['mass'].to('nuc')
+        charge = self.variables['charge'].to('e')
+        sizes = dataset.sizes
+        arrays = {
+            'time': self.variables['time'],
+            'shell': np.array(self.variables['shell'], dtype=int),
+            'species': physical.elements(mass, charge),
+            'energy': self.variables['energy'],
+            'mu': self.variables['mu'],
+        }
+        args = {
+            name: {
+                'reference': array,
+                'size': sizes[name],
+            } for name, array in arrays.items()
+        }
+        args['energy']['species_map'] = Species(args['species'])
+        meta = metadata['axes'].copy()
+        base = {
+            name: {
+                'indexer': axis['indexer'](**args[name]),
+            }
+            for name, axis in _AXES.items()
+        }
+        axis = indexing.Axis
+        axes = {
+            meta.alias(name, include=True): axis(**attrs)
+            for name, attrs in base.items()
+            if name in _AXES
+        }
+        return iterables.AliasedMutableMapping(axes)
+
+
+_VARIABLES = {
+    'time': {
+        'aliases': ['t', 'times'],
+        'quantity': 'time',
+    },
+    'shell': {
+        'aliases': ['shells'],
+        'quantity': 'number',
+    },
+    'mu': {
+        'aliases': [
+            'mus',
+            'pitch angle', 'pitch-angle cosine',
+            'pitch angles', 'pitch-angle cosines',
+        ],
+        'quantity': 'ratio',
+    },
+    'mass': {
+        'aliases': ['m'],
+        'quantity': 'mass',
+    },
+    'charge': {
+        'aliases': ['q'],
+        'quantity': 'charge',
+    },
+    'egrid': {
+        'aliases': ['energy', 'energies', 'E'],
+        'quantity': 'energy',
+    },
+    'vgrid': {
+        'aliases': ['speed', 'v', 'vparticle'],
+        'quantity': 'velocity',
+    },
+    'R': {
+        'aliases': ['r', 'radius'],
+        'quantity': 'length',
+    },
+    'T': {
+        'aliases': ['theta'],
+        'quantity': 'ratio',
+    },
+    'P': {
+        'aliases': ['phi'],
+        'quantity': 'ratio',
+    },
+    'Br': {
+        'aliases': ['br'],
+        'quantity': 'magnetic field',
+    },
+    'Bt': {
+        'aliases': ['bt', 'Btheta', 'btheta'],
+        'quantity': 'magnetic field',
+    },
+    'Bp': {
+        'aliases': ['bp', 'Bphi', 'bphi'],
+        'quantity': 'magnetic field',
+    },
+    'Vr': {
+        'aliases': ['vr'],
+        'quantity': 'velocity',
+    },
+    'Vt': {
+        'aliases': ['vt', 'Vtheta', 'vtheta'],
+        'quantity': 'velocity',
+    },
+    'Vp': {
+        'aliases': ['vp', 'Vphi', 'vphi'],
+        'quantity': 'velocity',
+    },
+    'Rho': {
+        'aliases': ['rho'],
+        'quantity': 'number density',
+    },
+    'Dist': {
+        'aliases': ['dist', 'f'],
+        'quantity': 'particle distribution',
+    },
+    'flux': {
+        'aliases': ['J', 'J(E)', 'Flux', 'j', 'j(E)'],
+        'quantity': 'number / (area * solid_angle * time * energy / mass)',
+    },
+}
+
+_AXES = {
+    name: {**_VARIABLES[name], 'indexer': indexer}
+    for name, indexer in {'time': Time, 'shell': Shell, 'mu': Mu}.items()
+}
+_AXES.update(
+    energy={**_VARIABLES['egrid'], 'indexer': Energy},
+    species={
+        'aliases': [],
+        'quantity': 'identity',
+        'indexer': Species,
+    }
+)
+
+_metadata = {
+    'variables': _VARIABLES,
+    'axes': _AXES,
+}
+
+metadata = {k: iterables.AliasedMapping.of(v) for k, v in _metadata.items()}
+"""Metadata for axes and variables."""
+
+
+unit_conversions = {
+    'julian date': 'day',
+    'shell': '1',
+    'cos(mu)': '1',
+    'e-': 'e',
+}
+"""Conversions from non-standard EPREM units."""
+
+T = typing.TypeVar('T')
+
+def standardize(unit: T):
+    """Replace this unit string with a standard unit string, if possible.
+
+    This function looks for `unit` in the known conversions and returns the
+    standard unit string if it exists. If this doesn't find a standard unit
+    string, it just returns the input.
+    """
+    return unit_conversions.get(str(unit), unit)
+
 
