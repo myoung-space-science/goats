@@ -116,10 +116,10 @@ class Method(iterables.ReprStrMixin):
 class Methods(iterables.MappingBase):
     """A mapping of methods that act on EPREM variables."""
 
-    def __init__(self, dataset: datasets.DatasetView) -> None:
+    def __init__(self, constants: physical.Constants) -> None:
         self.names = tuple(_metadata.keys())
         super().__init__(self.names)
-        self.constants = constants.Constants(dataset.system.name)
+        self.constants = constants
 
     def __getitem__(self, name: str) -> Method:
         """Look up a method on this instance."""
