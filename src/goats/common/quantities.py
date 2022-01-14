@@ -640,6 +640,7 @@ definitions = {
     },
     'momentum density': 'momentum / volume',
     'number': 'identity',
+    'number density': '1 / volume',
     'particle distribution': '1 / (length * velocity)^3',
     'permeability': {
         'dimensions': {
