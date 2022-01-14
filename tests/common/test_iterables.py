@@ -201,8 +201,9 @@ def test_aliased_mapping():
     for key, value in aliased.items().aliased:
         assert aliased[key] == value
 
-    # Containment checks should operate on the string keys.
+    # Containment checks should support strings and aliased keys.
     assert 'the other' in mixed and ('the other',) not in mixed
+    assert iterables.AliasedKey('that', 'second') in mixed
 
     # Check lengths of keys, values, and items.
     for mapping, n_keys in zip([standard, aliased, mixed], [3, 6, 4]):

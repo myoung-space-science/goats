@@ -845,7 +845,9 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
     def __len__(self) -> int:
         return len(self._flat_keys)
 
-    def __contains__(self, key: str) -> bool:
+    def __contains__(self, key: Union[str, AliasedKey]) -> bool:
+        if isinstance(key, AliasedKey):
+            return key in self._aliased.keys()
         return key in self._flat_keys
 
     T = TypeVar('T')
