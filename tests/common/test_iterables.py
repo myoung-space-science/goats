@@ -534,31 +534,6 @@ def test_namemap_invert():
     assert sorted(namemap['c']) == sorted(['c', 'c0', 'C'])
 
 
-def test_aliased_cache():
-    """Test the object that represents a cache with aliased look-up."""
-    mapping = {'a': 1, 'b': 2, 'c': 3}
-    cases = [
-        [['b', 'B'], ['c', 'c0', 'C']], # Iterable of aliased keys
-        {'b': 'B', 'c': ['c0', 'C']}, # Mapping from name to aliases
-    ]
-    for aliases in cases:
-        cache = iterables.AliasedCache(mapping, aliases)
-        assert all(v is None for v in cache.values())
-        assert cache['a'] == 1
-        assert cache['b'] == 2
-        assert cache['B'] is cache['b']
-        assert cache['C'] == 3
-        assert list(cache.values().aliased) == list(mapping.values())
-    aliases = ['b', 'B', 'c', 'c0', 'C'] # Flat iterable of keys -> no aliases
-    cache = iterables.AliasedCache(mapping, aliases)
-    assert all(v is None for v in cache.values())
-    assert cache['a'] == 1
-    assert cache['b'] == 2
-    for key in set(aliases) - set(mapping.keys()):
-        with pytest.raises(iterables.AliasedKeyError):
-            cache[key]
-
-
 def test_object_registry():
     """Test the class that holds objects with metadata."""
     registry = iterables.ObjectRegistry({'this': [2, 3]})
