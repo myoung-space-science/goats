@@ -945,14 +945,6 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
                 return self._resolve(key)
             return self._resolve(key) - key
 
-    def _not_available(self, key: str) -> typing.NoReturn:
-        """True if this key is not currently in use."""
-        aliases = self.alias(key)
-        this = ", ".join(f'{a}' for a in aliases)
-        if len(aliases) > 1:
-            this = f"({this})"
-        raise KeyError(f"'{key}' is already an alias for {this!r}")
-
     def __eq__(self, other: typing.Mapping) -> bool:
         """Define equality between this and another object."""
         if not isinstance(other, typing.Mapping):
@@ -1186,6 +1178,14 @@ class AliasedMutableMapping(AliasedMapping, collections.abc.MutableMapping):
                 updated = self._resolve(key) + alias
                 self._aliased[updated] = self[key]
                 del self[key]
+
+    def _not_available(self, key: str) -> typing.NoReturn:
+        """True if this key is not currently in use."""
+        aliases = self.alias(key)
+        this = ", ".join(f'{a}' for a in aliases)
+        if len(aliases) > 1:
+            this = f"({this})"
+        raise KeyError(f"'{key}' is already an alias for {this!r}")
 
 
 class NameMap(MappingBase):
