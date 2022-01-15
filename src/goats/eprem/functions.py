@@ -5,6 +5,7 @@ from typing import *
 import numpy as np
 from scipy import integrate
 
+from goats.common import aliased
 from goats.common import numerical
 from goats.common import quantities
 from goats.common import physical
@@ -84,7 +85,7 @@ _metadata = {
     },
 }
 
-metadata = iterables.AliasedMapping.of(_metadata)
+metadata = aliased.Mapping.of(_metadata)
 
 
 class Method(iterables.ReprStrMixin):
@@ -484,7 +485,7 @@ class Function(iterables.ReprStrMixin):
         return ', '.join(attrs)
 
 
-class Functions(iterables.AliasedMapping):
+class Functions(aliased.Mapping):
     """Functions from variables and scalars to a single variable."""
 
     def __init__(
@@ -499,7 +500,7 @@ class Functions(iterables.AliasedMapping):
             for k, v in _metadata.items()
         }
         super().__init__(mapping=mapping)
-        self._namemap = iterables.NameMap(_metadata, refs=self.methods.names)
+        self._namemap = aliased.NameMap(_metadata, refs=self.methods.names)
         self.dataset = dataset
         self.arguments = arguments
         self.constants = constants

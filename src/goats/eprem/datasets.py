@@ -5,6 +5,7 @@ import typing
 
 import numpy as np
 
+from goats.common import aliased
 from goats.common import datasets
 from goats.common import quantities
 from goats.common import indexing
@@ -66,7 +67,7 @@ class SubsetKeys(typing.NamedTuple):
     """A subset of names of attributes."""
 
     full: typing.Tuple[str]
-    aliased: typing.Tuple[iterables.AliasedKey]
+    aliased: typing.Tuple[aliased.MappingKey]
     canonical: typing.Tuple[str]
 
 
@@ -109,7 +110,7 @@ class Dataset(collections.abc.Container):
                 key: variable.to(self.units[key])
                 for key, variable in self._init_v.items(aliased=True)
             } if self._system else self._init_v
-            self._variables = iterables.AliasedMapping(base)
+            self._variables = aliased.Mapping(base)
         return self._variables
 
     @property
@@ -123,7 +124,7 @@ class Dataset(collections.abc.Container):
                 key: variable.unit
                 for key, variable in self._init_v
             }
-            self._units = iterables.AliasedMapping(base)
+            self._units = aliased.Mapping(base)
         return self._units
 
     @property
@@ -135,7 +136,7 @@ class Dataset(collections.abc.Container):
                 for key, variable in metadata['variables'].items(aliased=True)
                 if key in self._init_v.keys(aliased=True)
             }
-            self._quantities = iterables.AliasedMapping(base)
+            self._quantities = aliased.Mapping(base)
         return self._quantities
 
     @property
@@ -143,7 +144,7 @@ class Dataset(collections.abc.Container):
         """The axes in this dataset."""
         if self._axes is None:
             axes = self._init_a
-            self._axes = iterables.AliasedMapping(axes)
+            self._axes = aliased.Mapping(axes)
         return self._axes
 
     def system(self, new: str=None):
@@ -198,7 +199,7 @@ class Dataset(collections.abc.Container):
             for name, attrs in base.items()
             if name in _VARIABLES
         }
-        return iterables.AliasedMapping(variables)
+        return aliased.Mapping(variables)
 
     def _get_axes_from_data(self, data):
         """Compute appropriate variable axes from a dataset object."""
@@ -245,7 +246,7 @@ class Dataset(collections.abc.Container):
             for name, attrs in base.items()
             if name in _AXES
         }
-        return iterables.AliasedMapping(axes)
+        return aliased.Mapping(axes)
 
 
 _VARIABLES = {
@@ -349,7 +350,7 @@ _metadata = {
     'axes': _AXES,
 }
 
-metadata = {k: iterables.AliasedMapping.of(v) for k, v in _metadata.items()}
+metadata = {k: aliased.Mapping.of(v) for k, v in _metadata.items()}
 """Metadata for axes and variables."""
 
 

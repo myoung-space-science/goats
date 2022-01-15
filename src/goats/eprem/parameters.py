@@ -11,7 +11,7 @@ This module includes the following objects::
   given a path to the file.
 * `~parameters.Runtime` provides a unified interface to all parameter arguments
   used in a particular simulation run, given appropriate paths.
-* `~parameters.Arguments` is an instance of `iterables.AliasedMapping` that
+* `~parameters.Arguments` is an instance of `aliased.Mapping` that
   supports aliased access to simulation and post-processing parameters, given an
   instance of `~parameters.Runtime`.
 
@@ -51,6 +51,7 @@ import re
 import typing
 
 from goats.common import algebra
+from goats.common import aliased
 from goats.common import iotools
 from goats.common import iterables
 from goats.common import numerical
@@ -625,7 +626,7 @@ class Runtime(iterables.MappingBase):
         return arg
 
 
-class Arguments(iterables.AliasedMapping):
+class Arguments(aliased.Mapping):
     """Aliased access to EPREM parameter arguments."""
 
     def __init__(
@@ -683,7 +684,7 @@ class Arguments(iterables.AliasedMapping):
             }
             for key in keys
         }
-        return iterables.AliasedMutableMapping(base)
+        return aliased.MutableMapping(base)
 
 
 _LOCAL = {

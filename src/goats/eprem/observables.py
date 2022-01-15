@@ -3,6 +3,7 @@ from typing import *
 import numpy as np
 
 from goats import common
+from goats.common import aliased
 from goats.common import quantities
 from goats.common import algebra
 from goats.common import iterables
@@ -255,20 +256,20 @@ class Interface(common.Interface):
         self.implementation = implementation
         self.axes = dataset.axes
         self.system = system
-        self.dependencies = iterables.AliasedMapping(dependencies or {})
+        self.dependencies = aliased.Mapping(dependencies or {})
         self._result = None
         self._context = None
-        self.indices = iterables.AliasedMutableMapping.fromkeys(
+        self.indices = aliased.MutableMapping.fromkeys(
             self.axes,
             value=(),
         )
-        self.assumptions = iterables.AliasedMutableMapping(
+        self.assumptions = aliased.MutableMapping(
             {
                 k: v for k, v in self.dependencies.items(aliased=True)
                 if isinstance(v, quantities.Scalar)
             }
         )
-        self.observables = iterables.AliasedMutableMapping(
+        self.observables = aliased.MutableMapping(
             {
                 k: v for k, v in self.dependencies.items(aliased=True)
                 if isinstance(v, (quantities.Variable, functions.Function))
@@ -280,7 +281,7 @@ class Interface(common.Interface):
             tuple([k, *variables.alias(k, include=True)]): variables[k]
             for k in {'radius', 'theta', 'phi'}
         }
-        self.reference = iterables.AliasedMapping({**axes_ref, **rtp_ref})
+        self.reference = aliased.Mapping({**axes_ref, **rtp_ref})
 
     def update_indices(self, constraints: Mapping):
         """Update the instance indices based on user constraints."""
@@ -290,7 +291,7 @@ class Interface(common.Interface):
         updates = {k: self._update_index(k, v) for k, v in current.items()}
         updated = self.indices.copy()
         updated.update(updates)
-        return iterables.AliasedMapping(updated)
+        return aliased.Mapping(updated)
 
     def _update_index(self, key: str, indices):
         """Update a single indexing object based on user input."""
@@ -310,7 +311,7 @@ class Interface(common.Interface):
         updates = {k: self._update_assumption(v) for k, v in current.items()}
         updated = self.assumptions.copy()
         updated.update(updates)
-        return iterables.AliasedMapping(updated)
+        return aliased.Mapping(updated)
 
     def _update_assumption(self, scalar):
         """Update a single assumption from user input."""
@@ -332,12 +333,12 @@ class Interface(common.Interface):
         )
         self._result = application.evaluate(self.implementation)
         self._context = {
-            'indices': iterables.AliasedMapping({
+            'indices': aliased.Mapping({
                 tuple([k, *indices.alias(k, include=True)]): v
                 for k, v in indices.items()
                 if k in self._result.axes
             }),
-            'assumptions': iterables.AliasedMapping({
+            'assumptions': aliased.Mapping({
                 tuple([k, *assumptions.alias(k, include=True)]): v
                 for k, v in assumptions.items()
                 if k in self.assumptions
@@ -381,7 +382,7 @@ class Observables(iterables.MappingBase):
         self.names = self.primary + self.derived
         super().__init__(self.names)
         akeys = tuple(vkeys(aliased=True)) + tuple(fkeys(aliased=True))
-        self.aliases = iterables.AliasMap(akeys)
+        self.aliases = aliased.AliasMap(akeys)
         self.dataset = dataset
         self.system = system
         self.arguments = arguments
@@ -428,7 +429,7 @@ class Observables(iterables.MappingBase):
             return algebra.Expression(key)
 
     _RT = TypeVar('_RT', bound=dict)
-    _RT = Dict[iterables.AliasedKey, Dependency]
+    _RT = Dict[aliased.MappingKey, Dependency]
 
     def get_dependencies(self, key: str) -> _RT:
         """Get the dependencies for the given observable, if possible."""
