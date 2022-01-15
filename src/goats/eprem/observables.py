@@ -264,17 +264,17 @@ class Interface(common.Interface):
         )
         self.assumptions = iterables.AliasedMutableMapping(
             {
-                k: v for k, v in self.dependencies.items().aliased
+                k: v for k, v in self.dependencies.items(aliased=True)
                 if isinstance(v, quantities.Scalar)
             }
         )
         self.observables = iterables.AliasedMutableMapping(
             {
-                k: v for k, v in self.dependencies.items().aliased
+                k: v for k, v in self.dependencies.items(aliased=True)
                 if isinstance(v, (quantities.Variable, functions.Function))
             }
         )
-        axes_ref = {k: v.reference for k, v in self.axes.items().aliased}
+        axes_ref = {k: v.reference for k, v in self.axes.items(aliased=True)}
         variables = dataset.variables
         rtp_ref = {
             tuple([k, *variables.alias(k, include=True)]): variables[k]
@@ -374,13 +374,13 @@ class Observables(iterables.MappingBase):
         self.variables = dataset.variables
         constants = physical.Constants(system)
         self.functions = functions.Functions(dataset, arguments, constants)
-        vkeys = self.variables.keys()
-        fkeys = self.functions.keys()
-        self.primary = tuple(vkeys)
-        self.derived = tuple(fkeys)
+        vkeys = self.variables.keys
+        fkeys = self.functions.keys
+        self.primary = tuple(vkeys())
+        self.derived = tuple(fkeys())
         self.names = self.primary + self.derived
         super().__init__(self.names)
-        akeys = tuple(vkeys.aliased) + tuple(fkeys.aliased)
+        akeys = tuple(vkeys(aliased=True)) + tuple(fkeys(aliased=True))
         self.aliases = iterables.AliasMap(akeys)
         self.dataset = dataset
         self.system = system

@@ -107,7 +107,7 @@ class Dataset(collections.abc.Container):
         if self._variables is None:
             base = {
                 key: variable.to(self.units[key])
-                for key, variable in self._init_v.items().aliased
+                for key, variable in self._init_v.items(aliased=True)
             } if self._system else self._init_v
             self._variables = iterables.AliasedMapping(base)
         return self._variables
@@ -118,7 +118,7 @@ class Dataset(collections.abc.Container):
         if self._units is None:
             base = {
                 key: self._system.get_unit(quantity=quantity)
-                for key, quantity in self.quantities.items().aliased
+                for key, quantity in self.quantities.items(aliased=True)
             } if self._system else {
                 key: variable.unit
                 for key, variable in self._init_v
@@ -132,8 +132,8 @@ class Dataset(collections.abc.Container):
         if self._quantities is None:
             base = {
                 key: variable['quantity']
-                for key, variable in metadata['variables'].items().aliased
-                if key in self._init_v.keys().aliased
+                for key, variable in metadata['variables'].items(aliased=True)
+                if key in self._init_v.keys(aliased=True)
             }
             self._quantities = iterables.AliasedMapping(base)
         return self._quantities
@@ -160,13 +160,13 @@ class Dataset(collections.abc.Container):
         if key in {'variable', 'variables'}:
             return SubsetKeys(
                 full=tuple(self._init_v),
-                aliased=tuple(self._init_v.keys().aliased),
+                aliased=tuple(self._init_v.keys(aliased=True)),
                 canonical=self._canonical['variables'],
             )
         if key in {'axis', 'axes'}:
             return SubsetKeys(
                 full=tuple(self._init_a),
-                aliased=tuple(self._init_a.keys().aliased),
+                aliased=tuple(self._init_a.keys(aliased=True)),
                 canonical=self._canonical['axes'],
             )
 

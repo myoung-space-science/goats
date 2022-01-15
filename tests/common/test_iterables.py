@@ -181,7 +181,7 @@ def test_aliased_mapping():
         assert mixed[keys[0]] == aliased[keys[1]]
 
     # Test aliased-key look-up.
-    for key, value in aliased.items().aliased:
+    for key, value in aliased.items(aliased=True):
         assert aliased[key] == value
 
     # Containment checks should support strings and aliased keys.
@@ -223,9 +223,9 @@ def _check_aliased_keys(mapping: iterables.AliasedMapping, n_keys: int):
     assert len(mapping.keys()) == n_keys
     assert len(mapping.values()) == n_keys
     assert len(mapping.items()) == n_keys
-    assert len(list(mapping.keys().aliased)) == 3
-    assert len(list(mapping.values().aliased)) == 3
-    assert len(list(mapping.items().aliased)) == 3
+    assert len(list(mapping.keys(aliased=True))) == 3
+    assert len(list(mapping.values(aliased=True))) == 3
+    assert len(list(mapping.items(aliased=True))) == 3
 
 
 def test_aliased_mutable_mapping():
@@ -419,7 +419,9 @@ def test_aliased_keysview():
     a2 = iterables.AliasedMapping(d2)
     assert a1 != a2
     assert a1.keys() == a2.keys()
-    assert a1.keys() == d1.keys()
+    assert a1.keys(aliased=True) == d1.keys()
+    expected = [k for key in d1 for k in key]
+    assert sorted(a1.keys()) == sorted(expected)
 
 
 def test_aliased_mapping_copy():
@@ -433,8 +435,6 @@ def test_aliased_mapping_copy():
     a2 = a1.copy()
     assert a1 == a2
     assert a1 is not a2
-    assert a1.keys() == a2.keys()
-    assert a1.keys() == d1.keys()
 
 
 def test_aliased_mapping_merge():
@@ -508,7 +508,7 @@ def test_namemap_copy():
     namemap = iterables.NameMap(aliases, names, key='alt')
     copied = namemap.copy()
     assert copied.keys() == namemap.keys()
-    assert copied.values() == namemap.values()
+    assert list(copied.values()) == list(namemap.values())
     assert copied is not namemap
 
 

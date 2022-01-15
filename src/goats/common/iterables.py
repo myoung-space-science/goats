@@ -727,7 +727,7 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
     ) -> typing.Dict[AliasedKey, _VT]:
         """Build a `dict` that maps aliased keys to user values."""
         if isinstance(mapping, AliasedMapping):
-            return dict(mapping.items().aliased)
+            return dict(mapping.items(aliased=True))
         _mapping = mapping or {}
         return {
             AliasedKey(key): value
@@ -909,7 +909,7 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
         [AliasedKey('a | A | a0'), AliasedKey('B | b')]
         """
         if isinstance(user, AliasedMapping):
-            return user.keys().aliased
+            return user.keys(aliased=True)
         return [
             AliasedKey(k) + AliasedKey(v.get(alias_key, ()))
             for k, v in user.items()
@@ -955,7 +955,7 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
 
     def __or__(self, other: 'AliasedMapping'):
         """Merge this aliased mapping with another."""
-        items = dict((*self.items().aliased, *other.items().aliased))
+        items = dict((*self.items(aliased=True), *other.items(aliased=True)))
         return type(self)(items)
 
     def __str__(self) -> str:
@@ -965,17 +965,26 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
             for g, v in zip(self._aliased.keys(), self._aliased.values())
         )
 
-    def keys(self):
+    def keys(self, aliased: bool=False):
         """A view on this instance's keys."""
-        return AliasedKeysView(self)
+        return (
+            AliasedKeysView(self._aliased) if aliased
+            else collections.abc.KeysView(self.flat)
+        )
 
-    def values(self):
+    def values(self, aliased: bool=False):
         """A view on this instance's values."""
-        return AliasedValuesView(self)
+        return (
+            AliasedValuesView(self._aliased) if aliased
+            else collections.abc.ValuesView(self.flat)
+        )
 
-    def items(self):
+    def items(self, aliased: bool=False):
         """A view on this instance's key-value pairs."""
-        return AliasedItemsView(self)
+        return (
+            AliasedItemsView(self._aliased) if aliased
+            else collections.abc.ItemsView(self.flat)
+        )
 
     def copy(self):
         """Create a shallow copy of this instance."""
@@ -990,35 +999,14 @@ class AliasedKeysView(collections.abc.KeysView):
     See note on lengths at `~AliasedMapping`.
     """
 
-    def __init__(self, mapping: AliasedMapping) -> None:
-        super().__init__(mapping)
-        self._aliased = mapping._aliased
-
-    def __eq__(self, other: typing.KeysView) -> bool:
-        """The definition of equality between this and other keys views."""
-        def equal(this, that) -> bool:
-            """Helper function to checking equality."""
-            return (
-                len(that) == len(this)
-                and
-                all(key in this for key in that)
-            )
+    def __eq__(self, other) -> bool:
+        """True if `other` has equivalent keys."""
         if not isinstance(other, typing.KeysView):
             return NotImplemented
-        this = tuple(self.aliased)
-        if isinstance(other, AliasedKeysView):
-            return equal(this, tuple(other.aliased))
-        return equal(this, tuple(other))
-
-    @property
-    def aliased(self):
-        """An iterator over groups of aliased keys."""
-        return iter(self._aliased)
-
-    def __repr__(self) -> str:
-        """An unambiguous representation of this instance."""
-        keys = [str(keys) for keys in self._aliased]
-        return f"AliasedKeys({keys})"
+        same_length = len(other) == len(self)
+        keys_match = (AliasedKey(key) in self for key in other)
+        same_content = all(keys_match)
+        return same_length and same_content
 
 
 class AliasedValuesView(collections.abc.ValuesView):
@@ -1029,34 +1017,14 @@ class AliasedValuesView(collections.abc.ValuesView):
     See note on lengths at `~AliasedMapping`.
     """
 
-    def __init__(self, mapping: AliasedMapping) -> None:
-        super().__init__(mapping)
-        self._aliased = mapping._aliased
-
-    def __eq__(self, other: typing.ValuesView) -> bool:
-        """The definition of equality between this and other values views."""
-        def equal(this, that) -> bool:
-            """Helper function to checking equality."""
-            return (
-                len(that) == len(this)
-                and
-                all(value in this for value in that)
-            )
+    def __eq__(self, other) -> bool:
+        """True if `other` has equivalent values."""
         if not isinstance(other, typing.ValuesView):
             return NotImplemented
-        this = tuple(self.aliased)
-        if isinstance(other, AliasedValuesView):
-            return equal(this, tuple(other.aliased))
-        return equal(this, tuple(other))
-
-    @property
-    def aliased(self):
-        """An iterator over groups of aliased values."""
-        return iter(self._aliased.values())
-
-    def __repr__(self) -> str:
-        """An unambiguous representation of this instance."""
-        return f"AliasedValues({list(self._aliased.values())})"
+        same_length = len(other) == len(self)
+        values_match = (value in self for value in other)
+        same_content = all(values_match)
+        return same_length and same_content
 
 
 class AliasedItemsView(collections.abc.ItemsView):
@@ -1067,35 +1035,14 @@ class AliasedItemsView(collections.abc.ItemsView):
     See note on lengths at `~AliasedMapping`.
     """
 
-    def __init__(self, mapping: AliasedMapping) -> None:
-        super().__init__(mapping)
-        self._aliased = mapping._aliased
-
-    def __eq__(self, other: typing.ItemsView) -> bool:
-        """The definition of equality between this and other items views."""
-        def equal(this, that) -> bool:
-            """Helper function to checking equality."""
-            return (
-                len(that) == len(this)
-                and
-                all(key in this for key in that)
-            )
+    def __eq__(self, other) -> bool:
+        """True if `other` has equivalent values."""
         if not isinstance(other, typing.ItemsView):
             return NotImplemented
-        this = tuple(self.aliased)
-        if isinstance(other, AliasedItemsView):
-            return equal(this, tuple(other.aliased))
-        return equal(this, tuple(other))
-
-    @property
-    def aliased(self):
-        """An iterator over groups of aliased items."""
-        return iter(self._aliased.items())
-
-    def __repr__(self) -> str:
-        """An unambiguous representation of this instance."""
-        pairs = [(str(keys), value) for keys, value in self._aliased.items()]
-        return f"AliasedItems({pairs})"
+        same_length = len(other) == len(self)
+        items_match = ((AliasedKey(k), v) in self for (k, v) in other)
+        same_content = all(items_match)
+        return same_length and same_content
 
 
 class AliasedMutableMapping(AliasedMapping, collections.abc.MutableMapping):
@@ -1292,7 +1239,7 @@ class NameMap(MappingBase):
         """Invert the mapping from {aliases -> name} to {name -> aliases}."""
         inverted = {
             name: list(aliases)
-            for aliases, name in self._mapping.items().aliased
+            for aliases, name in self._mapping.items(aliased=True)
         }
         self._mapping = AliasedMapping(inverted)
         return self
@@ -1305,24 +1252,24 @@ class NameMap(MappingBase):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        items = {f"{k}: '{v}'" for k, v in self._mapping.items().aliased}
+        items = {f"{k}: '{v}'" for k, v in self._mapping.items(aliased=True)}
         return ', '.join(items)
 
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
         return f"{self.__class__.__qualname__}({self})"
 
-    def keys(self):
+    def keys(self, aliased: bool=False):
         """A view on this object's aliased keys."""
-        return AliasedKeysView(self._mapping)
+        return AliasedMapping.keys(self._mapping, aliased=aliased)
 
-    def values(self):
+    def values(self, aliased: bool=False):
         """A view on this object's aliased values."""
-        return AliasedValuesView(self._mapping)
+        return AliasedMapping.values(self._mapping, aliased=aliased)
 
-    def items(self):
+    def items(self, aliased: bool=False):
         """A view on this object's aliased key-value pairs."""
-        return AliasedItemsView(self._mapping)
+        return AliasedMapping.items(self._mapping, aliased=aliased)
 
     def copy(self):
         """Make a shallow copy of this object."""
