@@ -1468,33 +1468,25 @@ class ObjectRegistry(collections.abc.Mapping):
         name. The user may optionally provide key-value pairs of metadata to
         associate with the object.
 
-        Positional Parameters
-        ---------------------
-        None
-
-        Keyword Parameters
-        ------------------
+        Parameters
+        ----------
         name : string
+            The name to use as this object's key in the internal mapping. The
+            default is `None`, which causes this class to create a unique key
+            based on the defined name of the object.
 
-        The name to use as this object's key in the internal mapping. The
-        default is `None`, which causes this class to create a unique key based
-        on the defined name of the object.
+        overwrite : bool
+            If true and there is already an object with the key given by `name`,
+            overwrite that object. Default is false. This keyword has no effect
+            if `name` is `None`.
 
-        overwrite: bool
-
-        If true and there is already an object with the key given by `name`,
-        overwrite that object. Default is false. This keyword has no effect if
-        `name` is `None`.
-
-        **metadata : key-value pairs
-
-        Arbitrary metadata to associate with the decorated object.
+        **metadata
+            Arbitrary metadata to associate with the decorated object.
 
         Returns
         -------
         Any
-
-        The decorated object.
+            The decorated object.
 
         Examples
         --------
