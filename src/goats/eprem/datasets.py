@@ -198,7 +198,7 @@ class Dataset(collections.abc.Container):
             for name, attrs in base.items()
             if name in _VARIABLES
         }
-        return iterables.AliasedMutableMapping(variables)
+        return iterables.AliasedMapping(variables)
 
     def _get_axes_from_data(self, data):
         """Compute appropriate variable axes from a dataset object."""
@@ -245,7 +245,7 @@ class Dataset(collections.abc.Container):
             for name, attrs in base.items()
             if name in _AXES
         }
-        return iterables.AliasedMutableMapping(axes)
+        return iterables.AliasedMapping(axes)
 
 
 _VARIABLES = {
