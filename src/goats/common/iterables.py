@@ -981,8 +981,6 @@ class AliasedMapping(collections.abc.Mapping, ReprStrMixin):
         """Create a shallow copy of this instance."""
         return type(self)(self._aliased)
 
-    __class_getitem__ = classmethod(type(typing.List[int]))
-
 
 class AliasedKeysView(collections.abc.KeysView):
     """A view on the keys of an aliased mapping.
@@ -1901,8 +1899,6 @@ class Separable(collections.abc.Collection, metaclass=NonStrIterable):
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
         return f"{self.__class__.__qualname__}({self})"
-
-    __class_getitem__ = classmethod(type(typing.List[int]))
 
 
 def distribute(a, b):

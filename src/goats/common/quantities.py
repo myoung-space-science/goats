@@ -883,7 +883,7 @@ class BaseUnit(NamedTuple):
     name: str
     quantity: str
     system: str=None
-    aliases: iterables.Separable[str]=None
+    aliases: iterables.Separable=None
 
 
 class NamedUnit(iterables.ReprStrMixin):
