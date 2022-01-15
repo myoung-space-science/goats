@@ -9,7 +9,7 @@ from typing import *
 import numpy as np
 
 from goats.common import *
-from goats.common import algebra, arrays, iterables
+from goats.common import algebra, aliased, arrays, iterables
 
 
 _prefixes = [
@@ -1507,7 +1507,7 @@ def build_unit_aliases(prefix, unit):
 
 
 # Tables may not be necessary with this.
-named_units = iterables.AliasedMapping(
+named_units = aliased.Mapping(
     {
         build_unit_aliases(prefix, unit): {'base': unit, 'prefix': prefix}
         for prefix in prefixes for unit in units
