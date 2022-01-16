@@ -488,6 +488,8 @@ class KeysView(collections.abc.KeysView):
 
     def __contains__(self, key) -> bool:
         """True if this mapping contains the equivalent aliased key."""
+        if isinstance(key, MappingKey):
+            return super().__contains__(key)
         return super().__contains__(MappingKey(key))
 
 
