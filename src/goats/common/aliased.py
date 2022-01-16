@@ -15,6 +15,15 @@ class MappingKey(collections.abc.Collection):
 
     _builtin = (tuple, list, set)
 
+    @classmethod
+    def supports(cls, key: str):
+        """True if `key` can instantiate this class."""
+        try:
+            cls(key)
+        except TypeError:
+            return False
+        return True
+
     def __init__(self, *a: Aliases) -> None:
         if not a:
             raise TypeError("At least one alias is required") from None
