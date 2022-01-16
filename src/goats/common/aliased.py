@@ -248,11 +248,6 @@ class Mapping(collections.abc.Mapping):
     def __len__(self) -> int:
         return len(self._flat_keys)
 
-    def __contains__(self, key: typing.Union[str, MappingKey]) -> bool:
-        if isinstance(key, MappingKey):
-            return key in self._aliased.keys()
-        return key in self._flat_keys
-
     def __getitem__(self, key: typing.Union[str, MappingKey]) -> _VT:
         """Look up a value by one of its keys."""
         if isinstance(key, MappingKey):
