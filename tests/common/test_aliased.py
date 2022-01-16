@@ -289,14 +289,35 @@ def test_aliased_keysview():
     a1 = aliased.Mapping(d1)
     a2 = aliased.Mapping(d2)
     assert a1 != a2
+    # NOTE: There used to be `assert a1.keys(aliased=True) == d1.keys()` -- the
+    # justification being that the formally aliased keys in `a1` should be
+    # equivalent to the alias-like keys in `d1`. However, aliased keys treat the
+    # given aliases as a `set`, which does not preserve their input order, so
+    # later comparisons to the original `tuple`, which does preserve order, will
+    # be unpredictable.
     assert a1.keys() == a2.keys()
-    assert a1.keys(aliased=True) == d1.keys()
+    assert a1.keys(aliased=True) == a2.keys(aliased=True)
     expected = [k for key in d1 for k in key]
     assert sorted(a1.keys()) == sorted(expected)
     for key in d1:
         assert key in a1.keys(aliased=True)
         assert aliased.MappingKey(key) in a1.keys(aliased=True)
 
+
+@pytest.mark.skip
+def test_aliased_itemsview():
+    """"""
+    d1 = {
+        ('this', 'first'): 1,
+        ('that', 'second'): 2,
+        ('the other', 'third'): 3,
+    }
+    d2 = d1.copy()
+    d2[('that', 'second')] = -20
+    a1 = aliased.Mapping(d1)
+    a2 = aliased.Mapping(d2)
+    assert a1.items() == a2.items()
+    # assert a1.items(aliased=True) == d1.items()
 
 def test_aliased_mapping_copy():
     """Test the copy method of an aliased mapping."""

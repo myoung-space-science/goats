@@ -493,15 +493,6 @@ class KeysView(collections.abc.KeysView):
         """True if this mapping contains the equivalent aliased key."""
         return super().__contains__(MappingKey(key))
 
-    def __eq__(self, other) -> bool:
-        """True if `other` has equivalent keys."""
-        if not isinstance(other, typing.KeysView):
-            return NotImplemented
-        same_length = len(other) == len(self)
-        keys_match = (key in self for key in other)
-        same_content = all(keys_match)
-        return same_length and same_content
-
 
 class ValuesView(collections.abc.ValuesView):
     """A view on the values of an aliased mapping.
