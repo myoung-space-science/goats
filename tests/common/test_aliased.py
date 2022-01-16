@@ -1,4 +1,5 @@
 import typing
+import itertools
 
 import pytest
 
@@ -302,6 +303,11 @@ def test_aliased_keysview():
     for key in d1:
         assert key in a1.keys(aliased=True)
         assert aliased.MappingKey(key) in a1.keys(aliased=True)
+    key = ('a', 'b', 'c')
+    a3 = aliased.Mapping({key: 1})
+    for permutation in itertools.permutations(key, len(key)):
+        assert permutation in a3.keys(aliased=True)
+        assert aliased.MappingKey(permutation) in a3.keys(aliased=True)
 
 
 def test_aliased_itemsview():
