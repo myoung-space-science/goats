@@ -965,6 +965,10 @@ class NothingType(Singleton):
         """This object is always false."""
         return False
 
+    def __repr__(self) -> str:
+        """This object knows that it is nothing."""
+        return "Nothing"
+
 Nothing = NothingType()
 """A unique object that represents nothing."""
 
