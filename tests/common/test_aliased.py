@@ -293,6 +293,9 @@ def test_aliased_keysview():
     assert a1.keys(aliased=True) == d1.keys()
     expected = [k for key in d1 for k in key]
     assert sorted(a1.keys()) == sorted(expected)
+    for key in d1:
+        assert key in a1.keys(aliased=True)
+        assert aliased.MappingKey(key) in a1.keys(aliased=True)
 
 
 def test_aliased_mapping_copy():

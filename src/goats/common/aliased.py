@@ -489,6 +489,10 @@ class KeysView(collections.abc.KeysView):
     See note on lengths at `~Mapping`.
     """
 
+    def __contains__(self, key) -> bool:
+        """True if this mapping contains the equivalent aliased key."""
+        return super().__contains__(MappingKey(key))
+
     def __eq__(self, other) -> bool:
         """True if `other` has equivalent keys."""
         if not isinstance(other, typing.KeysView):
