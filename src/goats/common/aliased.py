@@ -42,11 +42,11 @@ class MappingKey(collections.abc.Collection):
         return key in self._aliases
 
     def __hash__(self) -> int:
-        """Compute the hash of the underlying key tuple."""
+        """Compute the hash of the underlying key set."""
         return hash(tuple(self._aliases))
 
     def __eq__(self, other: 'MappingKey') -> bool:
-        """True if two instances' key tuples are equal."""
+        """True if both key sets are equal."""
         if isinstance(other, MappingKey):
             return self._aliases == other._aliases
         if isinstance(other, self._builtin):
@@ -54,9 +54,11 @@ class MappingKey(collections.abc.Collection):
         return False
 
     def __getitem__(self, index) -> str:
-        """Get an alias by index."""
-        # This implicitly passes the responsibility for handling negative
-        # indices, raising exceptions, etc. down to the `tuple` class.
+        """Get an alias by index.
+        
+        This implicitly passes the responsibility for handling negative
+        indices, raising exceptions, etc. down to the `set` class.
+        """
         return self._aliases[index]
 
     def __add__(self, other: typing.Union[Aliases, 'MappingKey']):
