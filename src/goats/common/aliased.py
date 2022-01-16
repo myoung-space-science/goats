@@ -511,15 +511,6 @@ class ValuesView(collections.abc.ValuesView):
     See note on lengths at `~Mapping`.
     """
 
-    def __eq__(self, other) -> bool:
-        """True if `other` has equivalent values."""
-        if not isinstance(other, typing.ValuesView):
-            return NotImplemented
-        same_length = len(other) == len(self)
-        values_match = (value in self for value in other)
-        same_content = all(values_match)
-        return same_length and same_content
-
 
 class ItemsView(collections.abc.ItemsView):
     """A view on the key-value pairs of an aliased mapping.
