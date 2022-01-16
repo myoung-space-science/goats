@@ -91,7 +91,7 @@ class MappingKey(collections.abc.Collection):
 
 
 _VT = typing.TypeVar('_VT')
-class Mapping(collections.abc.Mapping, iterables.ReprStrMixin):
+class Mapping(collections.abc.Mapping):
     """A mapping class that supports aliased keys.
     
     Parameters
@@ -466,6 +466,10 @@ class Mapping(collections.abc.Mapping, iterables.ReprStrMixin):
             f"'{g}': {v!r}"
             for g, v in zip(self._aliased.keys(), self._aliased.values())
         )
+
+    def __repr__(self) -> str:
+        """An unambiguous representation of this object."""
+        return f"aliased.{self.__class__.__qualname__}({self})"
 
     def keys(self, aliased: bool=False):
         """A view on this instance's keys."""
