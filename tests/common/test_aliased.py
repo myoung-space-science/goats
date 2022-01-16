@@ -304,20 +304,25 @@ def test_aliased_keysview():
         assert aliased.MappingKey(key) in a1.keys(aliased=True)
 
 
-@pytest.mark.skip
 def test_aliased_itemsview():
-    """"""
+    """Test the custom items view for aliased mappings."""
     d1 = {
         ('this', 'first'): 1,
         ('that', 'second'): 2,
         ('the other', 'third'): 3,
     }
     d2 = d1.copy()
-    d2[('that', 'second')] = -20
     a1 = aliased.Mapping(d1)
     a2 = aliased.Mapping(d2)
+    assert a1 is not a2
     assert a1.items() == a2.items()
-    # assert a1.items(aliased=True) == d1.items()
+    assert a1.items(aliased=True) == a1.items(aliased=True)
+    for item in d1.items():
+        assert item in a1.items(aliased=True)
+        key, value = item
+        assert key in a1.keys(aliased=True)
+        assert value in a1.values(aliased=True)
+
 
 def test_aliased_mapping_copy():
     """Test the copy method of an aliased mapping."""

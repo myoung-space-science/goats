@@ -510,14 +510,12 @@ class ItemsView(collections.abc.ItemsView):
     See note on lengths at `~Mapping`.
     """
 
-    def __eq__(self, other) -> bool:
-        """True if `other` has equivalent values."""
-        if not isinstance(other, typing.ItemsView):
-            return NotImplemented
-        same_length = len(other) == len(self)
-        items_match = ((MappingKey(k), v) in self for (k, v) in other)
-        same_content = all(items_match)
-        return same_length and same_content
+    def __contains__(self, item) -> bool:
+        """True if this mapping contains the equivalent aliased item."""
+        key, value = item
+        if isinstance(key, MappingKey):
+            return super().__contains__(item)
+        return super().__contains__((MappingKey(key), value))
 
 
 class MutableMapping(Mapping, collections.abc.MutableMapping):
