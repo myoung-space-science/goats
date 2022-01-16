@@ -196,15 +196,44 @@ class Mapping(collections.abc.Mapping):
     """
 
     Aliasable = typing.TypeVar('Aliasable', bound=typing.Mapping)
-    Aliasable = typing.Mapping[Aliases, _VT]
+    Aliasable = typing.Union[
+        typing.Mapping[Aliases, _VT],
+        typing.Mapping[str, typing.Mapping[str, typing.Any]],
+    ]
 
     def __init__(
         self,
-        mapping: typing.Union[Aliasable, 'Mapping']=None
+        mapping: typing.Union[Aliasable, 'Mapping']=None,
+        aliases: str='aliases',
     ) -> None:
-        self._aliased = self._build_aliased(mapping)
+        """Initialize this instance."""
+        self._aliased = self._build_aliased(mapping, aliases=aliases)
         self._flat_keys = None
         self._flatten_keys()
+
+    def _build_aliased(
+        self,
+        mapping: typing.Mapping=None,
+        aliases: str='aliases',
+    ) -> dict:
+        """Build the internal mapping of aliased items."""
+        # Is it empty?
+        if not mapping:
+            return {}
+        # Is it already an instance of this class?
+        if isinstance(mapping, Mapping):
+            return dict(mapping.items(aliased=True))
+        # Does it have the form {<key>: {key: <aliases>, <k>: <value>, ...}}?
+        string_keys = all(isinstance(key, str) for key in mapping)
+        dict_values = all(isinstance(value, dict) for value in mapping.values())
+        if string_keys and dict_values:
+            return self._build_from_key(mapping, key=aliases)
+        # Does it have the form {<aliased key>: <value>}?
+        if all(MappingKey.supports(key) for key in mapping):
+            return self._build_from_aliases(mapping)
+        # Is it a built-in dictionary?
+        if isinstance(mapping, dict):
+            return mapping.copy()
 
     @property
     def flat(self) -> typing.Dict[str, _VT]:
@@ -238,136 +267,91 @@ class Mapping(collections.abc.Mapping):
 
     T = typing.TypeVar('T')
 
-    def _build_aliased(
+    def _build_from_aliases(
         self,
         mapping: typing.Union[Aliasable, 'Mapping'],
     ) -> typing.Dict[MappingKey, _VT]:
         """Build a `dict` that maps aliased keys to user values."""
-        if isinstance(mapping, Mapping):
-            return dict(mapping.items(aliased=True))
-        _mapping = mapping or {}
         return {
             MappingKey(key): value
-            for key, value in _mapping.items()
+            for key, value in mapping.items()
         }
 
-    @classmethod
-    def of(
-        cls,
-        user: typing.Mapping[str, typing.Mapping[str, typing.Any]],
-        alias_key: str='aliases',
-        value_key: str=None,
-    ): # How do I annotate this so it's correct for subclasses?
-        """Create an aliased mapping from another mapping, if possible.
-
-        Note that this method operates differently from the standard class
-        constructor. Whereas the constructor creates aliased keys from
-        pre-grouped keys in the input mapping, this method expects keys in the
-        input mapping to be single strings and creates aliased keys from the
-        mappings to which those keys point (so-called "interior mappings").
+    def _build_from_key(
+        self,
+        mapping: typing.Mapping[str, typing.Mapping[str, typing.Any]],
+        key: str='aliases',
+    ) -> typing.Dict[MappingKey, _VT]:
+        """Build a `dict` with aliased keys taken from interior mappings.
         
         Parameters
         ----------
-        user : mapping
+        mapping
             An object that maps string keys to interior mappings of strings to
             any type.
 
-        alias_key : str, default='aliases'
+        key : str, default='aliases'
             The key in the interior mappings whose values to use as aliases for
-            the corresponding keys in the user-provided mapping. Absence of
-            `alias_key` from a given interior mapping simply means the
-            corresponding key in the user-provided mapping will be the only
-            alias for that entry.
-
-        value_key : str, default=None
-            The key in the interior mappings whose values to extract as the sole
-            aliased value in the result. If `value_key` is not present in a
-            given interior mapping, this method will insert a default value of
-            `None`. If `value_key` is `None`, this method will extract a
-            dictionary of all key-value pairs not including `alias_key`.
-
-        Returns
-        -------
-        aliased mapping
-            A new instance of this class, with aliased keys and values taken
-            from the user-provided mapping.
-
-        See Also
-        --------
-        fromkeys : similar to `dict.fromkeys`
+            the corresponding keys in the user-provided mapping. Absence of this
+            key from a given interior mapping simply means the corresponding key
+            in the user-provided mapping will be the only alias for that entry.
 
         Examples
         --------
         Create aliased mappings from a user dictionary with the default alias
-        key and various value keys.
+        key::
 
-        >>> user = {
+        >>> mapping = {
         ...     'a': {'aliases': ('A', 'a0'), 'n': 1, 'm': 'foo'},
         ...     'b': {'aliases': 'B', 'n': -4},
         ... }
-        >>> aliased = AliasedMapping.of(user)
-        >>> aliased
-        AliasedMapping('a0 | A | a': {'n': 1, 'm': 'foo'}, 'b | B': {'n': -4})
-        >>> aliased['a']
+        >>> amap = aliased.Mapping(mapping)
+        >>> amap
+        aliased.Mapping('a0 | A | a': {'n': 1, 'm': 'foo'}, 'b | B': {'n': -4})
+        >>> amap['a']
         {'n': 1, 'm': 'foo'}
-        >>> aliased = AliasedMapping.of(user, value_key='n')
-        >>> aliased
-        AliasedMapping('a0 | A | a': 1, 'b | B': -4)
-        >>> aliased['a']
-        1
-        >>> aliased = AliasedMapping.of(user, value_key='m')
-        >>> aliased
-        AliasedMapping('a0 | A | a': foo, 'b | B': None)
-        >>> aliased['a']
-        'foo'
 
-        Create aliased mappings from a user dictionary, swapping roles of alias
-        key and value key.
-        >>> user = {
+        Create aliased mappings from a user dictionary, swapping the alias key::
+
+        >>> mapping = {
         ...     'a': {'foo': 'A', 'bar': 'a0'},
         ...     'b': {'foo': 'B', 'bar': 'b0'},
         ... }
-        >>> aliased = AliasedMapping.of(user, alias_key='foo', value_key='bar')
-        >>> aliased
-        AliasedMapping('A | a': a0, 'b | B': b0)
-        >>> aliased['a']
+        >>> amap = aliased.Mapping(mapping, aliases='foo')
+        >>> amap
+        aliased.Mapping('A | a': a0, 'b | B': b0)
+        >>> amap['a']
         'a0'
-        >>> aliased = AliasedMapping.of(user, alias_key='bar', value_key='foo')
-        >>> aliased
-        AliasedMapping('a0 | a': A, 'b | b0': B)
-        >>> aliased['a']
+        >>> amap = aliased.Mapping(mapping, aliases='bar')
+        >>> amap
+        aliased.Mapping('a0 | a': A, 'b | b0': B)
+        >>> amap['a']
         'A'
         """
-        if isinstance(user, Mapping):
-            return cls(user)
-        keys = cls.extract_keys(user, alias_key=alias_key)
-        if isinstance(value_key, str):
-            values = [group.get(value_key) for group in user.values()]
-        else:
-            values = [
-                {k: v for k, v in group.items() if k != alias_key}
-                for group in user.values()
-            ]
-        d = dict(zip(keys, values))
-        return cls(d)
+        keys = self.extract_keys(mapping, aliases=key)
+        values = [
+            {k: v for k, v in group.items() if k != key}
+            for group in mapping.values()
+        ]
+        return dict(zip(keys, values))
 
     @classmethod
     def fromkeys(
         cls,
-        user: typing.Mapping[str, typing.Mapping[str, typing.Any]],
-        alias_key: str='aliases',
+        mapping: typing.Mapping[str, typing.Mapping[str, typing.Any]],
+        aliases: str='aliases',
         value: typing.Any=None,
     ): # How do I annotate this so it's correct for subclasses?
         """Create an aliased mapping based on another mapping's keys.
-        
-        This class method is essentially a special case of `Mapping.of`.
 
         Parameters
         ----------
         user : mapping
-            See `Mapping.of`
-        alias_key : string
-            See `Mapping.of`
+            Same as for `~aliases.Mapping.__init__`.
+
+        aliases : string
+            Same as for `~aliases.Mapping.__init__`.
+
         value : any
             The fill value to use for all items.
 
@@ -382,49 +366,49 @@ class Mapping(collections.abc.Mapping):
         Create an aliased mapping with keys taken from a pre-defined dictionary
         and all values set to -1.0
 
-        >>> user = {
+        >>> mapping = {
         ...     'a': {'aliases': ('A', 'a0'), 'n': 1, 'm': 'foo'},
         ...     'b': {'aliases': 'B', 'n': -4},
         ... }
-        >>> aliased = AliasedMapping.fromkeys(user, value=-1.0)
-        >>> aliased
-        AliasedMapping('a0 | a | A': -1.0, 'B | b': -1.0)
+        >>> amap = aliased.Mapping.fromkeys(mapping, value=-1.0)
+        >>> amap
+        aliased.Mapping('a0 | a | A': -1.0, 'B | b': -1.0)
         """
-        keys = cls.extract_keys(user, alias_key=alias_key)
+        keys = cls.extract_keys(mapping, aliases=aliases)
         d = {k: value for k in keys}
         return cls(d)
 
     @classmethod
     def extract_keys(
         cls,
-        user: typing.Mapping[str, typing.Mapping[str, typing.Any]],
-        alias_key: str='aliases',
+        mapping: typing.Mapping[str, typing.Mapping[str, typing.Any]],
+        aliases: str='aliases',
     ) -> typing.List[MappingKey]:
         """Extract keys for use in an aliased mapping.
         
         Parameters
         ----------
-        user : mapping
-            See `Mapping.of`
+        mapping
+            Same as for `~aliased.Mapping.__init__`.
 
-        alias_key : string
-            See `Mapping.of`
+        aliases : string
+            Same as for `~aliased.Mapping.__init__`.
 
         Examples
         --------
-        >>> user = {
+        >>> mapping = {
         ...     'a': {'aliases': ('A', 'a0'), 'n': 1, 'm': 'foo'},
         ...     'b': {'aliases': 'B', 'n': -4},
         ... }
-        >>> keys = Mapping.extract_keys(user)
+        >>> keys = Mapping.extract_keys(mapping)
         >>> keys
         [MappingKey('a | A | a0'), MappingKey('B | b')]
         """
-        if isinstance(user, Mapping):
-            return user.keys(aliased=True)
+        if isinstance(mapping, Mapping):
+            return mapping.keys(aliased=True)
         return [
-            MappingKey(k) + MappingKey(v.get(alias_key, ()))
-            for k, v in user.items()
+            MappingKey(k) + MappingKey(v.get(aliases, ()))
+            for k, v in mapping.items()
         ]
 
     def _resolve(self, key: str) -> MappingKey:

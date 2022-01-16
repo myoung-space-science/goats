@@ -193,20 +193,20 @@ def test_aliased_mapping_idempotence():
     assert from_aliased == original
     for key in original:
         assert original.alias(key) == from_aliased.alias(key)
-    from_aliased = aliased.Mapping.of(original)
+    from_aliased = aliased.Mapping(original)
     assert from_aliased == original
     from_aliased = aliased.Mapping.fromkeys(original)
     assert from_aliased.keys() == original.keys()
 
 
-def test_aliased_mapping_of():
-    """Test the class method that creates an aliased mapping of a mapping."""
+def test_declared_aliases():
+    """Initialize an instance with explicit aliases."""
     this = {
         'a': {'aliases': ('A', 'a0'), 'name': 'Annabez', 'k': ['Ka']},
         'b': {'aliases': 'B', 'name': 'Borb', 'k': ('Kb', 'KB')},
         'C': {'aliases': ('c',), 'name': 'Chrunk'}
     }
-    mapping = aliased.Mapping.of(this)
+    mapping = aliased.Mapping(this)
     expected = {
         'a': {'name': 'Annabez', 'k': ['Ka']},
         'A': {'name': 'Annabez', 'k': ['Ka']},
@@ -217,25 +217,14 @@ def test_aliased_mapping_of():
         'c': {'name': 'Chrunk'},
     }
     assert mapping.flat == expected
-    mapping = aliased.Mapping.of(this, value_key='name')
+    mapping = aliased.Mapping(this, aliases='k')
     expected = {
-        'a': 'Annabez',
-        'A': 'Annabez',
-        'a0': 'Annabez',
-        'b': 'Borb',
-        'B': 'Borb',
-        'C': 'Chrunk',
-        'c': 'Chrunk',
-    }
-    assert mapping.flat == expected
-    mapping = aliased.Mapping.of(this, alias_key='k', value_key='name')
-    expected = {
-        'a': 'Annabez',
-        'Ka': 'Annabez',
-        'b': 'Borb',
-        'Kb': 'Borb',
-        'KB': 'Borb',
-        'C': 'Chrunk',
+        'a': {'name': 'Annabez', 'aliases': ('A', 'a0')},
+        'Ka': {'name': 'Annabez', 'aliases': ('A', 'a0')},
+        'b': {'name': 'Borb', 'aliases': 'B'},
+        'Kb': {'name': 'Borb', 'aliases': 'B'},
+        'KB': {'name': 'Borb', 'aliases': 'B'},
+        'C': {'name': 'Chrunk', 'aliases': ('c',)},
     }
     assert mapping.flat == expected
 
@@ -247,7 +236,7 @@ def test_aliased_mapping_fromkeys():
         'b': {'aliases': 'B', 'name': 'Borb', 'k': ('Kb', 'KB')},
         'C': {'aliases': ('c',), 'name': 'Chrunk'}
     }
-    mapping = aliased.Mapping.fromkeys(this)
+    mapping = aliased.Mapping.fromkeys(this, aliases='aliases', value=None)
     expected = {
         'a': None,
         'A': None,
@@ -258,7 +247,7 @@ def test_aliased_mapping_fromkeys():
         'c': None,
     }
     assert mapping.flat == expected
-    mapping = aliased.Mapping.fromkeys(this, value=-4.5)
+    mapping = aliased.Mapping.fromkeys(this, aliases='aliases', value=-4.5)
     expected = {
         'a': -4.5,
         'A': -4.5,
