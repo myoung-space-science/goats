@@ -498,7 +498,7 @@ class KeysView(collections.abc.KeysView):
         if not isinstance(other, typing.KeysView):
             return NotImplemented
         same_length = len(other) == len(self)
-        keys_match = (MappingKey(key) in self for key in other)
+        keys_match = (key in self for key in other)
         same_content = all(keys_match)
         return same_length and same_content
 
