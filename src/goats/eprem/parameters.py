@@ -656,16 +656,17 @@ class Arguments(aliased.Mapping):
 
     def __getitem__(self, key: str):
         """Get the value (and unit, if applicable) of a named parameter."""
-        if key in self:
+        try:
             parameter = super().__getitem__(key)
-            value = parameter['value']
-            unit = parameter['unit']
-            if unit:
-                if isinstance(value, list):
-                    return [quantities.Scalar(v, unit) for v in value]
-                return quantities.Scalar(value, unit)
-            return value
-        raise KeyError(f"No parameter corresponding to '{key}'")
+        except KeyError:
+            raise KeyError(f"No parameter corresponding to '{key}'") from None
+        value = parameter['value']
+        unit = parameter['unit']
+        if unit:
+            if isinstance(value, list):
+                return [quantities.Scalar(v, unit) for v in value]
+            return quantities.Scalar(value, unit)
+        return value
 
     def _build_mapping(self, runtime: Runtime):
         """Build the mapping of available parameters."""

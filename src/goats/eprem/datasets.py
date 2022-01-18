@@ -350,7 +350,7 @@ _metadata = {
     'axes': _AXES,
 }
 
-metadata = {k: aliased.Mapping.of(v) for k, v in _metadata.items()}
+metadata = {k: aliased.Mapping(v) for k, v in _metadata.items()}
 """Metadata for axes and variables."""
 
 

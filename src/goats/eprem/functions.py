@@ -85,7 +85,7 @@ _metadata = {
     },
 }
 
-metadata = aliased.Mapping.of(_metadata)
+metadata = aliased.Mapping(_metadata)
 
 
 class Method(iterables.ReprStrMixin):
@@ -509,8 +509,7 @@ class Functions(aliased.Mapping):
 
     def __getitem__(self, key: str):
         """Construct the requested function object, if possible"""
-        if key in self:
-            method = self.get_method(key)
+        if method := self.get_method(key):
             axes = self.get_axes(key)
             quantity = metadata.get(key, {}).get('quantity', None)
             dependencies = self.get_dependencies(key)
