@@ -261,6 +261,14 @@ class Mapping(collections.abc.Mapping):
             f"'{key!r}' is not a known name or alias."
         ) from None
 
+    def _resolve(self, key: str) -> MappingKey:
+        """Resolve `key` into an existing or new aliased key."""
+        alias = (
+            aliased for aliased in self._aliased.keys()
+            if key in aliased
+        )
+        return next(alias, MappingKey(key))
+
     def _flatten_keys(self):
         """Define a flat list of all the keys in this mapping."""
         self._flat_keys = [key for keys in self._aliased.keys() for key in keys]
@@ -410,14 +418,6 @@ class Mapping(collections.abc.Mapping):
             MappingKey(k) | MappingKey(v.get(aliases, ()))
             for k, v in mapping.items()
         ]
-
-    def _resolve(self, key: str) -> MappingKey:
-        """Resolve `key` into an existing or new aliased key."""
-        alias = (
-            aliased for aliased in self._aliased.keys()
-            if key in aliased
-        )
-        return next(alias, MappingKey(key))
 
     def alias(self, *current, include=False):
         """Get the alias for an existing key."""
