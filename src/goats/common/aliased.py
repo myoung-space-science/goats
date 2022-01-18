@@ -240,6 +240,19 @@ class Mapping(collections.abc.Mapping):
     def __len__(self) -> int:
         return len(self._flat_keys)
 
+    def __contains__(self, key):
+        """Called for `key` in self.
+        
+        Although `collections.abc.Mapping.__contains__` defines a concrete
+        implementation of this method, this class overloads it to allow
+        iterables of aliases (e.g., ``('a', 'A')``) to also compare true, which
+        would not happen by defining containment soley via a call to
+        `__getitem__`.
+        """
+        if isinstance(key, MappingKey):
+            return key in self._aliased
+        return super().__contains__(key)
+
     def __getitem__(self, key: typing.Union[str, MappingKey]) -> _VT:
         """Look up a value by one of its keys."""
         if isinstance(key, MappingKey):

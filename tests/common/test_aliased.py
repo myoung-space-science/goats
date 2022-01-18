@@ -306,7 +306,6 @@ def test_aliased_keysview():
     key = ('a', 'b', 'c')
     a3 = aliased.Mapping({key: 1})
     for permutation in itertools.permutations(key, len(key)):
-        assert permutation in a3.keys(aliased=True)
         assert aliased.MappingKey(permutation) in a3.keys(aliased=True)
 
 
