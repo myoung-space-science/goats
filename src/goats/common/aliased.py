@@ -240,52 +240,49 @@ class Mapping(collections.abc.Mapping):
     def __len__(self) -> int:
         return len(self._flat_keys)
 
-    def __contains__(self, key):
-        """Called for `key` in self.
-        
-        Although `collections.abc.Mapping.__contains__` defines a concrete
-        implementation of this method, this class overloads it to allow
-        iterables of aliases (e.g., ``('a', 'A')``) to also compare true, which
-        would not happen by defining containment soley via a call to
-        `__getitem__`.
-        """
-        if isinstance(key, MappingKey):
-            return key in self._aliased
-        return super().__contains__(key)
-
     def __getitem__(self, key: typing.Union[str, MappingKey]) -> _VT:
         """Look up a value by one of its keys."""
-        if isinstance(key, MappingKey):
-            key = list(key)[0]
-        if key in self._flat_keys:
-            return self._aliased[self._resolve(key)]
-        raise KeyError(
-            f"'{key!r}' is not a known name or alias."
-        ) from None
+        if resolved := self._resolve(key):
+            return self._aliased[resolved]
+        raise KeyError(f"'{key!r}' is not a known name or alias.") from None
 
-    def _resolve(self, key: str) -> MappingKey:
+    def _resolve(self, key: typing.Union[MappingKey, typing.Any]):
         """Resolve `key` into an existing or new aliased key."""
-        alias = (
-            aliased for aliased in self._aliased.keys()
-            if key in aliased
-        )
-        return next(alias, MappingKey(key))
+        if isinstance(key, MappingKey):
+            return self._search_by_key(key)
+        return self._search_by_alias(key)
+
+    def _search_by_key(self, key: MappingKey, mapping: typing.Mapping=None):
+        """Find the equivalent aliased key."""
+        if mapping is None:
+            mapping = self._aliased
+        match = (k for k in mapping if key == k)
+        return next(match, None)
+
+    def _search_by_alias(self, alias, mapping: typing.Mapping=None):
+        """Find the aliased key containing this alias."""
+        if mapping is None:
+            mapping = self._aliased
+        match = (k for k in mapping if alias in k)
+        return next(match, None)
 
     def _flatten_keys(self):
         """Define a flat list of all the keys in this mapping."""
         self._flat_keys = [key for keys in self._aliased.keys() for key in keys]
-
-    T = typing.TypeVar('T')
 
     def _build_from_aliases(
         self,
         mapping: typing.Union[Aliasable, 'Mapping'],
     ) -> typing.Dict[MappingKey, _VT]:
         """Build a `dict` that maps aliased keys to user values."""
-        return {
-            MappingKey(key): value
-            for key, value in mapping.items()
-        }
+        out = {}
+        for key, value in mapping.items():
+            aliased_key = self._search_by_alias(key, mapping=out)
+            if aliased_key in out:
+                out[aliased_key] = value
+            else:
+                out[MappingKey(key)] = value
+        return out
 
     def _build_from_key(
         self,
@@ -460,21 +457,21 @@ class Mapping(collections.abc.Mapping):
     def keys(self, aliased: bool=False):
         """A view on this instance's keys."""
         return (
-            KeysView(self._aliased) if aliased
+            KeysView(self) if aliased
             else collections.abc.KeysView(self.flat)
         )
 
     def values(self, aliased: bool=False):
         """A view on this instance's values."""
         return (
-            ValuesView(self._aliased) if aliased
+            ValuesView(self) if aliased
             else collections.abc.ValuesView(self.flat)
         )
 
     def items(self, aliased: bool=False):
         """A view on this instance's key-value pairs."""
         return (
-            ItemsView(self._aliased) if aliased
+            ItemsView(self) if aliased
             else collections.abc.ItemsView(self.flat)
         )
 
@@ -491,11 +488,9 @@ class KeysView(collections.abc.KeysView):
     See note on lengths at `~Mapping`.
     """
 
-    def __contains__(self, key) -> bool:
-        """True if this mapping contains the equivalent aliased key."""
-        if isinstance(key, MappingKey):
-            return super().__contains__(key)
-        return super().__contains__(MappingKey(key))
+    def __iter__(self):
+        """Iterate over aliased mapping keys."""
+        yield from self._mapping._aliased
 
 
 class ValuesView(collections.abc.ValuesView):
@@ -506,6 +501,11 @@ class ValuesView(collections.abc.ValuesView):
     See note on lengths at `~Mapping`.
     """
 
+    def __iter__(self):
+        """Iterate over aliased mapping values."""
+        for key in self._mapping._aliased:
+            yield self._mapping._aliased[key]
+
 
 class ItemsView(collections.abc.ItemsView):
     """A view on the key-value pairs of an aliased mapping.
@@ -515,12 +515,10 @@ class ItemsView(collections.abc.ItemsView):
     See note on lengths at `~Mapping`.
     """
 
-    def __contains__(self, item) -> bool:
-        """True if this mapping contains the equivalent aliased item."""
-        key, value = item
-        if isinstance(key, MappingKey):
-            return super().__contains__(item)
-        return super().__contains__((MappingKey(key), value))
+    def __iter__(self):
+        """Iterate over aliased mapping items."""
+        for key in self._mapping._aliased:
+            yield (key, self._mapping._aliased[key])
 
 
 class MutableMapping(Mapping, collections.abc.MutableMapping):
@@ -571,12 +569,16 @@ class MutableMapping(Mapping, collections.abc.MutableMapping):
 
     def __setitem__(self, key: str, value: _VT):
         """Assign a value to `key` and its aliases."""
-        self._aliased[self._resolve(key)] = value
+        resolved = self._resolve(key) or MappingKey(key)
+        self._aliased[resolved] = value
         self._flatten_keys()
 
     def __delitem__(self, key: str):
         """Remove the item corresponding to `key`."""
-        del self._aliased[self._resolve(key)]
+        resolved = self._resolve(key)
+        if not resolved:
+            raise KeyError(f"'{key!r}' is not a known name or alias.") from None
+        del self._aliased[resolved]
         self._flatten_keys()
 
     def alias(self, *current: str, include=False, **new: str):

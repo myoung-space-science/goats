@@ -111,6 +111,30 @@ def _check_aliased_keys(mapping: aliased.Mapping, n_keys: int):
     assert len(list(mapping.items(aliased=True))) == 3
 
 
+def test_repeated_key():
+    """Repeating an existing alias in a new key should overwrite the value."""
+    mapping = {
+        ('a', 'A'): 1,
+        ('b', 'B'): 2,
+        'b': 3,
+    }
+    amap = aliased.Mapping(mapping)
+    flat = {
+        'a': 1,
+        'A': 1,
+        'b': 3,
+        'B': 3,
+    }
+    assert sorted(amap) == sorted(flat)
+    for key, value in flat.items():
+        assert amap[key] == value
+    aliased_keys = [
+        aliased.MappingKey('a', 'A'),
+        aliased.MappingKey('b', 'B'),
+    ]
+    assert sorted(amap.keys(aliased=True)) == aliased_keys
+
+
 def test_aliased_mutable_mapping():
     """Test the mutable version of an aliased mapping."""
     # Set up mappings.
@@ -301,12 +325,13 @@ def test_aliased_keysview():
     expected = [k for key in d1 for k in key]
     assert sorted(a1.keys()) == sorted(expected)
     for key in d1:
-        assert key in a1.keys(aliased=True)
         assert aliased.MappingKey(key) in a1.keys(aliased=True)
     key = ('a', 'b', 'c')
     a3 = aliased.Mapping({key: 1})
     for permutation in itertools.permutations(key, len(key)):
-        assert aliased.MappingKey(permutation) in a3.keys(aliased=True)
+        aliased_key = aliased.MappingKey(permutation)
+        assert aliased_key in a3
+        assert aliased_key in a3.keys(aliased=True)
 
 
 def test_aliased_itemsview():
@@ -322,10 +347,10 @@ def test_aliased_itemsview():
     assert a1 is not a2
     assert a1.items() == a2.items()
     assert a1.items(aliased=True) == a1.items(aliased=True)
-    for item in d1.items():
-        assert item in a1.items(aliased=True)
-        key, value = item
-        assert key in a1.keys(aliased=True)
+    for key, value in d1.items():
+        aliases = aliased.MappingKey(key)
+        assert (aliases, value) in a1.items(aliased=True)
+        assert aliases in a1.keys(aliased=True)
         assert value in a1.values(aliased=True)
 
 
