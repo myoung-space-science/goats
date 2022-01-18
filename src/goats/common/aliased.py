@@ -8,8 +8,8 @@ from goats.common import iterables
 Aliases = typing.TypeVar('Aliases')
 Aliases = typing.Union[str, typing.Iterable[str]]
 
-class MappingKey(collections.abc.Collection):
-    """A type that supports aliased-mapping keys."""
+class MappingKey(collections.abc.Set):
+    """A mapping key with associated aliases."""
 
     __slots__ = ('_aliases')
 
@@ -27,10 +27,17 @@ class MappingKey(collections.abc.Collection):
     def __init__(self, *a: Aliases) -> None:
         if not a:
             raise TypeError("At least one alias is required") from None
-        self._aliases = set(
-            a[0] if isinstance(a[0], (self._builtin, MappingKey))
-            else a
-        )
+        self._aliases = self._from_iterable(a)
+
+    @classmethod
+    def _from_iterable(cls, it):
+        try:
+            length = len(it)
+        except TypeError:
+            length = None
+        if length == 1 and not isinstance(it[0], str):
+            return set(it[0])
+        return set(it)
 
     def __iter__(self) -> typing.Iterator:
         return iter(self._aliases)
@@ -45,38 +52,34 @@ class MappingKey(collections.abc.Collection):
         """Compute the hash of the underlying key set."""
         return hash(tuple(self._aliases))
 
-    def __eq__(self, other: 'MappingKey') -> bool:
+    def __eq__(self, other):
         """True if both key sets are equal."""
+        return self._call(other, super().__eq__)
+
+    def __and__(self, other):
+        return self._call(other, super().__and__)
+
+    def isdisjoint(self, other):
+        return self._call(other, super().isdisjoint)
+
+    def __or__(self, other):
+        return self._call(other, super().__or__)
+
+    def __sub__(self, other):
+        return self._call(other, super().__sub__)
+
+    def __rsub__(self, other):
+        return self._call(other, super().__rsub__)
+
+    def __xor__(self, other):
+        return self._call(other, super().__xor__)
+
+    def _call(self, other, operator):
         if isinstance(other, MappingKey):
-            return self._aliases == other._aliases
-        if isinstance(other, self._builtin):
-            return self._aliases == set(other)
-        return False
-
-    def __getitem__(self, index) -> str:
-        """Get an alias by index.
-        
-        This implicitly passes the responsibility for handling negative
-        indices, raising exceptions, etc. down to the `set` class.
-        """
-        return self._aliases[index]
-
-    def __add__(self, other: typing.Union[Aliases, 'MappingKey']):
-        """Combine these aliases with `other`."""
+            return operator(other._aliases)
         if isinstance(other, str):
-            other = (other,)
-        return self._type(set(self) | set(other))
-
-    def __sub__(self, other: typing.Union[Aliases, 'MappingKey']):
-        """Remove `other` from these aliases."""
-        if isinstance(other, str):
-            other = (other,)
-        return self._type(set(self) - set(other))
-
-    @property
-    def _type(self):
-        """Internal representation of the current type."""
-        return type(self)
+            return operator(MappingKey(other))
+        return operator(other)
 
     def __repr__(self) -> str:
         """An unambiguous representation of this instance."""
@@ -404,7 +407,7 @@ class Mapping(collections.abc.Mapping):
         if isinstance(mapping, Mapping):
             return mapping.keys(aliased=True)
         return [
-            MappingKey(k) + MappingKey(v.get(aliases, ()))
+            MappingKey(k) | MappingKey(v.get(aliases, ()))
             for k, v in mapping.items()
         ]
 
@@ -593,7 +596,7 @@ class MutableMapping(Mapping, collections.abc.MutableMapping):
             if alias:
                 if alias in self._flat_keys:
                     raise self._not_available(alias) from None
-                updated = self._resolve(key) + alias
+                updated = self._resolve(key) | alias
                 self._aliased[updated] = self[key]
                 del self[key]
 

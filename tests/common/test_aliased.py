@@ -14,7 +14,7 @@ def test_aliased_key():
     assert len(aliased.MappingKey({'t0', 't1', 't2'})) == 3
     assert len(aliased.MappingKey('t0', 't1', 't2')) == 3
     key = aliased.MappingKey('t0', 't1', 't2')
-    assert key + 't3' == aliased.MappingKey('t0', 't1', 't2', 't3')
+    assert key | 't3' == aliased.MappingKey('t0', 't1', 't2', 't3')
     assert key - 't2' == aliased.MappingKey('t0', 't1')
     assert aliased.MappingKey('a', 'b') == aliased.MappingKey('b', 'a')
 
