@@ -52,34 +52,23 @@ class MappingKey(collections.abc.Set):
         """Compute the hash of the underlying key set."""
         return hash(tuple(self._aliases))
 
-    def __eq__(self, other):
-        """True if both key sets are equal."""
-        return self._call(other, super().__eq__)
+    def _implement(operator):
+        def method(self: 'MappingKey', other):
+            return operator(self, MappingKey(other))
+        def wrapper(self, other):
+            result = method(self, other)
+            if isinstance(result, typing.Iterable):
+                return type(self)(result)
+            return result
+        return wrapper
 
-    def __and__(self, other):
-        return self._call(other, super().__and__)
-
-    def isdisjoint(self, other):
-        return self._call(other, super().isdisjoint)
-
-    def __or__(self, other):
-        return self._call(other, super().__or__)
-
-    def __sub__(self, other):
-        return self._call(other, super().__sub__)
-
-    def __rsub__(self, other):
-        return self._call(other, super().__rsub__)
-
-    def __xor__(self, other):
-        return self._call(other, super().__xor__)
-
-    def _call(self, other, operator):
-        if isinstance(other, MappingKey):
-            return operator(other._aliases)
-        if isinstance(other, str):
-            return operator(MappingKey(other))
-        return operator(other)
+    __eq__ = _implement(collections.abc.Set.__eq__)
+    __and__ = _implement(collections.abc.Set.__and__)
+    isdisjoint = _implement(collections.abc.Set.isdisjoint)
+    __or__ = _implement(collections.abc.Set.__or__)
+    __sub__ = _implement(collections.abc.Set.__sub__)
+    __rsub__ = _implement(collections.abc.Set.__rsub__)
+    __xor__ = _implement(collections.abc.Set.__xor__)
 
     def __repr__(self) -> str:
         """An unambiguous representation of this instance."""
