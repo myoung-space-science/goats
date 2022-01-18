@@ -2,7 +2,7 @@
 
 import abc
 from pathlib import Path
-from typing import *
+import typing
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,8 +13,8 @@ from goats.common import indexing
 from goats.common import spelling
 
 
-@runtime_checkable
-class Observed(Protocol):
+@typing.runtime_checkable
+class Observed(typing.Protocol):
     """Specification of an observed quantity."""
 
     unit: quantities.Unit
@@ -31,8 +31,8 @@ class Observation(iterables.ReprStrMixin):
     def __init__(
         self,
         data: Observed,
-        indices: Mapping[str, indexing.Indices],
-        assumptions: Mapping[str, quantities.Scalar]=None,
+        indices: typing.Mapping[str, indexing.Indices],
+        assumptions: typing.Mapping[str, quantities.Scalar]=None,
     ) -> None:
         self.data = data
         self.unit = data.unit
@@ -74,9 +74,9 @@ class Observation(iterables.ReprStrMixin):
         ax: plt.Axes=None,
         xaxis: str=None,
         show: bool=False,
-        path: Union[str, Path]=None,
+        path: typing.Union[str, Path]=None,
         **kwargs
-    ) -> Optional[plt.Axes]:
+    ) -> typing.Optional[plt.Axes]:
         """Plot this observation."""
         data = np.squeeze(self)
         if xaxis in self.indices:
@@ -104,7 +104,7 @@ class Interface(abc.ABC, iterables.ReprStrMixin):
     """Base class for observing interfaces."""
 
     @abc.abstractmethod
-    def apply(self, constraints: Mapping):
+    def apply(self, constraints: typing.Mapping):
         """Apply the given observing constraints to an observable."""
         pass
 
@@ -178,7 +178,7 @@ class Observable(iterables.ReprStrMixin):
 class Observer:
     """Base class for all observer objects."""
 
-    def __init__(self, observables: Mapping[str, Observable]) -> None:
+    def __init__(self, observables: typing.Mapping[str, Observable]) -> None:
         self.observables = observables
         self._spellcheck = spelling.SpellChecker(observables.keys())
 
