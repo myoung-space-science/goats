@@ -8,7 +8,7 @@ from typing import *
 import numpy as np
 import pytest
 
-from goats import common
+from goats.common import base
 from goats import eprem
 
 eprem.env.source('~/emmrem/epicMas/source/eprem/src')
@@ -74,7 +74,7 @@ def test_observable_access(
     """Access all observables."""
     for name in observables:
         observable = stream[name]
-        assert isinstance(observable, common.Observable)
+        assert isinstance(observable, base.Observable)
 
 
 def test_create_observation(
@@ -84,7 +84,7 @@ def test_create_observation(
     """Create default observation from each observable."""
     for name, expected in observables.items():
         observation = stream[name].observed
-        assert isinstance(observation, common.Observation)
+        assert isinstance(observation, base.Observation)
         assert all(axis in observation.indices for axis in expected['axes'])
 
 

@@ -1,7 +1,7 @@
 import pathlib
 import typing
 
-from goats import common
+from goats.common import base
 from goats.common import iterables
 from goats.common import iotools
 from goats.common import indexing
@@ -41,7 +41,7 @@ env = Environment()
 """Global environment manager."""
 
 
-class Observer(common.Observer):
+class Observer(base.Observer):
     """Base class for EPREM observers."""
 
     def __init__(

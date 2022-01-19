@@ -8,7 +8,6 @@ from typing import *
 
 import numpy as np
 
-from goats.common import *
 from goats.common import algebra, aliased, arrays, iterables
 
 
