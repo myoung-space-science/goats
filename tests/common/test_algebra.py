@@ -338,6 +338,7 @@ def test_parse_function():
     """Test the ability to detect a known function in an expression."""
     cases = {
         'sqrt(2a)': ['a^1/2', '2^1/2'],
+        ' sqrt(2a) ': ['a^1/2', '2^1/2'],
     }
     for string, terms in cases.items():
         expression = algebra.Expression(string)
