@@ -1,0 +1,197 @@
+{
+    "AU": {
+        "formula": null,
+        "type": "float",
+        "value": 14959787070000.0
+    },
+    "BADINT": {
+        "formula": null,
+        "type": "int",
+        "value": 2147483647
+    },
+    "BADVALUE": {
+        "formula": null,
+        "type": "float",
+        "value": 1e+33
+    },
+    "C": {
+        "formula": null,
+        "type": "float",
+        "value": 29979245800.0
+    },
+    "DAY": {
+        "formula": "TAU * 854015929338405/73786976294838206464",
+        "type": "float",
+        "value": 0.005775518331436994
+    },
+    "EV": {
+        "formula": null,
+        "type": "float",
+        "value": 1.6022e-12
+    },
+    "F": {
+        "formula": null,
+        "type": "int",
+        "value": 0
+    },
+    "FCONVERT": {
+        "formula": "C^-4 * 1000000000000000019884624838656",
+        "type": "float",
+        "value": 1.2379901472361203e-12
+    },
+    "GEV": {
+        "formula": null,
+        "type": "float",
+        "value": 0.0016022
+    },
+    "MAS_B_CONVERT": {
+        "formula": "PI^0.5 * MAS_RHO_NORM^0.5 * MAS_LENGTH_NORM * MAS_TIME_NORM^-1 * MHD_B_NORM^-1 * 2",
+        "type": "float",
+        "value": 56.9199110449208
+    },
+    "MAS_LENGTH_NORM": {
+        "formula": null,
+        "type": "float",
+        "value": 69600000000.0
+    },
+    "MAS_RHO_CONVERT": {
+        "formula": "MAS_RHO_NORM * MP^-1 * MHD_DENSITY_NORM^-1",
+        "type": "float",
+        "value": 100000000.00000001
+    },
+    "MAS_RHO_NORM": {
+        "formula": null,
+        "type": "float",
+        "value": 1.6726e-16
+    },
+    "MAS_TIME_CONVERT": {
+        "formula": "MAS_TIME_NORM * 854015929338405/73786976294838206464",
+        "type": "float",
+        "value": 0.016734606838042242
+    },
+    "MAS_TIME_NORM": {
+        "formula": null,
+        "type": "float",
+        "value": 1445.87003080685
+    },
+    "MAS_V_CONVERT": {
+        "formula": "MAS_LENGTH_NORM * MAS_TIME_NORM^-1 * C^-1",
+        "type": "float",
+        "value": 0.0016056810454004597
+    },
+    "MAX_STRING_SIZE": {
+        "formula": null,
+        "type": "int",
+        "value": 240
+    },
+    "MEV": {
+        "formula": null,
+        "type": "float",
+        "value": 1.6022e-06
+    },
+    "MHD_BATSRUS": {
+        "formula": null,
+        "type": "int",
+        "value": 3
+    },
+    "MHD_B_NORM": {
+        "formula": "MP^0.5 * MHD_DENSITY_NORM^0.5 * C",
+        "type": "float",
+        "value": 0.038771870111656996
+    },
+    "MHD_DEFAULT": {
+        "formula": null,
+        "type": "int",
+        "value": 0
+    },
+    "MHD_DENSITY_NORM": {
+        "formula": null,
+        "type": "float",
+        "value": 1.0
+    },
+    "MHD_ENLIL": {
+        "formula": null,
+        "type": "int",
+        "value": 1
+    },
+    "MHD_LFMH": {
+        "formula": null,
+        "type": "int",
+        "value": 2
+    },
+    "MHD_MAS": {
+        "formula": null,
+        "type": "int",
+        "value": 4
+    },
+    "MP": {
+        "formula": null,
+        "type": "float",
+        "value": 1.6726e-24
+    },
+    "MZERO": {
+        "formula": "MP * C^2 * GEV^-1",
+        "type": "float",
+        "value": 0.9382461065754594
+    },
+    "NUM_MPI_BOUNDARY_FLDS": {
+        "formula": null,
+        "type": "int",
+        "value": 2
+    },
+    "OM": {
+        "formula": "MHD_B_NORM * Q * AU * MP^-1 * C^-2",
+        "type": "float",
+        "value": 185327.43617160583
+    },
+    "PI": {
+        "formula": null,
+        "type": "float",
+        "value": 3.141592653589793
+    },
+    "Q": {
+        "formula": null,
+        "type": "float",
+        "value": 4.80320425e-10
+    },
+    "RSAU": {
+        "formula": "RSUN * AU^-1",
+        "type": "float",
+        "value": 0.0046524726370988385
+    },
+    "RSUN": {
+        "formula": null,
+        "type": "float",
+        "value": 69600000000.0
+    },
+    "T": {
+        "formula": null,
+        "type": "int",
+        "value": 1
+    },
+    "TAU": {
+        "formula": "AU * C^-1",
+        "type": "float",
+        "value": 499.0047838361564
+    },
+    "THRESH": {
+        "formula": null,
+        "type": "float",
+        "value": 0.025
+    },
+    "TWO_PI": {
+        "formula": null,
+        "type": "float",
+        "value": 6.283185307179586
+    },
+    "VERYSMALL": {
+        "formula": null,
+        "type": "float",
+        "value": 1e-33
+    },
+    "VOLT": {
+        "formula": null,
+        "type": "float",
+        "value": 0.0033333
+    }
+}

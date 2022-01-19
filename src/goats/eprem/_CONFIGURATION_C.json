@@ -1,0 +1,681 @@
+{
+    "FailModeDump": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "aziSunStart": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "boundaryFunctAmplitude": {
+        "default": "'1.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "boundaryFunctBeta": {
+        "default": "'1.7'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "boundaryFunctEcutoff": {
+        "default": "'1.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "boundaryFunctGamma": {
+        "default": "'2.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "boundaryFunctXi": {
+        "default": "'1.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "boundaryFunctionInitDomain": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "charge": {
+        "default": "'1.0'",
+        "size": "'config.numSpecies'",
+        "type": "list"
+    },
+    "checkSeedPopulation": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "clusterNodes": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "dsh_hel_min": {
+        "default": "'2.5e-4'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "dsh_min": {
+        "default": "'5.0e-5'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "dumpFreq": {
+        "default": "'1'",
+        "maximum": "'1000000'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "dumpOnAbort": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "eMax": {
+        "default": "'1000.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'config.eMin'",
+        "type": "float"
+    },
+    "eMin": {
+        "default": "'1.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "epCalcStartTime": {
+        "default": "'config.simStartTime'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "epEquilibriumCalcDuration": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "epremDomain": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "epremDomainOutputTime": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "fieldAligned": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "flowMag": {
+        "default": "'400.0e5'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "fluxLimiter": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "focusingLimit": {
+        "default": "'1.0'",
+        "maximum": "'1.0'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "gammaEhigh": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'-1.0 * BADVALUE'",
+        "type": "float"
+    },
+    "gammaElow": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'-1.0 * BADVALUE'",
+        "type": "float"
+    },
+    "idealShock": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "idealShockInitTime": {
+        "default": "'config.simStartTime'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'config.simStartTime'",
+        "type": "float"
+    },
+    "idealShockJump": {
+        "default": "'4.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "idealShockPhi": {
+        "default": "'0.0'",
+        "maximum": "'2.0 * PI'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "idealShockScaleLength": {
+        "default": "'0.0046491'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "idealShockSharpness": {
+        "default": "'1.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "idealShockSpeed": {
+        "default": "'1500e5'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "idealShockTheta": {
+        "default": "'1.570796'",
+        "maximum": "'PI'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "idealShockWidth": {
+        "default": "'0.0'",
+        "maximum": "'PI'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "idw_p": {
+        "default": "'3.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "kperxkpar": {
+        "default": "'0.01'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "lamo": {
+        "default": "'1.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "masCorRotateFake": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "masCouple": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "masCoupledTime": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "masDigits": {
+        "default": "'3'",
+        "maximum": "'32767'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "masDirectory": {
+        "default": "' '",
+        "type": "str"
+    },
+    "masHelCouple": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "masHelDigits": {
+        "default": "'3'",
+        "maximum": "'32767'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "masHelDirectory": {
+        "default": "' '",
+        "type": "str"
+    },
+    "masHelNumFiles": {
+        "default": "'0'",
+        "maximum": "'32767'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "masHelRadialMax": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "masHelRadialMin": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "masInitFromOuterBoundary": {
+        "default": "'2'",
+        "maximum": "'2'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "masInitMonteCarlo": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "masInitRadius": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "masInitTimeStep": {
+        "default": "'0.000011574074074'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "masNumFiles": {
+        "default": "'0'",
+        "maximum": "'32767'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "masRadialMax": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "masRadialMin": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "masRotateSolution": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "masStartTime": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "masSteadyState": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "masTriLinear": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "masVmin": {
+        "default": "'50.0e5'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "mass": {
+        "default": "'1.0'",
+        "size": "'config.numSpecies'",
+        "type": "list"
+    },
+    "mfpRadialPower": {
+        "default": "'2.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'-1.0 * BADVALUE'",
+        "type": "float"
+    },
+    "mhdBAu": {
+        "default": "'1.60e-5'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "mhdDensityAu": {
+        "default": "'8.30'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "minInjectionEnergy": {
+        "default": "'0.01'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "nodeClusterPhi": {
+        "default": "'0.0'",
+        "maximum": "'2.0 * PI'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "nodeClusterTheta": {
+        "default": "'1.570796'",
+        "maximum": "'PI'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "nodeClusterWidth": {
+        "default": "'0.0'",
+        "maximum": "'PI'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "numColumnsPerFace": {
+        "default": "'2'",
+        "maximum": "'BADINT'",
+        "minimum": "'1'",
+        "type": "int"
+    },
+    "numEnergySteps": {
+        "default": "'20'",
+        "maximum": "'BADINT'",
+        "minimum": "'2'",
+        "type": "int"
+    },
+    "numEpSteps": {
+        "default": "'30'",
+        "maximum": "'BADINT'",
+        "minimum": "'1'",
+        "type": "int"
+    },
+    "numMuSteps": {
+        "default": "'20'",
+        "maximum": "'BADINT'",
+        "minimum": "'2'",
+        "type": "int"
+    },
+    "numNodesPerStream": {
+        "default": "'N_PROCS'",
+        "maximum": "'BADINT'",
+        "minimum": "'N_PROCS'",
+        "type": "int"
+    },
+    "numObservers": {
+        "default": "'0'",
+        "maximum": "'1000'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "numRowsPerFace": {
+        "default": "'2'",
+        "maximum": "'BADINT'",
+        "minimum": "'1'",
+        "type": "int"
+    },
+    "numSpecies": {
+        "default": "'1'",
+        "maximum": "'100'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "obsPhi": {
+        "default": "'0'",
+        "size": "'config.numObservers'",
+        "type": "list"
+    },
+    "obsR": {
+        "default": "'0'",
+        "size": "'config.numObservers'",
+        "type": "list"
+    },
+    "obsTheta": {
+        "default": "'0'",
+        "size": "'config.numObservers'",
+        "type": "list"
+    },
+    "omegaSun": {
+        "default": "'(0.004144/MAS_TIME_NORM)*TAU'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "outputFloat": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "outputRestart": {
+        "default": "'0'",
+        "maximum": "'1000000'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "parallelFlow": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "pointObserverOutput": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "pointObserverOutputTime": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "preEruptionDuration": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "rScale": {
+        "default": "'0.005'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "rigidityPower": {
+        "default": "'third'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "saveRestartFile": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "seedFunctionTest": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "shockDetectPercent": {
+        "default": "'1.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "shockInjectionFactor": {
+        "default": "'1.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "shockSolver": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "simStartTime": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "simStopTime": {
+        "default": "'config.simStartTime + config.tDel'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'config.simStartTime'",
+        "type": "float"
+    },
+    "streamFluxOutput": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "streamFluxOutputTime": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "subTimeCouple": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "tDel": {
+        "default": "'0.01041666666667'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'VERYSMALL'",
+        "type": "float"
+    },
+    "unifiedOutput": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "unifiedOutputTime": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "unstructuredDomain": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "unstructuredDomainOutputTime": {
+        "default": "'0.0'",
+        "maximum": "'BADVALUE'",
+        "minimum": "'0.0'",
+        "type": "float"
+    },
+    "useAdiabaticChange": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "useAdiabaticFocus": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "useBoundaryFunction": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "useDrift": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "useEPBoundary": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "useMasSteadyStateDt": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "useParallelDiffusion": {
+        "default": "'1'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "useShellDiffusion": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "useStochastic": {
+        "default": "'0'",
+        "maximum": "'1'",
+        "minimum": "'0'",
+        "type": "int"
+    },
+    "warningsFile": {
+        "default": "'warningsXXX.txt'",
+        "type": "str"
+    }
+}

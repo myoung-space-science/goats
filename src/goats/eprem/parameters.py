@@ -44,11 +44,13 @@ identical to the formal software defintion above. This module attempts to
 respect the formal distinction between parameters and arguments.
 """
 
+import argparse
 import functools
 import numbers
 import pathlib
 import re
 import typing
+import json
 
 from goats.common import algebra
 from goats.common import aliased
@@ -113,24 +115,25 @@ class BaseTypesH(iterables.MappingBase):
             return value
         raise TypeError(target)
 
-    def print(self, tabsize: int=4, stream: typing.TextIO=None):
-        """Print formatted reference information."""
-        indent = ' ' * tabsize
-        print("{", file=stream)
-        for key, definition in self.definitions.items():
-            formula = (
-                definition.format(separator=' * ')
-                if isinstance(definition, algebra.Expression)
-                else None
-            )
-            print(
-                f"{indent}{key!r}: {'{'}\n"
-                f"{indent}{indent}'value': {self[key]},\n"
-                f"{indent}{indent}'formula': {formula!r},\n"
-                f"{indent}{'},'}",
-                file=stream,
-            )
-        print("}", file=stream)
+    def dump(self, *args, **kwargs):
+        """Serial values and metadata in JSON format.
+        
+        See `json.dump` for descriptions of accepted arguments.
+        """
+        formulas = {
+            key: definition.format(separator=' * ')
+            if isinstance(definition, algebra.Expression)
+            else None
+            for key, definition in self.definitions.items()
+        }
+        obj = {
+            key: {
+                'value': value,
+                'type': str(type(value).__qualname__),
+                'formula': formulas[key],
+            } for key, value in self.items()
+        }
+        json.dump(obj, *args, **kwargs)
 
 
 class FunctionCall:
@@ -365,6 +368,21 @@ class ConfigurationC(iterables.MappingBase):
                 file=stream,
             )
         print("}", file=stream)
+
+    def dump(self, *args, **kwargs):
+        """Serial values and metadata in JSON format.
+        
+        See `json.dump` for descriptions of accepted arguments.
+        """
+        obj = {
+            key: {
+                k: repr(value)
+                if not isinstance(value, type)
+                else str(value.__qualname__)
+                for k, value in defined.items()
+            } for key, defined in self.definitions.items()
+        }
+        json.dump(obj, *args, **kwargs)
 
 
 class ConfigKeyError(KeyError):
@@ -1230,4 +1248,34 @@ _UNITS = {
 }
 """Collection of units from metadata."""
 
+
+def generate_defaults(path: iotools.PathLike):
+    """Generate default arguments from the EPREM source code in `path`."""
+    targets = {
+        '_BASETYPES_H': BaseTypesH(path),
+        '_CONFIGURATION_C': ConfigurationC(path)
+    }
+    filedir = pathlib.Path(__file__).expanduser().resolve().parent
+    for name, target in targets.items():
+        outpath = filedir / f'{name}.json'
+        with outpath.open('w') as fp:
+            target.dump(fp, indent=4, sort_keys=True)
+
+
+if __name__ == '__main__':
+    doclines = __doc__.split('\n')
+    parser = argparse.ArgumentParser(
+        description=doclines[0],
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    parser.add_argument(
+        '-r',
+        '--generate_defaults',
+        help=generate_defaults.__doc__.replace('`path`', 'SRC'),
+        metavar='SRC',
+    )
+    args = parser.parse_args()
+    kwargs = vars(args)
+    if 'generate_defaults' in kwargs:
+        generate_defaults(kwargs['generate_defaults'])
 
