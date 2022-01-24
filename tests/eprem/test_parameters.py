@@ -19,9 +19,10 @@ def config_path(datadirs):
 
 def test_basetypes_h(source_path):
     """Regression test for values defined in src/baseTypes.h."""
-    b = parameters.BaseTypesH(source_path)
-    for key, value in _BASETYPES_H.items():
-        assert b[key] == value
+    for path in (source_path, None):
+        b = parameters.BaseTypesH(path)
+        for key, value in _BASETYPES_H.items():
+            assert b[key] == value
 
 
 def test_configuration_c(source_path):
