@@ -1249,15 +1249,18 @@ _UNITS = {
 """Collection of units from metadata."""
 
 
+DIRECTORY = pathlib.Path(__file__).expanduser().resolve().parent
+"""The full directory containing this module."""
+
+
 def generate_defaults(path: iotools.PathLike):
     """Generate default arguments from the EPREM source code in `path`."""
     targets = {
         '_BASETYPES_H': BaseTypesH(path),
         '_CONFIGURATION_C': ConfigurationC(path)
     }
-    filedir = pathlib.Path(__file__).expanduser().resolve().parent
     for name, target in targets.items():
-        outpath = filedir / f'{name}.json'
+        outpath = DIRECTORY / f'{name}.json'
         with outpath.open('w') as fp:
             target.dump(fp, indent=4, sort_keys=True)
 
