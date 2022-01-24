@@ -63,11 +63,23 @@ from goats.common import quantities
 class BaseTypesH(iterables.MappingBase):
     """A representation of EPREM `baseTypes.h`."""
 
-    def __init__(self, src: typing.Union[str, pathlib.Path]=None) -> None:
-        self.path = iotools.ReadOnlyPath(src or '.') / 'baseTypes.h'
-        self._definitions = None
+    def __init__(self, source: typing.Union[str, pathlib.Path]=None) -> None:
+        self._types = None
+        self._defaults = None
+        self.definitions = self._load(source)
         super().__init__(tuple(self.definitions))
         self._cache = {}
+
+    def _load(self, source: iotools.PathLike=None):
+        """Internal method for loading definitions."""
+        try:
+            path = iotools.ReadOnlyPath(source)
+            if path.is_dir():
+                path /= 'baseTypes.h'
+            definitions = self._read_source(path)
+        except TypeError:
+            definitions = self.defaults
+        return definitions
 
     def __getitem__(self, name: str):
         """Access constants by name."""
@@ -79,59 +91,67 @@ class BaseTypesH(iterables.MappingBase):
             return value
         raise KeyError(f"No {name!r} in baseTypes.h")
 
-    @property
-    def definitions(self):
-        """The definition of each constant in the simulation source code."""
-        if self._definitions is None:
-            with self.path.open('r') as fp:
-                lines = fp.readlines()
-            definitions = {}
-            for line in lines:
-                if line.startswith('#define'):
-                    parts = line.strip('#define').rstrip('\n').split(maxsplit=1)
-                    if len(parts) == 2:
-                        key, value = parts
-                        metadata = _BASETYPES_H.get(key, {})
-                        if any(c in value for c in {'*', '/', 'sqrt'}):
-                            definitions[key] = algebra.Expression(value)
-                        else:
-                            cast = metadata.get('type', str)
-                            definitions[key] = cast(value)
-            self._definitions = definitions
-        return self._definitions
-
     def _compute(self, key: str) -> numbers.Real:
         """Compute the value of a defined constant."""
         target = self.definitions[key]
-        if isinstance(target, numbers.Real):
+        realtype = self.types.get(key)
+        if isinstance(target, realtype):
             return target
-        if isinstance(target, algebra.Expression):
-            value = 1.0
-            for term in target:
-                if term.base in self.definitions:
-                    value *= float(term(self._compute(term.base)))
-                elif term.base == '1':
-                    value *= float(term)
-            return value
+        if any(c in target for c in {'*', '/', 'sqrt'}):
+            return self._evaluate(algebra.Expression(target))
+        if realtype:
+            return realtype(target)
         raise TypeError(target)
 
+    def _evaluate(self, expression: algebra.Expression):
+        """Internal method for evaluating algebraic definitions."""
+        value = 1.0
+        for term in expression:
+            if term.base in self.definitions:
+                value *= float(term(self._compute(term.base)))
+            elif term.base == '1':
+                value *= float(term)
+        return value
+
+    @property
+    def types(self):
+        """The type of each constant."""
+        if self._types is None:
+            self._types = {k: v['type'] for k, v in _BASETYPES_H.items()}
+        return self._types
+
+    def _read_source(self, path: iotools.ReadOnlyPath):
+        """Internal method for reading definitions from an EPREM source file."""
+        with path.open('r') as fp:
+            lines = fp.readlines()
+        definitions = {}
+        for line in lines:
+            if line.startswith('#define'):
+                parts = line.strip('#define').rstrip('\n').split(maxsplit=1)
+                if len(parts) == 2:
+                    key, value = parts
+                    definitions[key] = value
+        return definitions
+
+    @property
+    def defaults(self):
+        """The default value for each constant."""
+        if self._defaults is None:
+            path = DIRECTORY / '_BASETYPES_H.json'
+            with pathlib.Path(path).open('r') as fp:
+                self._defaults = dict(json.load(fp))
+        return self._defaults
+
     def dump(self, *args, **kwargs):
-        """Serial values and metadata in JSON format.
+        """Serialize values and metadata in JSON format.
         
         See `json.dump` for descriptions of accepted arguments.
         """
-        formulas = {
+        obj = {
             key: definition.format(separator=' * ')
             if isinstance(definition, algebra.Expression)
-            else None
+            else definition
             for key, definition in self.definitions.items()
-        }
-        obj = {
-            key: {
-                'value': value,
-                'type': str(type(value).__qualname__),
-                'formula': formulas[key],
-            } for key, value in self.items()
         }
         json.dump(obj, *args, **kwargs)
 
