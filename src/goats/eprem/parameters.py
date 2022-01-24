@@ -60,6 +60,38 @@ from goats.common import numerical
 from goats.common import quantities
 
 
+class BaseTypeDef:
+    """Pattern parser for defined constants in baseTypes.h."""
+
+    @property
+    def pattern(self):
+        return re.compile(r"""
+            # the start of the string (no following whitespace)
+            \A
+            # the `#define` pre-processor directive
+            \#define
+            # at least one whitespace character
+            \s+
+            # the defined name
+            (?P<name>[A-Z_]+)
+            # at least one whitespace character
+            \s+
+            # the defined value
+            (?P<value>[-+\.\*\/\d\w\s\(\)]+)
+            # the end of the string (no trailing whitespace)
+            \Z
+        """, re.VERBOSE)
+
+    def match(self, line: str):
+        """Identify lines that define a runtime constant."""
+        if match := self.pattern.match(line.strip()):
+            return match.groupdict()
+
+    def parse(self, parsable: typing.Dict[str, str]):
+        """Parse a line that defines a runtime constant."""
+        return parsable['name'], parsable['value']
+
+
 class BaseTypesH(iterables.MappingBase):
     """A representation of EPREM `baseTypes.h`."""
 
@@ -122,16 +154,8 @@ class BaseTypesH(iterables.MappingBase):
 
     def _read_source(self, path: iotools.ReadOnlyPath):
         """Internal method for reading definitions from an EPREM source file."""
-        with path.open('r') as fp:
-            lines = fp.readlines()
-        definitions = {}
-        for line in lines:
-            if line.startswith('#define'):
-                parts = line.strip('#define').rstrip('\n').split(maxsplit=1)
-                if len(parts) == 2:
-                    key, value = parts
-                    definitions[key] = value
-        return definitions
+        typedef = BaseTypeDef()
+        return iotools.TextFile(path).extract(typedef.match, typedef.parse)
 
     @property
     def defaults(self):
