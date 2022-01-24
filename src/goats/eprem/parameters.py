@@ -108,7 +108,9 @@ class BaseTypesH(iterables.MappingBase):
             path = iotools.ReadOnlyPath(source)
             if path.is_dir():
                 path /= 'baseTypes.h'
-            definitions = self._read_source(path)
+            typedef = BaseTypeDef()
+            file = iotools.TextFile(path)
+            definitions = file.extract(typedef.match, typedef.parse)
         except TypeError:
             definitions = self.defaults
         return definitions
@@ -151,11 +153,6 @@ class BaseTypesH(iterables.MappingBase):
         if self._types is None:
             self._types = {k: v['type'] for k, v in _BASETYPES_H.items()}
         return self._types
-
-    def _read_source(self, path: iotools.ReadOnlyPath):
-        """Internal method for reading definitions from an EPREM source file."""
-        typedef = BaseTypeDef()
-        return iotools.TextFile(path).extract(typedef.match, typedef.parse)
 
     @property
     def defaults(self):
