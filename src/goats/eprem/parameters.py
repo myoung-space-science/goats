@@ -391,25 +391,6 @@ class ConfigurationC(iterables.MappingBase):
             return {'type': list, **dict(zip(keys, args))}
         raise ValueError(f"Unknown configuration mode {mode!r}")
 
-    def print(self, tabsize: int=4, stream: typing.TextIO=None):
-        """Print formatted reference information."""
-        indent = ' ' * tabsize
-        print("{", file=stream)
-        for key, defined in self.definitions.items():
-            args = ''.join(
-                f"{indent}{indent}{k!r}: {v!r},\n"
-                if not isinstance(v, type) else
-                f"{indent}{indent}{k!r}: {v.__qualname__},\n"
-                for k, v in defined.items()
-            )
-            print(
-                f"{indent}{key!r}: {'{'}\n"
-                f"{args}",
-                f"{indent}{'},'}",
-                file=stream,
-            )
-        print("}", file=stream)
-
     def dump(self, *args, **kwargs):
         """Serial values and metadata in JSON format.
         
