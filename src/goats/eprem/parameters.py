@@ -231,10 +231,35 @@ class FunctionCall:
             a = alias.strip('"')
             if a != name:
                 parsed['alias'] = a
-        parsed['mode'] = parsable['mode']
+        mode = parsable['mode']
         args = parsable['args'].split(',')
-        parsed['args'] = [arg.strip() for arg in args]
+        parsed.update(self._normalize(mode, args))
         return name, parsed
+
+    _attrs = {
+        'readInt': {
+            'type': int,
+            'keys': ['default', 'minimum', 'maximum'],
+        },
+        'readDouble': {
+            'type': float,
+            'keys': ['default', 'minimum', 'maximum'],
+        },
+        'readString': {
+            'type': str,
+            'keys': ['default'],
+        },
+        'readDoubleArray': {
+            'type': list,
+            'keys': ['size', 'default'],
+        },
+    }
+
+    def _normalize(self, mode: str, args: typing.Iterable[str]):
+        """Determine argument type and keys from `mode`."""
+        attrs = self._attrs[mode]
+        pairs = dict(zip(attrs['keys'], [arg.strip(' "') for arg in args]))
+        return {'type': attrs['type'], **pairs}
 
 
 class VariableDefinition:
