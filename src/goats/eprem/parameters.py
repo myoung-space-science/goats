@@ -236,30 +236,17 @@ class FunctionCall:
         parsed.update(self._normalize(mode, args))
         return name, parsed
 
-    _attrs = {
-        'readInt': {
-            'type': int,
-            'keys': ['default', 'minimum', 'maximum'],
-        },
-        'readDouble': {
-            'type': float,
-            'keys': ['default', 'minimum', 'maximum'],
-        },
-        'readString': {
-            'type': str,
-            'keys': ['default'],
-        },
-        'readDoubleArray': {
-            'type': list,
-            'keys': ['size', 'default'],
-        },
+    _keys = {
+        'readInt': ['default', 'minimum', 'maximum'],
+        'readDouble': ['default', 'minimum', 'maximum'],
+        'readString': ['default'],
+        'readDoubleArray': ['size', 'default'],
     }
 
     def _normalize(self, mode: str, args: typing.Iterable[str]):
         """Determine argument type and keys from `mode`."""
-        attrs = self._attrs[mode]
-        pairs = dict(zip(attrs['keys'], [arg.strip(' "') for arg in args]))
-        return {'type': attrs['type'], **pairs}
+        pairs = dict(zip(self._keys[mode], [arg.strip(' "') for arg in args]))
+        return {'mode': mode, **pairs}
 
 
 class VariableDefinition:
