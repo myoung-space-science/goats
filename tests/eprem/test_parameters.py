@@ -437,12 +437,10 @@ _CONFIGURATION_C = {
      },
     'mass': {
         'type': list,
-        'size': 'config.numSpecies',
         'default': '1.0',
      },
     'charge': {
         'type': list,
-        'size': 'config.numSpecies',
         'default': '1.0',
      },
     'numObservers': {
@@ -453,17 +451,14 @@ _CONFIGURATION_C = {
      },
     'obsR': {
         'type': list,
-        'size': 'config.numObservers',
         'default': '0',
      },
     'obsTheta': {
         'type': list,
-        'size': 'config.numObservers',
         'default': '0',
      },
     'obsPhi': {
         'type': list,
-        'size': 'config.numObservers',
         'default': '0',
      },
     'idw_p': {
@@ -522,11 +517,11 @@ _CONFIGURATION_C = {
      },
     'masDirectory': {
         'type': str,
-        'default': ' ',
+        'default': '',
      },
     'masHelDirectory': {
         'type': str,
-        'default': ' ',
+        'default': '',
      },
     'masDigits': {
         'type': int,
@@ -1201,11 +1196,11 @@ reference = {
      },
     'masDirectory': {
         'type': str,
-        'default': ' ',
+        'default': '',
      },
     'masHelDirectory': {
         'type': str,
-        'default': ' ',
+        'default': '',
      },
     'masDigits': {
         'type': int,

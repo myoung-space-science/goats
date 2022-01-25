@@ -338,19 +338,12 @@ def soft_convert(
 class ConfigurationC(iterables.MappingBase):
     """A representation of EPREM `configuration.c`."""
 
-    def __init__(self, src: typing.Union[str, pathlib.Path]=None) -> None:
-        path = pathlib.Path(src or '.') / 'configuration.c'
-        self.file = iotools.TextFile(path)
-        self._assignment = FunctionCall()
-        self._array_default = VariableDefinition()
-        self._definitions = None
+    def __init__(self, source: typing.Union[str, pathlib.Path]=None) -> None:
+        self._defaults = None
+        self._loaded = self._load(source)
+        self.definitions = self._convert_types(self._loaded)
         super().__init__(tuple(self.definitions))
-        self._path = path
-
-    @property
-    def path(self):
-        """The path to the relevant EPREM distribution."""
-        return iotools.ReadOnlyPath(self._path)
+        self._cache = {}
 
     def __getitem__(self, key: str):
         """Request a reference object by parameter name."""
@@ -358,64 +351,74 @@ class ConfigurationC(iterables.MappingBase):
             return self.definitions[key]
         raise KeyError(f"No reference information for {key!r}")
 
-    @property
-    def definitions(self):
-        """Unconverted reference values from the source code."""
-        if self._definitions is None:
-            assignments = self.file.extract(
-                self._assignment.match,
-                self._assignment.parse,
-            )
-            self._definitions = {
-                k: self._prepare(v)
-                for k, v in assignments.items()
+    def _load(self, source: iotools.PathLike=None):
+        """Internal method for loading definitions."""
+        try:
+            path = iotools.ReadOnlyPath(source)
+            if path.is_dir():
+                path /= 'configuration.c'
+            file = iotools.TextFile(path)
+            assignments = self._get_assignments(file)
+            arrays = self._get_array_defaults(file)
+            subs = {
+                key: {
+                    'mode': assigned['mode'],
+                    'default': arrays[assigned['default']]['value']
+                } for key, assigned in assignments.items()
+                if assigned['default'] in arrays
             }
-        return self._definitions
+            loaded = {
+                key: subs.get(key, attrs)
+                for key, attrs in assignments.items()
+            }
+        except TypeError:
+            loaded = self.defaults
+        return loaded
 
-    def _prepare(
+    def _get_assignments(self, file: iotools.TextFile):
+        """Get the assigned default values from function calls."""
+        pattern = FunctionCall()
+        return file.extract(pattern.match, pattern.parse)
+
+    def _get_array_defaults(self, file: iotools.TextFile):
+        """Get all array default values defined in the source."""
+        pattern = VariableDefinition()
+        return file.extract(pattern.match, pattern.parse)
+
+    _types = {
+        'readInt': int,
+        'readDouble': float,
+        'readString': str,
+        'readDoubleArray': list,
+    }
+
+    def _convert_types(
         self,
-        metadata: typing.Dict[str, typing.Union[str, type]],
-    ) -> typing.Dict[str, typing.Union[str, type]]:
-        """Create a reference object from parameter metadata."""
-        mode = metadata['mode']
-        if mode == 'readInt':
-            keys = ('default', 'minimum', 'maximum')
-            args = metadata['args']
-            return {'type': int, **dict(zip(keys, args))}
-        if mode == 'readDouble':
-            keys = ('default', 'minimum', 'maximum')
-            args = metadata['args']
-            return {'type': float, **dict(zip(keys, args))}
-        if mode == 'readString':
-            arg = metadata['args'][0]
-            return {'type': str, 'default': arg.strip('"')}
-        if mode == 'readDoubleArray':
-            defaults = self.file.extract(
-                self._array_default.match,
-                self._array_default.parse,
-            )
-            args = [
-                defaults[arg]['value']
-                if arg in defaults else arg
-                for arg in metadata['args']
-            ]
-            keys = ('size', 'default')
-            return {'type': list, **dict(zip(keys, args))}
-        raise ValueError(f"Unknown configuration mode {mode!r}")
+        definitions: typing.Dict[str, typing.Dict[str, typing.Any]],
+    ) -> typing.Dict[str, typing.Dict[str, typing.Any]]:
+        """Replace values with built-in types where appropriate."""
+        return {
+            key: {
+                'type': self._types[defined['mode']],
+                **{k: v for k, v in defined.items() if k != 'mode'}
+            } for key, defined in definitions.items()
+        }
+
+    @property
+    def defaults(self):
+        """The default argument for each parameter."""
+        if self._defaults is None:
+            path = DIRECTORY / '_CONFIGURATION_C.json'
+            with pathlib.Path(path).open('r') as fp:
+                self._defaults = dict(json.load(fp))
+        return self._defaults
 
     def dump(self, *args, **kwargs):
-        """Serial values and metadata in JSON format.
+        """Serialize values and metadata in JSON format.
         
         See `json.dump` for descriptions of accepted arguments.
         """
-        obj = {
-            key: {
-                k: repr(value)
-                if not isinstance(value, type)
-                else str(value.__qualname__)
-                for k, value in defined.items()
-            } for key, defined in self.definitions.items()
-        }
+        obj = self._loaded
         json.dump(obj, *args, **kwargs)
 
 
