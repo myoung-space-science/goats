@@ -27,9 +27,10 @@ def test_basetypes_h(source_path):
 
 def test_configuration_c(source_path):
     """Make sure the object contains everything in src/configuration.c."""
-    c = parameters.ConfigurationC(source_path)
-    for key, value in _CONFIGURATION_C.items():
-        assert c[key] == value
+    for path in (source_path, None):
+        c = parameters.ConfigurationC(path)
+        for key, value in _CONFIGURATION_C.items():
+            assert c[key] == value
 
 
 def test_default_values(source_path):
