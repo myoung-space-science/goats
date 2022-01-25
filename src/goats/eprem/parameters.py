@@ -44,6 +44,7 @@ identical to the formal software defintion above. This module attempts to
 respect the formal distinction between parameters and arguments.
 """
 
+import abc
 import argparse
 import functools
 import numbers
@@ -92,38 +93,108 @@ class BaseTypeDef:
         return parsable['name'], parsable['value']
 
 
-class BaseTypesH(iterables.MappingBase):
-    """A representation of EPREM `baseTypes.h`."""
+class SourceFile(iterables.MappingBase):
+    """An object representing parameters in an EPREM source file."""
+
+    _key = None
+    _name = None
+
+    def __new__(cls, *args, **kwargs):
+        """Prevent instantiation with missing class attributes."""
+        if cls._key is None:
+            raise NotImplementedError("Default database key can't be None.")
+        if cls._name is None:
+            raise NotImplementedError("Source file name can't be None.")
+        return super().__new__(cls)
 
     def __init__(self, source: typing.Union[str, pathlib.Path]=None) -> None:
-        self._types = None
-        self._defaults = None
-        self.definitions = self._load(source)
+        """Initialize an instance of this class."""
+        self.path = self.build_path(source)
+        self._standard = None
+        self._definitions = None
         super().__init__(tuple(self.definitions))
-        self._cache = {}
 
-    def _load(self, source: iotools.PathLike=None):
-        """Internal method for loading definitions."""
+    def build_path(
+        self, source: iotools.PathLike=None,
+    ) -> typing.Optional[pathlib.Path]:
+        """Create the full path to the source file, if possible."""
         try:
             path = iotools.ReadOnlyPath(source)
             if path.is_dir():
-                path /= 'baseTypes.h'
-            typedef = BaseTypeDef()
-            file = iotools.TextFile(path)
-            definitions = file.extract(typedef.match, typedef.parse)
+                path /= self._name
         except TypeError:
-            definitions = self.defaults
-        return definitions
+            path = None
+        return path
 
-    def __getitem__(self, name: str):
-        """Access constants by name."""
-        if name in self._cache:
-            return self._cache[name]
-        if name in self:
-            value = self._compute(name)
-            self._cache[name] = value
+    @abc.abstractmethod
+    def load(self, file: iotools.TextFile) -> typing.Dict[str, dict]:
+        """Load argument definitions from the source file."""
+        pass
+
+    def get(self, key: str, default: typing.Any=None, format: str=None):
+        """Get (and optionally format) an argument or return `default`."""
+        if not format:
+            return super().get(key, default)
+        raise NotImplementedError(f"Unrecognized format {format}")
+
+    @property
+    def definitions(self):
+        """The definition of each argument given by the source file."""
+        if self._definitions is None:
+            if self.path and self.path.exists():
+                self._definitions = self.load(iotools.TextFile(self.path))
+            else:
+                self._definitions = self.standard
+        return self._definitions
+
+    @property
+    def standard(self) -> typing.Dict[str, dict]:
+        """The fall-back value of each argument."""
+        if self._standard is None:
+            path = pathlib.Path(__file__).with_suffix('.json')
+            with pathlib.Path(path).open('r') as fp:
+                loaded = json.load(fp)
+            self._standard = loaded[self._key]
+        return self._standard
+
+    @property
+    def serializable(self):
+        """A serializable version of this object (e.g., for `json.dump`)."""
+        return {key: self.get(key, format='json') for key in self}
+
+
+class BaseTypesH(SourceFile):
+    """A representation of constant values in EPREM `baseTypes.h`."""
+
+    _key = '_BASETYPES_H'
+    _name = 'baseTypes.h'
+
+    def __init__(self, source: typing.Union[str, pathlib.Path] = None) -> None:
+        super().__init__(source)
+        self._types = None
+        self._cache = {}
+
+    def load(self, file: iotools.TextFile) -> typing.Dict[str, dict]:
+        typedef = BaseTypeDef()
+        return file.extract(typedef.match, typedef.parse)
+
+    def __getitem__(self, key: str):
+        """Access constants by keyword."""
+        if key in self._cache:
+            return self._cache[key]
+        if key in self:
+            value = self._compute(key)
+            self._cache[key] = value
             return value
-        raise KeyError(f"No {name!r} in baseTypes.h")
+        raise KeyError(f"No {key!r} in {self._name!r}")
+
+    def get(self, key: str, default: typing.Any=None, format: str=None):
+        if format == 'json':
+            value = self.definitions.get(key, default)
+            if isinstance(value, algebra.Expression):
+                return value.format(separator=' * ')
+            return value
+        return super().get(key, default, format)
 
     def _compute(self, key: str) -> numbers.Real:
         """Compute the value of a defined constant."""
@@ -137,6 +208,13 @@ class BaseTypesH(iterables.MappingBase):
             return realtype(target)
         raise TypeError(target)
 
+    @property
+    def types(self):
+        """The type of each constant."""
+        if self._types is None:
+            self._types = {k: v['type'] for k, v in _BASETYPES_H.items()}
+        return self._types
+
     def _evaluate(self, expression: algebra.Expression):
         """Internal method for evaluating algebraic definitions."""
         value = 1.0
@@ -146,33 +224,6 @@ class BaseTypesH(iterables.MappingBase):
             elif term.base == '1':
                 value *= float(term)
         return value
-
-    @property
-    def types(self):
-        """The type of each constant."""
-        if self._types is None:
-            self._types = {k: v['type'] for k, v in _BASETYPES_H.items()}
-        return self._types
-
-    @property
-    def defaults(self):
-        """The default value for each constant."""
-        if self._defaults is None:
-            path = pathlib.Path(__file__).with_suffix('.json')
-            with pathlib.Path(path).open('r') as fp:
-                loaded = dict(json.load(fp))
-            self._defaults = loaded['_BASETYPES_H']
-        return self._defaults
-
-    @property
-    def serializable(self):
-        """A version of this object appropriate for `json.dump`."""
-        return {
-            key: definition.format(separator=' * ')
-            if isinstance(definition, algebra.Expression)
-            else definition
-            for key, definition in self.definitions.items()
-        }
 
 
 class FunctionCall:
