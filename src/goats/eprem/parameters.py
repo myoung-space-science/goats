@@ -158,23 +158,21 @@ class BaseTypesH(iterables.MappingBase):
     def defaults(self):
         """The default value for each constant."""
         if self._defaults is None:
-            path = DIRECTORY / '_BASETYPES_H.json'
+            path = pathlib.Path(__file__).with_suffix('.json')
             with pathlib.Path(path).open('r') as fp:
-                self._defaults = dict(json.load(fp))
+                loaded = dict(json.load(fp))
+            self._defaults = loaded['_BASETYPES_H']
         return self._defaults
 
-    def dump(self, *args, **kwargs):
-        """Serialize values and metadata in JSON format.
-        
-        See `json.dump` for descriptions of accepted arguments.
-        """
-        obj = {
+    @property
+    def serializable(self):
+        """A version of this object appropriate for `json.dump`."""
+        return {
             key: definition.format(separator=' * ')
             if isinstance(definition, algebra.Expression)
             else definition
             for key, definition in self.definitions.items()
         }
-        json.dump(obj, *args, **kwargs)
 
 
 class FunctionCall:
@@ -406,20 +404,18 @@ class ConfigurationC(iterables.MappingBase):
 
     @property
     def defaults(self):
-        """The default argument for each parameter."""
+        """The default value for each constant."""
         if self._defaults is None:
-            path = DIRECTORY / '_CONFIGURATION_C.json'
+            path = pathlib.Path(__file__).with_suffix('.json')
             with pathlib.Path(path).open('r') as fp:
-                self._defaults = dict(json.load(fp))
+                loaded = dict(json.load(fp))
+            self._defaults = loaded['_CONFIGURATION_C']
         return self._defaults
 
-    def dump(self, *args, **kwargs):
-        """Serialize values and metadata in JSON format.
-        
-        See `json.dump` for descriptions of accepted arguments.
-        """
-        obj = self._loaded
-        json.dump(obj, *args, **kwargs)
+    @property
+    def serializable(self):
+        """A version of this object appropriate for `json.dump`."""
+        return self._loaded
 
 
 class ConfigKeyError(KeyError):
@@ -1292,14 +1288,13 @@ DIRECTORY = pathlib.Path(__file__).expanduser().resolve().parent
 
 def generate_defaults(path: iotools.PathLike):
     """Generate default arguments from the EPREM source code in `path`."""
-    targets = {
-        '_BASETYPES_H': BaseTypesH(path),
-        '_CONFIGURATION_C': ConfigurationC(path)
+    obj = {
+        '_BASETYPES_H': {**BaseTypesH(path).serializable},
+        '_CONFIGURATION_C': {**ConfigurationC(path).serializable},
     }
-    for name, target in targets.items():
-        outpath = DIRECTORY / f'{name}.json'
-        with outpath.open('w') as fp:
-            target.dump(fp, indent=4, sort_keys=True)
+    outpath = pathlib.Path(__file__).with_suffix('.json')
+    with outpath.open('w') as fp:
+        json.dump(obj, fp, indent=4, sort_keys=True)
 
 
 if __name__ == '__main__':
