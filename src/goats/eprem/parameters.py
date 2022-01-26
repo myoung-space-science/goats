@@ -96,38 +96,54 @@ class BaseTypeDef:
 class SourceFile(iterables.MappingBase):
     """An object representing parameters in an EPREM source file."""
 
-    _db_key = None
-    _src_file = None
-
-    def __new__(cls, *args, **kwargs):
-        """Prevent instantiation with missing class attributes."""
-        if cls._db_key is None:
-            raise NotImplementedError("Default database key can't be None.")
-        if cls._src_file is None:
-            raise NotImplementedError("Source file name can't be None.")
-        return super().__new__(cls)
-
-    def __init__(self, source: typing.Union[str, pathlib.Path]=None) -> None:
+    def __init__(
+        self,
+        db_key: str,
+        filename: str,
+        source: typing.Union[str, pathlib.Path]=None,
+    ) -> None:
         """Initialize an instance of this class."""
-        self.path = self.build_path(source)
-        self._standard = None
-        self._definitions = None
+        path = self.build_path(filename, source)
+        if path and path.exists():
+            loaded = self.load_from_source(iotools.TextFile(path))
+        else:
+            loaded = self.load_from_package(db_key)
+        self.definitions = self.standardize(loaded)
+        """The parameter definitions in this file."""
         super().__init__(tuple(self.definitions))
 
+    @abc.abstractmethod
+    def standardize(self, loaded: dict):
+        """Convert loaded attributes into standard definitions.
+        
+        This abstract method provides a default implementation that simply
+        returns the input object.
+        """
+        return loaded
+
     def build_path(
-        self, source: iotools.PathLike=None,
+        self,
+        filename: str,
+        source: iotools.PathLike=None,
     ) -> typing.Optional[pathlib.Path]:
         """Create the full path to the source file, if possible."""
         try:
             path = iotools.ReadOnlyPath(source)
             if path.is_dir():
-                path /= self._src_file
+                path /= filename
         except TypeError:
             path = None
         return path
 
+    def load_from_package(self, key: str) -> dict:
+        """Load argument definitions from the package defaults."""
+        path = pathlib.Path(__file__).with_suffix('.json')
+        with pathlib.Path(path).open('r') as fp:
+            loaded = json.load(fp)
+        return loaded[key]
+
     @abc.abstractmethod
-    def load(self, file: iotools.TextFile) -> typing.Dict[str, dict]:
+    def load_from_source(self, file: iotools.TextFile) -> dict:
         """Load argument definitions from the source file."""
         pass
 
@@ -137,46 +153,33 @@ class SourceFile(iterables.MappingBase):
             return super().get(key, default)
         raise NotImplementedError(f"Unrecognized format {format}")
 
-    @property
-    def definitions(self):
-        """The definition of each argument given by the source file."""
-        if self._definitions is None:
-            if self.path and self.path.exists():
-                self._definitions = self.load(iotools.TextFile(self.path))
-            else:
-                self._definitions = self.standard
-        return self._definitions
-
-    @property
-    def standard(self) -> typing.Dict[str, dict]:
-        """The fall-back value of each argument."""
-        if self._standard is None:
-            path = pathlib.Path(__file__).with_suffix('.json')
-            with pathlib.Path(path).open('r') as fp:
-                loaded = json.load(fp)
-            self._standard = loaded[self._db_key]
-        return self._standard
-
-    @property
-    def serializable(self):
-        """A serializable version of this object (e.g., for `json.dump`)."""
-        return {key: self.get(key, format='json') for key in self}
+    def format(self, mode: str):
+        """Format this object according to `mode`."""
+        return {key: self.get(key, format=mode) for key in self}
 
 
 class BaseTypesH(SourceFile):
     """A representation of constant values in EPREM `baseTypes.h`."""
 
-    _db_key = '_BASETYPES_H'
-    _src_file = 'baseTypes.h'
-
     def __init__(self, source: typing.Union[str, pathlib.Path]=None) -> None:
-        super().__init__(source)
+        super().__init__('_BASETYPES_H', 'baseTypes.h', source)
         self._types = None
         self._cache = {}
 
-    def load(self, file: iotools.TextFile) -> typing.Dict[str, dict]:
+    def standardize(self, loaded: dict):
+        return super().standardize(loaded)
+
+    def load_from_source(self, file: iotools.TextFile) -> dict:
         typedef = BaseTypeDef()
         return file.extract(typedef.match, typedef.parse)
+
+    def get(self, key: str, default: typing.Any=None, format: str=None):
+        if format == 'json':
+            value = self.definitions.get(key, default)
+            if isinstance(value, algebra.Expression):
+                return value.format(separator=' * ')
+            return value
+        return super().get(key, default, format)
 
     def __getitem__(self, key: str):
         """Access constants by keyword."""
@@ -186,15 +189,7 @@ class BaseTypesH(SourceFile):
             value = self._compute(key)
             self._cache[key] = value
             return value
-        raise KeyError(f"No {key!r} in {self._src_file!r}")
-
-    def get(self, key: str, default: typing.Any=None, format: str=None):
-        if format == 'json':
-            value = self.definitions.get(key, default)
-            if isinstance(value, algebra.Expression):
-                return value.format(separator=' * ')
-            return value
-        return super().get(key, default, format)
+        raise KeyError(f"No {key!r} in {self!r}")
 
     def _compute(self, key: str) -> numbers.Real:
         """Compute the value of a defined constant."""
@@ -384,15 +379,29 @@ def soft_convert(
     return value
 
 
-class ConfigurationC(iterables.MappingBase):
-    """A representation of EPREM `configuration.c`."""
+class ConfigurationC(SourceFile):
+    """A representation of default arguments in EPREM `configuration.c`."""
 
     def __init__(self, source: typing.Union[str, pathlib.Path]=None) -> None:
-        self._defaults = None
-        self._loaded = self._load(source)
-        self.definitions = self._convert_types(self._loaded)
-        super().__init__(tuple(self.definitions))
-        self._cache = {}
+        super().__init__('_CONFIGURATION_C', 'configuration.c', source)
+
+    def standardize(self, loaded: dict):
+        return self._mode_to_type(loaded)
+
+    def load_from_source(self, file: iotools.TextFile) -> dict:
+        assignments = self._get_assignments(file)
+        arrays = self._get_array_defaults(file)
+        subs = {
+            key: {
+                'mode': assigned['mode'],
+                'default': arrays[assigned['default']]['value']
+            } for key, assigned in assignments.items()
+            if assigned['default'] in arrays
+        }
+        return {
+            key: subs.get(key, attrs)
+            for key, attrs in assignments.items()
+        }
 
     def __getitem__(self, key: str):
         """Request a reference object by parameter name."""
@@ -400,29 +409,11 @@ class ConfigurationC(iterables.MappingBase):
             return self.definitions[key]
         raise KeyError(f"No reference information for {key!r}")
 
-    def _load(self, source: iotools.PathLike=None):
-        """Internal method for loading definitions."""
-        try:
-            path = iotools.ReadOnlyPath(source)
-            if path.is_dir():
-                path /= 'configuration.c'
-            file = iotools.TextFile(path)
-            assignments = self._get_assignments(file)
-            arrays = self._get_array_defaults(file)
-            subs = {
-                key: {
-                    'mode': assigned['mode'],
-                    'default': arrays[assigned['default']]['value']
-                } for key, assigned in assignments.items()
-                if assigned['default'] in arrays
-            }
-            loaded = {
-                key: subs.get(key, attrs)
-                for key, attrs in assignments.items()
-            }
-        except TypeError:
-            loaded = self.defaults
-        return loaded
+    def get(self, key: str, default: typing.Any=None, format: str=None):
+        if format == 'json':
+            loaded = self._type_to_mode(self.definitions)
+            return loaded.get(key, default)
+        return super().get(key, default, format)
 
     def _get_assignments(self, file: iotools.TextFile):
         """Get the assigned default values from function calls."""
@@ -441,11 +432,11 @@ class ConfigurationC(iterables.MappingBase):
         'readDoubleArray': list,
     }
 
-    def _convert_types(
+    def _mode_to_type(
         self,
         definitions: typing.Dict[str, typing.Dict[str, typing.Any]],
     ) -> typing.Dict[str, typing.Dict[str, typing.Any]]:
-        """Replace values with built-in types where appropriate."""
+        """Replace mode values with corresponding type objects."""
         return {
             key: {
                 'type': self._types[defined['mode']],
@@ -453,20 +444,24 @@ class ConfigurationC(iterables.MappingBase):
             } for key, defined in definitions.items()
         }
 
-    @property
-    def defaults(self):
-        """The default value for each constant."""
-        if self._defaults is None:
-            path = pathlib.Path(__file__).with_suffix('.json')
-            with pathlib.Path(path).open('r') as fp:
-                loaded = dict(json.load(fp))
-            self._defaults = loaded['_CONFIGURATION_C']
-        return self._defaults
+    _modes = {
+        int: 'readInt',
+        float: 'readDouble',
+        str: 'readString',
+        list: 'readDoubleArray',
+    }
 
-    @property
-    def serializable(self):
-        """A version of this object appropriate for `json.dump`."""
-        return self._loaded
+    def _type_to_mode(
+        self,
+        definitions: typing.Dict[str, typing.Dict[str, typing.Any]],
+    ) -> typing.Dict[str, typing.Dict[str, typing.Any]]:
+        """Replace type objects with corresponding mode values."""
+        return {
+            key: {
+                'mode': self._modes[defined['type']],
+                **{k: v for k, v in defined.items() if k != 'type'}
+            } for key, defined in definitions.items()
+        }
 
 
 class ConfigKeyError(KeyError):
@@ -1340,8 +1335,8 @@ DIRECTORY = pathlib.Path(__file__).expanduser().resolve().parent
 def generate_defaults(path: iotools.PathLike):
     """Generate default arguments from the EPREM source code in `path`."""
     obj = {
-        '_BASETYPES_H': {**BaseTypesH(path).serializable},
-        '_CONFIGURATION_C': {**ConfigurationC(path).serializable},
+        '_BASETYPES_H': {**BaseTypesH(path).format('json')},
+        '_CONFIGURATION_C': {**ConfigurationC(path).format('json')},
     }
     outpath = pathlib.Path(__file__).with_suffix('.json')
     with outpath.open('w') as fp:
