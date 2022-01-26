@@ -503,6 +503,22 @@ class UniformMapping(MappingBase):
         raise KeyError(key) from None
 
 
+class Bijection(MappingBase):
+    """An invertable mapping."""
+
+    def __init__(self, __mapping: typing.Mapping) -> None:
+        super().__init__(__mapping.keys())
+        self._mapping = __mapping
+
+    def __getitem__(self, key):
+        """Look up item by key."""
+        return self._mapping[key]
+
+    def invert(self):
+        """Invert this mapping."""
+        return type(self)({v: k for k, v in self.items()})
+
+
 class ObjectRegistry(collections.abc.Mapping):
     """A class for associating metadata with abitrary objects."""
     def __init__(
