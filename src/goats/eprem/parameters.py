@@ -96,14 +96,14 @@ class BaseTypeDef:
 class SourceFile(iterables.MappingBase):
     """An object representing parameters in an EPREM source file."""
 
-    _key = None
-    _name = None
+    _db_key = None
+    _src_file = None
 
     def __new__(cls, *args, **kwargs):
         """Prevent instantiation with missing class attributes."""
-        if cls._key is None:
+        if cls._db_key is None:
             raise NotImplementedError("Default database key can't be None.")
-        if cls._name is None:
+        if cls._src_file is None:
             raise NotImplementedError("Source file name can't be None.")
         return super().__new__(cls)
 
@@ -121,7 +121,7 @@ class SourceFile(iterables.MappingBase):
         try:
             path = iotools.ReadOnlyPath(source)
             if path.is_dir():
-                path /= self._name
+                path /= self._src_file
         except TypeError:
             path = None
         return path
@@ -154,7 +154,7 @@ class SourceFile(iterables.MappingBase):
             path = pathlib.Path(__file__).with_suffix('.json')
             with pathlib.Path(path).open('r') as fp:
                 loaded = json.load(fp)
-            self._standard = loaded[self._key]
+            self._standard = loaded[self._db_key]
         return self._standard
 
     @property
@@ -166,10 +166,10 @@ class SourceFile(iterables.MappingBase):
 class BaseTypesH(SourceFile):
     """A representation of constant values in EPREM `baseTypes.h`."""
 
-    _key = '_BASETYPES_H'
-    _name = 'baseTypes.h'
+    _db_key = '_BASETYPES_H'
+    _src_file = 'baseTypes.h'
 
-    def __init__(self, source: typing.Union[str, pathlib.Path] = None) -> None:
+    def __init__(self, source: typing.Union[str, pathlib.Path]=None) -> None:
         super().__init__(source)
         self._types = None
         self._cache = {}
@@ -186,7 +186,7 @@ class BaseTypesH(SourceFile):
             value = self._compute(key)
             self._cache[key] = value
             return value
-        raise KeyError(f"No {key!r} in {self._name!r}")
+        raise KeyError(f"No {key!r} in {self._src_file!r}")
 
     def get(self, key: str, default: typing.Any=None, format: str=None):
         if format == 'json':
