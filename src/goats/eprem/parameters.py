@@ -425,12 +425,14 @@ class ConfigurationC(SourceFile):
         pattern = VariableDefinition()
         return file.extract(pattern.match, pattern.parse)
 
-    _types = {
-        'readInt': int,
-        'readDouble': float,
-        'readString': str,
-        'readDoubleArray': list,
-    }
+    _types = iterables.Bijection(
+        {
+            'readInt': int,
+            'readDouble': float,
+            'readString': str,
+            'readDoubleArray': list,
+        }
+    )
 
     def _mode_to_type(
         self,
@@ -444,12 +446,7 @@ class ConfigurationC(SourceFile):
             } for key, defined in definitions.items()
         }
 
-    _modes = {
-        int: 'readInt',
-        float: 'readDouble',
-        str: 'readString',
-        list: 'readDoubleArray',
-    }
+    _modes = _types.invert()
 
     def _type_to_mode(
         self,
