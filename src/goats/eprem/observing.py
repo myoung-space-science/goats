@@ -38,15 +38,13 @@ class Observer(base.Observer):
         self,
         templates: typing.Iterable[typing.Callable],
         name: int=None,
-        directory: typing.Union[str, pathlib.Path]=None,
-        path: typing.Union[str, pathlib.Path]=None,
-        confpath: typing.Union[str, pathlib.Path]=None,
+        path: iotools.PathLike=None,
+        confpath: iotools.PathLike=None,
         system: str='mks',
     ) -> None:
         self._templates = templates
         self._name = name
-        self._directory = directory
-        self._path = path
+        self._datapath = path
         self._confpath = confpath or self.path.parent
         self.system = quantities.MetricSystem(system)
         self._dataset = None
@@ -60,13 +58,13 @@ class Observer(base.Observer):
         )
 
     @property
-    def path(self):
+    def path(self) -> iotools.ReadOnlyPath:
         """The path to this observer's dataset."""
         if not iterables.missing(self._name):
-            directory = self._directory or pathlib.Path().cwd()
-            return self._get_datapath(self._name, directory)
-        if self._path:
-            return pathlib.Path(self._path).expanduser().resolve()
+            path = self._build_datapath(self._name, self._datapath)
+            return iotools.ReadOnlyPath(path)
+        if self._datapath and self._datapath.is_file():
+            return iotools.ReadOnlyPath(self._datapath)
         message = (
             "You must provide either a name (and optional directory)"
             " or the path to a dataset."
@@ -92,13 +90,28 @@ class Observer(base.Observer):
             )
         return self._arguments
 
-    def _get_datapath(
+    def _build_datapath(
         self,
         name: typing.Union[int, str],
-        directory: typing.Union[str, pathlib.Path],
-    ) -> iotools.ReadOnlyPath:
-        """Retrieve the full path for a given observer."""
-        return find_file_by_template(self._templates, name, datadir=directory)
+        directory: iotools.PathLike=None,
+    ) -> pathlib.Path:
+        """Create the full path for a given observer from components."""
+        if directory is None:
+            return find_file_by_template(
+                self._templates,
+                name,
+                datadir=pathlib.Path.cwd(),
+            )
+        if directory.is_dir():
+            return find_file_by_template(
+                self._templates,
+                name,
+                datadir=directory,
+            )
+        raise TypeError(
+            "Can't create path to dataset"
+            f" from directory {directory!r}"
+        )
 
     def time(self, unit: str=None):
         """This observer's times."""
@@ -135,8 +148,8 @@ class Stream(Observer):
     def __init__(
         self,
         name: int=None,
-        directory: typing.Union[str, pathlib.Path]=None,
-        path: typing.Union[str, pathlib.Path]=None,
+        path: iotools.PathLike=None,
+        confpath: iotools.PathLike=None,
         system: str='mks'
     ) -> None:
         templates = [
@@ -146,8 +159,8 @@ class Stream(Observer):
         super().__init__(
             templates,
             name=name,
-            directory=directory,
             path=path,
+            confpath=confpath,
             system=system
         )
 
@@ -158,8 +171,8 @@ class Point(Observer):
     def __init__(
         self,
         name: int=None,
-        directory: typing.Union[str, pathlib.Path]=None,
-        path: typing.Union[str, pathlib.Path]=None,
+        path: iotools.PathLike=None,
+        confpath: iotools.PathLike=None,
         system: str='mks'
     ) -> None:
         templates = [
@@ -168,8 +181,7 @@ class Point(Observer):
         super().__init__(
             templates,
             name=name,
-            directory=directory,
             path=path,
+            confpath=confpath,
             system=system
         )
-

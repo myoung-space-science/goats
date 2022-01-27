@@ -20,7 +20,7 @@ def get_stream(rootpath: Path):
     and calling simple plotting routines for visual end-to-end tests.
     """
     datadir = rootpath / 'cone' / 'obs'
-    return observing.Stream(name=0, directory=datadir)
+    return observing.Stream(name=0, path=datadir)
 
 
 @pytest.fixture
