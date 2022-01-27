@@ -36,13 +36,13 @@ class Observer(base.Observer):
         templates: typing.Iterable[typing.Callable],
         name: int=None,
         path: iotools.PathLike=None,
-        confpath: iotools.PathLike=None,
+        config: iotools.PathLike=None,
         system: str='mks',
     ) -> None:
         self._templates = templates
         self._name = name
-        self._datapath = path
-        self._confpath = confpath or self.path.parent
+        self._path = path
+        self._config = self._build_confpath(config or _pkg['config'])
         self.system = quantities.MetricSystem(system)
         self._dataset = None
         self._arguments = None
@@ -58,10 +58,10 @@ class Observer(base.Observer):
     def path(self) -> iotools.ReadOnlyPath:
         """The path to this observer's dataset."""
         if not iterables.missing(self._name):
-            path = self._build_datapath(self._name, self._datapath)
+            path = self._build_datapath(self._name, self._path)
             return iotools.ReadOnlyPath(path)
-        if self._datapath and self._datapath.is_file():
-            return iotools.ReadOnlyPath(self._datapath)
+        if self._path and self._path.is_file():
+            return iotools.ReadOnlyPath(self._path)
         message = (
             "You must provide either a name (and optional directory)"
             " or the path to a dataset."
@@ -80,7 +80,7 @@ class Observer(base.Observer):
         """The parameter arguments available to this observer."""
         if self._arguments is None:
             source_path = _pkg['src']
-            config_path = self._confpath / 'eprem_input_file'
+            config_path = self._config
             self._arguments = parameters.Arguments(
                 source_path=source_path,
                 config_path=config_path,
@@ -99,16 +99,24 @@ class Observer(base.Observer):
                 name,
                 datadir=pathlib.Path.cwd(),
             )
-        if directory.is_dir():
+        dpath = pathlib.Path(directory)
+        if dpath.is_dir():
             return find_file_by_template(
                 self._templates,
                 name,
-                datadir=directory,
+                datadir=dpath,
             )
         raise TypeError(
             "Can't create path to dataset"
             f" from directory {directory!r}"
         )
+
+    def _build_confpath(self, arg: iotools.PathLike):
+        """Create the full path to the named configuration file."""
+        path = pathlib.Path(arg)
+        if path.name == arg: # just the file name
+            return iotools.ReadOnlyPath(self.path.parent / arg)
+        return iotools.ReadOnlyPath(arg)
 
     def time(self, unit: str=None):
         """This observer's times."""
@@ -146,7 +154,7 @@ class Stream(Observer):
         self,
         name: int=None,
         path: iotools.PathLike=None,
-        confpath: iotools.PathLike=None,
+        config: iotools.PathLike=None,
         system: str='mks'
     ) -> None:
         templates = [
@@ -157,7 +165,7 @@ class Stream(Observer):
             templates,
             name=name,
             path=path,
-            confpath=confpath,
+            config=config,
             system=system
         )
 
@@ -169,7 +177,7 @@ class Point(Observer):
         self,
         name: int=None,
         path: iotools.PathLike=None,
-        confpath: iotools.PathLike=None,
+        config: iotools.PathLike=None,
         system: str='mks'
     ) -> None:
         templates = [
@@ -179,6 +187,6 @@ class Point(Observer):
             templates,
             name=name,
             path=path,
-            confpath=confpath,
+            config=config,
             system=system
         )
