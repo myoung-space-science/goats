@@ -143,6 +143,13 @@ def test_one_to_one():
     assert inverse[2] == 'b'
     assert inverse[3] == 'c'
 
+    invalid = {
+        **dict_input,
+        'd': dict_input['a'],
+    }
+    with pytest.raises(iterables.InjectiveTypeError):
+        iterables.Bijection(invalid)
+
 
 def test_object_registry():
     """Test the class that holds objects with metadata."""

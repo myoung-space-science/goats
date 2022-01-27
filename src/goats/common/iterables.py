@@ -503,8 +503,31 @@ class UniformMapping(MappingBase):
         raise KeyError(key) from None
 
 
+class InjectiveTypeError(TypeError):
+    """The given mapping contains repeated values."""
+
+
+class NonInvertibleError(TypeError):
+    """The given mapping is not invertible."""
+
+
 class Bijection(MappingBase):
     """An invertable mapping."""
+
+    def __new__(cls, __mapping: typing.Mapping):
+        """Check for invalid input mappings."""
+        n_keys = len(__mapping.keys())
+        n_values = len(set(__mapping.values()))
+        if n_keys > n_values:
+            raise InjectiveTypeError(
+                "The given mapping is injective but not surjective."
+            )
+        if n_keys != n_values:
+            raise NonInvertibleError(
+                "The given mapping is not invertible"
+                f" with {n_keys} keys and {n_values} values"
+            )
+        return super().__new__(cls)
 
     def __init__(self, __mapping: typing.Mapping) -> None:
         super().__init__(__mapping.keys())
