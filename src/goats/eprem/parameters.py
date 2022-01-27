@@ -382,11 +382,20 @@ def soft_convert(
 class ConfigurationC(SourceFile):
     """A representation of default arguments in EPREM `configuration.c`."""
 
+    _types = iterables.Bijection(
+        {
+            'readInt': int,
+            'readDouble': float,
+            'readString': str,
+            'readDoubleArray': list,
+        }
+    )
+
     def __init__(self, source: typing.Union[str, pathlib.Path]=None) -> None:
         super().__init__('_CONFIGURATION_C', 'configuration.c', source)
 
     def standardize(self, loaded: dict):
-        return self._mode_to_type(loaded)
+        return self._replace(loaded, 'mode', 'type', self._types)
 
     def load_from_source(self, file: iotools.TextFile) -> dict:
         assignments = self._get_assignments(file)
@@ -411,7 +420,8 @@ class ConfigurationC(SourceFile):
 
     def get(self, key: str, default: typing.Any=None, format: str=None):
         if format == 'json':
-            loaded = self._type_to_mode(self.definitions)
+            modes = self._types.invert()
+            loaded = self._replace(self.definitions, 'type', 'mode', modes)
             return loaded.get(key, default)
         return super().get(key, default, format)
 
@@ -425,39 +435,19 @@ class ConfigurationC(SourceFile):
         pattern = VariableDefinition()
         return file.extract(pattern.match, pattern.parse)
 
-    _types = iterables.Bijection(
-        {
-            'readInt': int,
-            'readDouble': float,
-            'readString': str,
-            'readDoubleArray': list,
-        }
-    )
-
-    def _mode_to_type(
+    def _replace(
         self,
-        definitions: typing.Dict[str, typing.Dict[str, typing.Any]],
-    ) -> typing.Dict[str, typing.Dict[str, typing.Any]]:
-        """Replace mode values with corresponding type objects."""
+        mapping: typing.Mapping[str, typing.Mapping],
+        old: str,
+        new: str,
+        conversion: typing.Mapping,
+    ) -> typing.Mapping[str, typing.Mapping]:
+        """Convert values in the interior mappings of `mapping`."""
         return {
             key: {
-                'type': self._types[defined['mode']],
-                **{k: v for k, v in defined.items() if k != 'mode'}
-            } for key, defined in definitions.items()
-        }
-
-    _modes = _types.invert()
-
-    def _type_to_mode(
-        self,
-        definitions: typing.Dict[str, typing.Dict[str, typing.Any]],
-    ) -> typing.Dict[str, typing.Dict[str, typing.Any]]:
-        """Replace type objects with corresponding mode values."""
-        return {
-            key: {
-                'mode': self._modes[defined['type']],
-                **{k: v for k, v in defined.items() if k != 'type'}
-            } for key, defined in definitions.items()
+                new: conversion[interior[old]],
+                **{k: v for k, v in interior.items() if k != old}
+            } for key, interior in mapping.items()
         }
 
 
