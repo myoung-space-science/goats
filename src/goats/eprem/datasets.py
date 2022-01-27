@@ -233,13 +233,17 @@ class Dataset(collections.abc.Container):
             } for name, array in arrays.items()
         }
         args['energy']['species_map'] = Species(args['species'])
-        meta = metadata['axes'].copy()
         base = {
             name: {
-                'indexer': axis['indexer'](**args[name]),
+                'indexer': _AXES[name]['indexer'](**args[name]),
             }
-            for name, axis in _AXES.items()
+            for name in arrays
+            # NOTE: Using `arrays.keys()` instead of `_AXES.items()` ensures
+            # that the items in the resultant dictionary are in the correct
+            # order. This is necessary to allow downstream objects to assume
+            # correctly ordered axes but it's a somewhat fragile solution.
         }
+        meta = metadata['axes'].copy()
         axis = indexing.Axis
         axes = {
             meta.alias(name, include=True): axis(**attrs)
