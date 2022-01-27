@@ -9,9 +9,9 @@ import numpy as np
 import pytest
 
 from goats.common import base
-from goats import eprem
+from goats.eprem import observing
 
-eprem.env.source('~/emmrem/epicMas/source/eprem/src')
+observing.env.source('~/emmrem/epicMas/source/eprem/src')
 
 
 def get_stream(rootpath: Path):
@@ -22,7 +22,7 @@ def get_stream(rootpath: Path):
     and calling simple plotting routines for visual end-to-end tests.
     """
     datadir = rootpath / 'cone' / 'obs'
-    return eprem.Stream(name=0, directory=datadir)
+    return observing.Stream(name=0, directory=datadir)
 
 
 @pytest.fixture
@@ -68,7 +68,7 @@ def observables() -> Dict[str, dict]:
 
 
 def test_observable_access(
-    stream: eprem.Stream,
+    stream: observing.Stream,
     observables: Dict[str, dict],
 ) -> None:
     """Access all observables."""
@@ -78,7 +78,7 @@ def test_observable_access(
 
 
 def test_create_observation(
-    stream: eprem.Stream,
+    stream: observing.Stream,
     observables: Dict[str, dict],
 ) -> None:
     """Create default observation from each observable."""
@@ -88,7 +88,7 @@ def test_create_observation(
         assert all(axis in observation.indices for axis in expected['axes'])
 
 
-def test_observable_aliases(stream: eprem.Stream):
+def test_observable_aliases(stream: observing.Stream):
     """Explicitly check a few aliases to prevent regression."""
     tests = {
         'r': ['R'],
