@@ -4,6 +4,7 @@ import inspect
 import functools
 import math
 import numbers
+import json
 from typing import *
 
 import numpy as np
@@ -2297,12 +2298,13 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         return new
 
     def __str__(self) -> str:
+        """A simplified representation of this object."""
         attrs = [
-            f"axes=({', '.join(self.axes)})",
-            f"shape={self.data.shape}",
-            f"unit='{self.unit}'",
+            f"shape={self.shape_dict}",
+            f"unit={self.unit}",
         ]
         return ', '.join(attrs)
+
 
 
 class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
