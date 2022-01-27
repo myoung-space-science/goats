@@ -1,7 +1,7 @@
-import configparser
 import pathlib
 import typing
 
+from goats import Environment
 from goats.common import base
 from goats.common import iterables
 from goats.common import iotools
@@ -10,6 +10,9 @@ from goats.common import quantities
 from goats.eprem import parameters
 from goats.eprem import datasets
 from goats.eprem import observables
+
+
+_pkg = Environment('eprem')
 
 
 def find_file_by_template(
@@ -23,12 +26,6 @@ def find_file_by_template(
         test = datadir / str(template(name))
         if test.exists():
             return test
-
-
-config = configparser.ConfigParser()
-"""The EPREM package configuration."""
-_ini_path = pathlib.Path(__file__).parent.parent / 'goats.ini'
-config.read(iotools.ReadOnlyPath(_ini_path))
 
 
 class Observer(base.Observer):
@@ -82,7 +79,7 @@ class Observer(base.Observer):
     def arguments(self):
         """The parameter arguments available to this observer."""
         if self._arguments is None:
-            source_path = config['eprem']['src']
+            source_path = _pkg['src']
             config_path = self._confpath / 'eprem_input_file'
             self._arguments = parameters.Arguments(
                 source_path=source_path,
