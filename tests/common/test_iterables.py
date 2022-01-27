@@ -129,23 +129,31 @@ def test_mapping_base():
 
 def test_one_to_one():
     """Test the class the represents a one-to-one mapping."""
-    dict_input = {
-        'a': 1,
-        'b': 2,
-        'c': 3,
-    }
-    forward = iterables.Bijection(dict_input)
-    assert forward['a'] == 1
-    assert forward['b'] == 2
-    assert forward['c'] == 3
-    inverse = forward.invert()
-    assert inverse[1] == 'a'
-    assert inverse[2] == 'b'
-    assert inverse[3] == 'c'
+    cases = [
+        {
+            'a': 1,
+            'b': 2,
+            'c': 3,
+        },
+        [
+            ('a', 1),
+            ('b', 2),
+            ('c', 3),
+        ],
+    ]
+    for case in cases:
+        forward = iterables.Bijection(case)
+        assert forward['a'] == 1
+        assert forward['b'] == 2
+        assert forward['c'] == 3
+        inverse = forward.invert()
+        assert inverse[1] == 'a'
+        assert inverse[2] == 'b'
+        assert inverse[3] == 'c'
 
     invalid = {
-        **dict_input,
-        'd': dict_input['a'],
+        **cases[0],
+        'd': cases[0]['a'],
     }
     with pytest.raises(iterables.InjectiveTypeError):
         iterables.Bijection(invalid)

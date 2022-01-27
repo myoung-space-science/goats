@@ -516,8 +516,9 @@ class Bijection(MappingBase):
 
     def __new__(cls, __mapping: typing.Mapping):
         """Check for invalid input mappings."""
-        n_keys = len(__mapping.keys())
-        n_values = len(set(__mapping.values()))
+        mapping = dict(__mapping)
+        n_keys = len(mapping.keys())
+        n_values = len(set(mapping.values()))
         if n_keys > n_values:
             raise InjectiveTypeError(
                 "The given mapping is injective but not surjective."
@@ -530,8 +531,8 @@ class Bijection(MappingBase):
         return super().__new__(cls)
 
     def __init__(self, __mapping: typing.Mapping) -> None:
-        super().__init__(__mapping.keys())
-        self._mapping = __mapping
+        self._mapping = dict(__mapping)
+        super().__init__(self._mapping.keys())
 
     def __getitem__(self, key):
         """Look up item by key."""
