@@ -121,41 +121,26 @@ class Interface(abc.ABC, iterables.ReprStrMixin):
         pass
 
 
+S = typing.TypeVar('S', bound='Observable')
+
+
 class Observable(iterables.ReprStrMixin):
     """An object that, when observed, produces an observation."""
 
-    def __init__(self, interface: Interface, name: str) -> None:
+    def __init__(self: S, interface: Interface, name: str) -> None:
         self._interface = interface
         self.name = name
         self._constraints = {}
 
-    def given(self, **constraints) -> Observation:
+    def observe(self, **constraints):
         """Create an observation within the given constraints.
-
-        This method updates the user constraints and creates a new observation
-        in a single step. It is equivalent to calling the `use` method, then
-        accessing the `observed`property.
-        """
-        return self.use(**constraints).observed
-
-    @property
-    def observed(self) -> Observation:
-        """An observation within the current user constraints.
-
-        Accessing this property will create an observation of this observable
-        within the current observational constraints. The default collection of
+        
+        This method will create an observation of this observable within the
+        current collection of observational constraints. Passing additional
+        constraints will update the current set; the caller may reset the
+        constraints via `~Observable.reset`. The default collection of
         observational constraints uses all relevant indices and default values
-        of assumptions. The caller can update the constraints via the `use`
-        method.
-        """
-        self._interface.apply(self._constraints)
-        return Observation(
-            self._interface.result,
-            **self._interface.context
-        )
-
-    def use(self, **constraints) -> 'Observable':
-        """Update the user constraints.
+        of assumptions.
 
         Parameters
         ----------
@@ -164,10 +149,19 @@ class Observable(iterables.ReprStrMixin):
 
         Returns
         -------
-        Observable:
-            The updated instance.
+        `~base.Observation`
+            An object representing the resultant observation.
         """
-        self._constraints = constraints.copy()
+        self._constraints.update(constraints)
+        self._interface.apply(self._constraints)
+        return Observation(
+            self._interface.result,
+            **self._interface.context
+        )
+
+    def reset(self) -> S:
+        """Reset the observing constraints."""
+        self._constraints = {}
         return self
 
     def __str__(self) -> str:

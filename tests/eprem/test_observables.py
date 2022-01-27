@@ -81,9 +81,28 @@ def test_create_observation(
 ) -> None:
     """Create default observation from each observable."""
     for name, expected in observables.items():
-        observation = stream[name].observed
+        observation = stream[name].observe()
         assert isinstance(observation, base.Observation)
         assert all(axis in observation.indices for axis in expected['axes'])
+
+
+def test_reset_constraints(stream: observing.Stream):
+    """Test the ability to reset observing constraints."""
+    observable = stream['dist']
+    observation = observable.observe(
+        time=[0.1, 0.3, 'day'],
+        shell=[10, 11, 12, 13, 14],
+        energy=[0.1, 1.0, 5.0, 'MeV'],
+        mu=(-1.0, -0.5, 0.5, 1.0),
+    )
+    assert np.array(observation).shape == (2, 5, 1, 3, 4)
+    observation = observable.observe()
+    assert np.array(observation).shape == (2, 5, 1, 3, 4)
+    observation = observable.observe(time=[0.2, 0.4, 0.5, 'day'])
+    assert np.array(observation).shape == (3, 5, 1, 3, 4)
+    observable.reset()
+    observation = observable.observe()
+    assert np.array(observation).shape == (50, 2000, 1, 20, 8)
 
 
 def test_observable_aliases(stream: observing.Stream):
