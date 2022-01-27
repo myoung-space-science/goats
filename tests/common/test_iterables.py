@@ -127,8 +127,8 @@ def test_mapping_base():
     assert sorted(mapping) == sorted(in_dict)
 
 
-def test_one_to_one():
-    """Test the class the represents a one-to-one mapping."""
+def test_bijection():
+    """Test the class the represents a bijective (one-to-one) mapping."""
     cases = [
         {
             'a': 1,
@@ -151,9 +151,16 @@ def test_one_to_one():
         assert inverse[2] == 'b'
         assert inverse[3] == 'c'
 
+
+def test_bijection_errors():
+    test = {
+        'a': 1,
+        'b': 2,
+        'c': 3,
+    }
     invalid = {
-        **cases[0],
-        'd': cases[0]['a'],
+        **test,
+        'd': test['a'],
     }
     with pytest.raises(iterables.InjectiveTypeError):
         iterables.Bijection(invalid)
