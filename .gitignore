@@ -1,6 +1,7 @@
 # Package-specific files
 data/
 dev/
+goats.ini
 
 # Visual Studio Code
 .vscode/

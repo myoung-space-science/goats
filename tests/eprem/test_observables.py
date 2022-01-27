@@ -11,8 +11,6 @@ import pytest
 from goats.common import base
 from goats.eprem import observing
 
-observing.env.source('~/emmrem/epicMas/source/eprem/src')
-
 
 def get_stream(rootpath: Path):
     """Create a stream observer.

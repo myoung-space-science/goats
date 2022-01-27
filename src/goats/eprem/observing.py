@@ -1,3 +1,4 @@
+import configparser
 import pathlib
 import typing
 
@@ -24,21 +25,10 @@ def find_file_by_template(
             return test
 
 
-class Environment:
-    """The relevant EPREM runtime environment."""
-
-    def __init__(self) -> None:
-        self._source = None
-
-    def source(self, path: typing.Union[str, pathlib.Path]=None):
-        """Get or set the path to the relevant EPREM source code."""
-        if path:
-            self._source = iotools.ReadOnlyPath(path)
-            return self
-        return self._source
-
-env = Environment()
-"""Global environment manager."""
+config = configparser.ConfigParser()
+"""The EPREM package configuration."""
+_ini_path = pathlib.Path(__file__).parent.parent / 'goats.ini'
+config.read(iotools.ReadOnlyPath(_ini_path))
 
 
 class Observer(base.Observer):
@@ -94,7 +84,7 @@ class Observer(base.Observer):
     def arguments(self):
         """The parameter arguments available to this observer."""
         if self._arguments is None:
-            source_path = env.source()
+            source_path = config['eprem']['src']
             config_path = self._confpath / 'eprem_input_file'
             self._arguments = parameters.Arguments(
                 source_path=source_path,
