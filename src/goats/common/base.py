@@ -65,8 +65,7 @@ class Observation(iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        attrs = ['data', 'indices', 'assumptions']
-        return '\n'.join(f"{attr}={getattr(self, attr)}" for attr in attrs)
+        return f"{self.data}, assumptions={self.assumptions}"
 
     def plot(
         self,
