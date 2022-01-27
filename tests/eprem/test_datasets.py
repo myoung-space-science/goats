@@ -87,3 +87,85 @@ def test_axes(dataset: datasets.Dataset):
         assert numpy.allclose(user.values, test['values'])
 
 
+def test_variables(dataset: datasets.Dataset):
+    """Test the dataset variable objects."""
+    T, S, P, E, M = 'time', 'shell', 'species', 'energy', 'mu'
+    cases = {
+        'time': {
+            'axes': (T,),
+            'unit': {'mks': 's', 'cgs': 's'},
+        },
+        'shell': {
+            'axes': (S,),
+            'unit': {'mks': '1', 'cgs': '1'},
+        },
+        'mu': {
+            'axes': (M,),
+            'unit': {'mks': '1', 'cgs': '1'},
+        },
+        'mass': {
+            'axes': (P,),
+            'unit': {'mks': 'kg', 'cgs': 'g'},
+        },
+        'charge': {
+            'axes': (P,),
+            'unit': {'mks': 'C', 'cgs': 'statC'},
+        },
+        'egrid': {
+            'axes': (P, E),
+            'unit': {'mks': 'J', 'cgs': 'erg'},
+        },
+        'vgrid': {
+            'axes': (P, E),
+            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+        },
+        'R': {
+            'axes': (T, S),
+            'unit': {'mks': 'm', 'cgs': 'cm'},
+        },
+        'T': {
+            'axes': (T, S),
+            'unit': {'mks': 'rad', 'cgs': 'rad'},
+        },
+        'P': {
+            'axes': (T, S),
+            'unit': {'mks': 'rad', 'cgs': 'rad'},
+        },
+        'Br': {
+            'axes': (T, S),
+            'unit': {'mks': 'T', 'cgs': 'G'},
+        },
+        'Bt': {
+            'axes': (T, S),
+            'unit': {'mks': 'T', 'cgs': 'G'},
+        },
+        'Bp': {
+            'axes': (T, S),
+            'unit': {'mks': 'T', 'cgs': 'G'},
+        },
+        'Vr': {
+            'axes': (T, S),
+            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+        },
+        'Vt': {
+            'axes': (T, S),
+            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+        },
+        'Vp': {
+            'axes': (T, S),
+            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+        },
+        'Rho': {
+            'axes': (T, S),
+            'unit': {'mks': 'm^-3', 'cgs': 'cm^-3'},
+        },
+        'Dist': {
+            'axes': (T, S, P, E, M),
+            'unit': {'mks': 's^3/m^6', 'cgs': 's^3/cm^6'},
+        },
+    }
+    variables = dataset.variables
+    for name, expected in cases.items():
+        variable = variables[name]
+        assert variable.axes == expected['axes']
+        assert variable.unit == expected['unit']['mks']
