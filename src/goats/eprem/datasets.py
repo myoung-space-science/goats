@@ -288,11 +288,11 @@ _VARIABLES = {
     },
     'T': {
         'aliases': ['theta'],
-        'quantity': 'ratio',
+        'quantity': 'plane angle',
     },
     'P': {
         'aliases': ['phi'],
-        'quantity': 'ratio',
+        'quantity': 'plane angle',
     },
     'Br': {
         'aliases': ['br'],
