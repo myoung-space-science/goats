@@ -174,6 +174,14 @@ class Observable(iterables.ReprStrMixin):
         """A simplified representation of this object."""
         return f"'{self.name}'"
 
+    def __eq__(self, other):
+        """True if two observables have the same name and constraints."""
+        if isinstance(other, Observable):
+            same_name = self.name == other.name
+            same_constraints = self._constraints == other._constraints
+            return same_name and same_constraints
+        return NotImplemented
+
 
 class Observer:
     """Base class for all observer objects."""
