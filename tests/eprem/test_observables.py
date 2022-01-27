@@ -100,3 +100,10 @@ def test_observable_aliases(stream: observing.Stream):
         for alias in aliases:
             assert stream[alias].name == observable.name
 
+
+def test_repeated_access(stream: observing.Stream):
+    """Test repeatedly accessing the same observable."""
+    a = stream['br']
+    b = stream['br']
+    assert a == b
+    assert a is not b
