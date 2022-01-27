@@ -403,6 +403,7 @@ class Observables(iterables.MappingBase):
             return Interface(
                 cached['implementation'],
                 self.dataset,
+                self.system,
                 dependencies=cached['dependencies'],
             )
         implementation = self.get_implementation(key)
