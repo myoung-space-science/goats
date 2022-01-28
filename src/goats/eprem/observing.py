@@ -18,7 +18,7 @@ _pkg = Environment('eprem')
 def find_file_by_template(
     templates: typing.List[typing.Callable],
     name: str,
-    datadir: typing.Union[str, pathlib.Path]=pathlib.Path().cwd(),
+    datadir: iotools.PathLike=pathlib.Path.cwd(),
 ) -> pathlib.Path:
     """Find a valid path that conforms to a given template."""
     datadir = iotools.ReadOnlyPath(datadir)
@@ -99,7 +99,7 @@ class Observer(base.Observer):
                 name,
                 datadir=pathlib.Path.cwd(),
             )
-        dpath = pathlib.Path(directory)
+        dpath = pathlib.Path(directory).expanduser().resolve()
         if dpath.is_dir():
             return find_file_by_template(
                 self._templates,
