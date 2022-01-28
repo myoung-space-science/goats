@@ -87,6 +87,28 @@ def test_create_observation(
         assert all(axis in observation.indices for axis in expected['axes'])
 
 
+def test_interpolation(stream: observing.Stream):
+    """Interpolate an observation."""
+    intflux = stream['integral flux']
+    indices = {
+        'radius': {
+            'value': (1.0, 'au'),
+            'kwargs': {'linestyle': 'solid'},
+        },
+        'shell': {
+            'value': 1000,
+            'kwargs': {'linestyle': '', 'marker': 'o', 'markevery': 10},
+        },
+    }
+    for name, index in indices.items():
+        value = index['value']
+        observation = intflux.observe(
+            **{name: value},
+            species='H+',
+        )
+        assert np.array(observation).shape == (50, 1, 1)
+
+
 def test_reset_constraints(stream: observing.Stream):
     """Test the ability to reset observing constraints."""
     observable = stream['dist']
