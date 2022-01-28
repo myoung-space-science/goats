@@ -1,7 +1,7 @@
 import operator
 import numbers
 import math
-from typing import *
+import typing
 
 import numpy as np
 import pytest
@@ -695,7 +695,7 @@ def test_variable():
 
 
 @pytest.fixture
-def arr() -> Dict[str, list]:
+def arr() -> typing.Dict[str, list]:
     """Arrays (lists of lists) for creating variables."""
     reference = [
         [+1.0, +2.0],
@@ -725,7 +725,7 @@ def arr() -> Dict[str, list]:
     }
 
 @pytest.fixture
-def var(arr: Dict[str, list]) -> Dict[str, quantities.Variable]:
+def var(arr: typing.Dict[str, list]) -> typing.Dict[str, quantities.Variable]:
     """A tuple of test variables."""
     reference = quantities.Variable(
         arr['reference'].copy(),
@@ -809,8 +809,8 @@ def reduce(a, b, opr):
 
 
 def test_variable_mul_div(
-    var: Dict[str, quantities.Variable],
-    arr: Dict[str, list],
+    var: typing.Dict[str, quantities.Variable],
+    arr: typing.Dict[str, list],
 ) -> None:
     """Test the ability to multiply two quantities.Variable instances."""
     groups = {
@@ -849,7 +849,7 @@ def test_variable_mul_div(
                 assert new.unit == unit, msg
 
 
-def test_variable_pow(var: Dict[str, quantities.Variable]) -> None:
+def test_variable_pow(var: typing.Dict[str, quantities.Variable]) -> None:
     """Test the ability to exponentiate a quantities.Variable instance."""
     opr = operator.pow
     v0 = var['reference']
@@ -867,8 +867,8 @@ def test_variable_pow(var: Dict[str, quantities.Variable]) -> None:
 
 
 def test_variable_add_sub(
-    var: Dict[str, quantities.Variable],
-    arr: Dict[str, list],
+    var: typing.Dict[str, quantities.Variable],
+    arr: typing.Dict[str, list],
 ) -> None:
     """Test the ability to add two quantities.Variable instances."""
     v0 = var['reference']
@@ -888,7 +888,7 @@ def test_variable_add_sub(
             opr(v0, v2)
 
 
-def test_variable_units(var: Dict[str, quantities.Variable]):
+def test_variable_units(var: typing.Dict[str, quantities.Variable]):
     """Test the ability to update unit via bracket syntax."""
     v0_km = var['reference'].to('km')
     assert isinstance(v0_km, quantities.Variable)
@@ -898,7 +898,7 @@ def test_variable_units(var: Dict[str, quantities.Variable]):
     assert np.array_equal(v0_km[:], 1e-3 * var['reference'][:])
 
 
-def test_variable_numerical_operations(var: Dict[str, quantities.Variable]):
+def test_numerical_operations(var: typing.Dict[str, quantities.Variable]):
     """Test operations between a quantities.Variable and a number."""
 
     # multiplication is symmetric
@@ -955,7 +955,7 @@ def test_variable_numerical_operations(var: Dict[str, quantities.Variable]):
         10.0 - var['reference']
 
 
-def test_variable_array(var: Dict[str, quantities.Variable]):
+def test_variable_array(var: typing.Dict[str, quantities.Variable]):
     """Natively convert a Variable into a NumPy array."""
     v = var['reference']
     assert isinstance(v, quantities.Variable)
@@ -964,7 +964,7 @@ def test_variable_array(var: Dict[str, quantities.Variable]):
     assert np.array_equal(v, a)
 
 
-def test_variable_getitem(var: Dict[str, quantities.Variable]):
+def test_variable_getitem(var: typing.Dict[str, quantities.Variable]):
     """Subscript a Variable."""
     # reference = [
     #     [+1.0, +2.0],
@@ -1090,15 +1090,15 @@ def test_measure():
         assert measurement == expected
 
 
-class FakeScalar(NamedTuple):
+class FakeScalar(typing.NamedTuple):
     """A test class that acts like a scalar."""
     value: numbers.Real
     unit: str
 
 
-class FakeVector(NamedTuple):
+class FakeVector(typing.NamedTuple):
     """A test class that acts like a vector."""
-    values: Iterable[numbers.Real]
+    values: typing.Iterable[numbers.Real]
     unit: str
 
 
@@ -1128,7 +1128,7 @@ def test_measurement():
         values = case['values']
         unit = case['unit']
         assert isinstance(measurement, quantities.Measurement)
-        assert isinstance(measurement, Sequence)
+        assert isinstance(measurement, typing.Sequence)
         assert measurement.values == values
         assert measurement.unit == unit
         assert len(measurement) == len(values)
