@@ -4,8 +4,7 @@ import inspect
 import functools
 import math
 import numbers
-import json
-from typing import *
+import typing
 
 import numpy as np
 
@@ -827,7 +826,7 @@ class Dimension(algebra.Expression):
 
     def __init__(
         self,
-        expression: Union['Dimension', str, iterables.Separable],
+        expression: typing.Union['Dimension', str, iterables.Separable],
         **kwargs,
     ) -> None:
         if isinstance(expression, Dimension):
@@ -868,7 +867,7 @@ class UnitConversionError(Exception):
         return f"Can't convert {self._from} to {self._to}"
 
 
-class MetricPrefix(NamedTuple):
+class MetricPrefix(typing.NamedTuple):
     """Metadata for a metric order-of-magnitude prefix."""
 
     symbol: str
@@ -876,7 +875,7 @@ class MetricPrefix(NamedTuple):
     factor: float
 
 
-class BaseUnit(NamedTuple):
+class BaseUnit(typing.NamedTuple):
     """Metadata for a named unit without metric prefix."""
 
     symbol: str
@@ -907,7 +906,7 @@ class NamedUnit(iterables.ReprStrMixin):
     # certainly NOT thread safe. UPDATE: We may be able to avoid this by
     # initializing the instance and returning it from __new__.
 
-    def __new__(cls, arg: Union[str, 'NamedUnit']):
+    def __new__(cls, arg: typing.Union[str, 'NamedUnit']):
         """Create a new instance or return an existing one."""
         if isinstance(arg, NamedUnit):
             return arg
@@ -928,7 +927,7 @@ class NamedUnit(iterables.ReprStrMixin):
     # attributes that are only necessary during instantiation.
     _init = False
 
-    def __init__(self, arg: Union[str, 'NamedUnit']) -> None:
+    def __init__(self, arg: typing.Union[str, 'NamedUnit']) -> None:
         self._arg = arg
         if not self._init and self._latest:
             self._magnitude, self._reference = self._latest
@@ -940,7 +939,7 @@ class NamedUnit(iterables.ReprStrMixin):
         self._dimension = None
         self._init = True
 
-    def __getattribute__(self, name: str) -> Any:
+    def __getattribute__(self, name: str) -> typing.Any:
         if name == '_latest' and self._init:
             raise AttributeError(f"{name!r} is not accessible on instances")
         return super().__getattribute__(name)
@@ -982,7 +981,7 @@ class NamedUnit(iterables.ReprStrMixin):
             self._dimension = dimensions[system]
         return self._dimension
 
-    def __floordiv__(self, target: Union[str, 'NamedUnit']) -> float:
+    def __floordiv__(self, target: typing.Union[str, 'NamedUnit']) -> float:
         """Compute the magnitude of this unit relative to another.
 
         Examples
@@ -1056,7 +1055,7 @@ class UnitTerm(algebra.Term):
     def __init__(
         self,
         coefficient: numbers.Real=1,
-        base: Union[str, algebra.Term]='1',
+        base: typing.Union[str, algebra.Term]='1',
         exponent: numbers.Real=1,
     ) -> None:
         super().__init__(
@@ -1084,7 +1083,7 @@ class Unit(algebra.Expression):
 
     def __init__(
         self,
-        expression: Union['Unit', str, iterables.Separable],
+        expression: typing.Union['Unit', str, iterables.Separable],
         **kwargs,
     ) -> None:
         if isinstance(expression, Unit):
@@ -1094,7 +1093,7 @@ class Unit(algebra.Expression):
         self._unit_terms = None
 
     @property
-    def terms(self) -> List[UnitTerm]:
+    def terms(self) -> typing.List[UnitTerm]:
         if self._unit_terms is None:
             self._unit_terms = [
                 UnitTerm(*term.attrs) for term in super().terms
@@ -1202,7 +1201,7 @@ class Metric(iterables.ReprStrMixin):
         self.dimension = Dimension(dimension)
         self.unit = Unit(unit)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: typing.Any) -> bool:
         """True if two instances have the same unit and dimension."""
         if isinstance(other, Metric):
             return self.unit == other.unit and self.dimension == other.dimension
@@ -1218,9 +1217,9 @@ class Quantity(iterables.ReprStrMixin):
 
     def __init__(
         self,
-        dimensions: Mapping[str, str],
-        units: Mapping[str, str],
-        conversions: Mapping[Tuple[str], float]=None,
+        dimensions: typing.Mapping[str, str],
+        units: typing.Mapping[str, str],
+        conversions: typing.Mapping[typing.Tuple[str], float]=None,
     ) -> None:
         self.dimensions = dimensions
         self.conversions = conversions or {}
@@ -1297,7 +1296,7 @@ class MetricSearchError(KeyError):
 class MetricSystem(iterables.MappingBase, iterables.ReprStrMixin):
     """Representations of physical quantities within a given metric system."""
 
-    def __init__(self, arg: Union[str, 'MetricSystem']) -> None:
+    def __init__(self, arg: typing.Union[str, 'MetricSystem']) -> None:
         """Initialize this instance.
 
         Parameters
@@ -1324,10 +1323,10 @@ class MetricSystem(iterables.MappingBase, iterables.ReprStrMixin):
 
     def get_unit(
         self,
-        unit: Union[str, Unit]=None,
-        dimension: Union[str, Dimension]=None,
-        quantity: Union[str, Quantity]=None,
-    ) -> Optional[Unit]:
+        unit: typing.Union[str, Unit]=None,
+        dimension: typing.Union[str, Dimension]=None,
+        quantity: typing.Union[str, Quantity]=None,
+    ) -> typing.Optional[Unit]:
         """Get a canonical unit from a given unit, dimension, or quantity.
 
         This method will search for the unit in the current metric system based
@@ -1365,13 +1364,13 @@ class MetricSystem(iterables.MappingBase, iterables.ReprStrMixin):
         }
         return self._get_unit(methods, targets)
 
-    T = TypeVar('T', Unit, Dimension, Quantity)
-    T = Union[Unit, Dimension, Quantity]
+    T = typing.TypeVar('T', Unit, Dimension, Quantity)
+    T = typing.Union[Unit, Dimension, Quantity]
 
     def _get_unit(
         self,
-        methods: Dict[str, Callable[[T], Unit]],
-        targets: Dict[str, T],
+        methods: typing.Dict[str, typing.Callable[[T], Unit]],
+        targets: typing.Dict[str, T],
     ) -> Unit:
         """Search logic for `get_unit`."""
         nonnull = {k: v for k, v in targets.items() if v}
@@ -1385,7 +1384,7 @@ class MetricSystem(iterables.MappingBase, iterables.ReprStrMixin):
         errmsg = f"Could not determine unit in {self.name} from {args}"
         raise MetricSearchError(errmsg)
 
-    def _format_targets(self, targets: Dict[str, T]):
+    def _format_targets(self, targets: typing.Dict[str, T]):
         """Format `get_unit` targets for printing."""
         if not targets:
             return "nothing"
@@ -1441,13 +1440,13 @@ class MetricSystem(iterables.MappingBase, iterables.ReprStrMixin):
             return other.name == self.name
         return NotImplemented
 
-    def keys(self) -> KeysView[str]:
+    def keys(self) -> typing.KeysView[str]:
         return super().keys()
 
-    def values(self) -> ValuesView[Metric]:
+    def values(self) -> typing.ValuesView[Metric]:
         return super().values()
 
-    def items(self) -> ItemsView[str, Metric]:
+    def items(self) -> typing.ItemsView[str, Metric]:
         return super().items()
 
     def __str__(self) -> str:
@@ -1455,7 +1454,7 @@ class MetricSystem(iterables.MappingBase, iterables.ReprStrMixin):
         return str(self.name)
 
 
-def get_conversion_factor(pair: Tuple[str], quantity: str=None):
+def get_conversion_factor(pair: typing.Tuple[str], quantity: str=None):
     """Get the conversion factor for the given pair of units."""
     if quantity:
         return _search_conversions(*pair, quantity)
@@ -1518,7 +1517,7 @@ named_units = aliased.Mapping(
 class ComparisonError(TypeError):
     """Incomparable instances of the same type."""
 
-    def __init__(self, __this: Any, __that: Any, name: str):
+    def __init__(self, __this: typing.Any, __that: typing.Any, name: str):
         self.this = getattr(__this, name, None)
         self.that = getattr(__that, name, None)
 
@@ -1538,12 +1537,12 @@ class same:
     def __init__(
         self,
         *names: str,
-        allowed: Iterable[Type]=None,
+        allowed: typing.Iterable[typing.Type]=None,
     ) -> None:
         self.names = names
         self.allowed = iterables.Separable(allowed)
 
-    def __call__(self, func: Callable) -> Callable:
+    def __call__(self, func: typing.Callable) -> typing.Callable:
         """Ensure attribute consistency before calling `func`."""
         if not self.names:
             return func
@@ -1559,7 +1558,12 @@ class same:
             return func(this, that)
         return wrapper
 
-    def _comparable(self, this: Any, that: Any, name: str) -> bool:
+    def _comparable(
+        self,
+        this: typing.Any,
+        that: typing.Any,
+        name: str,
+    ) -> bool:
         """Check whether the instances are comparable."""
         return getattr(this, name) == getattr(that, name)
 
@@ -1750,7 +1754,7 @@ class Quantified(RealValued, iterables.ReprStrMixin):
                 updated = update(current)
                 setattr(cls, method, updated)
 
-    def __init__(self, amount: Any, quantity: Any) -> None:
+    def __init__(self, amount: typing.Any, quantity: typing.Any) -> None:
         self.amount = amount
         self.quantity = quantity
 
@@ -1769,7 +1773,7 @@ class Ordered(Quantified):
     which should be true unless the object explicitly disables `__eq__`.
     """
 
-    def __init__(self, amount: Comparable, quantity: Any) -> None:
+    def __init__(self, amount: Comparable, quantity: typing.Any) -> None:
         super().__init__(amount, quantity)
 
     def __lt__(self, other: 'Ordered') -> bool:
@@ -1829,7 +1833,7 @@ class Measured(Ordered):
     def __init__(
         self,
         amount: RealValued,
-        unit: Union[str, Unit]=None,
+        unit: typing.Union[str, Unit]=None,
     ) -> None:
         # Implementation note: converting unit to a Unit, then assigning to
         # self.unit, and finally converting to a string while passing to the
@@ -1838,7 +1842,7 @@ class Measured(Ordered):
         self.unit = Unit(unit or '1')
         super().__init__(amount, str(self.unit))
 
-    def to(self, new: Union[str, Unit]):
+    def to(self, new: typing.Union[str, Unit]):
         """Create a copy of this instance converted to the new unit."""
         scale = Unit(new) // self.unit
         amount = (scale * self).amount
@@ -1871,16 +1875,16 @@ class Measured(Ordered):
     def __add__(self, other: 'Measured'):
         return self._new(amount=self.amount + other.amount, unit=self.unit)
 
-    def __radd__(self, other: Any):
+    def __radd__(self, other: typing.Any):
         return NotImplemented
 
     def __sub__(self, other: 'Measured'):
         return self._new(amount=self.amount - other.amount, unit=self.unit)
 
-    def __rsub__(self, other: Any):
+    def __rsub__(self, other: typing.Any):
         return NotImplemented
 
-    def __mul__(self, other: Any):
+    def __mul__(self, other: typing.Any):
         if isinstance(other, Measured):
             amount = self.amount * other.amount
             unit = self.unit * other.unit
@@ -1889,12 +1893,12 @@ class Measured(Ordered):
             return self._new(amount=self.amount * other, unit=self.unit)
         return NotImplemented
 
-    def __rmul__(self, other: Any):
+    def __rmul__(self, other: typing.Any):
         if isinstance(other, numbers.Number):
             return self._new(amount=other * self.amount, unit=self.unit)
         return NotImplemented
 
-    def __truediv__(self, other: Any):
+    def __truediv__(self, other: typing.Any):
         if isinstance(other, Measured):
             amount = self.amount / other.amount
             unit = self.unit / other.unit
@@ -1903,10 +1907,10 @@ class Measured(Ordered):
             return self._new(amount=self.amount / other, unit=self.unit)
         return NotImplemented
 
-    def __rtruediv__(self, other: Any):
+    def __rtruediv__(self, other: typing.Any):
         return NotImplemented
 
-    def __pow__(self, other: Any):
+    def __pow__(self, other: typing.Any):
         if isinstance(other, numbers.Number):
             return self._new(
                 amount=self.amount ** other,
@@ -1914,7 +1918,7 @@ class Measured(Ordered):
             )
         return NotImplemented
 
-    def __rpow__(self, other: Any):
+    def __rpow__(self, other: typing.Any):
         return NotImplemented
 
     def __str__(self) -> str:
@@ -1978,12 +1982,12 @@ class Scalar(Measured, allowed=allowed):
         """Called for math.trunc(self)."""
         return math.trunc(self.value)
 
-    def __mul__(self, other: Any):
+    def __mul__(self, other: typing.Any):
         if isinstance(other, Variable):
             return NotImplemented
         return super().__mul__(other)
 
-    def __truediv__(self, other: Any):
+    def __truediv__(self, other: typing.Any):
         if isinstance(other, Variable):
             return NotImplemented
         return super().__truediv__(other)
@@ -1996,7 +2000,7 @@ class Scalar(Measured, allowed=allowed):
         self.amount = self.amount - other.amount
         return self
 
-    def __imul__(self, other: Any):
+    def __imul__(self, other: typing.Any):
         if isinstance(other, Measured):
             self.amount = self.amount * other.amount
             self.unit = self.unit * other.unit
@@ -2006,7 +2010,7 @@ class Scalar(Measured, allowed=allowed):
             return self
         return NotImplemented
 
-    def __itruediv__(self, other: Any):
+    def __itruediv__(self, other: typing.Any):
         if isinstance(other, Measured):
             self.amount = self.amount / other.amount
             self.unit = self.unit / other.unit
@@ -2016,7 +2020,7 @@ class Scalar(Measured, allowed=allowed):
             return self
         return NotImplemented
 
-    def __ipow__(self, other: Any):
+    def __ipow__(self, other: typing.Any):
         if isinstance(other, numbers.Number):
             self.amount = self.amount ** other
             self.unit = self.unit ** other
@@ -2039,7 +2043,7 @@ class Vector(Measured):
     def __init__(
         self,
         amount: RealValued,
-        unit: Union[str, Unit]=None,
+        unit: typing.Union[str, Unit]=None,
     ) -> None:
         super().__init__(amount, unit=unit)
         self._values = None
@@ -2063,7 +2067,7 @@ class Vector(Measured):
         """Called for item in self."""
         return item in self.values
 
-    def __add__(self, other: Any):
+    def __add__(self, other: typing.Any):
         if isinstance(other, Vector):
             values = [s + o for s, o in zip(self.values, other.values)]
             return self._new(amount=values, unit=self.unit)
@@ -2072,7 +2076,7 @@ class Vector(Measured):
             return self._new(amount=values, unit=self.unit)
         return NotImplemented
 
-    def __sub__(self, other: Any):
+    def __sub__(self, other: typing.Any):
         if isinstance(other, Vector):
             values = [s - o for s, o in zip(self.values, other.values)]
             return self._new(amount=values, unit=self.unit)
@@ -2081,7 +2085,7 @@ class Vector(Measured):
             return self._new(amount=values, unit=self.unit)
         return NotImplemented
 
-    def __mul__(self, other: Any):
+    def __mul__(self, other: typing.Any):
         if isinstance(other, Vector):
             values = [s * o for s, o in zip(self.values, other.values)]
             unit = self.unit * other.unit
@@ -2093,7 +2097,7 @@ class Vector(Measured):
             return self._new(amount=values, unit=self.unit)
         return NotImplemented
 
-    def __rmul__(self, other: Any):
+    def __rmul__(self, other: typing.Any):
         if isinstance(other, Scalar):
             other = float(other)
         if isinstance(other, numbers.Number):
@@ -2101,7 +2105,7 @@ class Vector(Measured):
             return self._new(amount=values, unit=self.unit)
         return NotImplemented
 
-    def __truediv__(self, other: Any):
+    def __truediv__(self, other: typing.Any):
         if isinstance(other, Vector):
             values = [s / o for s, o in zip(self.values, other.values)]
             unit = self.unit / other.unit
@@ -2113,7 +2117,7 @@ class Vector(Measured):
             return self._new(amount=values, unit=self.unit)
         return NotImplemented
 
-    def __pow__(self, other: Any):
+    def __pow__(self, other: typing.Any):
         if isinstance(other, numbers.Number):
             values = [s ** other for s in self.values]
             unit = self.unit ** other
@@ -2126,11 +2130,16 @@ class Vector(Measured):
         return super().copy(**updates)
 
 
-IndexLike = TypeVar('IndexLike', Iterable[int], slice, type(Ellipsis))
-IndexLike = Union[Iterable[int], slice, type(Ellipsis)]
+IndexLike = typing.TypeVar(
+    'IndexLike',
+    typing.Iterable[int],
+    slice,
+    type(Ellipsis),
+)
+IndexLike = typing.Union[typing.Iterable[int], slice, type(Ellipsis)]
 
-UnitLike = TypeVar('UnitLike', str, Unit)
-UnitLike = Union[str, Unit]
+UnitLike = typing.TypeVar('UnitLike', str, Unit)
+UnitLike = typing.Union[str, Unit]
 
 
 allowed = {'__add__': float, '__sub__': float}
@@ -2149,9 +2158,9 @@ class Variable(Vector, arrays.Array, allowed=allowed):
 
     def __init__(
         self,
-        values: Iterable[numbers.Number],
+        values: typing.Iterable[numbers.Number],
         unit: str,
-        axes: Iterable[str],
+        axes: typing.Iterable[str],
         name: str=None,
     ) -> None:
         self.array = arrays.Array(values, axes)
@@ -2201,7 +2210,10 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         indices = np.ix_(*list(idx))
         return self._new(values=self.array[indices])
 
-    def _expand_ellipsis(self, user: Sequence) -> Tuple[slice, ...]:
+    def _expand_ellipsis(
+        self,
+        user: typing.Sequence,
+    ) -> typing.Tuple[slice, ...]:
         """Expand an ``Ellipsis`` into one or more ``slice`` objects."""
         if Ellipsis not in user:
             return user
@@ -2217,7 +2229,7 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         """Get an attribute from the base array object."""
         return getattr(self.array, name)
 
-    def __eq__(self, other: Any):
+    def __eq__(self, other: typing.Any):
         """True if two instances have the same values and attributes."""
         if not isinstance(other, Variable):
             return NotImplemented
@@ -2232,21 +2244,21 @@ class Variable(Vector, arrays.Array, allowed=allowed):
             for attr in {'unit', 'axes'}
         )
 
-    def __add__(self, other: Any):
+    def __add__(self, other: typing.Any):
         if isinstance(other, numbers.Real):
             return self._new(values=self.data + other)
         if isinstance(other, Variable) and self.axes != other.axes:
             return NotImplemented
         return super().__add__(other)
 
-    def __sub__(self, other: Any):
+    def __sub__(self, other: typing.Any):
         if isinstance(other, numbers.Real):
             return self._new(values=self.data - other)
         if isinstance(other, Variable) and self.axes != other.axes:
             return NotImplemented
         return super().__sub__(other)
 
-    def __mul__(self, other: Any):
+    def __mul__(self, other: typing.Any):
         if isinstance(other, Variable):
             axes = sorted(tuple(set(self.axes + other.axes)))
             sarr, oarr = self._extend_arrays(other, axes)
@@ -2255,7 +2267,7 @@ class Variable(Vector, arrays.Array, allowed=allowed):
             return self._new(values=amount, unit=unit, axes=axes)
         return super().__mul__(other)
 
-    def __truediv__(self, other: Any):
+    def __truediv__(self, other: typing.Any):
         if isinstance(other, Variable):
             axes = sorted(tuple(set(self.axes + other.axes)))
             sarr, oarr = self._extend_arrays(other, axes)
@@ -2265,15 +2277,15 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         return super().__truediv__(other)
 
     @property
-    def shape_dict(self) -> Dict[str, int]:
+    def shape_dict(self) -> typing.Dict[str, int]:
         """Label and size for each axis."""
         return dict(zip(self.axes, self.data.shape))
 
     def _extend_arrays(
         self,
         other: 'Variable',
-        axes: Tuple[str],
-    ) -> Tuple[np.ndarray]:
+        axes: typing.Tuple[str],
+    ) -> typing.Tuple[np.ndarray]:
         """Extract arrays with extended axes.
 
         This method determines the set of unique axes shared by this
@@ -2365,8 +2377,8 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
         return f"{self.values} [{self.unit}]"
 
 
-@runtime_checkable
-class Measurable(Protocol):
+@typing.runtime_checkable
+class Measurable(typing.Protocol):
     """Protocol defining a formally measurable object."""
 
     __slots__ = ()
