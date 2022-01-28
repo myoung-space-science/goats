@@ -2152,9 +2152,12 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         values: Iterable[numbers.Number],
         unit: str,
         axes: Iterable[str],
+        name: str=None,
     ) -> None:
         self.array = arrays.Array(values, axes)
         super().__init__(self.array, unit)
+        self.name = name or '<anonymous>'
+        """The name of this variable, if available."""
 
     def __getitem__(self, *args: IndexLike):
         """Create a new instance from a subset of data."""
@@ -2302,6 +2305,7 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         attrs = [
             f"shape={self.shape_dict}",
             f"unit={self.unit}",
+            f"name='{self.name}'",
         ]
         return ', '.join(attrs)
 

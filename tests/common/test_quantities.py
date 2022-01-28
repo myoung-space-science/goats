@@ -989,6 +989,19 @@ def test_variable_getitem(var: Dict[str, quantities.Variable]):
     assert mixed.array == expected
 
 
+def test_variable_name():
+    """A variable may have a given name or be anonymous."""
+    default = quantities.Variable([1], 'm', ['d0'])
+    assert default.name == '<anonymous>'
+    cases = {
+        'test': 'test',
+        None: '<anonymous>',
+    }
+    for name, expected in cases.items():
+        variable = quantities.Variable([1], 'm', ['d0'], name=name)
+        assert variable.name == expected
+
+
 def test_default_unit():
     """Scalars and Vectors are unitless by default."""
     assert quantities.Scalar(1).unit == '1'
