@@ -296,7 +296,7 @@ class Interface(base.Interface):
             indices = axis(*iterables.Separable(indices))
         if isinstance(indices, indexing.Coordinates):
             unit = self.system.get_unit(unit=indices.unit)
-            return indices.to(unit)
+            return indices.with_unit(unit)
         return indices
 
     def update_assumptions(self, constraints: Mapping):
@@ -314,7 +314,7 @@ class Interface(base.Interface):
         if not isinstance(scalar, quantities.Scalar):
             scalar = quantities.Scalar(*iterables.Separable(scalar))
         unit = self.system.get_unit(unit=scalar.unit)
-        return scalar.to(unit)
+        return scalar.with_unit(unit)
 
     def apply(self, constraints: Mapping):
         """Construct the target variable within the given constraints."""

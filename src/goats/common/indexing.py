@@ -76,7 +76,7 @@ class Coordinates(OrderedPairs):
         super().__init__(indices, values)
         self.unit = unit
 
-    def to(self, new: Union[str, quantities.Unit]):
+    def with_unit(self, new: Union[str, quantities.Unit]):
         """Convert this object to the new unit, if possible."""
         scale = quantities.Unit(new) // self.unit
         self.values = [value * scale for value in self.values]
@@ -147,7 +147,7 @@ class IndexComputer(Indexer):
             return Indices(targets)
         vector = quantities.measure(*targets).asvector
         values = (
-            vector.to(self.unit).values
+            vector.with_unit(self.unit).values
             if vector.unit.dimension == self.unit.dimension
             else vector.values
         )
