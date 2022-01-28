@@ -62,6 +62,7 @@ def observables() -> Dict[str, dict]:
         'flux': {'axes': (T, S, P, E)},
         'fluence': {'axes': (S, P, E)},
         'integral flux': {'axes': (T, S, P)},
+        'Vr / Br': {'axes': (T, S)},
     }
 
 

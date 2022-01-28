@@ -394,7 +394,7 @@ class Observables(iterables.MappingBase):
         implementation = self._implement(key)
         if implementation is None:
             raise KeyError(f"No observable corresponding to {key!r}") from None
-        return base.Observable(implementation, self.aliases[key])
+        return base.Observable(implementation, self.aliases.get(key, key))
 
     def _implement(self, key: str):
         """Create an interface to this observable, if possible."""
