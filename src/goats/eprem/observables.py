@@ -71,8 +71,8 @@ class Application:
             return self._evaluate_variable(implementation)
         if isinstance(implementation, functions.Function):
             return self._evaluate_function(implementation)
-        if isinstance(implementation, algebra.Expression):
-            return self._evaluate_expression(implementation)
+        if isinstance(implementation, Compound):
+            return self._evaluate_expression(implementation.expression)
         raise TypeError(f"Unknown implementation: {type(implementation)}")
 
     def _evaluate_variable(self, variable: quantities.Variable):
@@ -363,6 +363,13 @@ class Interface(base.Interface):
         return ', '.join(pairs)
 
 
+class Compound(NamedTuple):
+    """An algebraic combination of primary or derived observables."""
+
+    expression: algebra.Expression
+    axes: Tuple[str]
+
+
 class Observables(iterables.MappingBase):
     """An aliased mapping of observable quantities from an EPREM simulation."""
 
@@ -391,10 +398,10 @@ class Observables(iterables.MappingBase):
 
     def __getitem__(self, key: str):
         """Create the requested observable, if possible."""
-        implementation = self._implement(key)
-        if implementation is None:
+        interface = self._implement(key)
+        if interface is None:
             raise KeyError(f"No observable corresponding to {key!r}") from None
-        return base.Observable(implementation, self.aliases.get(key, key))
+        return base.Observable(interface, self.aliases.get(key, key))
 
     def _implement(self, key: str):
         """Create an interface to this observable, if possible."""
@@ -427,7 +434,22 @@ class Observables(iterables.MappingBase):
         if key in self.functions:
             return self.functions[key]
         if '/' in key or '*' in key:
-            return algebra.Expression(key)
+            expression = algebra.Expression(key)
+            return self._build_compound_observable(expression)
+
+    def _build_compound_observable(self, expression: algebra.Expression):
+        """Build a compound observable from an algebraic expression."""
+        unique = list(
+            {
+                axis
+                for term in expression
+                for axis in self.get_implementation(term.base).axes
+            }
+        )
+        canonical = ('time', 'shell', 'species', 'energy', 'mu')
+        indices = (unique.index(axis) for axis in canonical if axis in unique)
+        axes = tuple(unique[i] for i in indices)
+        return Compound(expression=expression, axes=axes)
 
     _RT = TypeVar('_RT', bound=dict)
     _RT = Dict[aliased.MappingKey, Dependency]
