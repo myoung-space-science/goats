@@ -115,11 +115,7 @@ class Application:
         with different units will always compare false by triggering a
         `quantities.ComparisonError`.
         """
-        try:
-            truth = variable in self.reference.values()
-        except quantities.ComparisonError:
-            return False
-        return truth
+        return any(alias in self.reference for alias in variable.name)
 
     def _need_interp(self, axis: str):
         """True if we need to interpolate over this axis."""
