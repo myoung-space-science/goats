@@ -348,8 +348,7 @@ class MappingBase(collections.abc.Mapping):
     This abstract base class is designed to serve as a basis for easily creating
     concrete implementations of `collections.abc.Mapping`. It defines simple
     implementations, based on a user-provided collection, for the abstract
-    methods required by `collections.abc.Collection` (`__contains__`, `__len__`,
-    and `__iter__`) but leaves `__getitem__` abstract.
+    methods `__len__` and `__iter__` but leaves `__getitem__` abstract.
 
     Examples
     --------
@@ -358,8 +357,7 @@ class MappingBase(collections.abc.Mapping):
         class Implemented(MappingBase):
 
             def __init__(self, mapping: Mapping) -> None:
-                __mapping = mapping or {}
-                super().__init__(__mapping.keys())
+                __mapping = mapping or {} super().__init__(__mapping.keys())
                 self.__mapping = __mapping
 
             def __getitem__(self, k: Any):
@@ -384,8 +382,7 @@ class MappingBase(collections.abc.Mapping):
         class Incomplete(MappingBase):
 
             def __init__(self, mapping: Mapping) -> None:
-                __mapping = mapping or {}
-                super().__init__(__mapping.keys())
+                __mapping = mapping or {} super().__init__(__mapping.keys())
 
     """
 
@@ -400,10 +397,6 @@ class MappingBase(collections.abc.Mapping):
             support the equivalent implementations for this mapping.
         """
         self.__collection = __collection
-
-    def __contains__(self, key: str) -> bool:
-        """True if `key` names a member of this collection."""
-        return key in self.__collection
 
     def __len__(self) -> int:
         """The number of members in this collection."""
