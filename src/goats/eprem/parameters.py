@@ -185,7 +185,7 @@ class BaseTypesH(SourceFile):
         """Access constants by keyword."""
         if key in self._cache:
             return self._cache[key]
-        if key in self:
+        if key in self.definitions:
             value = self._compute(key)
             self._cache[key] = value
             return value
@@ -414,7 +414,7 @@ class ConfigurationC(SourceFile):
 
     def __getitem__(self, key: str):
         """Request a reference object by parameter name."""
-        if key in self:
+        if key in self.definitions:
             return self.definitions[key]
         raise KeyError(f"No reference information for {key!r}")
 
@@ -573,7 +573,7 @@ class Runtime(iterables.MappingBase):
 
     def __getitem__(self, name: str):
         """Retrieve a parameter value by name."""
-        if name in self:
+        if name in self.reference:
             return self._evaluate(name)
         raise KeyError(f"Unknown parameter {name!r}")
 
