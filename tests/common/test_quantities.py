@@ -375,7 +375,7 @@ def test_measured_operators():
     assert q0**2 / 2 == quantities.Measured(8, meters**2)
     with pytest.raises(TypeError):
         2 / q0
-    assert q0.to('cm') == quantities.Measured(100 * q0.amount, 'cm')
+    assert q0.with_unit('cm') == quantities.Measured(100 * q0.amount, 'cm')
 
 
 def test_scalar_operators():
@@ -675,7 +675,7 @@ def test_variable():
     assert v1.unit == quantities.Unit('J')
     assert list(v1.axes) == ['x', 'y']
     assert v1.naxes == 2
-    v0_cm = v0.to('cm')
+    v0_cm = v0.with_unit('cm')
     assert v0_cm is not v0
     assert v0_cm.values == [100 * v for v in v0.values]
     assert v0_cm.unit == quantities.Unit('cm')
@@ -890,7 +890,7 @@ def test_variable_add_sub(
 
 def test_variable_units(var: typing.Dict[str, quantities.Variable]):
     """Test the ability to update unit via bracket syntax."""
-    v0_km = var['reference'].to('km')
+    v0_km = var['reference'].with_unit('km')
     assert isinstance(v0_km, quantities.Variable)
     assert v0_km is not var['reference']
     assert v0_km.unit == 'km'

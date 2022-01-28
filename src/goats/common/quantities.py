@@ -1842,11 +1842,11 @@ class Measured(Ordered):
         self.unit = Unit(unit or '1')
         super().__init__(amount, str(self.unit))
 
-    def to(self, new: typing.Union[str, Unit]):
+    def with_unit(self, unit: typing.Union[str, Unit]):
         """Create a copy of this instance converted to the new unit."""
-        scale = Unit(new) // self.unit
+        scale = Unit(unit) // self.unit
         amount = (scale * self).amount
-        return self._new(amount=amount, unit=new)
+        return self._new(amount=amount, unit=unit)
 
     def _new(self, **updated):
         """Create a new instance with updated attributes."""
