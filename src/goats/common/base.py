@@ -130,6 +130,7 @@ class Observable(iterables.ReprStrMixin):
         self._interface = interface
         self.name = name
         self._constraints = {}
+        self.axes = interface.implementation.axes
 
     def observe(self, **constraints):
         """Create an observation within the given constraints.
@@ -165,7 +166,7 @@ class Observable(iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        return f"'{self.name}'"
+        return f"'{self.name}', axes={list(self.axes)}"
 
     def __eq__(self, other):
         """True if two observables have the same name and constraints."""
