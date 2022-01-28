@@ -2,6 +2,7 @@ import pytest
 import numpy
 
 from goats.common import indexing
+from goats.common import aliased
 from goats.eprem import datasets
 
 
@@ -94,74 +95,96 @@ def test_variables(dataset: datasets.Dataset):
         'time': {
             'axes': (T,),
             'unit': {'mks': 's', 'cgs': 's'},
+            'aliases': ['t', 'times'],
         },
         'shell': {
             'axes': (S,),
             'unit': {'mks': '1', 'cgs': '1'},
+            'aliases': ['shells'],
         },
         'mu': {
             'axes': (M,),
             'unit': {'mks': '1', 'cgs': '1'},
+            'aliases': [
+                'mus',
+                'pitch angle', 'pitch-angle cosine',
+                'pitch angles', 'pitch-angle cosines',
+            ],
         },
         'mass': {
             'axes': (P,),
             'unit': {'mks': 'kg', 'cgs': 'g'},
+            'aliases': ['m'],
         },
         'charge': {
             'axes': (P,),
             'unit': {'mks': 'C', 'cgs': 'statC'},
+            'aliases': ['q'],
         },
         'egrid': {
             'axes': (P, E),
             'unit': {'mks': 'J', 'cgs': 'erg'},
+            'aliases': ['energy', 'energies', 'E'],
         },
         'vgrid': {
             'axes': (P, E),
             'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'aliases': ['speed', 'v', 'vparticle'],
         },
         'R': {
             'axes': (T, S),
             'unit': {'mks': 'm', 'cgs': 'cm'},
+            'aliases': ['r', 'radius'],
         },
         'T': {
             'axes': (T, S),
             'unit': {'mks': 'rad', 'cgs': 'rad'},
+            'aliases': ['theta'],
         },
         'P': {
             'axes': (T, S),
             'unit': {'mks': 'rad', 'cgs': 'rad'},
+            'aliases': ['phi'],
         },
         'Br': {
             'axes': (T, S),
             'unit': {'mks': 'T', 'cgs': 'G'},
+            'aliases': ['br'],
         },
         'Bt': {
             'axes': (T, S),
             'unit': {'mks': 'T', 'cgs': 'G'},
+            'aliases': ['bt', 'Btheta', 'btheta'],
         },
         'Bp': {
             'axes': (T, S),
             'unit': {'mks': 'T', 'cgs': 'G'},
+            'aliases': ['bp', 'Bphi', 'bphi'],
         },
         'Vr': {
             'axes': (T, S),
             'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'aliases': ['vr'],
         },
         'Vt': {
             'axes': (T, S),
             'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'aliases': ['vt', 'Vtheta', 'vtheta'],
         },
         'Vp': {
             'axes': (T, S),
             'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'aliases': ['vp', 'Vphi', 'vphi'],
         },
         'Rho': {
             'axes': (T, S),
             'unit': {'mks': 'm^-3', 'cgs': 'cm^-3'},
+            'aliases': ['rho'],
         },
         'Dist': {
             'axes': (T, S, P, E, M),
             'unit': {'mks': 's^3/m^6', 'cgs': 's^3/cm^6'},
+            'aliases': ['dist', 'f'],
         },
     }
     variables = dataset.variables
@@ -169,3 +192,4 @@ def test_variables(dataset: datasets.Dataset):
         variable = variables[name]
         assert variable.axes == expected['axes']
         assert variable.unit == expected['unit']['mks']
+        assert variable.name == aliased.MappingKey(name, *expected['aliases'])

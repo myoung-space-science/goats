@@ -191,12 +191,13 @@ class Dataset(collections.abc.Container):
                 'values': data,
                 'axes': self._get_axes_from_data(data),
                 'unit': self._get_unit_from_data(data),
+                'name': meta.alias(name, include=True),
             } for name, data in dataset.variables.items()
         }
         variable = quantities.Variable
         variables = {
-            meta.alias(name, include=True): variable(**attrs)
-            for name, attrs in base.items()
+            current['name']: variable(**current)
+            for name, current in base.items()
             if name in _VARIABLES
         }
         return aliased.Mapping(variables)
