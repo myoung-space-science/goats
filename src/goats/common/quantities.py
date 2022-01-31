@@ -1019,8 +1019,7 @@ class NamedUnit(iterables.ReprStrMixin):
             return ratio
         if other.quantity == self.quantity:
             pair = (other._reference.symbol, self._reference.symbol)
-            factor = get_conversion_factor(pair, self.quantity)
-            if factor:
+            if factor := get_conversion_factor(pair, self.quantity):
                 return ratio * factor
         raise UnitConversionError(self.name, other.name) from None
 
@@ -1748,8 +1747,7 @@ class Quantified(RealValued, iterables.ReprStrMixin):
         """
         allowed = kwargs.get('allowed', {})
         for method in cls._quantified:
-            current = getattr(cls, method, None)
-            if current:
+            if current:= getattr(cls, method, None):
                 update = same('quantity', allowed=allowed.get(method))
                 updated = update(current)
                 setattr(cls, method, updated)
