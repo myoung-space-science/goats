@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 from goats.common import base
+from goats.common import physical
 from goats.eprem import observing
 
 
@@ -85,6 +86,15 @@ def test_create_observation(
         observation = stream[name].observe()
         assert isinstance(observation, base.Observation)
         assert all(axis in observation.indices for axis in expected['axes'])
+
+
+def test_observation_unit(stream: observing.Stream):
+    """Change the unit of an observation's values."""
+    old = stream['r'].observe()
+    assert old.unit == 'm'
+    new = old.with_unit('au')
+    assert new.unit == 'au'
+    assert np.allclose(old, new * physical.mks['au'])
 
 
 def test_interpolation(stream: observing.Stream):

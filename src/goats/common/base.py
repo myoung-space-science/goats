@@ -25,28 +25,44 @@ class Observed(typing.Protocol):
         pass
 
 
-class Observation(iterables.ReprStrMixin):
+class Observation(quantities.Variable, iterables.ReprStrMixin):
     """The result of observing an observable object."""
 
     def __init__(
         self,
-        data: Observed,
+        data: quantities.Variable,
         indices: typing.Mapping[str, indexing.Indices],
         assumptions: typing.Mapping[str, quantities.Scalar]=None,
     ) -> None:
-        self.data = data
-        self.unit = data.unit
-        """The unit of this observation's values."""
+        # TODO: Make `Variable` idempotent so we can just pass `data`.
+        super().__init__(
+            data.values,
+            data.unit,
+            data.axes,
+            name=data.name,
+        )
         self.indices = indices
         """The indices of this observation's array."""
         self.assumptions = assumptions or {}
         """The assumptions relevant to this observation."""
 
-    # Allow unit updates as in Measured objects?
-
-    def __array__(self, *args, **kwargs) -> np.ndarray:
-        """Support automatic conversion to a `numpy.ndarray`."""
-        return np.array(self.data, *args, **kwargs)
+    def _new(self, **updated):
+        argdict = {
+            'values': updated.pop(
+                'amount',
+                updated.pop('values', self.values),
+            ),
+            'unit': updated.pop('unit', self.unit),
+            'axes': updated.pop('axes', self.axes),
+        }
+        kwargs = {'name': self.name}
+        data = quantities.Variable(*argdict.values(), **kwargs)
+        indices = updated.pop('indices', self.indices)
+        updated.update(
+            data=data,
+            indices=indices,
+        )
+        return type(self)(**updated)
 
     def __eq__(self, other) -> bool:
         """True if two instances have equivalent attributes."""
@@ -54,7 +70,7 @@ class Observation(iterables.ReprStrMixin):
             return NotImplemented
         if not self._equal_attrs(other):
             return False
-        return self.data == other.data
+        return super().__eq__(other)
 
     def _equal_attrs(self, other):
         """True if two instances have the same attributes."""
@@ -65,7 +81,7 @@ class Observation(iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        return f"{self.data}, assumptions={self.assumptions}"
+        return f"{super().__str__()}, assumptions={self.assumptions}"
 
     def plot(
         self,
