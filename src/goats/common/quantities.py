@@ -2170,13 +2170,16 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         """Create a new instance from a subset of data."""
         builtin = (int, slice, type(...))
         unwrapped = iterables.unwrap(args)
-        standard = (
-            isinstance(unwrapped, builtin)
-            or all(isinstance(arg, builtin) for arg in unwrapped)
-        )
-        if standard:
+        if self._types_match(unwrapped, builtin):
             return self._subscript_standard(unwrapped)
         return self._subscript_custom(unwrapped)
+
+    def _types_match(self, args, types):
+        """True if `args` is one `types` or a collection of `types`."""
+        return (
+            isinstance(args, types)
+            or all(isinstance(arg, types) for arg in args)
+        )
 
     def _subscript_standard(self, indices):
         """Perform standard array subscription.
