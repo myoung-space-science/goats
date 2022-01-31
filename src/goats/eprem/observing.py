@@ -109,6 +109,7 @@ class Observer(base.Observer):
         raise TypeError(
             "Can't create path to dataset"
             f" from directory {directory!r}"
+            f" ({dpath})"
         )
 
     def _build_confpath(self, arg: iotools.PathLike):
