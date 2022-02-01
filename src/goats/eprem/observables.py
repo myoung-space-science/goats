@@ -48,6 +48,14 @@ Dependency = Union[
 ]
 
 
+class Compound(NamedTuple):
+    """An algebraic combination of primary or derived observables."""
+
+    expression: algebra.Expression
+    axes: Tuple[str]
+    name: str=None
+
+
 class Application:
     """The object that handles evaluating all observables."""
 
@@ -72,7 +80,7 @@ class Application:
         if isinstance(implementation, functions.Function):
             return self._evaluate_function(implementation)
         if isinstance(implementation, Compound):
-            return self._evaluate_expression(implementation.expression)
+            return self._evaluate_compound(implementation)
         raise TypeError(f"Unknown implementation: {type(implementation)}")
 
     def _evaluate_variable(self, variable: quantities.Variable):
@@ -215,8 +223,9 @@ class Application:
         unit = self.system.get_unit(quantity=function.quantity)
         return function(deps, unit)
 
-    def _evaluate_expression(self, expression: algebra.Expression):
+    def _evaluate_compound(self, implementation: Compound):
         """Combine variables and functions based on this expression."""
+        expression = implementation.expression
         variables = [
             self._get_observable(term.base) for term in expression
         ]
@@ -224,7 +233,12 @@ class Application:
         result = variables[0] ** exponents[0]
         for variable, exponent in zip(variables[1:], exponents[1:]):
             result *= variable ** exponent
-        return result
+        return quantities.Variable(
+            result.values,
+            result.unit,
+            result.axes,
+            name=implementation.name
+        )
 
     def _get_observable(self, key: str):
         """Get an observable dependency by keyword."""
@@ -359,13 +373,6 @@ class Interface(base.Interface):
         return ', '.join(pairs)
 
 
-class Compound(NamedTuple):
-    """An algebraic combination of primary or derived observables."""
-
-    expression: algebra.Expression
-    axes: Tuple[str]
-
-
 class Observables(iterables.MappingBase):
     """An aliased mapping of observable quantities from an EPREM simulation."""
 
@@ -445,7 +452,8 @@ class Observables(iterables.MappingBase):
         canonical = ('time', 'shell', 'species', 'energy', 'mu')
         indices = (unique.index(axis) for axis in canonical if axis in unique)
         axes = tuple(unique[i] for i in indices)
-        return Compound(expression=expression, axes=axes)
+        name = str(expression)
+        return Compound(expression=expression, axes=axes, name=name)
 
     _RT = TypeVar('_RT', bound=dict)
     _RT = Dict[aliased.MappingKey, Dependency]
