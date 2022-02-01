@@ -177,6 +177,7 @@ class Application:
             array,
             variable.unit,
             variable.axes,
+            name=variable.name,
         )
 
     def _interpolate_coordinate(
