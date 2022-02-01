@@ -2171,17 +2171,82 @@ class Variable(Vector, arrays.Array, allowed=allowed):
        underlying array.
     """
 
+    @typing.overload
     def __init__(
         self,
         values: typing.Iterable[numbers.Number],
-        unit: str,
+        unit: typing.Union[str, Unit],
         axes: typing.Iterable[str],
-        name: str=None,
+        name: str='<anonymous>',
     ) -> None:
-        self.array = arrays.Array(values, axes)
-        super().__init__(self.array, unit)
-        self.name = name or '<anonymous>'
-        """The name of this variable, if available."""
+        """Initialize an instance from arguments.
+        
+        Parameters
+        ----------
+        values : iterable of numbers
+            The numerical values of this variable.
+
+        unit : string or `~quantities.Unit`
+            The metric unit of `values`.
+
+        axes : iterable of strings
+            The names of this variable's indexable axes.
+
+        name : string, default='<anonymous>'
+            The optional name of this variable.
+        """
+
+    @typing.overload
+    def __init__(self, instance: 'Variable') -> None:
+        """Initialize an instance from an existing instance.
+        
+        Parameters
+        ----------
+        instance
+            An instance of this class from which to initialize a new variable.
+        """
+
+    def __init__(self, *args, **kwargs):
+        """Initialize an instance from arguments.
+        
+        Callers may initialize an instance by providing `values`, `
+        See below for a description of each parameter.
+        Parameters
+        ----------
+        """
+        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
+            variable = args[0]
+            self.array = arrays.Array(variable.values, variable.axes)
+            super().__init__(self.array, variable.unit)
+            self.name = variable.name
+        # NOTE: Can probably refactor into a loop with `list.pop(0)`.
+        elif len(args) == 0:
+            values = kwargs.get('values')
+            unit = kwargs.get('unit')
+            axes = kwargs.get('axes')
+            self.array = arrays.Array(values, axes)
+            super().__init__(self.array, unit)
+            self.name = kwargs.get('name') or '<anonymous>'
+        elif len(args) == 1:
+            values, = args
+            unit = kwargs.get('unit')
+            axes = kwargs.get('axes')
+            self.array = arrays.Array(values, axes)
+            super().__init__(self.array, unit)
+            self.name = kwargs.get('name') or '<anonymous>'
+        elif len(args) == 2:
+            values, unit = args
+            axes = kwargs.get('axes')
+            self.array = arrays.Array(values, axes)
+            super().__init__(self.array, unit)
+            self.name = kwargs.get('name') or '<anonymous>'
+        elif len(args) == 3:
+            values, unit, axes = args
+            self.array = arrays.Array(values, axes)
+            super().__init__(self.array, unit)
+            self.name = kwargs.get('name') or '<anonymous>'
+        else:
+            raise TypeError(args)
 
     def __getitem__(self, *args: IndexLike):
         """Create a new instance from a subset of data."""
