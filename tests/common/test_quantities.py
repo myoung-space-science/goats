@@ -643,23 +643,23 @@ def test_measured_copy():
     new = old.copy()
     assert new is not old
     assert new == old
-    new = old.copy(amount=3.9)
+    new = old.copy_with(amount=3.9)
     assert new == quantities.Measured(3.9, old.unit)
-    new = old.copy(unit='m')
+    new = old.copy_with(unit='m')
     assert new == quantities.Measured(old.amount, 'm')
 
     # using Scalar.value
     old = quantities.Scalar(2.1, 'au')
-    new = old.copy(value=3.9)
+    new = old.copy_with(value=3.9)
     assert new == quantities.Scalar(3.9, old.unit)
-    new = old.copy(unit='m')
+    new = old.copy_with(unit='m')
     assert new == quantities.Scalar(old.value, 'm')
 
     # using Vector.values
     old = quantities.Vector([2.1], 'au')
-    new = old.copy(values=[3.9])
+    new = old.copy_with(values=[3.9])
     assert new == quantities.Vector([3.9], old.unit)
-    new = old.copy(unit='m')
+    new = old.copy_with(unit='m')
     assert new == quantities.Vector(old.values, 'm')
 
 

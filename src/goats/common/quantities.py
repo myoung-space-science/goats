@@ -1922,7 +1922,16 @@ class Measured(Ordered):
     def __str__(self) -> str:
         return f"{self.amount} [{self.unit}]"
 
-    def copy(self, **updates):
+    def copy(self):
+        """Create a shallow copy of this object.
+        
+        See Also
+        --------
+        `copy_with` : copy with updates
+        """
+        return self.copy_with()
+
+    def copy_with(self, **updates):
         """Create a shallow copy of this object with optional updates."""
         return self._new(**updates)
 
@@ -2029,10 +2038,10 @@ class Scalar(Measured, allowed=allowed):
         """Called for hash(self)."""
         return hash((self.value, str(self.unit)))
 
-    def copy(self, **updates):
+    def copy_with(self, **updates):
         if 'value' in updates:
             updates['amount'] = updates.pop('value')
-        return super().copy(**updates)
+        return super().copy_with(**updates)
 
 
 class Vector(Measured):
@@ -2122,10 +2131,10 @@ class Vector(Measured):
             return self._new(amount=values, unit=unit)
         return NotImplemented
 
-    def copy(self, **updates):
+    def copy_with(self, **updates):
         if 'values' in updates:
             updates['amount'] = updates.pop('values')
-        return super().copy(**updates)
+        return super().copy_with(**updates)
 
 
 IndexLike = typing.TypeVar(
