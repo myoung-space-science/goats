@@ -439,12 +439,14 @@ class Function(iterables.ReprStrMixin):
         quantity: str,
         axes: Tuple[str],
         dependencies: Iterable[str]=None,
+        name: str=None,
     ) -> None:
         self.method = method
         self.quantity = quantity
         self.axes = axes
         self.parameters = tuple(self.method.parameters)
         self.dependencies = tuple(dependencies or ())
+        self.name = name or '<anonymous>'
 
     Argument = TypeVar(
         'Argument',
@@ -473,7 +475,12 @@ class Function(iterables.ReprStrMixin):
             if key in self.parameters and isinstance(arg, quantities.Scalar)
         ]
         data = self.method(*arrays, *floats)
-        return quantities.Variable(data, quantities.Unit(unit), self.axes)
+        return quantities.Variable(
+            data,
+            quantities.Unit(unit),
+            self.axes,
+            name=self.name,
+        )
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
@@ -513,7 +520,13 @@ class Functions(aliased.Mapping):
             axes = self.get_axes(key)
             quantity = metadata.get(key, {}).get('quantity', None)
             dependencies = self.get_dependencies(key)
-            return Function(method, quantity, axes, dependencies)
+            return Function(
+                method,
+                quantity,
+                axes,
+                dependencies=dependencies,
+                name=key,
+            )
         raise KeyError(f"No function corresponding to {key!r}")
 
     def get_method(self, key: str):
