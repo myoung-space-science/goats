@@ -7,6 +7,7 @@ import typing
 import matplotlib.pyplot as plt
 import numpy as np
 
+from goats.common import aliased
 from goats.common import iterables
 from goats.common import quantities
 from goats.common import indexing
@@ -25,7 +26,7 @@ class Observed(typing.Protocol):
         pass
 
 
-class Observation(quantities.Variable, iterables.ReprStrMixin):
+class Observation(iterables.ReprStrMixin):
     """The result of observing an observable object."""
 
     def __init__(
@@ -34,35 +35,53 @@ class Observation(quantities.Variable, iterables.ReprStrMixin):
         indices: typing.Mapping[str, indexing.Indices],
         assumptions: typing.Mapping[str, quantities.Scalar]=None,
     ) -> None:
-        # TODO: Make `Variable` idempotent so we can just pass `data`.
-        super().__init__(
-            data.values,
-            data.unit,
-            data.axes,
-            name=data.name,
-        )
-        self.indices = indices
-        """The indices of this observation's array."""
-        self.assumptions = assumptions or {}
-        """The assumptions relevant to this observation."""
+        self._data = data
+        self.name = data.name
+        self._indices = indices
+        self._assumptions = assumptions or {}
+        self._axes = None
+        self._parameters = None
 
-    def _new(self, **updated):
-        argdict = {
-            'values': updated.pop(
-                'amount',
-                updated.pop('values', self.values),
-            ),
-            'unit': updated.pop('unit', self.unit),
-            'axes': updated.pop('axes', self.axes),
-        }
-        kwargs = {'name': self.name}
-        data = quantities.Variable(*argdict.values(), **kwargs)
-        indices = updated.pop('indices', self.indices)
-        updated.update(
-            data=data,
-            indices=indices,
-        )
-        return type(self)(**updated)
+    def __array__(self, *args, **kwargs) -> np.ndarray:
+        """Support automatic conversion to a `numpy.ndarray`."""
+        return np.array(self._data, *args, **kwargs)
+
+    def __getitem__(self, item):
+        """Get an assumption, an array axis, or array values."""
+        if isinstance(item, str):
+            if item in self._indices:
+                return self._indices[item]
+            if item in self._assumptions:
+                return self._assumptions[item]
+            raise KeyError(item) from None
+        return self._data[item]
+
+    @property
+    def axes(self):
+        """The indexable axes of this observation's array."""
+        if self._axes is None:
+            if isinstance(self._indices, aliased.Mapping):
+                self._axes = self._indices.keys(aliased=True)
+            else:
+                self._axes = self._indices.keys()
+        return self._axes
+
+    @property
+    def parameters(self):
+        """The names of assumptions relevant to this observation."""
+        if self._parameters is None:
+            if isinstance(self._assumptions, aliased.Mapping):
+                self._parameters = self._assumptions.keys(aliased=True)
+            else:
+                self._parameters = self._assumptions.keys()
+        return self._parameters
+
+    def unit(self, new: typing.Union[str, quantities.Unit]=None):
+        """Get or set the unit of this observation's data values."""
+        if not new:
+            return self._data.unit
+        self._data = self._data.with_unit(new)
+        return self
 
     def __eq__(self, other) -> bool:
         """True if two instances have equivalent attributes."""
@@ -81,7 +100,15 @@ class Observation(quantities.Variable, iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        return f"{super().__str__()}, assumptions={self.assumptions}"
+        axes = [str(axis) for axis in self.axes]
+        parameters = [str(parameter) for parameter in self.parameters]
+        attrs = [
+            str(self.name),
+            f"unit='{self.unit()}'",
+            f"axes={axes}",
+            f"parameters={parameters}",
+        ]
+        return ', '.join(attrs)
 
     def plot(
         self,
@@ -94,8 +121,8 @@ class Observation(quantities.Variable, iterables.ReprStrMixin):
     ) -> typing.Optional[plt.Axes]:
         """Plot this observation."""
         data = np.squeeze(self)
-        if xaxis in self.indices:
-            indices = self.indices[xaxis]
+        if xaxis in self._indices:
+            indices = self._indices[xaxis]
             if isinstance(indices, indexing.Coordinates):
                 xarr = np.array(indices.values)
             else:

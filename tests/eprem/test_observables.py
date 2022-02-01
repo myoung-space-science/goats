@@ -85,16 +85,18 @@ def test_create_observation(
     for name, expected in observables.items():
         observation = stream[name].observe()
         assert isinstance(observation, base.Observation)
-        assert all(axis in observation.indices for axis in expected['axes'])
+        assert all(axis in observation.axes for axis in expected['axes'])
 
 
 def test_observation_unit(stream: observing.Stream):
     """Change the unit of an observation's values."""
-    old = stream['r'].observe()
-    assert old.unit == 'm'
-    new = old.with_unit('au')
-    assert new.unit == 'au'
-    assert np.allclose(old, new * physical.mks['au'])
+    obs = stream['r'].observe()
+    assert obs.unit() == 'm'
+    old = np.array(obs)
+    obs.unit('au')
+    assert obs.unit() == 'au'
+    new = np.array(obs)
+    assert np.allclose(old, new * float(physical.mks['au']))
 
 
 def test_interpolation(stream: observing.Stream):
