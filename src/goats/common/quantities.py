@@ -1846,18 +1846,6 @@ class Measured(Ordered):
         amount = (scale * self).amount
         return self._new(amount=amount, unit=unit)
 
-    def _new(self, **updated):
-        """Create a new instance with updated attributes."""
-        attrs = self._update_attrs(updated)
-        return type(self)(**attrs)
-
-    def _update_attrs(self, updates: dict):
-        """Compute attribute updates. Extracted for overloading."""
-        init = list(inspect.signature(self.__init__).parameters)
-        attrs = {p: getattr(self, p) for p in init}
-        attrs.update(updates)
-        return attrs
-
     def __bool__(self) -> bool:
         return bool(self.amount)
 
@@ -1934,6 +1922,22 @@ class Measured(Ordered):
     def copy_with(self, **updates):
         """Create a shallow copy of this object with optional updates."""
         return self._new(**updates)
+
+    def _new(self, **updates):
+        """Create a new instance with updated attributes."""
+        args = self._get_args(updates)
+        kwargs = self._get_kwargs(updates)
+        return type(self)(*args, **kwargs)
+
+    def _get_args(self, updates: typing.MutableMapping):
+        """Extract positional arguments from `updates` or use defaults."""
+        return [updates.pop('amount', self.amount)]
+
+    def _get_kwargs(self, updates: typing.MutableMapping):
+        """Extract keyword arguments from `updates` or use defaults."""
+        if 'unit' not in updates:
+            updates['unit'] = self.unit
+        return updates
 
 
 allowed = {m: numbers.Real for m in ['__lt__', '__le__', '__gt__', '__ge__']}
@@ -2038,10 +2042,12 @@ class Scalar(Measured, allowed=allowed):
         """Called for hash(self)."""
         return hash((self.value, str(self.unit)))
 
-    def copy_with(self, **updates):
-        if 'value' in updates:
-            updates['amount'] = updates.pop('value')
-        return super().copy_with(**updates)
+    def _get_args(self, updates: typing.MutableMapping):
+        value = updates.pop(
+            'value',
+            updates.pop('amount', self.value)
+        )
+        return [value]
 
 
 class Vector(Measured):
@@ -2131,10 +2137,12 @@ class Vector(Measured):
             return self._new(amount=values, unit=unit)
         return NotImplemented
 
-    def copy_with(self, **updates):
-        if 'values' in updates:
-            updates['amount'] = updates.pop('values')
-        return super().copy_with(**updates)
+    def _get_args(self, updates: typing.MutableMapping):
+        values = updates.pop(
+            'values',
+            updates.pop('amount', self.values)
+        )
+        return [values]
 
 
 IndexLike = typing.TypeVar(
@@ -2311,10 +2319,16 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         other_arr = other.data[other_idx]
         return self_arr, other_arr
 
-    def _update_attrs(self, updates: dict):
-        if 'amount' in updates:
-            updates['values'] = updates.pop('amount')
-        return super()._update_attrs(updates)
+    def _get_args(self, updates: typing.MutableMapping):
+        values = super()._get_args(updates)
+        unit = updates.pop('unit', self.unit)
+        axes = updates.pop('axes', self.axes)
+        return (*values, unit, axes)
+
+    def _get_kwargs(self, updates: typing.MutableMapping):
+        if 'name' not in updates:
+            updates['name'] = self.name
+        return updates
 
     def _new_from_func(self, result):
         new = super()._new_from_func(result)
