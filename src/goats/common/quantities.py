@@ -2224,39 +2224,30 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         Parameters
         ----------
         """
+        values, unit, axes, name = self._resolve(*args, **kwargs)
+        self.array = arrays.Array(values, axes)
+        super().__init__(self.array, unit)
+        self.name = name
+        self._scale = 1.0
+
+    def _resolve(self, *args, **kwargs):
+        """Resolve input arguments into attributes."""
         if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
             variable = args[0]
-            self.array = arrays.Array(variable.values, variable.axes)
-            super().__init__(self.array, variable.unit)
-            self.name = variable.name
-        # NOTE: Can probably refactor into a loop with `list.pop(0)`.
-        elif len(args) == 0:
-            values = kwargs.get('values')
-            unit = kwargs.get('unit')
-            axes = kwargs.get('axes')
-            self.array = arrays.Array(values, axes)
-            super().__init__(self.array, unit)
-            self.name = kwargs.get('name') or '<anonymous>'
-        elif len(args) == 1:
-            values, = args
-            unit = kwargs.get('unit')
-            axes = kwargs.get('axes')
-            self.array = arrays.Array(values, axes)
-            super().__init__(self.array, unit)
-            self.name = kwargs.get('name') or '<anonymous>'
-        elif len(args) == 2:
-            values, unit = args
-            axes = kwargs.get('axes')
-            self.array = arrays.Array(values, axes)
-            super().__init__(self.array, unit)
-            self.name = kwargs.get('name') or '<anonymous>'
-        elif len(args) == 3:
-            values, unit, axes = args
-            self.array = arrays.Array(values, axes)
-            super().__init__(self.array, unit)
-            self.name = kwargs.get('name') or '<anonymous>'
-        else:
-            raise TypeError(args)
+            return (
+                variable.values,
+                variable.unit,
+                variable.axes,
+                variable.name,
+            )
+        attrs = list(args)
+        attr_dict = {
+            k: attrs.pop(0) if attrs
+            else kwargs.get(k)
+            for k in ('values', 'unit', 'axes')
+        }
+        attr_dict['name'] = kwargs.get('name') or '<anonymous>'
+        return attr_dict.values()
 
     def __getitem__(self, *args: IndexLike):
         """Create a new instance from a subset of data."""
