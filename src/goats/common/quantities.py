@@ -1763,12 +1763,12 @@ class Quantified(RealValued, iterables.ReprStrMixin):
                 setattr(cls, method, updated)
 
     def __init__(self, amount: typing.Any, quantity: typing.Any) -> None:
-        self.amount = amount
-        self.quantity = quantity
+        self._amount = amount
+        self._quantity = quantity
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        return f"{self.amount} {self.quantity}"
+        return f"{self._amount} {self._quantity}"
 
 
 class Ordered(Quantified):
@@ -1785,19 +1785,19 @@ class Ordered(Quantified):
         super().__init__(amount, quantity)
 
     def __lt__(self, other: 'Ordered') -> bool:
-        return self.amount < other.amount
+        return self._amount < other._amount
 
     def __le__(self, other: 'Ordered') -> bool:
-        return self.amount <= other.amount
+        return self._amount <= other._amount
 
     def __gt__(self, other: 'Ordered') -> bool:
-        return self.amount > other.amount
+        return self._amount > other._amount
 
     def __ge__(self, other: 'Ordered') -> bool:
-        return self.amount >= other.amount
+        return self._amount >= other._amount
 
     def __eq__(self, other: 'Ordered') -> bool:
-        return self.amount == other.amount
+        return self._amount == other._amount
 
     def __ne__(self, other) -> bool:
         """True if self != other.
@@ -1809,7 +1809,7 @@ class Ordered(Quantified):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        return f"{self.amount} {self.quantity}"
+        return f"{self._amount} {self._quantity}"
 
 
 class Measured(Ordered):
@@ -1849,6 +1849,16 @@ class Measured(Ordered):
         # value via `algebra.Expression`.
         self.unit = Unit(unit or '1')
         super().__init__(amount, str(self.unit))
+
+    @property
+    def amount(self) -> RealValued:
+        """The real-valued magnitude of this object."""
+        return self._amount
+
+    @property
+    def quantity(self):
+        """The measured quantity."""
+        return self._quantity
 
     def with_unit(self, unit: typing.Union[str, Unit]):
         """Create a copy of this instance converted to the new unit."""
@@ -2014,36 +2024,36 @@ class Scalar(Measured, allowed=allowed):
         return super().__truediv__(other)
 
     def __iadd__(self, other: 'Scalar'):
-        self.amount = self.amount + other.amount
+        self._amount = self.amount + other.amount
         return self
 
     def __isub__(self, other: 'Scalar'):
-        self.amount = self.amount - other.amount
+        self._amount = self.amount - other.amount
         return self
 
     def __imul__(self, other: typing.Any):
         if isinstance(other, Measured):
-            self.amount = self.amount * other.amount
+            self._amount = self.amount * other.amount
             self.unit = self.unit * other.unit
             return self
         if isinstance(other, numbers.Number):
-            self.amount = self.amount * other
+            self._amount = self.amount * other
             return self
         return NotImplemented
 
     def __itruediv__(self, other: typing.Any):
         if isinstance(other, Measured):
-            self.amount = self.amount / other.amount
+            self._amount = self.amount / other.amount
             self.unit = self.unit / other.unit
             return self
         if isinstance(other, numbers.Number):
-            self.amount = self.amount / other
+            self._amount = self.amount / other
             return self
         return NotImplemented
 
     def __ipow__(self, other: typing.Any):
         if isinstance(other, numbers.Number):
-            self.amount = self.amount ** other
+            self._amount = self.amount ** other
             self.unit = self.unit ** other
             return self
         return NotImplemented
