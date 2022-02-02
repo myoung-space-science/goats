@@ -1741,9 +1741,19 @@ class Quantified(RealValued, iterables.ReprStrMixin):
         This implementation uses an instance of the `same` decorator class to
         ensure that the operands to each method named in the `_quantified` class
         attribute have the same quantity (i.e., the same value of their
-        `quantity` attribute). Subclasses may individually override this feature
-        by passing the name of the method to the `overrides` keyword in their
-        class definition.
+        `quantity` attribute). Subclasses may individually customize this
+        behavior via the keyword arguments described below
+
+        Parameters
+        ----------
+        allowed : mapping from string to type
+            A mapping (e.g., `dict`) from method name to a type or iterable of
+            types in addition to instances of the decorated class that the named
+            method should accept. The `same` class will not check objects of
+            these additional types for sameness. For example, to indicate that a
+            subclass accepts integers to its addition and subtraction methods,
+            pass `allowed={'__add__': int, '__sub__': int}` to the class
+            constructor.
         """
         allowed = kwargs.get('allowed', {})
         for method in cls._quantified:
