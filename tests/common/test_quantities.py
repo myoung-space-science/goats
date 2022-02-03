@@ -523,7 +523,7 @@ def test_scalar_operators():
     with pytest.raises(TypeError):
         op(other, scalar)
 
-    # in-place: same rules as forward
+    # in-place: same as forward (immutable)
     number = 1.1 *_value_
     instance = quantities.Scalar(number,_unit_)
     # additive
@@ -535,7 +535,6 @@ def test_scalar_operators():
     other = instance
     for op in ops:
         result = op(scalar, other)
-        assert result is scalar
         assert result.value == op(_value_, other.value)
         assert result.unit == _unit_
         scalar = quantities.Scalar(_value_, _unit_)
@@ -554,7 +553,6 @@ def test_scalar_operators():
     other = instance
     for op in ops:
         result = op(scalar, other)
-        assert result is scalar
         assert result.value == op(_value_, other.value)
         assert result.unit == op(_unit_, other.unit)
         scalar = quantities.Scalar(_value_, _unit_)
@@ -562,7 +560,6 @@ def test_scalar_operators():
     other = number
     for op in ops:
         result = op(scalar, other)
-        assert result is scalar
         assert result.value == op(_value_, other)
         assert result.unit == _unit_
         scalar = quantities.Scalar(_value_, _unit_)
@@ -576,7 +573,6 @@ def test_scalar_operators():
     # with a number
     other = number
     result = op(scalar, other)
-    assert result is scalar
     assert result.value == op(_value_, other)
     assert result.unit == op(_unit_, other)
     scalar = quantities.Scalar(_value_, _unit_)

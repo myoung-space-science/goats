@@ -1998,13 +1998,18 @@ class Measured(Ordered):
         return cls(*args, **kwargs)
 
 
+VT = typing.TypeVar('VT', bound=numbers.Real)
+
+
 allowed = {m: numbers.Real for m in ['__lt__', '__le__', '__gt__', '__ge__']}
 class Scalar(Measured, allowed=allowed):
     """A single numerical value and associated unit."""
 
+    value: VT
+
     def __new__(
         cls: typing.Type['Scalar'],
-        value: numbers.Real,
+        value: VT,
         unit: typing.Union[str, Unit]=None,
     ) -> 'Scalar':
         """Create a new scalar object.
@@ -2017,7 +2022,10 @@ class Scalar(Measured, allowed=allowed):
         unit : string or `~quantities.Unit`
             The unit of `value`.
         """
-        return super().__new__(cls, value, unit)
+        self = super().__new__(cls, value, unit=unit)
+        self.value = self._amount
+        """The numerical value this scalar."""
+        return self
 
     @classmethod
     def _new(cls, *args, **kwargs):
@@ -2037,11 +2045,6 @@ class Scalar(Measured, allowed=allowed):
     def unit(self) -> Unit:
         """The unit of this object's value."""
         return super().unit()
-
-    @property
-    def value(self) -> RealValued:
-        """The current numerical value."""
-        return self._amount
 
     def __lt__(self, other: Ordered) -> bool:
         if isinstance(other, Comparable):
@@ -2097,40 +2100,12 @@ class Scalar(Measured, allowed=allowed):
             return NotImplemented
         return super().__truediv__(other)
 
-    def __iadd__(self, other: 'Scalar'):
-        self._amount = self._amount + other._amount
-        return self
-
-    def __isub__(self, other: 'Scalar'):
-        self._amount = self._amount - other._amount
-        return self
-
-    def __imul__(self, other: typing.Any):
-        if isinstance(other, Measured):
-            self._amount = self._amount * other._amount
-            self._unit = self._unit * other._unit
-            return self
-        if isinstance(other, numbers.Number):
-            self._amount = self._amount * other
-            return self
-        return NotImplemented
-
-    def __itruediv__(self, other: typing.Any):
-        if isinstance(other, Measured):
-            self._amount = self._amount / other._amount
-            self._unit = self._unit / other._unit
-            return self
-        if isinstance(other, numbers.Number):
-            self._amount = self._amount / other
-            return self
-        return NotImplemented
-
+    # NOTE: This class is immutable, so in-place operations defer to forward
+    # operations. That automatically happens for `__iadd__`, `__isub__`,
+    # `__imul__`, and `__itruediv__`, but not for `__ipow__`, so we need to
+    # explicitly define a trivial implementation here.
     def __ipow__(self, other: typing.Any):
-        if isinstance(other, numbers.Number):
-            self._amount = self._amount ** other
-            self._unit = self._unit ** other
-            return self
-        return NotImplemented
+        return super().__pow__(other)
 
     def __hash__(self):
         """Called for hash(self)."""
