@@ -1765,9 +1765,26 @@ class Quantified(RealValued, iterables.ReprStrMixin):
                 updated = update(current)
                 setattr(cls, method, updated)
 
-    def __init__(self, amount: typing.Any, quantity: typing.Any) -> None:
+    __slots__ = ('_amount', '_quantity')
+
+    @typing.overload
+    def __new__(cls: typing.Type[Instance], *args) -> Instance: ...
+
+    def __new__(
+        cls: typing.Type['Quantified'],
+        amount: typing.Any,
+        quantity: typing.Any,
+    ) -> 'Quantified':
+        """Create a new instance of `cls`."""
+        self = super().__new__(cls)
         self._amount = amount
         self._quantity = quantity
+        return self
+
+    @property
+    def quantity(self):
+        """The type of thing that this object represents."""
+        return self._quantity
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
