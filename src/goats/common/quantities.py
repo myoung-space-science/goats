@@ -1801,8 +1801,15 @@ class Ordered(Quantified):
     which should be true unless the object explicitly disables `__eq__`.
     """
 
-    def __init__(self, amount: Comparable, quantity: typing.Any) -> None:
-        super().__init__(amount, quantity)
+    @typing.overload
+    def __new__(cls: typing.Type[Instance], *args) -> Instance: ...
+
+    def __new__(
+        cls: typing.Type['Ordered'],
+        amount: Comparable,
+        quantity: typing.Any,
+    ) -> 'Ordered':
+        return super().__new__(cls, amount, quantity)
 
     def __lt__(self, other: 'Ordered') -> bool:
         return self._amount < other._amount
