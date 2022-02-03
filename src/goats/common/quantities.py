@@ -2000,7 +2000,7 @@ class Measured(Ordered):
 
 allowed = {m: numbers.Real for m in ['__lt__', '__le__', '__gt__', '__ge__']}
 class Scalar(Measured, allowed=allowed):
-    """A measured object with a single value and an associated unit."""
+    """A single numerical value and associated unit."""
 
     def __new__(
         cls: typing.Type['Scalar'],
@@ -2012,8 +2012,7 @@ class Scalar(Measured, allowed=allowed):
         Parameters
         ----------
         value : real number
-            A single numerical value that implements the `~numbers.Real`
-            interface.
+            An object that implements the `~numbers.Real` interface.
 
         unit : string or `~quantities.Unit`
             The unit of `value`.
