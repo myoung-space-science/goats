@@ -1998,29 +1998,43 @@ allowed = {m: numbers.Real for m in ['__lt__', '__le__', '__gt__', '__ge__']}
 class Scalar(Measured, allowed=allowed):
     """A single-valued measured object with an associated unit."""
 
+    # TODO: Define trivial `__new__`?
+
+    # TODO: Use this for `unit`
+    #
+    # def with_unit(self, unit: typing.Union[str, Unit]):
+    #     """Create a copy of this instance converted to the new unit."""
+    #     scale = Unit(unit) // self.unit
+    #     amount = (scale * self).amount
+    #     return self._new(amount=amount, unit=unit)
+
+    @property
+    def unit(self) -> Unit:
+        return super().unit()
+
     @property
     def value(self) -> RealValued:
         """The current numerical value."""
-        return self.amount
+        return self._amount
 
     def __lt__(self, other: Ordered) -> bool:
         if isinstance(other, Comparable):
-            return self.amount < other
+            return self._amount < other
         return super().__lt__(other)
 
     def __le__(self, other: Ordered) -> bool:
         if isinstance(other, Comparable):
-            return self.amount <= other
+            return self._amount <= other
         return super().__le__(other)
 
     def __gt__(self, other: Ordered) -> bool:
         if isinstance(other, Comparable):
-            return self.amount > other
+            return self._amount > other
         return super().__gt__(other)
 
     def __ge__(self, other: Ordered) -> bool:
         if isinstance(other, Comparable):
-            return self.amount >= other
+            return self._amount >= other
         return super().__ge__(other)
 
     def __float__(self):
@@ -2058,50 +2072,43 @@ class Scalar(Measured, allowed=allowed):
         return super().__truediv__(other)
 
     def __iadd__(self, other: 'Scalar'):
-        self._amount = self.amount + other.amount
+        self._amount = self._amount + other._amount
         return self
 
     def __isub__(self, other: 'Scalar'):
-        self._amount = self.amount - other.amount
+        self._amount = self._amount - other._amount
         return self
 
     def __imul__(self, other: typing.Any):
         if isinstance(other, Measured):
-            self._amount = self.amount * other.amount
-            self.unit = self.unit * other.unit
+            self._amount = self._amount * other._amount
+            self._unit = self._unit * other._unit
             return self
         if isinstance(other, numbers.Number):
-            self._amount = self.amount * other
+            self._amount = self._amount * other
             return self
         return NotImplemented
 
     def __itruediv__(self, other: typing.Any):
         if isinstance(other, Measured):
-            self._amount = self.amount / other.amount
-            self.unit = self.unit / other.unit
+            self._amount = self._amount / other._amount
+            self._unit = self._unit / other._unit
             return self
         if isinstance(other, numbers.Number):
-            self._amount = self.amount / other
+            self._amount = self._amount / other
             return self
         return NotImplemented
 
     def __ipow__(self, other: typing.Any):
         if isinstance(other, numbers.Number):
-            self._amount = self.amount ** other
-            self.unit = self.unit ** other
+            self._amount = self._amount ** other
+            self._unit = self._unit ** other
             return self
         return NotImplemented
 
     def __hash__(self):
         """Called for hash(self)."""
-        return hash((self.value, str(self.unit)))
-
-    def _get_args(self, updates: typing.MutableMapping):
-        value = updates.pop(
-            'value',
-            updates.pop('amount', self.value)
-        )
-        return [value]
+        return hash((self.value, str(self._unit)))
 
 
 class Vector(Measured):
