@@ -1872,7 +1872,7 @@ class Measured(Ordered):
     _unit: Unit=None
 
     @typing.overload
-    def __new__(cls: typing.Type[Instance], *args) -> Instance: ...
+    def __new__(cls: typing.Type[Instance], *args, **kwargs) -> Instance: ...
 
     def __new__(
         cls: typing.Type['Measured'],
