@@ -2000,9 +2000,31 @@ class Measured(Ordered):
 
 allowed = {m: numbers.Real for m in ['__lt__', '__le__', '__gt__', '__ge__']}
 class Scalar(Measured, allowed=allowed):
-    """A single-valued measured object with an associated unit."""
+    """A measured object with a single value and an associated unit."""
 
-    # TODO: Define trivial `__new__`?
+    def __new__(
+        cls: typing.Type['Scalar'],
+        value: numbers.Real,
+        unit: typing.Union[str, Unit]=None,
+    ) -> 'Scalar':
+        """Create a new scalar object.
+        
+        Parameters
+        ----------
+        value : real number
+            A single numerical value that implements the `~numbers.Real`
+            interface.
+
+        unit : string or `~quantities.Unit`
+            The unit of `value`.
+        """
+        return super().__new__(cls, value, unit)
+
+    @classmethod
+    def _new(cls, *args, **kwargs):
+        if 'amount' in kwargs:
+            kwargs['value'] = kwargs.pop('amount')
+        return super()._new(*args, **kwargs)
 
     # TODO: Use this for `unit`
     #
@@ -2014,6 +2036,7 @@ class Scalar(Measured, allowed=allowed):
 
     @property
     def unit(self) -> Unit:
+        """The unit of this object's value."""
         return super().unit()
 
     @property
@@ -2118,13 +2141,23 @@ class Scalar(Measured, allowed=allowed):
 class Vector(Measured):
     """A multi-valued measured object with a single unit."""
 
-    def __init__(
-        self,
+    @typing.overload
+    def __new__(cls: typing.Type[Instance], *args) -> Instance: ...
+
+    def __new__(
+        cls: typing.Type['Vector'],
         amount: RealValued,
         unit: typing.Union[str, Unit]=None,
-    ) -> None:
-        super().__init__(amount, unit=unit)
-        self._values = None
+    ) -> 'Vector':
+        self = super().__new__(cls, amount)
+
+    # def __init__(
+    #     self,
+    #     amount: RealValued,
+    #     unit: typing.Union[str, Unit]=None,
+    # ) -> None:
+    #     super().__init__(amount, unit=unit)
+    #     self._values = None
 
     @property
     def values(self) -> RealValued:
