@@ -1865,83 +1865,110 @@ class Measured(Ordered):
       unit or dimensions should be.
     """
 
-    def __init__(
-        self,
+    __slots__ = '_unit'
+
+    @typing.overload
+    def __new__(cls: typing.Type[Instance], *args) -> Instance: ...
+
+    def __new__(
+        cls: typing.Type['Measured'],
         amount: RealValued,
         unit: typing.Union[str, Unit]=None,
-    ) -> None:
-        # Implementation note: converting unit to a Unit, then assigning to
-        # self.unit, and finally converting to a string while passing to the
-        # parent class not only fixes the types but also normalizes the argument
-        # value via `algebra.Expression`.
-        self.unit = Unit(unit or '1')
-        super().__init__(amount, str(self.unit))
+    ) -> 'Measured':
+        _unit = Unit(unit or '1')
+        self = super().__new__(cls, amount, str(_unit))
+        self._unit = _unit
+        return self
+    # Implementation note: converting unit to a Unit, then assigning to
+    # self.unit, and finally converting to a string while passing to the
+    # parent class not only fixes the types but also normalizes the argument
 
-    # Consider making this class abstract and forcing subclasses to define a
-    # unit-update method (either the current `with_unit` method or a fluent
-    # `unit` attribute). Remove `amount` and `quantity` properties.
-
-    @property
-    def amount(self) -> RealValued:
-        """The real-valued magnitude of this object."""
-        return self._amount
-
-    @property
-    def quantity(self):
-        """The measured quantity."""
-        return self._quantity
-
-    def with_unit(self, unit: typing.Union[str, Unit]):
-        """Create a copy of this instance converted to the new unit."""
-        scale = Unit(unit) // self.unit
-        amount = (scale * self).amount
-        return self._new(amount=amount, unit=unit)
+    @abc.abstractmethod
+    def unit(self):
+        """The unit of this measured object.
+        
+        Concrete subclasses must implement this method or an equivalent
+        property. The base class provides a default implementation that returns
+        the internal attribute, so it is possible to define a concrete
+        implementation by simply returning `super().unit()`.
+        """
+        return self._unit
 
     def __bool__(self) -> bool:
-        return bool(self.amount)
+        return bool(self._amount)
 
     def __abs__(self):
-        return self._new(amount=abs(self.amount), unit=self.unit)
+        return self._new(
+            amount=abs(self._amount),
+            unit=self._unit,
+        )
 
     def __neg__(self):
-        return self._new(amount=-self.amount, unit=self.unit)
+        return self._new(
+            amount=-self._amount,
+            unit=self._unit,
+        )
 
     def __pos__(self):
-        return self._new(amount=+self.amount, unit=self.unit)
+        return self._new(
+            amount=+self._amount,
+            unit=self._unit,
+        )
 
     def __add__(self, other: 'Measured'):
-        return self._new(amount=self.amount + other.amount, unit=self.unit)
+        return self._new(
+            amount=self._amount + other._amount,
+            unit=self._unit,
+        )
 
     def __radd__(self, other: typing.Any):
         return NotImplemented
 
     def __sub__(self, other: 'Measured'):
-        return self._new(amount=self.amount - other.amount, unit=self.unit)
+        return self._new(
+            amount=self._amount - other._amount,
+            unit=self._unit,
+        )
 
     def __rsub__(self, other: typing.Any):
         return NotImplemented
 
     def __mul__(self, other: typing.Any):
         if isinstance(other, Measured):
-            amount = self.amount * other.amount
-            unit = self.unit * other.unit
-            return self._new(amount=amount, unit=unit)
+            amount = self._amount * other._amount
+            unit = self._unit * other._unit
+            return self._new(
+                amount=amount,
+                unit=unit,
+            )
         if isinstance(other, numbers.Number):
-            return self._new(amount=self.amount * other, unit=self.unit)
+            return self._new(
+                amount=self._amount * other,
+                unit=self._unit,
+            )
         return NotImplemented
 
     def __rmul__(self, other: typing.Any):
         if isinstance(other, numbers.Number):
-            return self._new(amount=other * self.amount, unit=self.unit)
+            return self._new(
+                amount=other * self._amount,
+                unit=self._unit,
+            )
         return NotImplemented
 
     def __truediv__(self, other: typing.Any):
         if isinstance(other, Measured):
-            amount = self.amount / other.amount
-            unit = self.unit / other.unit
-            return self._new(amount=amount, unit=unit)
+            amount = self._amount / other._amount
+            unit = self._unit / other._unit
+            return self._new(
+                amount=amount,
+                unit=unit,
+            )
         if isinstance(other, numbers.Number):
-            return self._new(amount=self.amount / other, unit=self.unit)
+            return self._new(
+                amount=self._amount / other,
+                unit=self._unit,
+            )
         return NotImplemented
 
     def __rtruediv__(self, other: typing.Any):
@@ -1950,8 +1977,8 @@ class Measured(Ordered):
     def __pow__(self, other: typing.Any):
         if isinstance(other, numbers.Number):
             return self._new(
-                amount=self.amount ** other,
-                unit=self.unit ** other
+                amount=self._amount ** other,
+                unit=self._unit ** other
             )
         return NotImplemented
 
@@ -1959,36 +1986,12 @@ class Measured(Ordered):
         return NotImplemented
 
     def __str__(self) -> str:
-        return f"{self.amount} [{self.unit}]"
+        return f"{self._amount} [{self._unit}]"
 
-    def copy(self):
-        """Create a shallow copy of this object.
-        
-        See Also
-        --------
-        `copy_with` : copy with updates
-        """
-        return self.copy_with()
-
-    def copy_with(self, **updates):
-        """Create a shallow copy of this object with optional updates."""
-        return self._new(**updates)
-
-    def _new(self, **updates):
+    @classmethod
+    def _new(cls, *args, **kwargs):
         """Create a new instance with updated attributes."""
-        args = self._get_args(updates)
-        kwargs = self._get_kwargs(updates)
-        return type(self)(*args, **kwargs)
-
-    def _get_args(self, updates: typing.MutableMapping):
-        """Extract positional arguments from `updates` or use defaults."""
-        return [updates.pop('amount', self.amount)]
-
-    def _get_kwargs(self, updates: typing.MutableMapping):
-        """Extract keyword arguments from `updates` or use defaults."""
-        if 'unit' not in updates:
-            updates['unit'] = self.unit
-        return updates
+        return cls(*args, **kwargs)
 
 
 allowed = {m: numbers.Real for m in ['__lt__', '__le__', '__gt__', '__ge__']}
