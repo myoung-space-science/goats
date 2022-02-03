@@ -2113,32 +2113,39 @@ class Scalar(Measured, allowed=allowed):
 
 
 class Vector(Measured):
-    """A multi-valued measured object with a single unit."""
+    """Multiple numerical values and their associated unit."""
 
-    @typing.overload
-    def __new__(cls: typing.Type[Instance], *args) -> Instance: ...
+    values: typing.Iterable[VT]
 
     def __new__(
         cls: typing.Type['Vector'],
-        amount: RealValued,
+        values: typing.Iterable[VT],
         unit: typing.Union[str, Unit]=None,
     ) -> 'Vector':
-        self = super().__new__(cls, amount)
+        """Create a new vector object.
+        
+        Parameters
+        ----------
+        values : iterable of real numbers
+            An iterable of objects that implement the `~numbers.Real` interface.
 
-    # def __init__(
-    #     self,
-    #     amount: RealValued,
-    #     unit: typing.Union[str, Unit]=None,
-    # ) -> None:
-    #     super().__init__(amount, unit=unit)
-    #     self._values = None
+        unit : string or `~quantities.Unit`
+            The unit of `values`.
+        """
+        self = super().__new__(cls, values, unit)
+        self.values = list(iterables.Separable(self._amount))
+        return self
+
+    @classmethod
+    def _new(cls, *args, **kwargs):
+        if 'amount' in kwargs:
+            kwargs['values'] = kwargs.pop('amount')
+        return super()._new(*args, **kwargs)
 
     @property
-    def values(self) -> RealValued:
-        """The current numerical values."""
-        if self._values is None:
-            self._values = list(iterables.Separable(self.amount))
-        return self._values
+    def unit(self) -> Unit:
+        """The unit of this object's value."""
+        return super().unit()
 
     def __len__(self):
         """Called for len(self)."""
@@ -2208,13 +2215,6 @@ class Vector(Measured):
             unit = self.unit ** other
             return self._new(amount=values, unit=unit)
         return NotImplemented
-
-    def _get_args(self, updates: typing.MutableMapping):
-        values = updates.pop(
-            'values',
-            updates.pop('amount', self.values)
-        )
-        return [values]
 
 
 IndexLike = typing.TypeVar(
