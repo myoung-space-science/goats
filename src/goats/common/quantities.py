@@ -1765,7 +1765,8 @@ class Quantified(RealValued, iterables.ReprStrMixin):
                 updated = update(current)
                 setattr(cls, method, updated)
 
-    __slots__ = ('_amount', '_quantity')
+    _amount: typing.Any
+    _quantity: typing.Any
 
     @typing.overload
     def __new__(cls: typing.Type[Instance], *args) -> Instance: ...
@@ -1800,6 +1801,8 @@ class Ordered(Quantified):
     results. The quantity may be anything that supports equality comparison,
     which should be true unless the object explicitly disables `__eq__`.
     """
+
+    _amount: Comparable
 
     @typing.overload
     def __new__(cls: typing.Type[Instance], *args) -> Instance: ...
@@ -1865,7 +1868,8 @@ class Measured(Ordered):
       unit or dimensions should be.
     """
 
-    __slots__ = '_unit'
+    _amount: RealValued
+    _unit: Unit=None
 
     @typing.overload
     def __new__(cls: typing.Type[Instance], *args) -> Instance: ...
