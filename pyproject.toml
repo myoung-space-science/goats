@@ -23,5 +23,8 @@ build-backend = "poetry.core.masonry.api"
 markers = [
     "term: marks tests for algebraic terms",
     "expression: marks tests for algebraic expressions",
+    "scalar: marks tests for quantities.Scalar",
+    "vector: marks tests for quantities.Vector",
+    "variable: marks tests for quantities.Variable",
 ]
 

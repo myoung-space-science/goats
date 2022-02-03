@@ -349,6 +349,7 @@ def test_same():
         f2(scores[0], scores[1])
 
 
+@pytest.mark.skip
 def test_measured_operators():
     """Test comparison and arithmetic on measured objects."""
     meters = quantities.Unit('m')
@@ -378,6 +379,7 @@ def test_measured_operators():
     assert q0.with_unit('cm') == quantities.Measured(100 * q0.amount, 'cm')
 
 
+@pytest.mark.scalar
 def test_scalar_operators():
     """Test comparison and arithmetic on scalar objects."""
     scalar = quantities.Scalar(2.0, '1')
@@ -589,6 +591,7 @@ def test_scalar_operators():
         scalar ^ 1
 
 
+@pytest.mark.scalar
 def test_scalar_number_comparisons():
     """Test comparisons between a Scalar instance and a number."""
     scalar = quantities.Scalar(2.0, '1')
@@ -609,6 +612,7 @@ def test_scalar_number_comparisons():
     assert _value_ <= scalar
 
 
+@pytest.mark.vector
 def test_vector_operators():
     """Test the updated operators on the vector object."""
     v0 = quantities.Vector([3.0, 6.0], 'm')
@@ -629,12 +633,14 @@ def test_vector_operators():
         v0 + v2
 
 
+@pytest.mark.vector
 def test_vector_init():
     """Test initializing with iterable and non-iterable values."""
     expected = quantities.Vector([1.1], 'm').values
     assert quantities.Vector(1.1, 'm').values == expected
 
 
+@pytest.mark.skip
 def test_measured_copy():
     """Test the ability to copy and update measured objects."""
 
@@ -663,6 +669,7 @@ def test_measured_copy():
     assert new == quantities.Vector(old.values, 'm')
 
 
+@pytest.mark.variable
 def test_variable():
     """Test the object that represents a variable."""
     v0 = quantities.Variable([3.0, 4.5], 'm', ['x'])
@@ -812,6 +819,7 @@ def reduce(a, b, opr):
     ]
 
 
+@pytest.mark.variable
 def test_variable_mul_div(
     var: typing.Dict[str, quantities.Variable],
     arr: typing.Dict[str, list],
@@ -853,6 +861,7 @@ def test_variable_mul_div(
                 assert new.unit == unit, msg
 
 
+@pytest.mark.variable
 def test_variable_pow(var: typing.Dict[str, quantities.Variable]) -> None:
     """Test the ability to exponentiate a quantities.Variable instance."""
     opr = operator.pow
@@ -870,6 +879,7 @@ def test_variable_pow(var: typing.Dict[str, quantities.Variable]) -> None:
         assert new.unit == unit, msg
 
 
+@pytest.mark.variable
 def test_variable_add_sub(
     var: typing.Dict[str, quantities.Variable],
     arr: typing.Dict[str, list],
@@ -892,6 +902,7 @@ def test_variable_add_sub(
             opr(v0, v2)
 
 
+@pytest.mark.variable
 def test_variable_units(var: typing.Dict[str, quantities.Variable]):
     """Test the ability to update unit via bracket syntax."""
     v0_km = var['reference'].with_unit('km')
@@ -902,6 +913,7 @@ def test_variable_units(var: typing.Dict[str, quantities.Variable]):
     assert np.array_equal(v0_km[:], 1e-3 * var['reference'][:])
 
 
+@pytest.mark.variable
 def test_numerical_operations(var: typing.Dict[str, quantities.Variable]):
     """Test operations between a quantities.Variable and a number."""
 
@@ -959,6 +971,7 @@ def test_numerical_operations(var: typing.Dict[str, quantities.Variable]):
         10.0 - var['reference']
 
 
+@pytest.mark.variable
 def test_variable_array(var: typing.Dict[str, quantities.Variable]):
     """Natively convert a Variable into a NumPy array."""
     v = var['reference']
@@ -968,6 +981,7 @@ def test_variable_array(var: typing.Dict[str, quantities.Variable]):
     assert np.array_equal(v, a)
 
 
+@pytest.mark.variable
 def test_variable_getitem(var: typing.Dict[str, quantities.Variable]):
     """Subscript a Variable."""
     # reference = [
@@ -990,6 +1004,7 @@ def test_variable_getitem(var: typing.Dict[str, quantities.Variable]):
     assert np.array_equal(v[:, (0, 1)], expected)
 
 
+@pytest.mark.variable
 def test_variable_name():
     """A variable may have a given name or be anonymous."""
     default = quantities.Variable([1], 'm', ['d0'])
@@ -1003,6 +1018,8 @@ def test_variable_name():
         assert variable.name == expected
 
 
+@pytest.mark.scalar
+@pytest.mark.vector
 def test_default_unit():
     """Scalars and Vectors are unitless by default."""
     assert quantities.Scalar(1).unit == '1'
