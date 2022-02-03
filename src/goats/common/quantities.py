@@ -1712,6 +1712,9 @@ RealValued.register(numbers.Real)
 RealValued.register(np.ndarray)
 
 
+Instance = typing.TypeVar('Instance', bound='Quantified')
+
+
 class Quantified(RealValued, iterables.ReprStrMixin):
     """The base class for all quantified objects.
 
