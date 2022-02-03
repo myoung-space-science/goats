@@ -667,30 +667,34 @@ def test_variable():
     """Test the object that represents a variable."""
     v0 = quantities.Variable([3.0, 4.5], 'm', ['x'])
     v1 = quantities.Variable([[1.0], [2.0]], 'J', ['x', 'y'])
-    assert v0.values == [3.0, 4.5]
+    assert np.array_equal(v0, [3.0, 4.5])
     assert v0.unit == quantities.Unit('m')
     assert list(v0.axes) == ['x']
     assert v0.naxes == 1
-    assert v1.values == [[1.0], [2.0]]
+    assert np.array_equal(v1, [[1.0], [2.0]])
     assert v1.unit == quantities.Unit('J')
     assert list(v1.axes) == ['x', 'y']
     assert v1.naxes == 2
     v0_cm = v0.with_unit('cm')
     assert v0_cm is not v0
-    assert v0_cm.values == [100 * v for v in v0.values]
+    assert np.array_equal(v0_cm, 100 * v0)
     assert v0_cm.unit == quantities.Unit('cm')
     assert v0_cm.axes == v0.axes
     r = v0 + v0
-    assert r.values == [2 * v for v in v0.values]
+    expected = [6.0, 9.0]
+    assert np.array_equal(r, expected)
     assert r.unit == v0.unit
     r = v0 * v1
-    assert r.values == [i * j for i, j in zip(v0.values, v1.values)]
+    expected = [[3.0 * 1.0], [4.5 * 2.0]]
+    assert np.array_equal(r, expected)
     assert r.unit == quantities.Unit('m * J')
     r = v0 / v1
-    assert r.values == [i / j for i, j in zip(v0.values, v1.values)]
+    expected = [[3.0 / 1.0], [4.5 / 2.0]]
+    assert np.array_equal(r, expected)
     assert r.unit == quantities.Unit('m / J')
     r = v0 ** 2
-    assert r.values == [v ** 2 for v in v0.values]
+    expected = [3.0 ** 2, 4.5 ** 2]
+    assert np.array_equal(r, expected)
     assert r.unit == quantities.Unit('m^2')
 
 
@@ -976,17 +980,14 @@ def test_variable_getitem(var: typing.Dict[str, quantities.Variable]):
         assert isinstance(sliced, quantities.Variable)
         assert sliced is not v
         expected = np.array([[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
-        assert sliced.array == expected
+        assert np.array_equal(sliced, expected)
     assert v[0, 0] == quantities.Scalar(+1.0, v.unit)
-    mixed = v[0, :]
-    assert mixed.array == np.array([+1.0, +2.0])
-    mixed = v[:, 0]
-    assert mixed.array == np.array([[+1.0, +2.0, -4.0]])
-    mixed = v[(0, 1), :]
-    assert mixed.array == np.array([[+1.0, +2.0], [+2.0, -3.0]])
-    mixed = v[:, (0, 1)]
+    assert np.array_equal(v[0, :], [+1.0, +2.0])
+    assert np.array_equal(v[:, 0], [+1.0, +2.0, -4.0])
+    assert np.array_equal(v[:, 0:1], [[+1.0], [+2.0], [-4.0]])
+    assert np.array_equal(v[(0, 1), :], [[+1.0, +2.0], [+2.0, -3.0]])
     expected = np.array([[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
-    assert mixed.array == expected
+    assert np.array_equal(v[:, (0, 1)], expected)
 
 
 def test_variable_name():
