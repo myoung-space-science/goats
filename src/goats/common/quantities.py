@@ -8,7 +8,7 @@ import typing
 
 import numpy as np
 
-from goats.common import algebra, aliased, arrays, iterables
+from goats.common import algebra, aliased, iterables
 
 
 _prefixes = [
@@ -1709,7 +1709,7 @@ class RealValued(Comparable):
         return NotImplemented
 
 RealValued.register(numbers.Real)
-RealValued.register(arrays.NumericalSequence)
+RealValued.register(np.ndarray)
 
 
 class Quantified(RealValued, iterables.ReprStrMixin):
@@ -1849,6 +1849,10 @@ class Measured(Ordered):
         # value via `algebra.Expression`.
         self.unit = Unit(unit or '1')
         super().__init__(amount, str(self.unit))
+
+    # Consider making this class abstract and forcing subclasses to define a
+    # unit-update method (either the current `with_unit` method or a fluent
+    # `unit` attribute). Remove `amount` and `quantity` properties.
 
     @property
     def amount(self) -> RealValued:
@@ -2178,7 +2182,7 @@ UnitLike = typing.Union[str, Unit]
 
 
 allowed = {'__add__': float, '__sub__': float}
-class Variable(Vector, arrays.Array, allowed=allowed):
+class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
     """A vector with values stored in a numerical array.
 
     The result of binary arithmetic operations on instances of this class are
@@ -2235,9 +2239,10 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         ----------
         """
         values, unit, axes, name = self._resolve(*args, **kwargs)
-        self.array = arrays.Array(values, axes)
-        super().__init__(self.array, unit)
+        super().__init__(values, unit)
+        self._axes = axes
         self.name = name
+        self._array = None
         self._scale = 1.0
 
     def _resolve(self, *args, **kwargs):
@@ -2259,11 +2264,35 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         attr_dict['name'] = kwargs.get('name') or '<anonymous>'
         return attr_dict.values()
 
+    @property
+    def axes(self):
+        """The names of this array's indexable axes."""
+        return tuple(self._axes)
+
+    @property
+    def naxes(self):
+        """The number of indexable axes in this array."""
+        return len(self.axes)
+
+    # This differs from `Measured` in order to avoid rescaling potentially large
+    # arrays, at the cost of returning the current instance, which requires the
+    # user to make a copy if they want a new instance with the new unit. We may
+    # be able to avoid that by converting using `__new__` instance of `__init__`
+    # and setting `_scale` in that method. The alternative option of passing a
+    # `scale` argument to `__init__` would be awkward.
+    def with_unit(self, unit: typing.Union[str, Unit]):
+        """Update this object's unit."""
+        new = Unit(unit)
+        self._scale = new // self.unit
+        self.unit = new
+        return self
+
+    _builtin = (int, slice, type(...))
+
     def __getitem__(self, *args: IndexLike):
         """Create a new instance from a subset of data."""
-        builtin = (int, slice, type(...))
         unwrapped = iterables.unwrap(args)
-        if self._types_match(unwrapped, builtin):
+        if self._types_match(unwrapped, self._builtin):
             return self._subscript_standard(unwrapped)
         return self._subscript_custom(unwrapped)
 
@@ -2281,7 +2310,7 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         including v[:], v[...], v[i, :], v[:, j], and v[i, j], where i and j are
         integers.
         """
-        result = self.array[indices]
+        result = self._get_array(indices)
         if isinstance(result, numbers.Number):
             return Scalar(result, unit=self.unit)
         return self._new(values=result)
@@ -2295,14 +2324,14 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         if not isinstance(args, (tuple, list)):
             args = [args]
         expanded = self._expand_ellipsis(args)
-        shape = self.data.shape
+        shape = self._get_array('shape')
         idx = [
             range(shape[i])
             if isinstance(arg, slice) else arg
             for i, arg in enumerate(expanded)
         ]
         indices = np.ix_(*list(idx))
-        return self._new(values=self.array[indices])
+        return self._new(values=self._get_array(indices))
 
     def _expand_ellipsis(
         self,
@@ -2319,9 +2348,78 @@ class Variable(Vector, arrays.Array, allowed=allowed):
             *user[slice(start+length, self.naxes)],
         ])
 
-    def __getattr__(self, name: str):
-        """Get an attribute from the base array object."""
-        return getattr(self.array, name)
+    _HANDLED_TYPES = (np.ndarray, numbers.Number, list)
+
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        """Provide support for `numpy` universal functions.
+
+        See https://numpy.org/doc/stable/reference/arrays.classes.html for more
+        information on use of this special method.
+
+        See
+        https://numpy.org/doc/stable/reference/generated/numpy.lib.mixins.NDArrayOperatorsMixin.html#numpy.lib.mixins.NDArrayOperatorsMixin
+        for the specific implementation example that this class follows.
+
+        This method first ensures that the input types (as well as the type of
+        `out`, if given) are supported types.
+        """
+        out = kwargs.get('out', ())
+        for x in inputs + out:
+            if not isinstance(x, self._HANDLED_TYPES + (type(self),)):
+                return NotImplemented
+        inputs = tuple(
+            x.values if isinstance(x, type(self))
+            else x for x in inputs
+        )
+        if out:
+            kwargs['out'] = tuple(
+                x.values if isinstance(x, type(self))
+                else x for x in out
+            )
+        result = getattr(ufunc, method)(*inputs, **kwargs)
+        if type(result) is tuple:
+            return tuple(self._new_from_func(x) for x in result)
+        if method == 'at':
+            return None
+        return self._new_from_func(result)
+
+    _HANDLED_FUNCTIONS = {}
+
+    def __array_function__(self, func, types, args, kwargs):
+        """Provide support for functions in the `numpy` public API.
+
+        See https://numpy.org/doc/stable/reference/arrays.classes.html for more
+        information of use of this special method. The implementation shown here
+        is a combination of the example on that page and code from the
+        definition of `EncapsulateNDArray.__array_function__` in
+        https://github.com/dask/dask/blob/main/dask/array/tests/test_dispatch.py
+
+        The initial `issubclass` check allows subclasses that don't override
+        `__array_function__` to handle objects of this type.
+        """
+        accepted = (type(self), np.ndarray, np.ScalarType)
+        if not all(issubclass(ti, accepted) for ti in types):
+            return NotImplemented
+        if func in self._HANDLED_FUNCTIONS:
+            arr = self._HANDLED_FUNCTIONS[func](*args, **kwargs)
+            return self._new_from_func(arr)
+        args = tuple(
+            arg.values if isinstance(arg, type(self))
+            else arg for arg in args
+        )
+        types = tuple(
+            ti for ti in types
+            if not issubclass(ti, type(self))
+        )
+        values = self.__array__()
+        arr = values.__array_function__(func, types, args, kwargs)
+        return self._new_from_func(arr)
+
+    def _new_from_func(self, result):
+        """Create a new instance from the result of a `numpy` function."""
+        if not isinstance(result, np.ndarray):
+            return result
+        return type(self)(result, self.unit, self.axes, name=self.name)
 
     def __eq__(self, other: typing.Any):
         """True if two instances have the same values and attributes."""
@@ -2340,14 +2438,14 @@ class Variable(Vector, arrays.Array, allowed=allowed):
 
     def __add__(self, other: typing.Any):
         if isinstance(other, numbers.Real):
-            return self._new(values=self.data + other)
+            return self._new(values=self._get_array() + other)
         if isinstance(other, Variable) and self.axes != other.axes:
             return NotImplemented
         return super().__add__(other)
 
     def __sub__(self, other: typing.Any):
         if isinstance(other, numbers.Real):
-            return self._new(values=self.data - other)
+            return self._new(values=self._get_array() - other)
         if isinstance(other, Variable) and self.axes != other.axes:
             return NotImplemented
         return super().__sub__(other)
@@ -2356,24 +2454,24 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         if isinstance(other, Variable):
             axes = sorted(tuple(set(self.axes + other.axes)))
             sarr, oarr = self._extend_arrays(other, axes)
-            amount = sarr * oarr
+            values = sarr * oarr
             unit = self.unit * other.unit
-            return self._new(values=amount, unit=unit, axes=axes)
+            return self._new(values=values, unit=unit, axes=axes)
         return super().__mul__(other)
 
     def __truediv__(self, other: typing.Any):
         if isinstance(other, Variable):
             axes = sorted(tuple(set(self.axes + other.axes)))
             sarr, oarr = self._extend_arrays(other, axes)
-            amount = sarr / oarr
+            values = sarr / oarr
             unit = self.unit / other.unit
-            return self._new(values=amount, unit=unit, axes=axes)
+            return self._new(values=values, unit=unit, axes=axes)
         return super().__truediv__(other)
 
     @property
     def shape_dict(self) -> typing.Dict[str, int]:
         """Label and size for each axis."""
-        return dict(zip(self.axes, self.data.shape))
+        return dict(zip(self.axes, self._get_array('shape')))
 
     def _extend_arrays(
         self,
@@ -2390,27 +2488,42 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         full_shape = tuple(tmp[d] for d in axes)
         idx = np.ix_(*[range(i) for i in full_shape])
         self_idx = tuple(idx[axes.index(d)] for d in self.shape_dict)
-        self_arr = self.data[self_idx]
+        self_arr = self._get_array(self_idx)
         other_idx = tuple(idx[axes.index(d)] for d in other.shape_dict)
-        other_arr = other.data[other_idx]
+        other_arr = other._get_array(other_idx)
         return self_arr, other_arr
 
+    def _get_array(self, arg: typing.Union[str, IndexLike]=None):
+        """Access array values via index or slice notation."""
+        # Options:
+        # - Reset `self._array = None` in `with_unit` and scale
+        #   `self.__array__()` here. This would require only using `self._scale`
+        #   in one place.
+        # - Scale each instance of `self._array` in this method. This would
+        #   avoid reloading `self._array`.
+        if self._array is None:
+            self._array = self.__array__()
+        if not arg:
+            return self._array * self._scale
+        if isinstance(arg, str):
+            return getattr(self._array, arg)
+        idx = np.index_exp[arg]
+        return self._array[idx] * self._scale
+
+    def __array__(self, *args, **kwargs) -> np.ndarray:
+        """Support casting to `numpy` array types."""
+        return np.asarray(self.values, *args, **kwargs)
+
     def _get_args(self, updates: typing.MutableMapping):
-        values = super()._get_args(updates)
+        values = self._get_array()
         unit = updates.pop('unit', self.unit)
         axes = updates.pop('axes', self.axes)
-        return (*values, unit, axes)
+        return (values, unit, axes)
 
     def _get_kwargs(self, updates: typing.MutableMapping):
         if 'name' not in updates:
             updates['name'] = self.name
         return updates
-
-    def _new_from_func(self, result):
-        new = super()._new_from_func(result)
-        if isinstance(new, arrays.Array):
-            return Variable(new.values, self.unit, new.axes)
-        return new
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
@@ -2421,6 +2534,51 @@ class Variable(Vector, arrays.Array, allowed=allowed):
         ]
         return ', '.join(attrs)
 
+    @classmethod
+    def implements(cls, numpy_function):
+        """Register an `__array_function__` implementation for this class.
+
+        See https://numpy.org/doc/stable/reference/arrays.classes.html for the
+        suggestion on which this method is based.
+
+        EXAMPLE
+        -------
+        Overload `numpy.mean` for an existing class called ``Array`` with a
+        version that accepts no keyword arguments::
+
+            @Array.implements(np.mean)
+            def mean(a: Array, **kwargs) -> Array:
+                if kwargs:
+                    msg = "Cannot pass keywords to numpy.mean with Array"
+                    raise TypeError(msg)
+                return np.sum(a) / len(a)
+
+        This will compute the mean of the underlying values when called with no
+        arguments, but will raise an exception when called with arguments:
+
+            >>> v = Array([[1, 2], [3, 4]])
+            >>> np.mean(v)
+            5.0
+            >>> np.mean(v, axis=0)
+            ...
+            TypeError: Cannot pass keywords to numpy.mean with Array
+        """
+        def decorator(func):
+            cls._HANDLED_FUNCTIONS[numpy_function] = func
+            return func
+        return decorator
+
+
+@Variable.implements(np.mean)
+def _array_mean(a: Variable, **kwargs):
+    """Compute the mean and update array dimensions, if necessary."""
+    values = a._get_array().mean(**kwargs)
+    if (axis := kwargs.get('axis')) is not None:
+        a._axes = tuple(
+            d for d in a.axes
+            if a.axes.index(d) != axis
+        )
+    return values
 
 
 class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
