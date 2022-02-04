@@ -1891,8 +1891,13 @@ class Measured(Ordered):
     def _new(cls, *args, **kwargs):
         """Create a new instance with updated attributes."""
         init = cls._resolve(*args, **kwargs)
-        self = super().__new__(cls, *init['args'])
-        self._unit = init['unit']
+        self = super().__new__(
+            cls,
+            *init.pop('args', ()),
+            **init.pop('kwargs', {}),
+        )
+        for name, value in init.items():
+            setattr(self, name, value)
         return self
 
     @classmethod
@@ -1911,7 +1916,7 @@ class Measured(Ordered):
             unit = instance.unit()
             return {
                 'args': (instance._amount, str(unit)),
-                'unit': unit,
+                '_unit': unit,
             }
         attrs = list(args)
         attr_dict = {
@@ -1922,7 +1927,7 @@ class Measured(Ordered):
         unit = attr_dict['unit']
         return {
             'args': (attr_dict['amount'], str(unit)),
-            'unit': Unit(unit or '1')
+            '_unit': Unit(unit or '1'),
         }
 
     @typing.overload
