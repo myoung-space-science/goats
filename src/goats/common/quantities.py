@@ -1784,35 +1784,17 @@ class Quantified(RealValued, iterables.ReprStrMixin):
     def __new__(cls, *args):
         """Create a new instance of `cls`."""
         self = super().__new__(cls)
-        self._amount, self._quantity = args
-        return self
-
-    @classmethod
-    def _new(cls, *args, **kwargs):
-        """Create a new instance from updated attributes."""
-        init = cls._resolve(*args, **kwargs)
-        self = cls(*init.pop('args', ()), **init.pop('kwargs', {}))
-        for name, value in init.items():
-            setattr(self, name, value)
-        return self
-
-    @classmethod
-    def _resolve(cls, *args, **kwargs):
-        """Resolve input arguments into instance attributes."""
-        if not kwargs and len(args) == 1 and isinstance(args[0], cls):
+        if len(args) == 1 and isinstance(args[0], cls):
             instance = args[0]
-            return {
-                'args': (instance._amount, instance._quantity),
-            }
-        attrs = list(args)
-        attr_dict = {
-            k: attrs.pop(0) if attrs
-            else kwargs.pop(k, None)
-            for k in ('amount', 'quantity')
-        }
-        return {
-            'args': (attr_dict['amount'], attr_dict['quantity'])
-        }
+            self._amount = instance._amount
+            self._quantity = instance._quantity
+            return self
+        if len(args) == 2:
+            self._amount, self._quantity = args
+            return self
+        raise TypeError(
+            f"Can't instantiate {cls} from {args}"
+        ) from None
 
     @property
     def quantity(self):
@@ -1847,8 +1829,8 @@ class Ordered(Quantified):
         instance: Instance,
     ) -> Instance: ...
 
-    def __new__(cls, *args, **kwargs):
-        return super().__new__(cls, *args, **kwargs)
+    def __new__(cls, *args):
+        return super().__new__(cls, *args)
 
     _amount: Comparable=None
 
@@ -1910,33 +1892,67 @@ class Measured(Ordered):
     def __new__(
         cls: typing.Type[Instance],
         amount: RealValued,
-        unit: typing.Union[str, Unit]=None,
-    ) -> Instance: ...
+    ) -> Instance:
+        """Create a new measured object.
+        
+        Parameters
+        ----------
+        amount : real-valued
+            The measured amount.
+        """
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        amount: RealValued,
+        unit: str,
+    ) -> Instance:
+        """Create a new measured object.
+        
+        Parameters
+        ----------
+        amount : real-valued
+            The measured amount.
+
+        unit : string
+            The unit in which `amount` is measured.
+        """
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        amount: RealValued,
+        unit: Unit,
+    ) -> Instance:
+        """Create a new measured object.
+        
+        Parameters
+        ----------
+        amount : real-valued
+            The measured amount.
+
+        unit : `~quantities.Unit`
+            The unit in which `amount` is measured.
+        """
 
     @typing.overload
     def __new__(
         cls: typing.Type[Instance],
         instance: Instance,
-    ) -> Instance: ...
+    ) -> Instance:
+        """Create a new measured object.
+        
+        Parameters
+        ----------
+        instance : `~quantities.Measured`
+            An existing instance of this class.
+        """
 
-    def __new__(cls, *args, **kwargs):
-        init = super()._resolve(*args, **kwargs)
-        self = super().__new__(
-            cls,
-            *init.pop('args', ()),
-            **init.pop('kwargs', {}),
-        )
-        attrs = cls._resolve(*args, **kwargs).get('attrs', {})
-        for name, value in attrs.items():
-            setattr(self, name, value)
-        return self
-
-    _amount: RealValued
+    _amount: RealValued=None
     _unit: Unit=None
 
-    @classmethod
-    def _resolve(cls, *args, **kwargs):
-        """Resolve input arguments into instance attributes.
+    def __new__(cls, *args, **kwargs):
+        """The concrete implementation of `~quantities.Measured.__new__`.
         
         Notes
         -----
@@ -1947,22 +1963,25 @@ class Measured(Ordered):
         """
         if not kwargs and len(args) == 1 and isinstance(args[0], cls):
             instance = args[0]
+            amount = instance._amount
             unit = instance.unit()
-            return {
-                'args': (instance._amount, str(unit)),
-                'attrs': {'_unit': unit},
+        else:
+            attrs = list(args)
+            attr_dict = {
+                k: attrs.pop(0) if attrs
+                else kwargs.pop(k, None)
+                for k in ('amount', 'unit')
             }
-        attrs = list(args)
-        attr_dict = {
-            k: attrs.pop(0) if attrs
-            else kwargs.pop(k, None)
-            for k in ('amount', 'unit')
-        }
-        unit = attr_dict['unit'] or '1'
-        return {
-            'args': (attr_dict['amount'], str(unit)),
-            'attrs': {'_unit': Unit(unit)},
-        }
+            amount = attr_dict['amount']
+            unit = Unit(attr_dict['unit'] or '1')
+        self = super().__new__(cls, amount, str(unit))
+        self._unit = unit
+        return self
+
+    @classmethod
+    def _new(cls, *args, **kwargs):
+        """Create a new instance from updated attributes."""
+        return cls(*args, **kwargs)
 
     @typing.overload
     def unit(self: Instance) -> Unit: ...
@@ -2076,73 +2095,99 @@ class Measured(Ordered):
         return f"{self._amount} [{self._unit}]"
 
 
-VT = typing.TypeVar('VT', bound=numbers.Real)
+VT = typing.TypeVar('VT', bound=RealValued)
+VT = RealValued
 
 
 allowed = {m: numbers.Real for m in ['__lt__', '__le__', '__gt__', '__ge__']}
 class Scalar(Measured, allowed=allowed):
     """A single numerical value and associated unit."""
 
-    _value: VT
-
     @typing.overload
     def __new__(
         cls: typing.Type[Instance],
         value: VT,
-        unit: str=None,
-    ) -> Instance: ...
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        value: VT,
-        unit: Unit=None,
-    ) -> Instance: ...
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        instance: Instance,
-    ) -> Instance: ...
-
-    def __new__(cls, *args, **kwargs):
+    ) -> Instance:
         """Create a new scalar object.
         
         Parameters
         ----------
         value : real number
-            An object that implements the `~numbers.Real` interface.
-
-        unit : string or `~quantities.Unit`
-            The unit of `value`.
+            The numerical value of this scalar. The argument must implement the
+            `~numbers.Real` interface.
         """
-        # attr = cls._resolve(*args, **kwargs)
-        # self = super().__new__(cls, *attr['args'], **attr['kwargs'])
-        # self._value = self._amount
-        # return self
-        return super().__new__(cls, *args, **kwargs)
 
-    @classmethod
-    def _resolve(cls, *args, **kwargs):
-        """Resolve input arguments into instance attributes."""
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        value: VT,
+        unit: str,
+    ) -> Instance:
+        """Create a new scalar object.
+        
+        Parameters
+        ----------
+        value : real number
+            The numerical value of this scalar. The argument must implement the
+            `~numbers.Real` interface.
+
+        unit : string
+            The metric unit of `value`.
+        """
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        value: VT,
+        unit: Unit,
+    ) -> Instance:
+        """Create a new scalar object.
+        
+        Parameters
+        ----------
+        value : real number
+            The numerical value of this scalar. The argument must implement the
+            `~numbers.Real` interface.
+
+        unit : `~quantities.Unit`
+            The metric unit of `value`.
+        """
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        instance: Instance,
+    ) -> Instance:
+        """Create a new scalar object.
+        
+        Parameters
+        ----------
+        instance : `~quantities.Scalar`
+            An existing instance of this class.
+        """
+
+    _value: VT
+
+    def __new__(cls, *args, **kwargs):
+        """The concrete implementation of `~quantities.Scalar.__new__`."""
         if not kwargs and len(args) == 1 and isinstance(args[0], cls):
             instance = args[0]
-            return {
-                'args': (instance._value,),
-                'kwargs': {'unit': instance.unit()},
+            value = instance._value
+            unit = instance.unit()
+        else:
+            attrs = list(args)
+            if 'amount' in kwargs:
+                kwargs['value'] = kwargs.pop('amount')
+            attr_dict = {
+                k: attrs.pop(0) if attrs
+                else kwargs.pop(k, None)
+                for k in ('value', 'unit')
             }
-        attrs = list(args)
-        if 'amount' in kwargs:
-            kwargs['value'] = kwargs.pop('amount')
-        attr_dict = {
-            k: attrs.pop(0) if attrs
-            else kwargs.pop(k, None)
-            for k in ('value', 'unit')
-        }
-        return {
-            'args': (attr_dict['value'],),
-            'kwargs': {'unit': attr_dict['unit']},
-        }
+            value = attr_dict['value']
+            unit = attr_dict['unit']
+        self = super().__new__(cls, value, unit=unit)
+        self._value = value
+        return self
 
     def __lt__(self, other: Ordered) -> bool:
         if isinstance(other, Comparable):
@@ -2219,63 +2264,85 @@ class Vector(Measured):
     def __new__(
         cls: typing.Type[Instance],
         values: typing.Iterable[VT],
-        unit: str=None,
-    ) -> Instance: ...
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        values: typing.Iterable[VT],
-        unit: Unit=None,
-    ) -> Instance: ...
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        instance: Instance,
-    ) -> Instance: ...
-
-    def __new__(cls, *args, **kwargs):
+    ) -> Instance:
         """Create a new vector object.
         
         Parameters
         ----------
         values : iterable of real numbers
-            An iterable of objects that implement the `~numbers.Real` interface.
+            The numerical values of this vector. Each member must implement the
+            `~numbers.Real` interface.
+        """
 
-        unit : string or `~quantities.Unit`
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        values: typing.Iterable[VT],
+        unit: str,
+    ) -> Instance:
+        """Create a new vector object.
+        
+        Parameters
+        ----------
+        values : iterable of real numbers
+            The numerical values of this vector. Each member must implement the
+            `~numbers.Real` interface.
+
+        unit : string
             The unit of `values`.
         """
-        attr = cls._resolve(*args, **kwargs)
-        self = super().__new__(cls, *attr['args'], **attr['kwargs'])
-        self._values = list(iterables.Separable(self._amount))
-        return self
 
-    @classmethod
-    def _resolve(cls, *args, **kwargs):
-        """Resolve input arguments into instance attributes."""
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        values: typing.Iterable[VT],
+        unit: Unit,
+    ) -> Instance:
+        """Create a new vector object.
+        
+        Parameters
+        ----------
+        values : iterable of real numbers
+            The numerical values of this vector. Each member must implement the
+            `~numbers.Real` interface.
+
+        unit : `~quantities.Unit`
+            The unit of `values`.
+        """
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        instance: Instance,
+    ) -> Instance:
+        """Create a new vector object.
+
+        Parameters
+        ----------
+        instance : `~quantities.Vector`
+            An existing instance of this class.
+        """
+
+    def __new__(cls, *args, **kwargs):
+        """The concrete implementation of `~quantities.Vector.__new__`."""
         if not kwargs and len(args) == 1 and isinstance(args[0], cls):
             instance = args[0]
-            return {
-                'args': (instance._values,),
-                'kwargs': {'unit': instance.unit()},
+            values = instance._values
+            unit = instance.unit()
+        else:
+            attrs = list(args)
+            if 'amount' in kwargs:
+                kwargs['values'] = kwargs.pop('amount')
+            attr_dict = {
+                k: attrs.pop(0) if attrs
+                else kwargs.pop(k, None)
+                for k in ('values', 'unit')
             }
-        attrs = list(args)
-        attr_dict = {
-            k: attrs.pop(0) if attrs
-            else kwargs.pop(k, None)
-            for k in ('values', 'unit')
-        }
-        return {
-            'args': (attr_dict['values'],),
-            'kwargs': {'unit': attr_dict['unit']},
-        }
-
-    @classmethod
-    def _new(cls, *args, **kwargs):
-        if 'amount' in kwargs:
-            kwargs['values'] = kwargs.pop('amount')
-        return super()._new(*args, **kwargs)
+            values = attr_dict['values']
+            unit = attr_dict['unit']
+        self = super().__new__(cls, values, unit=unit)
+        self._values = list(iterables.Separable(self._amount))
+        return self
 
     def __len__(self):
         """Called for len(self)."""
