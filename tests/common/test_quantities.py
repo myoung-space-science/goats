@@ -1031,6 +1031,10 @@ Obj = typing.TypeVar(
     typing.Type[quantities.Scalar],
     typing.Type[quantities.Vector],
 )
+Obj = typing.Union[
+    typing.Type[quantities.Scalar],
+    typing.Type[quantities.Vector],
+]
 def check_units(
     obj: Obj,
     amount: quantities.RealValued,

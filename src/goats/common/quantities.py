@@ -1887,16 +1887,22 @@ class Measured(Ordered):
     # self.unit, and finally converting to a string while passing to the
     # parent class not only fixes the types but also normalizes the argument
 
-    @abc.abstractmethod
-    def unit(self):
-        """The unit of this measured object.
-        
-        Concrete subclasses must implement this method or an equivalent
-        property. The base class provides a default implementation that returns
-        the internal attribute, so it is possible to define a concrete
-        implementation by simply returning `super().unit()`.
-        """
-        return self._unit
+    @typing.overload
+    def unit(self: Instance) -> Unit: ...
+
+    @typing.overload
+    def unit(self: Instance, new: str) -> Instance: ...
+
+    @typing.overload
+    def unit(self: Instance, new: Unit) -> Instance: ...
+
+    def unit(self, new=None):
+        """Get or set the unit of this object's value."""
+        if not new:
+            return self._unit
+        scale = Unit(new) // self._unit
+        amount = (scale * self)._amount
+        return self._new(amount=amount, unit=new)
 
     def __bool__(self) -> bool:
         return bool(self._amount)
@@ -2038,42 +2044,36 @@ class Scalar(Measured, allowed=allowed):
         unit : string or `~quantities.Unit`
             The unit of `value`.
         """
-        value, unit = cls._resolve(*args, **kwargs)
-        self = super().__new__(cls, value, unit=unit)
+        attr = cls._resolve(*args, **kwargs)
+        self = super().__new__(cls, *attr['args'], **attr['kwargs'])
         self._value = self._amount
-        """The numerical value this scalar."""
         return self
 
     @classmethod
     def _resolve(cls, *args, **kwargs):
-        """Resolve input arguments into attributes."""
+        """Resolve input arguments."""
         if not kwargs and len(args) == 1 and isinstance(args[0], cls):
             instance = args[0]
-            return (
-                instance._value,
-                instance.unit,
-            )
+            return {
+                'args': (instance._value,),
+                'kwargs': {'unit': instance.unit()},
+            }
         attrs = list(args)
         attr_dict = {
             k: attrs.pop(0) if attrs
-            else kwargs.get(k)
+            else kwargs.pop(k, None)
             for k in ('value', 'unit')
         }
-        return attr_dict.values()
+        return {
+            'args': (attr_dict['value'],),
+            'kwargs': {'unit': attr_dict['unit']},
+        }
 
     @classmethod
     def _new(cls, *args, **kwargs):
         if 'amount' in kwargs:
             kwargs['value'] = kwargs.pop('amount')
         return super()._new(*args, **kwargs)
-
-    def unit(self, new: typing.Union[str, Unit]=None):
-        """Get or set the unit of this object's value."""
-        if not new:
-            return self._unit
-        scale = Unit(new) // self._unit
-        amount = (scale * self)._amount
-        return self._new(amount=amount, unit=new)
 
     def __lt__(self, other: Ordered) -> bool:
         if isinstance(other, Comparable):
@@ -2204,14 +2204,6 @@ class Vector(Measured):
         if 'amount' in kwargs:
             kwargs['values'] = kwargs.pop('amount')
         return super()._new(*args, **kwargs)
-
-    def unit(self, new: typing.Union[str, Unit]=None):
-        """Get or set the unit of this object's value."""
-        if not new:
-            return self._unit
-        scale = Unit(new) // self._unit
-        amount = (scale * self)._amount
-        return self._new(amount=amount, unit=new)
 
     def __len__(self):
         """Called for len(self)."""
