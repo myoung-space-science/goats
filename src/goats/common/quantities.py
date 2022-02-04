@@ -2007,11 +2007,27 @@ class Scalar(Measured, allowed=allowed):
 
     _value: VT
 
+    @typing.overload
     def __new__(
-        cls: typing.Type['Scalar'],
+        cls: typing.Type[Instance],
         value: VT,
-        unit: typing.Union[str, Unit]=None,
-    ) -> 'Scalar':
+        unit: str=None,
+    ) -> Instance: ...
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        value: VT,
+        unit: Unit=None,
+    ) -> Instance: ...
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        instance: Instance,
+    ) -> Instance: ...
+
+    def __new__(cls, *args, **kwargs):
         """Create a new scalar object.
         
         Parameters
@@ -2022,10 +2038,28 @@ class Scalar(Measured, allowed=allowed):
         unit : string or `~quantities.Unit`
             The unit of `value`.
         """
+        value, unit = cls._resolve(*args, **kwargs)
         self = super().__new__(cls, value, unit=unit)
         self._value = self._amount
         """The numerical value this scalar."""
         return self
+
+    @classmethod
+    def _resolve(cls, *args, **kwargs):
+        """Resolve input arguments into attributes."""
+        if not kwargs and len(args) == 1 and isinstance(args[0], cls):
+            instance = args[0]
+            return (
+                instance._value,
+                instance.unit,
+            )
+        attrs = list(args)
+        attr_dict = {
+            k: attrs.pop(0) if attrs
+            else kwargs.get(k)
+            for k in ('value', 'unit')
+        }
+        return attr_dict.values()
 
     @classmethod
     def _new(cls, *args, **kwargs):
@@ -2117,11 +2151,27 @@ class Vector(Measured):
 
     _values: typing.Iterable[VT]
 
+    @typing.overload
     def __new__(
-        cls: typing.Type['Vector'],
+        cls: typing.Type[Instance],
         values: typing.Iterable[VT],
-        unit: typing.Union[str, Unit]=None,
-    ) -> 'Vector':
+        unit: str=None,
+    ) -> Instance: ...
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        values: typing.Iterable[VT],
+        unit: Unit=None,
+    ) -> Instance: ...
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        instance: Instance,
+    ) -> Instance: ...
+
+    def __new__(cls, *args, **kwargs):
         """Create a new vector object.
         
         Parameters
@@ -2132,9 +2182,27 @@ class Vector(Measured):
         unit : string or `~quantities.Unit`
             The unit of `values`.
         """
+        values, unit = cls._resolve(*args, **kwargs)
         self = super().__new__(cls, values, unit)
         self._values = list(iterables.Separable(self._amount))
         return self
+
+    @classmethod
+    def _resolve(cls, *args, **kwargs):
+        """Resolve input arguments into attributes."""
+        if not kwargs and len(args) == 1 and isinstance(args[0], cls):
+            instance = args[0]
+            return (
+                instance._values,
+                instance.unit,
+            )
+        attrs = list(args)
+        attr_dict = {
+            k: attrs.pop(0) if attrs
+            else kwargs.get(k)
+            for k in ('values', 'unit')
+        }
+        return attr_dict.values()
 
     @classmethod
     def _new(cls, *args, **kwargs):
@@ -2615,6 +2683,30 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
             cls._HANDLED_FUNCTIONS[numpy_function] = func
             return func
         return decorator
+
+
+# allowed = {'__add__': float, '__sub__': float}
+# class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
+#     """A vector with values stored in a numerical array.
+
+#     The result of binary arithmetic operations on instances of this class are
+#     similar to those of `Vector`, but differ in the following ways:
+#     1. Multiplication (`*`) and division (`/`) accept operands with different
+#        axes, as long as any repeated axes have the same length in both operands.
+#        The result will contain all unique axes from its operands.
+#     2. Addition (`+`) and subtraction (`-`) accept real numbers as right-sided
+#        operands. The result is a new instance with the operation applied to the
+#        underlying array.
+#     """
+
+#     def __new__(
+#         cls: typing.Type['Variable'],
+#         values: typing.Iterable[VT],
+#         axes: typing.Iterable[str],
+#         unit: typing.Union[str, Unit]=None,
+#         name: str=None,
+#     ) -> 'Variable':
+#         return super().__new__(values, unit)
 
 
 @Variable.implements(np.mean)
