@@ -2067,18 +2067,13 @@ class Scalar(Measured, allowed=allowed):
             kwargs['value'] = kwargs.pop('amount')
         return super()._new(*args, **kwargs)
 
-    # TODO: Use this for `unit`
-    #
-    # def with_unit(self, unit: typing.Union[str, Unit]):
-    #     """Create a copy of this instance converted to the new unit."""
-    #     scale = Unit(unit) // self.unit
-    #     amount = (scale * self).amount
-    #     return self._new(amount=amount, unit=unit)
-
-    @property
-    def unit(self) -> Unit:
-        """The unit of this object's value."""
-        return super().unit()
+    def unit(self, new: typing.Union[str, Unit]=None):
+        """Get or set the unit of this object's value."""
+        if not new:
+            return self._unit
+        scale = Unit(new) // self._unit
+        amount = (scale * self)._amount
+        return self._new(amount=amount, unit=new)
 
     def __lt__(self, other: Ordered) -> bool:
         if isinstance(other, Comparable):
@@ -2210,10 +2205,13 @@ class Vector(Measured):
             kwargs['values'] = kwargs.pop('amount')
         return super()._new(*args, **kwargs)
 
-    @property
-    def unit(self) -> Unit:
-        """The unit of this object's value."""
-        return super().unit()
+    def unit(self, new: typing.Union[str, Unit]=None):
+        """Get or set the unit of this object's value."""
+        if not new:
+            return self._unit
+        scale = Unit(new) // self._unit
+        amount = (scale * self)._amount
+        return self._new(amount=amount, unit=new)
 
     def __len__(self):
         """Called for len(self)."""
@@ -2230,31 +2228,31 @@ class Vector(Measured):
     def __add__(self, other: typing.Any):
         if isinstance(other, Vector):
             values = [s + o for s, o in zip(self._values, other._values)]
-            return self._new(amount=values, unit=self.unit)
+            return self._new(amount=values, unit=self._unit)
         if isinstance(other, Measured):
             values = [s + other for s in self._values]
-            return self._new(amount=values, unit=self.unit)
+            return self._new(amount=values, unit=self._unit)
         return NotImplemented
 
     def __sub__(self, other: typing.Any):
         if isinstance(other, Vector):
             values = [s - o for s, o in zip(self._values, other._values)]
-            return self._new(amount=values, unit=self.unit)
+            return self._new(amount=values, unit=self._unit)
         if isinstance(other, Measured):
             values = [s - other for s in self._values]
-            return self._new(amount=values, unit=self.unit)
+            return self._new(amount=values, unit=self._unit)
         return NotImplemented
 
     def __mul__(self, other: typing.Any):
         if isinstance(other, Vector):
             values = [s * o for s, o in zip(self._values, other._values)]
-            unit = self.unit * other.unit
+            unit = self._unit * other._unit
             return self._new(amount=values, unit=unit)
         if isinstance(other, Scalar):
             other = float(other)
         if isinstance(other, RealValued):
             values = [s * other for s in self._values]
-            return self._new(amount=values, unit=self.unit)
+            return self._new(amount=values, unit=self._unit)
         return NotImplemented
 
     def __rmul__(self, other: typing.Any):
@@ -2262,25 +2260,25 @@ class Vector(Measured):
             other = float(other)
         if isinstance(other, numbers.Number):
             values = [other * s for s in self._values]
-            return self._new(amount=values, unit=self.unit)
+            return self._new(amount=values, unit=self._unit)
         return NotImplemented
 
     def __truediv__(self, other: typing.Any):
         if isinstance(other, Vector):
             values = [s / o for s, o in zip(self._values, other._values)]
-            unit = self.unit / other.unit
+            unit = self._unit / other._unit
             return self._new(amount=values, unit=unit)
         if isinstance(other, Scalar):
             other = float(other)
         if isinstance(other, RealValued):
             values = [s / other for s in self._values]
-            return self._new(amount=values, unit=self.unit)
+            return self._new(amount=values, unit=self._unit)
         return NotImplemented
 
     def __pow__(self, other: typing.Any):
         if isinstance(other, numbers.Number):
             values = [s ** other for s in self._values]
-            unit = self.unit ** other
+            unit = self._unit ** other
             return self._new(amount=values, unit=unit)
         return NotImplemented
 
@@ -2312,13 +2310,13 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
     """
 
     @typing.overload
-    def __init__(
-        self,
+    def __new__(
+        cls: typing.Type[Instance],
         values: typing.Iterable[numbers.Number],
         unit: typing.Union[str, Unit],
         axes: typing.Iterable[str],
         name: str='<anonymous>',
-    ) -> None:
+    ) -> Instance:
         """Initialize an instance from arguments.
         
         Parameters
@@ -2337,7 +2335,10 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         """
 
     @typing.overload
-    def __init__(self, instance: 'Variable') -> None:
+    def __new__(
+        cls: typing.Type[Instance],
+        instance: Instance,
+    ) -> Instance:
         """Initialize an instance from an existing instance.
         
         Parameters
@@ -2346,7 +2347,10 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
             An instance of this class from which to initialize a new variable.
         """
 
-    def __init__(self, *args, **kwargs):
+    axes: typing.Iterable[str]
+    name: str=None
+
+    def __new__(cls, *args, **kwargs):
         """Initialize an instance from arguments.
         
         Callers may initialize an instance by providing `values`, `
@@ -2354,19 +2358,24 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         Parameters
         ----------
         """
-        values, unit, axes, name = self._resolve(*args, **kwargs)
-        super().__init__(values, unit)
-        self._axes = axes
+        values, unit, axes, name = cls._resolve(*args, **kwargs)
+        self = super().__new__(cls, values, unit=unit)
+        self.axes = tuple(axes)
+        """The names of this array's indexable axes."""
+        self.naxes = len(self.axes)
+        """The number of indexable axes in this array."""
         self.name = name
         self._array = None
         self._scale = 1.0
+        return self
 
-    def _resolve(self, *args, **kwargs):
+    @classmethod
+    def _resolve(cls, *args, **kwargs):
         """Resolve input arguments into attributes."""
-        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
+        if not kwargs and len(args) == 1 and isinstance(args[0], cls):
             variable = args[0]
             return (
-                variable.values,
+                variable._values,
                 variable.unit,
                 variable.axes,
                 variable.name,
@@ -2379,16 +2388,6 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         }
         attr_dict['name'] = kwargs.get('name') or '<anonymous>'
         return attr_dict.values()
-
-    @property
-    def axes(self):
-        """The names of this array's indexable axes."""
-        return tuple(self._axes)
-
-    @property
-    def naxes(self):
-        """The number of indexable axes in this array."""
-        return len(self.axes)
 
     # This differs from `Measured` in order to avoid rescaling potentially large
     # arrays, at the cost of returning the current instance, which requires the

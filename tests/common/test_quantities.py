@@ -384,7 +384,7 @@ def test_scalar_operators():
     """Test comparison and arithmetic on scalar objects."""
     _value_ = 2.0
     scalar = quantities.Scalar(_value_, '1')
-    _unit_ = scalar.unit
+    _unit_ = scalar.unit()
     assert scalar < quantities.Scalar(3, _unit_)
     assert scalar <= quantities.Scalar(3, _unit_)
     assert scalar <= quantities.Scalar(_value_, _unit_)
@@ -469,14 +469,14 @@ def test_scalar_operators():
         result = op(scalar, other)
         expected = quantities.Scalar(
             op(_value_, float(other)),
-            op(_unit_, other.unit),
+            op(_unit_, other.unit()),
         )
         assert result == expected
         # reverse
         result = op(other, scalar)
         expected = quantities.Scalar(
             op(float(other), _value_),
-            op(other.unit, _unit_),
+            op(other.unit(), _unit_),
         )
         assert result == expected
     # with a number
@@ -536,7 +536,7 @@ def test_scalar_operators():
     for op in ops:
         result = op(scalar, other)
         assert float(result) == op(_value_, float(other))
-        assert result.unit == _unit_
+        assert result.unit() == _unit_
         scalar = quantities.Scalar(_value_, _unit_)
     # with a number
     other = number
@@ -554,14 +554,14 @@ def test_scalar_operators():
     for op in ops:
         result = op(scalar, other)
         assert float(result) == op(_value_, float(other))
-        assert result.unit == op(_unit_, other.unit)
+        assert result.unit() == op(_unit_, other.unit())
         scalar = quantities.Scalar(_value_, _unit_)
     # with a number
     other = number
     for op in ops:
         result = op(scalar, other)
         assert float(result) == op(_value_, other)
-        assert result.unit == _unit_
+        assert result.unit() == _unit_
         scalar = quantities.Scalar(_value_, _unit_)
     # exponential
     op = operator.ipow # right-sided with numbers
@@ -574,7 +574,7 @@ def test_scalar_operators():
     other = number
     result = op(scalar, other)
     assert float(result) == op(_value_, other)
-    assert result.unit == op(_unit_, other)
+    assert result.unit() == op(_unit_, other)
     scalar = quantities.Scalar(_value_, _unit_)
 
     # must be hashable
@@ -1018,8 +1018,43 @@ def test_variable_name():
 @pytest.mark.vector
 def test_default_unit():
     """Scalars and Vectors are unitless by default."""
-    assert quantities.Scalar(1).unit == '1'
-    assert quantities.Vector([1]).unit == '1'
+    assert quantities.Scalar(1).unit() == '1'
+    assert quantities.Vector([1]).unit() == '1'
+
+
+@pytest.mark.scalar
+def test_scalar_unit():
+    """Get and set the unit on a Scalar."""
+
+    # reference object
+    original = quantities.Scalar(1, 'm')
+    assert original.unit() == 'm'
+
+    # changing unit makes a copy with scaled values.
+    updated = original.unit('cm')
+    assert updated is not original
+    assert updated.unit() == 'cm'
+    assert original.unit('cm') == quantities.Scalar(100, 'cm')
+
+    # unitless by default
+    assert quantities.Scalar(1).unit() == '1'
+
+@pytest.mark.vector
+def test_vector_unit():
+    """Get and set the unit on a Vector."""
+
+    # reference object
+    original = quantities.Vector([1, 2], 'm')
+    assert original.unit() == 'm'
+
+    # changing unit makes a copy with scaled values.
+    updated = original.unit('cm')
+    assert updated is not original
+    assert updated.unit() == 'cm'
+    assert updated == quantities.Vector([100, 200], 'cm')
+
+    # unitless by default
+    assert quantities.Vector([1]).unit() == '1'
 
 
 u = '1'
