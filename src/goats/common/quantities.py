@@ -2051,7 +2051,7 @@ class Scalar(Measured, allowed=allowed):
 
     @classmethod
     def _resolve(cls, *args, **kwargs):
-        """Resolve input arguments."""
+        """Resolve input arguments into instance attributes."""
         if not kwargs and len(args) == 1 and isinstance(args[0], cls):
             instance = args[0]
             return {
@@ -2177,27 +2177,30 @@ class Vector(Measured):
         unit : string or `~quantities.Unit`
             The unit of `values`.
         """
-        values, unit = cls._resolve(*args, **kwargs)
-        self = super().__new__(cls, values, unit)
+        attr = cls._resolve(*args, **kwargs)
+        self = super().__new__(cls, *attr['args'], **attr['kwargs'])
         self._values = list(iterables.Separable(self._amount))
         return self
 
     @classmethod
     def _resolve(cls, *args, **kwargs):
-        """Resolve input arguments into attributes."""
+        """Resolve input arguments into instance attributes."""
         if not kwargs and len(args) == 1 and isinstance(args[0], cls):
             instance = args[0]
-            return (
-                instance._values,
-                instance.unit,
-            )
+            return {
+                'args': (instance._values,),
+                'kwargs': {'unit': instance.unit()},
+            }
         attrs = list(args)
         attr_dict = {
             k: attrs.pop(0) if attrs
-            else kwargs.get(k)
+            else kwargs.pop(k, None)
             for k in ('values', 'unit')
         }
-        return attr_dict.values()
+        return {
+            'args': (attr_dict['values'],),
+            'kwargs': {'unit': attr_dict['unit']},
+        }
 
     @classmethod
     def _new(cls, *args, **kwargs):
