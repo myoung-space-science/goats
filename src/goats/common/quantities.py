@@ -1765,22 +1765,54 @@ class Quantified(RealValued, iterables.ReprStrMixin):
                 updated = update(current)
                 setattr(cls, method, updated)
 
-    _amount: typing.Any
-    _quantity: typing.Any
-
     @typing.overload
-    def __new__(cls: typing.Type[Instance], *args) -> Instance: ...
-
     def __new__(
-        cls: typing.Type['Quantified'],
+        cls: typing.Type[Instance],
         amount: typing.Any,
         quantity: typing.Any,
-    ) -> 'Quantified':
+    ) -> Instance: ...
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        instance: Instance,
+    ) -> Instance: ...
+
+    _amount: typing.Any=None
+    _quantity: typing.Any=None
+
+    def __new__(cls, *args):
         """Create a new instance of `cls`."""
         self = super().__new__(cls)
-        self._amount = amount
-        self._quantity = quantity
+        self._amount, self._quantity = args
         return self
+
+    @classmethod
+    def _new(cls, *args, **kwargs):
+        """Create a new instance from updated attributes."""
+        init = cls._resolve(*args, **kwargs)
+        self = cls(*init.pop('args', ()), **init.pop('kwargs', {}))
+        for name, value in init.items():
+            setattr(self, name, value)
+        return self
+
+    @classmethod
+    def _resolve(cls, *args, **kwargs):
+        """Resolve input arguments into instance attributes."""
+        if not kwargs and len(args) == 1 and isinstance(args[0], cls):
+            instance = args[0]
+            return {
+                'args': (instance._amount, instance._quantity),
+            }
+        attrs = list(args)
+        attr_dict = {
+            k: attrs.pop(0) if attrs
+            else kwargs.pop(k, None)
+            for k in ('amount', 'quantity')
+        }
+        return {
+            'args': (attr_dict['amount'], attr_dict['quantity'])
+        }
 
     @property
     def quantity(self):
@@ -1802,17 +1834,23 @@ class Ordered(Quantified):
     which should be true unless the object explicitly disables `__eq__`.
     """
 
-    _amount: Comparable
-
     @typing.overload
-    def __new__(cls: typing.Type[Instance], *args) -> Instance: ...
-
     def __new__(
-        cls: typing.Type['Ordered'],
+        cls: typing.Type[Instance],
         amount: Comparable,
         quantity: typing.Any,
-    ) -> 'Ordered':
-        return super().__new__(cls, amount, quantity)
+    ) -> Instance: ...
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        instance: Instance,
+    ) -> Instance: ...
+
+    def __new__(cls, *args, **kwargs):
+        return super().__new__(cls, *args, **kwargs)
+
+    _amount: Comparable=None
 
     def __lt__(self, other: 'Ordered') -> bool:
         return self._amount < other._amount
@@ -1881,24 +1919,20 @@ class Measured(Ordered):
         instance: Instance,
     ) -> Instance: ...
 
-    _amount: RealValued
-    _unit: Unit=None
-
     def __new__(cls, *args, **kwargs):
-        return cls._new(*args, **kwargs)
-
-    @classmethod
-    def _new(cls, *args, **kwargs):
-        """Create a new instance with updated attributes."""
-        init = cls._resolve(*args, **kwargs)
+        init = super()._resolve(*args, **kwargs)
         self = super().__new__(
             cls,
             *init.pop('args', ()),
             **init.pop('kwargs', {}),
         )
-        for name, value in init.items():
+        attrs = cls._resolve(*args, **kwargs).get('attrs', {})
+        for name, value in attrs.items():
             setattr(self, name, value)
         return self
+
+    _amount: RealValued
+    _unit: Unit=None
 
     @classmethod
     def _resolve(cls, *args, **kwargs):
@@ -1916,7 +1950,7 @@ class Measured(Ordered):
             unit = instance.unit()
             return {
                 'args': (instance._amount, str(unit)),
-                '_unit': unit,
+                'attrs': {'_unit': unit},
             }
         attrs = list(args)
         attr_dict = {
@@ -1924,10 +1958,10 @@ class Measured(Ordered):
             else kwargs.pop(k, None)
             for k in ('amount', 'unit')
         }
-        unit = attr_dict['unit']
+        unit = attr_dict['unit'] or '1'
         return {
             'args': (attr_dict['amount'], str(unit)),
-            '_unit': Unit(unit or '1'),
+            'attrs': {'_unit': Unit(unit)},
         }
 
     @typing.overload
@@ -2082,10 +2116,11 @@ class Scalar(Measured, allowed=allowed):
         unit : string or `~quantities.Unit`
             The unit of `value`.
         """
-        attr = cls._resolve(*args, **kwargs)
-        self = super().__new__(cls, *attr['args'], **attr['kwargs'])
-        self._value = self._amount
-        return self
+        # attr = cls._resolve(*args, **kwargs)
+        # self = super().__new__(cls, *attr['args'], **attr['kwargs'])
+        # self._value = self._amount
+        # return self
+        return super().__new__(cls, *args, **kwargs)
 
     @classmethod
     def _resolve(cls, *args, **kwargs):
@@ -2097,6 +2132,8 @@ class Scalar(Measured, allowed=allowed):
                 'kwargs': {'unit': instance.unit()},
             }
         attrs = list(args)
+        if 'amount' in kwargs:
+            kwargs['value'] = kwargs.pop('amount')
         attr_dict = {
             k: attrs.pop(0) if attrs
             else kwargs.pop(k, None)
@@ -2106,12 +2143,6 @@ class Scalar(Measured, allowed=allowed):
             'args': (attr_dict['value'],),
             'kwargs': {'unit': attr_dict['unit']},
         }
-
-    @classmethod
-    def _new(cls, *args, **kwargs):
-        if 'amount' in kwargs:
-            kwargs['value'] = kwargs.pop('amount')
-        return super()._new(*args, **kwargs)
 
     def __lt__(self, other: Ordered) -> bool:
         if isinstance(other, Comparable):
@@ -2380,8 +2411,10 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
             An instance of this class from which to initialize a new variable.
         """
 
-    axes: typing.Iterable[str]
+    axes: typing.Tuple[str]
+    naxes: int
     name: str=None
+    _scale: float=1.0
 
     def __new__(cls, *args, **kwargs):
         """Initialize an instance from arguments.
@@ -2391,49 +2424,60 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         Parameters
         ----------
         """
-        values, unit, axes, name = cls._resolve(*args, **kwargs)
-        self = super().__new__(cls, values, unit=unit)
-        self.axes = tuple(axes)
-        """The names of this array's indexable axes."""
+        attr = cls._resolve(*args, **kwargs)
+        self = super().__new__(cls, *attr['args'], **attr['kwargs'])
+        self.axes = tuple(attr['axes'] or [])
+        """The names of indexable axes in this variable's array."""
         self.naxes = len(self.axes)
-        """The number of indexable axes in this array."""
-        self.name = name
+        """The number of indexable axes in this variable's array."""
+        self.name = attr['name'] or '<anonymous>'
+        """The name of this variable, if available."""
+        self._scale = attr['scale'] or 1.0
         self._array = None
-        self._scale = 1.0
         return self
 
     @classmethod
     def _resolve(cls, *args, **kwargs):
-        """Resolve input arguments into attributes."""
+        """Resolve input arguments into instance attributes."""
         if not kwargs and len(args) == 1 and isinstance(args[0], cls):
-            variable = args[0]
-            return (
-                variable._values,
-                variable.unit,
-                variable.axes,
-                variable.name,
-            )
+            instance = args[0]
+            return {
+                'args': (instance._values,),
+                'kwargs': {'unit': instance.unit()},
+                **{
+                    'axes': instance.axes,
+                    'name': instance.name,
+                    'scale': instance._scale,
+                },
+            }
         attrs = list(args)
         attr_dict = {
             k: attrs.pop(0) if attrs
-            else kwargs.get(k)
-            for k in ('values', 'unit', 'axes')
+            else kwargs.pop(k, None)
+            for k in ('values', 'unit', 'axes', 'name')
         }
-        attr_dict['name'] = kwargs.get('name') or '<anonymous>'
-        return attr_dict.values()
+        return {
+            'args': (attr_dict['values'],),
+            'kwargs': {'unit': attr_dict['unit']},
+            **{
+                'axes': attr_dict['axes'],
+                'name': attr_dict['name'],
+                'scale': kwargs.get('scale'),
+            },
+        }
 
-    # This differs from `Measured` in order to avoid rescaling potentially large
-    # arrays, at the cost of returning the current instance, which requires the
-    # user to make a copy if they want a new instance with the new unit. We may
-    # be able to avoid that by converting using `__new__` instance of `__init__`
-    # and setting `_scale` in that method. The alternative option of passing a
-    # `scale` argument to `__init__` would be awkward.
-    def with_unit(self, unit: typing.Union[str, Unit]):
-        """Update this object's unit."""
-        new = Unit(unit)
-        self._scale = new // self.unit
-        self.unit = new
-        return self
+    def unit(self, new=None):
+        """Get or set the unit of this object's value."""
+        if not new:
+            return self._unit
+        scale = Unit(new) // self._unit
+        return self._new(
+            values=self._values,
+            unit=new,
+            axes=self.axes,
+            name=self.name,
+            scale=scale,
+        )
 
     _builtin = (int, slice, type(...))
 
@@ -2460,8 +2504,13 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         """
         result = self._get_array(indices)
         if isinstance(result, numbers.Number):
-            return Scalar(result, unit=self.unit)
-        return self._new(values=result)
+            return Scalar(result, unit=self.unit())
+        return self._new(
+            values=result,
+            unit=self.unit(),
+            axes=self.axes,
+            name=self.name,
+        )
 
     def _subscript_custom(self, args):
         """Perform array subscription specific to this object.
@@ -2479,7 +2528,12 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
             for i, arg in enumerate(expanded)
         ]
         indices = np.ix_(*list(idx))
-        return self._new(values=self._get_array(indices))
+        return self._new(
+            values=self._get_array(indices),
+            unit=self.unit(),
+            axes=self.axes,
+            name=self.name,
+        )
 
     def _expand_ellipsis(
         self,
@@ -2516,12 +2570,12 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
             if not isinstance(x, self._HANDLED_TYPES + (type(self),)):
                 return NotImplemented
         inputs = tuple(
-            x.values if isinstance(x, type(self))
+            x._values if isinstance(x, type(self))
             else x for x in inputs
         )
         if out:
             kwargs['out'] = tuple(
-                x.values if isinstance(x, type(self))
+                x._values if isinstance(x, type(self))
                 else x for x in out
             )
         result = getattr(ufunc, method)(*inputs, **kwargs)
@@ -2552,7 +2606,7 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
             arr = self._HANDLED_FUNCTIONS[func](*args, **kwargs)
             return self._new_from_func(arr)
         args = tuple(
-            arg.values if isinstance(arg, type(self))
+            arg._values if isinstance(arg, type(self))
             else arg for arg in args
         )
         types = tuple(
@@ -2567,7 +2621,12 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         """Create a new instance from the result of a `numpy` function."""
         if not isinstance(result, np.ndarray):
             return result
-        return type(self)(result, self.unit, self.axes, name=self.name)
+        return self._new(
+            values=result,
+            unit=self.unit(),
+            axes=self.axes,
+            name=self.name,
+        )
 
     def __eq__(self, other: typing.Any):
         """True if two instances have the same values and attributes."""
@@ -2586,14 +2645,26 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
 
     def __add__(self, other: typing.Any):
         if isinstance(other, numbers.Real):
-            return self._new(values=self._get_array() + other)
+            values = self._get_array() + other
+            return self._new(
+                values=values,
+                unit=self.unit(),
+                axes=self.axes,
+                name=self.name,
+            )
         if isinstance(other, Variable) and self.axes != other.axes:
             return NotImplemented
         return super().__add__(other)
 
     def __sub__(self, other: typing.Any):
         if isinstance(other, numbers.Real):
-            return self._new(values=self._get_array() - other)
+            values = self._get_array() - other
+            return self._new(
+                values=values,
+                unit=self.unit(),
+                axes=self.axes,
+                name=self.name,
+            )
         if isinstance(other, Variable) and self.axes != other.axes:
             return NotImplemented
         return super().__sub__(other)
@@ -2603,8 +2674,14 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
             axes = sorted(tuple(set(self.axes + other.axes)))
             sarr, oarr = self._extend_arrays(other, axes)
             values = sarr * oarr
-            unit = self.unit * other.unit
-            return self._new(values=values, unit=unit, axes=axes)
+            unit = self.unit() * other.unit()
+            name = f"{self.name} * {other.name}"
+            return self._new(
+                values=values,
+                unit=unit,
+                axes=axes,
+                name=name,
+            )
         return super().__mul__(other)
 
     def __truediv__(self, other: typing.Any):
@@ -2612,8 +2689,14 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
             axes = sorted(tuple(set(self.axes + other.axes)))
             sarr, oarr = self._extend_arrays(other, axes)
             values = sarr / oarr
-            unit = self.unit / other.unit
-            return self._new(values=values, unit=unit, axes=axes)
+            unit = self.unit() / other.unit()
+            name = f"{self.name} / {other.name}"
+            return self._new(
+                values=values,
+                unit=unit,
+                axes=axes,
+                name=name,
+            )
         return super().__truediv__(other)
 
     @property
@@ -2652,32 +2735,21 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         if self._array is None:
             self._array = self.__array__()
         if not arg:
-            return self._array * self._scale
+            return self._array
         if isinstance(arg, str):
             return getattr(self._array, arg)
         idx = np.index_exp[arg]
-        return self._array[idx] * self._scale
+        return self._array[idx]
 
     def __array__(self, *args, **kwargs) -> np.ndarray:
         """Support casting to `numpy` array types."""
-        return np.asarray(self.values, *args, **kwargs)
-
-    def _get_args(self, updates: typing.MutableMapping):
-        values = self._get_array()
-        unit = updates.pop('unit', self.unit)
-        axes = updates.pop('axes', self.axes)
-        return (values, unit, axes)
-
-    def _get_kwargs(self, updates: typing.MutableMapping):
-        if 'name' not in updates:
-            updates['name'] = self.name
-        return updates
+        return np.asarray(self._values, *args, **kwargs) * self._scale
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
         attrs = [
             f"shape={self.shape_dict}",
-            f"unit={self.unit}",
+            f"unit={self.unit()}",
             f"name='{self.name}'",
         ]
         return ', '.join(attrs)
@@ -2717,36 +2789,12 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         return decorator
 
 
-# allowed = {'__add__': float, '__sub__': float}
-# class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
-#     """A vector with values stored in a numerical array.
-
-#     The result of binary arithmetic operations on instances of this class are
-#     similar to those of `Vector`, but differ in the following ways:
-#     1. Multiplication (`*`) and division (`/`) accept operands with different
-#        axes, as long as any repeated axes have the same length in both operands.
-#        The result will contain all unique axes from its operands.
-#     2. Addition (`+`) and subtraction (`-`) accept real numbers as right-sided
-#        operands. The result is a new instance with the operation applied to the
-#        underlying array.
-#     """
-
-#     def __new__(
-#         cls: typing.Type['Variable'],
-#         values: typing.Iterable[VT],
-#         axes: typing.Iterable[str],
-#         unit: typing.Union[str, Unit]=None,
-#         name: str=None,
-#     ) -> 'Variable':
-#         return super().__new__(values, unit)
-
-
 @Variable.implements(np.mean)
 def _array_mean(a: Variable, **kwargs):
     """Compute the mean and update array dimensions, if necessary."""
     values = a._get_array().mean(**kwargs)
     if (axis := kwargs.get('axis')) is not None:
-        a._axes = tuple(
+        a.axes = tuple(
             d for d in a.axes
             if a.axes.index(d) != axis
         )
