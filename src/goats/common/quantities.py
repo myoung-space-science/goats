@@ -2005,7 +2005,7 @@ allowed = {m: numbers.Real for m in ['__lt__', '__le__', '__gt__', '__ge__']}
 class Scalar(Measured, allowed=allowed):
     """A single numerical value and associated unit."""
 
-    value: VT
+    _value: VT
 
     def __new__(
         cls: typing.Type['Scalar'],
@@ -2023,7 +2023,7 @@ class Scalar(Measured, allowed=allowed):
             The unit of `value`.
         """
         self = super().__new__(cls, value, unit=unit)
-        self.value = self._amount
+        self._value = self._amount
         """The numerical value this scalar."""
         return self
 
@@ -2068,27 +2068,27 @@ class Scalar(Measured, allowed=allowed):
 
     def __float__(self):
         """Called for float(self)."""
-        return float(self.value)
+        return float(self._value)
 
     def __int__(self):
         """Called for int(self)."""
-        return int(self.value)
+        return int(self._value)
 
     def __round__(self, ndigits: int=None):
         """Called for round(self)."""
-        return round(self.value, ndigits=ndigits)
+        return round(self._value, ndigits=ndigits)
 
     def __floor__(self):
         """Called for math.floor(self)."""
-        return math.floor(self.value)
+        return math.floor(self._value)
 
     def __ceil__(self):
         """Called for math.ceil(self)."""
-        return math.ceil(self.value)
+        return math.ceil(self._value)
 
     def __trunc__(self):
         """Called for math.trunc(self)."""
-        return math.trunc(self.value)
+        return math.trunc(self._value)
 
     def __mul__(self, other: typing.Any):
         if isinstance(other, Variable):
@@ -2109,13 +2109,13 @@ class Scalar(Measured, allowed=allowed):
 
     def __hash__(self):
         """Called for hash(self)."""
-        return hash((self.value, str(self._unit)))
+        return hash((self._value, str(self._unit)))
 
 
 class Vector(Measured):
     """Multiple numerical values and their associated unit."""
 
-    values: typing.Iterable[VT]
+    _values: typing.Iterable[VT]
 
     def __new__(
         cls: typing.Type['Vector'],
@@ -2133,7 +2133,7 @@ class Vector(Measured):
             The unit of `values`.
         """
         self = super().__new__(cls, values, unit)
-        self.values = list(iterables.Separable(self._amount))
+        self._values = list(iterables.Separable(self._amount))
         return self
 
     @classmethod
@@ -2149,43 +2149,43 @@ class Vector(Measured):
 
     def __len__(self):
         """Called for len(self)."""
-        return len(self.values)
+        return len(self._values)
 
     def __iter__(self):
         """Called for iter(self)."""
-        return iter(self.values)
+        return iter(self._values)
 
     def __contains__(self, item):
         """Called for item in self."""
-        return item in self.values
+        return item in self._values
 
     def __add__(self, other: typing.Any):
         if isinstance(other, Vector):
-            values = [s + o for s, o in zip(self.values, other.values)]
+            values = [s + o for s, o in zip(self._values, other._values)]
             return self._new(amount=values, unit=self.unit)
         if isinstance(other, Measured):
-            values = [s + other for s in self.values]
+            values = [s + other for s in self._values]
             return self._new(amount=values, unit=self.unit)
         return NotImplemented
 
     def __sub__(self, other: typing.Any):
         if isinstance(other, Vector):
-            values = [s - o for s, o in zip(self.values, other.values)]
+            values = [s - o for s, o in zip(self._values, other._values)]
             return self._new(amount=values, unit=self.unit)
         if isinstance(other, Measured):
-            values = [s - other for s in self.values]
+            values = [s - other for s in self._values]
             return self._new(amount=values, unit=self.unit)
         return NotImplemented
 
     def __mul__(self, other: typing.Any):
         if isinstance(other, Vector):
-            values = [s * o for s, o in zip(self.values, other.values)]
+            values = [s * o for s, o in zip(self._values, other._values)]
             unit = self.unit * other.unit
             return self._new(amount=values, unit=unit)
         if isinstance(other, Scalar):
             other = float(other)
         if isinstance(other, RealValued):
-            values = [s * other for s in self.values]
+            values = [s * other for s in self._values]
             return self._new(amount=values, unit=self.unit)
         return NotImplemented
 
@@ -2193,25 +2193,25 @@ class Vector(Measured):
         if isinstance(other, Scalar):
             other = float(other)
         if isinstance(other, numbers.Number):
-            values = [other * s for s in self.values]
+            values = [other * s for s in self._values]
             return self._new(amount=values, unit=self.unit)
         return NotImplemented
 
     def __truediv__(self, other: typing.Any):
         if isinstance(other, Vector):
-            values = [s / o for s, o in zip(self.values, other.values)]
+            values = [s / o for s, o in zip(self._values, other._values)]
             unit = self.unit / other.unit
             return self._new(amount=values, unit=unit)
         if isinstance(other, Scalar):
             other = float(other)
         if isinstance(other, RealValued):
-            values = [s / other for s in self.values]
+            values = [s / other for s in self._values]
             return self._new(amount=values, unit=self.unit)
         return NotImplemented
 
     def __pow__(self, other: typing.Any):
         if isinstance(other, numbers.Number):
-            values = [s ** other for s in self.values]
+            values = [s ** other for s in self._values]
             unit = self.unit ** other
             return self._new(amount=values, unit=unit)
         return NotImplemented

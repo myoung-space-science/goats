@@ -382,8 +382,8 @@ def test_measured_operators():
 @pytest.mark.scalar
 def test_scalar_operators():
     """Test comparison and arithmetic on scalar objects."""
-    scalar = quantities.Scalar(2.0, '1')
-    _value_ = scalar.value
+    _value_ = 2.0
+    scalar = quantities.Scalar(_value_, '1')
     _unit_ = scalar.unit
     assert scalar < quantities.Scalar(3, _unit_)
     assert scalar <= quantities.Scalar(3, _unit_)
@@ -437,14 +437,14 @@ def test_scalar_operators():
         # forward
         result = op(scalar, other)
         expected = quantities.Scalar(
-            op(_value_, other.value),
+            op(_value_, float(other)),
             _unit_,
         )
         assert result == expected
         # reverse
         result = op(other, scalar)
         expected = quantities.Scalar(
-            op(other.value, _value_),
+            op(float(other), _value_),
             _unit_,
         )
         assert result == expected
@@ -468,14 +468,14 @@ def test_scalar_operators():
         # forward
         result = op(scalar, other)
         expected = quantities.Scalar(
-            op(_value_, other.value),
+            op(_value_, float(other)),
             op(_unit_, other.unit),
         )
         assert result == expected
         # reverse
         result = op(other, scalar)
         expected = quantities.Scalar(
-            op(other.value, _value_),
+            op(float(other), _value_),
             op(other.unit, _unit_),
         )
         assert result == expected
@@ -535,7 +535,7 @@ def test_scalar_operators():
     other = instance
     for op in ops:
         result = op(scalar, other)
-        assert result.value == op(_value_, other.value)
+        assert float(result) == op(_value_, float(other))
         assert result.unit == _unit_
         scalar = quantities.Scalar(_value_, _unit_)
     # with a number
@@ -553,14 +553,14 @@ def test_scalar_operators():
     other = instance
     for op in ops:
         result = op(scalar, other)
-        assert result.value == op(_value_, other.value)
+        assert float(result) == op(_value_, float(other))
         assert result.unit == op(_unit_, other.unit)
         scalar = quantities.Scalar(_value_, _unit_)
     # with a number
     other = number
     for op in ops:
         result = op(scalar, other)
-        assert result.value == op(_value_, other)
+        assert float(result) == op(_value_, other)
         assert result.unit == _unit_
         scalar = quantities.Scalar(_value_, _unit_)
     # exponential
@@ -573,7 +573,7 @@ def test_scalar_operators():
     # with a number
     other = number
     result = op(scalar, other)
-    assert result.value == op(_value_, other)
+    assert float(result) == op(_value_, other)
     assert result.unit == op(_unit_, other)
     scalar = quantities.Scalar(_value_, _unit_)
 
@@ -590,8 +590,8 @@ def test_scalar_operators():
 @pytest.mark.scalar
 def test_scalar_number_comparisons():
     """Test comparisons between a Scalar instance and a number."""
-    scalar = quantities.Scalar(2.0, '1')
-    _value_ = scalar.value
+    _value_ = 2.0
+    scalar = quantities.Scalar(_value_, '1')
     assert scalar < 3
     assert scalar <= 3
     assert scalar <= _value_
@@ -632,8 +632,8 @@ def test_vector_operators():
 @pytest.mark.vector
 def test_vector_init():
     """Test initializing with iterable and non-iterable values."""
-    expected = quantities.Vector([1.1], 'm').values
-    assert quantities.Vector(1.1, 'm').values == expected
+    expected = sorted(quantities.Vector([1.1], 'm'))
+    assert sorted(quantities.Vector(1.1, 'm')) == expected
 
 
 @pytest.mark.skip
