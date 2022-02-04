@@ -1015,46 +1015,45 @@ def test_variable_name():
 
 
 @pytest.mark.scalar
-@pytest.mark.vector
-def test_default_unit():
-    """Scalars and Vectors are unitless by default."""
-    assert quantities.Scalar(1).unit() == '1'
-    assert quantities.Vector([1]).unit() == '1'
-
-
-@pytest.mark.scalar
 def test_scalar_unit():
     """Get and set the unit on a Scalar."""
+    check_units(quantities.Scalar, 1, 'm', 'cm')
 
-    # reference object
-    original = quantities.Scalar(1, 'm')
-    assert original.unit() == 'm'
-
-    # changing unit makes a copy with scaled values.
-    updated = original.unit('cm')
-    assert updated is not original
-    assert updated.unit() == 'cm'
-    assert original.unit('cm') == quantities.Scalar(100, 'cm')
-
-    # unitless by default
-    assert quantities.Scalar(1).unit() == '1'
 
 @pytest.mark.vector
 def test_vector_unit():
     """Get and set the unit on a Vector."""
+    check_units(quantities.Vector, [1, 2], 'm', 'cm')
 
-    # reference object
-    original = quantities.Vector([1, 2], 'm')
-    assert original.unit() == 'm'
 
-    # changing unit makes a copy with scaled values.
-    updated = original.unit('cm')
+Obj = typing.TypeVar(
+    'Obj',
+    typing.Type[quantities.Scalar],
+    typing.Type[quantities.Vector],
+)
+def check_units(
+    obj: Obj,
+    amount: quantities.RealValued,
+    reference: str,
+    new: str,
+) -> None:
+    """Extracted for testing the unit attribute on Measured subclasses."""
+    original = obj(amount, reference)
+    assert original.unit() == reference
+    updated = original.unit(new)
     assert updated is not original
-    assert updated.unit() == 'cm'
-    assert updated == quantities.Vector([100, 200], 'cm')
+    assert updated.unit() == new
+    factor = quantities.Unit(new) // quantities.Unit(reference)
+    assert updated == obj(rescale(amount, factor), new)
+    assert obj(amount).unit() == '1'
 
-    # unitless by default
-    assert quantities.Vector([1]).unit() == '1'
+
+def rescale(amount, factor):
+    """Multiply amount by factor."""
+    if isinstance(amount, numbers.Number):
+        return factor * amount
+    if isinstance(amount, typing.Iterable):
+        return [factor * value for value in amount]
 
 
 u = '1'
