@@ -1868,24 +1868,62 @@ class Measured(Ordered):
       unit or dimensions should be.
     """
 
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        amount: RealValued,
+        unit: typing.Union[str, Unit]=None,
+    ) -> Instance: ...
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        instance: Instance,
+    ) -> Instance: ...
+
     _amount: RealValued
     _unit: Unit=None
 
-    @typing.overload
-    def __new__(cls: typing.Type[Instance], *args, **kwargs) -> Instance: ...
+    def __new__(cls, *args, **kwargs):
+        return cls._new(*args, **kwargs)
 
-    def __new__(
-        cls: typing.Type['Measured'],
-        amount: RealValued,
-        unit: typing.Union[str, Unit]=None,
-    ) -> 'Measured':
-        _unit = Unit(unit or '1')
-        self = super().__new__(cls, amount, str(_unit))
-        self._unit = _unit
+    @classmethod
+    def _new(cls, *args, **kwargs):
+        """Create a new instance with updated attributes."""
+        init = cls._resolve(*args, **kwargs)
+        self = super().__new__(cls, *init['args'])
+        self._unit = init['unit']
         return self
-    # Implementation note: converting unit to a Unit, then assigning to
-    # self.unit, and finally converting to a string while passing to the
-    # parent class not only fixes the types but also normalizes the argument
+
+    @classmethod
+    def _resolve(cls, *args, **kwargs):
+        """Resolve input arguments into instance attributes.
+        
+        Notes
+        -----
+        This method first extracts a local `unit` in order to pass it as a `str`
+        to its parent class's `_quantity` attribute while returning it as a
+        `~quantities.Unit` for initializing the `_unit` attribute of the current
+        instance.
+        """
+        if not kwargs and len(args) == 1 and isinstance(args[0], cls):
+            instance = args[0]
+            unit = instance.unit()
+            return {
+                'args': (instance._amount, str(unit)),
+                'unit': unit,
+            }
+        attrs = list(args)
+        attr_dict = {
+            k: attrs.pop(0) if attrs
+            else kwargs.pop(k, None)
+            for k in ('amount', 'unit')
+        }
+        unit = attr_dict['unit']
+        return {
+            'args': (attr_dict['amount'], str(unit)),
+            'unit': Unit(unit or '1')
+        }
 
     @typing.overload
     def unit(self: Instance) -> Unit: ...
@@ -1997,11 +2035,6 @@ class Measured(Ordered):
 
     def __str__(self) -> str:
         return f"{self._amount} [{self._unit}]"
-
-    @classmethod
-    def _new(cls, *args, **kwargs):
-        """Create a new instance with updated attributes."""
-        return cls(*args, **kwargs)
 
 
 VT = typing.TypeVar('VT', bound=numbers.Real)

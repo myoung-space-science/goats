@@ -349,7 +349,6 @@ def test_same():
         f2(scores[0], scores[1])
 
 
-@pytest.mark.skip
 def test_measured_operators():
     """Test comparison and arithmetic on measured objects."""
     meters = quantities.Unit('m')
@@ -376,7 +375,7 @@ def test_measured_operators():
     assert q0**2 / 2 == quantities.Measured(8, meters**2)
     with pytest.raises(TypeError):
         2 / q0
-    assert q0.with_unit('cm') == quantities.Measured(100 * q0.amount, 'cm')
+    assert q0.unit('cm') == quantities.Measured(400, 'cm')
 
 
 @pytest.mark.scalar
