@@ -2549,7 +2549,7 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         """Get or set the unit of this object's value."""
         if not new:
             return self._unit
-        scale = Unit(new) // self._unit
+        scale = (Unit(new) // self._unit) * self._scale
         return self._new(
             values=self._values,
             unit=new,
