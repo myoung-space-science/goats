@@ -175,7 +175,7 @@ class Application:
             )
         return quantities.Variable(
             array,
-            variable.unit,
+            variable.unit(),
             variable.axes,
             name=variable.name,
         )
@@ -234,12 +234,7 @@ class Application:
         result = variables[0] ** exponents[0]
         for variable, exponent in zip(variables[1:], exponents[1:]):
             result *= variable ** exponent
-        return quantities.Variable(
-            result.values,
-            result.unit,
-            result.axes,
-            name=implementation.name
-        )
+        return result
 
     def _get_observable(self, key: str):
         """Get an observable dependency by keyword."""
@@ -328,8 +323,8 @@ class Interface(base.Interface):
         """Update a single assumption from user input."""
         if not isinstance(scalar, quantities.Scalar):
             scalar = quantities.Scalar(*iterables.Separable(scalar))
-        unit = self.system.get_unit(unit=scalar.unit)
-        return scalar.with_unit(unit)
+        unit = self.system.get_unit(unit=scalar.unit())
+        return scalar.unit(unit)
 
     def apply(self, constraints: Mapping):
         """Construct the target variable within the given constraints."""

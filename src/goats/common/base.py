@@ -79,8 +79,8 @@ class Observation(iterables.ReprStrMixin):
     def unit(self, new: typing.Union[str, quantities.Unit]=None):
         """Get or set the unit of this observation's data values."""
         if not new:
-            return self._data.unit
-        self._data = self._data.with_unit(new)
+            return self._data.unit()
+        self._data = self._data.unit(new)
         return self
 
     def __eq__(self, other) -> bool:
