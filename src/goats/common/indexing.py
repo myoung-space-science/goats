@@ -138,7 +138,7 @@ class IndexComputer(Indexer):
         size: int=None,
     ) -> None:
         super().__init__(reference, size=size)
-        self.unit = reference.unit
+        self.unit = reference.unit()
         """The unit of the reference values."""
 
     def __call__(self, *user):
@@ -147,9 +147,9 @@ class IndexComputer(Indexer):
             return Indices(targets)
         vector = quantities.measure(*targets).asvector
         values = (
-            vector.with_unit(self.unit).values
-            if vector.unit.dimension == self.unit.dimension
-            else vector.values
+            vector.unit(self.unit)
+            if vector.unit().dimension == self.unit.dimension
+            else vector
         )
         indices = [
             find_nearest(self.reference, float(value)).index

@@ -191,5 +191,5 @@ def test_variables(dataset: datasets.Dataset):
     for name, expected in cases.items():
         variable = variables[name]
         assert variable.axes == expected['axes']
-        assert variable.unit == expected['unit']['mks']
+        assert variable.unit() == expected['unit']['mks']
         assert variable.name == aliased.MappingKey(name, *expected['aliases'])

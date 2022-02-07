@@ -47,9 +47,9 @@ class Energy(indexing.IndexComputer):
             targets = targets[s, :]
         vector = quantities.measure(*targets).asvector
         values = (
-            vector.with_unit(self.unit).values
-            if vector.unit.dimension == self.unit.dimension
-            else vector.values
+            vector.unit(self.unit)
+            if vector.unit().dimension == self.unit.dimension
+            else vector
         )
         reference = self.reference[s, :]
         indices = [
@@ -107,7 +107,7 @@ class Dataset(collections.abc.Container):
         """The variables in this dataset."""
         if self._variables is None:
             base = {
-                key: variable.with_unit(self.units[key])
+                key: variable.unit(self.units[key])
                 for key, variable in self._init_v.items(aliased=True)
             } if self._system else self._init_v
             self._variables = aliased.Mapping(base)
@@ -121,7 +121,7 @@ class Dataset(collections.abc.Container):
                 key: self._system.get_unit(quantity=quantity)
                 for key, quantity in self.quantities.items(aliased=True)
             } if self._system else {
-                key: variable.unit
+                key: variable.unit()
                 for key, variable in self._init_v
             }
             self._units = aliased.Mapping(base)
@@ -217,8 +217,8 @@ class Dataset(collections.abc.Container):
 
     def _build_axes(self, dataset: datasets.DatasetView):
         """Create a collection of axes from the dataset."""
-        mass = self.variables['mass'].with_unit('nuc')
-        charge = self.variables['charge'].with_unit('e')
+        mass = self.variables['mass'].unit('nuc')
+        charge = self.variables['charge'].unit('e')
         sizes = dataset.sizes
         arrays = {
             'time': self.variables['time'],
