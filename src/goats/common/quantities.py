@@ -2924,8 +2924,8 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
     def _get_attrs(self, arg):
         """Extract initializing attributes from input, if possible."""
         if isinstance(arg, Measured):
-            values = iterables.Separable(arg.amount)
-            unit = arg.unit
+            values = iterables.Separable(arg._amount)
+            unit = arg.unit()
             return list(values), unit
         try:
             values = getattr(arg, 'values', None) or getattr(arg, 'value')
