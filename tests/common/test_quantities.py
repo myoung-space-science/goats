@@ -850,10 +850,10 @@ def test_variable_mul_div(
             expected = reduce(a0, a1, opr)
             assert np.array_equal(new, expected), msg
             assert sorted(new.axes) == case['axes'], msg
-            algebraic = opr(v0.unit, v1.unit)
-            formatted = f'({v0.unit}){sym}({v1.unit})'
+            algebraic = opr(v0.unit(), v1.unit())
+            formatted = f'({v0.unit()}){sym}({v1.unit()})'
             for unit in (algebraic, formatted):
-                assert new.unit == unit, msg
+                assert new.unit() == unit, msg
 
 
 @pytest.mark.variable
@@ -868,10 +868,10 @@ def test_variable_pow(var: typing.Dict[str, quantities.Variable]) -> None:
     expected = reduce(np.array(v0), ex, operator.pow)
     assert np.array_equal(new, expected), msg
     assert new.axes == var['reference'].axes, msg
-    algebraic = opr(v0.unit, 3)
-    formatted = f'({v0.unit})^{ex}'
+    algebraic = opr(v0.unit(), 3)
+    formatted = f'({v0.unit()})^{ex}'
     for unit in (algebraic, formatted):
-        assert new.unit == unit, msg
+        assert new.unit() == unit, msg
 
 
 @pytest.mark.variable
@@ -883,15 +883,15 @@ def test_variable_add_sub(
     v0 = var['reference']
     a0 = arr['reference']
     a1 = arr['samedims']
-    v1 = quantities.Variable(a1, v0.unit, v0.axes)
-    v2 = quantities.Variable(arr['different'], v0.unit, var['different'].axes)
+    v1 = quantities.Variable(a1, v0.unit(), v0.axes)
+    v2 = quantities.Variable(arr['different'], v0.unit(), var['different'].axes)
     for opr in (operator.add, operator.sub):
         msg = f"Failed for {opr}"
         new = opr(v0, v1)
         expected = reduce(a0, a1, opr)
         assert isinstance(new, quantities.Variable), msg
         assert np.array_equal(new, expected), msg
-        assert new.unit == v0.unit, msg
+        assert new.unit() == v0.unit(), msg
         assert new.axes == v0.axes, msg
         with pytest.raises(TypeError):
             opr(v0, v2)
@@ -900,10 +900,10 @@ def test_variable_add_sub(
 @pytest.mark.variable
 def test_variable_units(var: typing.Dict[str, quantities.Variable]):
     """Test the ability to update unit via bracket syntax."""
-    v0_km = var['reference'].with_unit('km')
+    v0_km = var['reference'].unit('km')
     assert isinstance(v0_km, quantities.Variable)
     assert v0_km is not var['reference']
-    assert v0_km.unit == 'km'
+    assert v0_km.unit() == 'km'
     assert v0_km.axes == var['reference'].axes
     assert np.array_equal(v0_km[:], 1e-3 * var['reference'][:])
 
@@ -990,7 +990,7 @@ def test_variable_getitem(var: typing.Dict[str, quantities.Variable]):
         assert sliced is not v
         expected = np.array([[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
         assert np.array_equal(sliced, expected)
-    assert v[0, 0] == quantities.Scalar(+1.0, v.unit)
+    assert v[0, 0] == quantities.Scalar(+1.0, v.unit())
     assert np.array_equal(v[0, :], [+1.0, +2.0])
     assert np.array_equal(v[:, 0], [+1.0, +2.0, -4.0])
     assert np.array_equal(v[:, 0:1], [[+1.0], [+2.0], [-4.0]])
