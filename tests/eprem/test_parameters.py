@@ -81,13 +81,13 @@ def check_builtin(arg, value):
 def check_scalar(arg, value, unit):
     """Test the value and unit of a `quantities.Scalar`."""
     assert float(arg) == value
-    assert arg.unit == unit
+    assert arg.unit() == unit
 
 
 def check_scalars(args, values, units):
     """Test the values and units of an iterable of `quantities.Scalar`."""
     assert [float(arg) for arg in args] == values
-    assert [arg.unit for arg in args] == units
+    assert [arg.unit() for arg in args] == units
 
 
 _BASETYPES_H = {
