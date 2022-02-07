@@ -2558,6 +2558,9 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
             scale=scale,
         )
 
+    def __iter__(self):
+        return iter(self._get_array())
+
     _builtin = (int, slice, type(...))
 
     def __getitem__(self, *args: IndexLike):
