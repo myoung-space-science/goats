@@ -8,7 +8,7 @@ from goats.common import iterables
 Aliases = typing.TypeVar('Aliases')
 Aliases = typing.Union[str, typing.Iterable[str]]
 
-class MappingKey(collections.abc.Set):
+class MappingKey(iterables.ReprStrMixin, collections.abc.Set):
     """A mapping key with associated aliases."""
 
     __slots__ = ('_aliases')
@@ -70,18 +70,9 @@ class MappingKey(collections.abc.Set):
     __rsub__ = _implement(collections.abc.Set.__rsub__)
     __xor__ = _implement(collections.abc.Set.__xor__)
 
-    def __repr__(self) -> str:
-        """An unambiguous representation of this instance."""
-        return f"{self.__class__.__qualname__}({self._display!r})"
-
     def __str__(self) -> str:
-        """A printable representation of this instance."""
-        return str(self._display)
-
-    @property
-    def _display(self) -> str:
-        """Internal helper for `__repr__` and `__str__`."""
-        return ' | '.join(self._aliases)
+        """A simplified representation of this instance."""
+        return ' | '.join(repr(alias) for alias in self._aliases)
 
 
 _VT = typing.TypeVar('_VT')
