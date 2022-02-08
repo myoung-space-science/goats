@@ -501,13 +501,12 @@ class Functions(aliased.Mapping):
         arguments: parameters.Arguments,
         constants: physical.Constants,
     ) -> None:
-        self.methods = Methods(constants)
+        methods = Methods(constants)
         mapping = {
-            tuple([k, *v.get('aliases', ())]): self.methods[k]
+            tuple([k, *v.get('aliases', ())]): methods[k]
             for k, v in _metadata.items()
         }
         super().__init__(mapping=mapping)
-        self._namemap = aliased.NameMap(_metadata, refs=self.methods.names)
         self.dataset = dataset
         self.arguments = arguments
         self.constants = constants
@@ -529,11 +528,13 @@ class Functions(aliased.Mapping):
             )
         raise KeyError(f"No function corresponding to {key!r}")
 
-    def get_method(self, key: str):
+    def get_method(self, key: str) -> Method:
         """Attempt to retrieve a method by name based on `key`."""
-        if key in self._namemap:
-            name = self._namemap[key]
-            return self.methods[name]
+        try:
+            method = super().__getitem__(key)
+        except KeyError:
+            method = None
+        return method
 
     def get_axes(self, key: str):
         """Retrieve or compute the axes corresponding to `key`."""
@@ -584,7 +585,7 @@ class Functions(aliased.Mapping):
         for parameter in target.parameters:
             if parameter in primary:
                 resolved.append(parameter)
-            elif self._namemap[parameter] in self.methods:
+            elif parameter in self:
                 resolved.append(parameter)
                 method = self.get_method(parameter)
                 resolved.extend(self._gather_dependencies(method))
