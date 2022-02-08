@@ -32,7 +32,7 @@ def test_separable():
     ]
     for separable in separables:
         assert len(separable) == 0
-        assert list(separable) == []
+        assert not list(separable)
     string = '1, 2'
     separable = iterables.Separable(string)
     assert len(separable) == 1
