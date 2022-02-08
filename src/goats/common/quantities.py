@@ -7,6 +7,7 @@ import numbers
 import typing
 
 import numpy as np
+import numpy.typing
 
 from goats.common import algebra, aliased, iterables
 
@@ -2427,8 +2428,8 @@ UnitLike = typing.Union[str, Unit]
 
 
 allowed = {'__add__': float, '__sub__': float}
-class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
-    """A vector with values stored in a numerical array.
+class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
+    """A measured object with data stored in a numerical array.
 
     The result of binary arithmetic operations on instances of this class are
     similar to those of `Vector`, but differ in the following ways:
@@ -2443,7 +2444,7 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
     @typing.overload
     def __new__(
         cls: typing.Type[Instance],
-        values: typing.Iterable[numbers.Number],
+        data: typing.Iterable[numbers.Number],
         unit: typing.Union[str, Unit],
         axes: typing.Iterable[str],
     ) -> Instance:
@@ -2451,11 +2452,11 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         
         Parameters
         ----------
-        values : iterable of numbers
-            The numerical values of this variable.
+        data : array-like
+            The numerical data of this variable.
 
         unit : string or `~quantities.Unit`
-            The metric unit of `values`.
+            The metric unit of `data`.
 
         axes : iterable of strings
             The names of this variable's indexable axes.
@@ -2464,7 +2465,7 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
     @typing.overload
     def __new__(
         cls: typing.Type[Instance],
-        values: typing.Iterable[numbers.Number],
+        data: typing.Iterable[numbers.Number],
         unit: typing.Union[str, Unit],
         axes: typing.Iterable[str],
         name: str='<anonymous>',
@@ -2473,11 +2474,11 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         
         Parameters
         ----------
-        values : iterable of numbers
-            The numerical values of this variable.
+        data : array-like
+            The numerical data of this variable.
 
         unit : string or `~quantities.Unit`
-            The metric unit of `values`.
+            The metric unit of `data`.
 
         axes : iterable of strings
             The names of this variable's indexable axes.
@@ -2499,33 +2500,37 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
             An existing instance of this class.
         """
 
+    _amount: numpy.typing.ArrayLike
     axes: typing.Tuple[str]=None
     naxes: int=None
     name: str=None
     _scale: float=None
+    _array: np.ndarray=None
 
     def __new__(cls, *args, **kwargs):
         """The concrete implementation of `~quantities.Variable.__new__`."""
         if not kwargs and len(args) == 1 and isinstance(args[0], cls):
             instance = args[0]
-            values = instance._values
+            data = instance._amount
             unit = instance.unit()
             axes = instance.axes
             name = instance.name
             scale = instance._scale
         else:
+            if 'amount' in kwargs:
+                kwargs['data'] = kwargs.pop('amount')
             attrs = list(args)
             attr_dict = {
                 k: attrs.pop(0) if attrs
                 else kwargs.pop(k, None)
-                for k in ('values', 'unit', 'axes', 'name')
+                for k in ('data', 'unit', 'axes', 'name')
             }
-            values = attr_dict['values']
+            data = attr_dict['data']
             unit = attr_dict['unit']
             axes = attr_dict['axes'] or ()
             name = attr_dict['name'] or '<anonymous>'
             scale = kwargs.get('scale') or 1.0
-        self = super().__new__(cls, values, unit=unit)
+        self = super().__new__(cls, data, unit=unit)
         self.axes = tuple(axes)
         """The names of indexable axes in this variable's array."""
         self.naxes = len(axes)
@@ -2551,15 +2556,24 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
             return self._unit
         scale = (Unit(new) // self._unit) * self._scale
         return self._new(
-            values=self._values,
+            data=self._amount,
             unit=new,
             axes=self.axes,
             name=self.name,
             scale=scale,
         )
 
+    def __len__(self):
+        """Called for len(self)."""
+        return self._get_array('size')
+
     def __iter__(self):
+        """Called for iter(self)."""
         return iter(self._get_array())
+
+    def __contains__(self, item):
+        """Called for `item` in self."""
+        return item in self._get_array()
 
     _builtin = (int, slice, type(...))
 
@@ -2588,7 +2602,7 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         if isinstance(result, numbers.Number):
             return Scalar(result, unit=self.unit())
         return self._new(
-            values=result,
+            data=result,
             unit=self.unit(),
             axes=self.axes,
             name=self.name,
@@ -2611,7 +2625,7 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         ]
         indices = np.ix_(*list(idx))
         return self._new(
-            values=self._get_array(indices),
+            data=self._get_array(indices),
             unit=self.unit(),
             axes=self.axes,
             name=self.name,
@@ -2695,8 +2709,8 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
             ti for ti in types
             if not issubclass(ti, type(self))
         )
-        values = self._get_array()
-        arr = values.__array_function__(func, types, args, kwargs)
+        data = self._get_array()
+        arr = data.__array_function__(func, types, args, kwargs)
         return self._new_from_func(arr)
 
     def _new_from_func(self, result):
@@ -2704,14 +2718,14 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         if not isinstance(result, np.ndarray):
             return result
         return self._new(
-            values=result,
+            data=result,
             unit=self.unit(),
             axes=self.axes,
             name=self.name,
         )
 
     def __eq__(self, other: typing.Any):
-        """True if two instances have the same values and attributes."""
+        """True if two instances have the same data and attributes."""
         if not isinstance(other, Variable):
             return NotImplemented
         if not self._equal_attrs(other):
@@ -2727,9 +2741,9 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
 
     def __add__(self, other: typing.Any):
         if self._add_sub_okay(other):
-            values = self._get_array().__add__(other)
+            data = self._get_array().__add__(other)
             return self._new(
-                values=values,
+                data=data,
                 unit=self.unit(),
                 axes=self.axes,
                 name=self.name,
@@ -2738,9 +2752,9 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
 
     def __sub__(self, other: typing.Any):
         if self._add_sub_okay(other):
-            values = self._get_array().__sub__(other)
+            data = self._get_array().__sub__(other)
             return self._new(
-                values=values,
+                data=data,
                 unit=self.unit(),
                 axes=self.axes,
                 name=self.name,
@@ -2758,27 +2772,27 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         if isinstance(other, Variable):
             axes = sorted(tuple(set(self.axes + other.axes)))
             sarr, oarr = self._extend_arrays(other, axes)
-            values = sarr * oarr
+            data = sarr * oarr
             unit = self.unit() * other.unit()
             name = f"{self.name} * {other.name}"
             return self._new(
-                values=values,
+                data=data,
                 unit=unit,
                 axes=axes,
                 name=name,
             )
-        values = self._get_array().__mul__(other)
+        data = self._get_array().__mul__(other)
         return self._new(
-            values=values,
+            data=data,
             unit=self.unit(),
             axes=self.axes,
             name=self.name,
         )
 
     def __rmul__(self, other: typing.Any):
-        values = self._get_array().__rmul__(other)
+        data = self._get_array().__rmul__(other)
         return self._new(
-            values=values,
+            data=data,
             unit=self.unit(),
             axes=self.axes,
             name=self.name,
@@ -2788,18 +2802,18 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         if isinstance(other, Variable):
             axes = sorted(tuple(set(self.axes + other.axes)))
             sarr, oarr = self._extend_arrays(other, axes)
-            values = sarr / oarr
+            data = sarr / oarr
             unit = self.unit() / other.unit()
             name = f"{self.name} / {other.name}"
             return self._new(
-                values=values,
+                data=data,
                 unit=unit,
                 axes=axes,
                 name=name,
             )
-        values = self._get_array().__truediv__(other)
+        data = self._get_array().__truediv__(other)
         return self._new(
-            values=values,
+            data=data,
             unit=self.unit(),
             axes=self.axes,
             name=self.name,
@@ -2807,10 +2821,10 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
 
     def __pow__(self, other: typing.Any):
         if isinstance(other, numbers.Real):
-            values = self._get_array().__pow__(other)
+            data = self._get_array().__pow__(other)
             unit = self.unit().__pow__(other)
             return self._new(
-                values=values,
+                data=data,
                 unit=unit,
                 axes=self.axes,
                 name=self.name,
@@ -2843,7 +2857,7 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         return self_arr, other_arr
 
     def _get_array(self, arg: typing.Union[str, IndexLike]=None):
-        """Access array values via index or slice notation."""
+        """Access array data via index or slice notation."""
         if self._array is None:
             self._array = self.__array__()
         if not arg:
@@ -2854,8 +2868,18 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         return self._array[idx]
 
     def __array__(self, *args, **kwargs) -> np.ndarray:
-        """Support casting to `numpy` array types."""
-        return np.asarray(self._values, *args, **kwargs) * self._scale
+        """Support casting to `numpy` array types.
+        
+        Notes
+        -----
+        This will first cast `self._amount` (inherited from
+        `~quantities.Measured`) on its own to a `numpy.ndarray`, before applying
+        `*args` and `**kwargs`, in order to avoid a `TypeError` when using
+        `netCDF4.Dataset`. See
+        https://github.com/mcgibbon/python-examples/blob/master/scripts/file-io/load_netCDF4_full.py
+        """
+        data = np.asarray(self._amount)
+        return np.asanyarray(data, *args, **kwargs) * self._scale
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
@@ -2885,7 +2909,7 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
                     raise TypeError(msg)
                 return np.sum(a) / len(a)
 
-        This will compute the mean of the underlying values when called with no
+        This will compute the mean of the underlying data when called with no
         arguments, but will raise an exception when called with arguments:
 
             >>> v = Array([[1, 2], [3, 4]])
@@ -2904,13 +2928,13 @@ class Variable(Vector, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
 @Variable.implements(np.mean)
 def _array_mean(a: Variable, **kwargs):
     """Compute the mean and update array dimensions, if necessary."""
-    values = a._get_array().mean(**kwargs)
+    data = a._get_array().mean(**kwargs)
     if (axis := kwargs.get('axis')) is not None:
         a.axes = tuple(
             d for d in a.axes
             if a.axes.index(d) != axis
         )
-    return values
+    return data
 
 
 class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
