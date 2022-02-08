@@ -3044,7 +3044,7 @@ def parse_measurable(args, distribute: bool=False):
     unwrapped = iterables.unwrap(args)
 
     # Raise an error for null input.
-    if not unwrapped:
+    if iterables.missing(unwrapped):
         raise Unmeasurable(unwrapped) from None
 
     # Handle a single numerical value:

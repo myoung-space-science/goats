@@ -1122,6 +1122,7 @@ def test_parse_measurable():
         result = quantities.parse_measurable(case['test'], distribute=True)
         expected = case['dist']
         assert result == expected
+    assert quantities.parse_measurable(0) == (0, '1') # zero is measurable!
     with pytest.raises(quantities.Unmeasurable):
         quantities.parse_measurable(None)
     with pytest.raises(quantities.MeasuringTypeError):
