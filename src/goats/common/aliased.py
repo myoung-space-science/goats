@@ -202,8 +202,11 @@ class Mapping(collections.abc.Mapping):
     ) -> None:
         """Initialize this instance."""
         self._aliased = self._build_aliased(mapping, aliases=aliases)
-        self._flat_keys = None
-        self._flatten_keys()
+
+    def _flat_keys(self) -> typing.KeysView[str]:
+        """Define a flat list of all the keys in this mapping."""
+        flattened = [key for keys in self._aliased.keys() for key in keys]
+        return collections.abc.KeysView(flattened)
 
     def _build_aliased(
         self,
@@ -232,13 +235,13 @@ class Mapping(collections.abc.Mapping):
     @property
     def flat(self) -> typing.Dict[str, _VT]:
         """Expand aliased items into a standard dictionary."""
-        return {key: self[key] for key in self._flat_keys}
+        return {key: self[key] for key in self._flat_keys()}
 
     def __iter__(self) -> typing.Iterator:
-        return iter(self._flat_keys)
+        yield from self._flat_keys()
 
     def __len__(self) -> int:
-        return len(self._flat_keys)
+        return len(self._flat_keys())
 
     def __getitem__(self, key: typing.Union[str, MappingKey]) -> _VT:
         """Look up a value by one of its keys."""
@@ -265,10 +268,6 @@ class Mapping(collections.abc.Mapping):
             mapping = self._aliased
         match = (k for k in mapping if alias in k)
         return next(match, None)
-
-    def _flatten_keys(self):
-        """Define a flat list of all the keys in this mapping."""
-        self._flat_keys = [key for keys in self._aliased.keys() for key in keys]
 
     def _build_from_aliases(
         self,
@@ -566,7 +565,6 @@ class MutableMapping(Mapping, collections.abc.MutableMapping):
         """Assign a value to `key` and its aliases."""
         resolved = self._resolve(key) or MappingKey(key)
         self._aliased[resolved] = value
-        self._flatten_keys()
 
     def __delitem__(self, key: str):
         """Remove the item corresponding to `key`."""
@@ -574,7 +572,6 @@ class MutableMapping(Mapping, collections.abc.MutableMapping):
         if not resolved:
             raise KeyError(f"'{key!r}' is not a known name or alias.") from None
         del self._aliased[resolved]
-        self._flatten_keys()
 
     def alias(self, *current: str, include=False, **new: str):
         """Get the alias for an existing key or register new ones."""
@@ -593,7 +590,7 @@ class MutableMapping(Mapping, collections.abc.MutableMapping):
             return self._resolve(key) - key
         for key, alias in new.items():
             if alias:
-                if alias in self._flat_keys:
+                if alias in self._flat_keys():
                     raise self._not_available(alias) from None
                 updated = self._resolve(key) | alias
                 self._aliased[updated] = self[key]
