@@ -183,7 +183,7 @@ class Axis(iterables.ReprStrMixin):
         """A simplified representation of this object."""
         string = f"size={self.size}"
         unit = (
-            str(self.reference.unit)
+            str(self.reference.unit())
             if isinstance(self.reference, quantities.Measured)
             else None
         )
