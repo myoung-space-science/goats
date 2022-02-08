@@ -188,7 +188,7 @@ class Dataset(collections.abc.Container):
         meta = metadata['variables'].copy()
         base = {
             name: {
-                'values': data,
+                'data': data,
                 'axes': self._get_axes_from_data(data),
                 'unit': self._get_unit_from_data(data),
                 'name': meta.alias(name, include=True),
