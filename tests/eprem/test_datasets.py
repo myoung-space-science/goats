@@ -88,6 +88,48 @@ def test_axes(dataset: datasets.Dataset):
         assert numpy.allclose(user.values, test['values'])
 
 
+def test_single_index(dataset: datasets.Dataset):
+    """Users should be able to provide a single numerical value."""
+    axes = dataset.axes
+    cases = {
+        'time': {
+            'input': 8640.0,
+            'index': [0],
+            'value': [8640.0],
+            'unit': 's',
+        },
+        'shell': {
+            'input': 1,
+            'index': [1],
+        },
+        'species': {
+            'input': 'H+',
+            'index': [0],
+            'value': ['H+'],
+        },
+        'energy': {
+            'input': 1.6022e-14,
+            'index': [0],
+            'value': [1.6022e-14],
+            'unit': 'J',
+        },
+        'mu': {
+            'input': -1.0,
+            'index': [0],
+            'value': [-1.0],
+            'unit': '1',
+        }
+    }
+    for name, expected in cases.items():
+        axis = axes[name]
+        result = axis(expected['input'])
+        assert list(result) == expected['index']
+        if 'value' in expected:
+            assert list(result.values) == expected['value']
+        if 'unit' in expected:
+            assert result.unit == expected['unit']
+
+
 def test_variables(dataset: datasets.Dataset):
     """Test the dataset variable objects."""
     T, S, P, E, M = 'time', 'shell', 'species', 'energy', 'mu'
