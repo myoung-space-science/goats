@@ -461,15 +461,24 @@ class Mapping(collections.abc.Mapping):
         return type(self)(self._aliased)
 
 
-class MappingView(collections.abc.MappingView):
+class MappingView(iterables.ReprStrMixin, collections.abc.MappingView):
     """Base class for views of aliased mappings."""
 
-    __slots__ = '_keys'
+    __slots__ = ('_mapping', '_keys')
 
     def __init__(self, mapping: Mapping, aliased: bool=False) -> None:
         super().__init__(mapping)
         aliases = mapping._aliased.keys()
         self._keys = aliases if aliased else mapping._flat_keys()
+        self._mapping = mapping
+
+    def __len__(self):
+        """Called for len(self)."""
+        return len(self._keys)
+
+    def __str__(self):
+        """A simplified representation of this object."""
+        return str(list(self))
 
 
 class KeysView(MappingView, collections.abc.KeysView):
