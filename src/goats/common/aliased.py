@@ -489,7 +489,7 @@ class MappingView(collections.abc.MappingView):
         self._aliased = mapping._aliased
 
 
-class KeysView(collections.abc.KeysView, MappingView):
+class KeysView(MappingView, collections.abc.KeysView):
     """A view on the keys of an aliased mapping."""
 
     def __iter__(self):
@@ -497,7 +497,7 @@ class KeysView(collections.abc.KeysView, MappingView):
         yield from self._aliased
 
 
-class ValuesView(collections.abc.ValuesView, MappingView):
+class ValuesView(MappingView, collections.abc.ValuesView):
     """A view on the values of an aliased mapping."""
 
     def __iter__(self):
@@ -506,7 +506,7 @@ class ValuesView(collections.abc.ValuesView, MappingView):
             yield self._aliased[key]
 
 
-class ItemsView(collections.abc.ItemsView, MappingView):
+class ItemsView(MappingView, collections.abc.ItemsView):
     """A view on the key-value pairs of an aliased mapping."""
 
     def __iter__(self):
