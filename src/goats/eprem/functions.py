@@ -508,8 +508,11 @@ class Functions(aliased.Mapping):
         }
         super().__init__(mapping=mapping)
         self.dataset = dataset
-        self.arguments = arguments
-        self.constants = constants
+        self._primary = (
+            *tuple(self.dataset.variables.keys()),
+            *tuple(arguments.keys()),
+            *tuple(constants.keys()),
+        )
         self._axes_cache = {}
         self._dependencies_cache = {}
 
@@ -577,13 +580,8 @@ class Functions(aliased.Mapping):
     def _gather_dependencies(self, target: Method):
         """Recursively gather the names of the target method's dependencies."""
         resolved = []
-        primary = (
-            *tuple(self.dataset.variables.keys()),
-            *tuple(self.arguments.keys()),
-            *tuple(self.constants.keys()),
-        )
         for parameter in target.parameters:
-            if parameter in primary:
+            if parameter in self._primary:
                 resolved.append(parameter)
             elif parameter in self:
                 resolved.append(parameter)
