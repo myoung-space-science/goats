@@ -455,24 +455,15 @@ class Mapping(collections.abc.Mapping):
 
     def keys(self, aliased: bool=False):
         """A view on this instance's keys."""
-        return (
-            KeysView(self) if aliased
-            else collections.abc.KeysView(self.flat)
-        )
+        return KeysView(self, aliased=aliased)
 
     def values(self, aliased: bool=False):
         """A view on this instance's values."""
-        return (
-            ValuesView(self) if aliased
-            else collections.abc.ValuesView(self.flat)
-        )
+        return ValuesView(self, aliased=aliased)
 
     def items(self, aliased: bool=False):
         """A view on this instance's key-value pairs."""
-        return (
-            ItemsView(self) if aliased
-            else collections.abc.ItemsView(self.flat)
-        )
+        return ItemsView(self, aliased=aliased)
 
     def copy(self):
         """Create a shallow copy of this instance."""
@@ -482,11 +473,12 @@ class Mapping(collections.abc.Mapping):
 class MappingView(collections.abc.MappingView):
     """Base class for views of aliased mappings."""
 
-    __slots__ = '_aliased'
+    __slots__ = '_keys'
 
-    def __init__(self, mapping: Mapping) -> None:
+    def __init__(self, mapping: Mapping, aliased: bool=False) -> None:
         super().__init__(mapping)
-        self._aliased = mapping._aliased
+        aliases = mapping._aliased.keys()
+        self._keys = aliases if aliased else mapping._flat_keys()
 
 
 class KeysView(MappingView, collections.abc.KeysView):
@@ -494,7 +486,7 @@ class KeysView(MappingView, collections.abc.KeysView):
 
     def __iter__(self):
         """Iterate over aliased mapping keys."""
-        yield from self._aliased
+        yield from self._keys
 
 
 class ValuesView(MappingView, collections.abc.ValuesView):
@@ -502,8 +494,8 @@ class ValuesView(MappingView, collections.abc.ValuesView):
 
     def __iter__(self):
         """Iterate over aliased mapping values."""
-        for key in self._aliased:
-            yield self._aliased[key]
+        for key in self._keys:
+            yield self._mapping[key]
 
 
 class ItemsView(MappingView, collections.abc.ItemsView):
@@ -511,8 +503,8 @@ class ItemsView(MappingView, collections.abc.ItemsView):
 
     def __iter__(self):
         """Iterate over aliased mapping items."""
-        for key in self._aliased:
-            yield (key, self._aliased[key])
+        for key in self._keys:
+            yield (key, self._mapping[key])
 
 
 class MutableMapping(Mapping, collections.abc.MutableMapping):
