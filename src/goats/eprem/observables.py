@@ -137,10 +137,10 @@ class Application:
         return not np.all(available)
 
     def _in_array(self, target: float, array: np.ndarray):
-        """True if the target value is in the give narray."""
+        """True if the target value is in the given array."""
         if target < np.min(array) or target > np.max(array):
             return False
-        return np.any([np.isclose(1.0, array / target)])
+        return np.any([np.isclose(target, array)])
 
     def _interpolate(
         self,
