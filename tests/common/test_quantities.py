@@ -635,33 +635,50 @@ def test_vector_init():
     assert sorted(quantities.Vector(1.1, 'm')) == expected
 
 
-@pytest.mark.skip
-def test_measured_copy():
-    """Test the ability to copy and update measured objects."""
+@pytest.mark.scalar
+def test_scalar_unit():
+    """Get and set the unit on a Scalar."""
+    check_units(quantities.Scalar, 1, 'm', 'cm')
 
-    # standard
-    old = quantities.Measured(2.1, 'au')
-    new = old.copy()
-    assert new is not old
-    assert new == old
-    new = old.copy_with(amount=3.9)
-    assert new == quantities.Measured(3.9, old.unit)
-    new = old.copy_with(unit='m')
-    assert new == quantities.Measured(old.amount, 'm')
 
-    # using Scalar.value
-    old = quantities.Scalar(2.1, 'au')
-    new = old.copy_with(value=3.9)
-    assert new == quantities.Scalar(3.9, old.unit)
-    new = old.copy_with(unit='m')
-    assert new == quantities.Scalar(old.value, 'm')
+@pytest.mark.vector
+def test_vector_unit():
+    """Get and set the unit on a Vector."""
+    check_units(quantities.Vector, [1, 2], 'm', 'cm')
 
-    # using Vector.values
-    old = quantities.Vector([2.1], 'au')
-    new = old.copy_with(values=[3.9])
-    assert new == quantities.Vector([3.9], old.unit)
-    new = old.copy_with(unit='m')
-    assert new == quantities.Vector(old.values, 'm')
+
+Obj = typing.TypeVar(
+    'Obj',
+    typing.Type[quantities.Scalar],
+    typing.Type[quantities.Vector],
+)
+Obj = typing.Union[
+    typing.Type[quantities.Scalar],
+    typing.Type[quantities.Vector],
+]
+def check_units(
+    obj: Obj,
+    amount: quantities.RealValued,
+    reference: str,
+    new: str,
+) -> None:
+    """Extracted for testing the unit attribute on Measured subclasses."""
+    original = obj(amount, reference)
+    assert original.unit() == reference
+    updated = original.unit(new)
+    assert updated is not original
+    assert updated.unit() == new
+    factor = quantities.Unit(new) // quantities.Unit(reference)
+    assert updated == obj(rescale(amount, factor), new)
+    assert obj(amount).unit() == '1'
+
+
+def rescale(amount, factor):
+    """Multiply amount by factor."""
+    if isinstance(amount, numbers.Number):
+        return factor * amount
+    if isinstance(amount, typing.Iterable):
+        return [factor * value for value in amount]
 
 
 @pytest.mark.variable
@@ -1013,97 +1030,60 @@ def test_variable_name():
         assert variable.name == expected
 
 
-@pytest.mark.scalar
-def test_scalar_unit():
-    """Get and set the unit on a Scalar."""
-    check_units(quantities.Scalar, 1, 'm', 'cm')
-
-
-@pytest.mark.vector
-def test_vector_unit():
-    """Get and set the unit on a Vector."""
-    check_units(quantities.Vector, [1, 2], 'm', 'cm')
-
-
-Obj = typing.TypeVar(
-    'Obj',
-    typing.Type[quantities.Scalar],
-    typing.Type[quantities.Vector],
-)
-Obj = typing.Union[
-    typing.Type[quantities.Scalar],
-    typing.Type[quantities.Vector],
-]
-def check_units(
-    obj: Obj,
-    amount: quantities.RealValued,
-    reference: str,
-    new: str,
-) -> None:
-    """Extracted for testing the unit attribute on Measured subclasses."""
-    original = obj(amount, reference)
-    assert original.unit() == reference
-    updated = original.unit(new)
-    assert updated is not original
-    assert updated.unit() == new
-    factor = quantities.Unit(new) // quantities.Unit(reference)
-    assert updated == obj(rescale(amount, factor), new)
-    assert obj(amount).unit() == '1'
-
-
-def rescale(amount, factor):
-    """Multiply amount by factor."""
-    if isinstance(amount, numbers.Number):
-        return factor * amount
-    if isinstance(amount, typing.Iterable):
-        return [factor * value for value in amount]
-
-
-u = '1'
+unity = '1'
 unitless = [
-    {'test': 1.1, 'full': (1.1, u), 'dist': [(1.1, u)]},
-    {'test': (1.1,), 'full': (1.1, u), 'dist': [(1.1, u)]},
-    {'test': [1.1], 'full': (1.1, u), 'dist': [(1.1, u)]},
-    {'test': (1.1, 2.3), 'full': (1.1, 2.3, u), 'dist': [(1.1, u), (2.3, u)]},
-    {'test': [1.1, 2.3], 'full': (1.1, 2.3, u), 'dist': [(1.1, u), (2.3, u)]},
+    {'test': 1.1, 'full': (1.1, unity), 'dist': [(1.1, unity)]},
+    {'test': (1.1,), 'full': (1.1, unity), 'dist': [(1.1, unity)]},
+    {'test': [1.1], 'full': (1.1, unity), 'dist': [(1.1, unity)]},
+    {
+        'test': (1.1, 2.3),
+        'full': (1.1, 2.3, unity),
+        'dist': [(1.1, unity), (2.3, unity)],
+    },
+    {
+        'test': [1.1, 2.3],
+        'full': (1.1, 2.3, unity),
+        'dist': [(1.1, unity), (2.3, unity)],
+    },
 ]
+meter = 'm'
 with_units = [
-    {'test': (1.1, 'm'), 'full': (1.1, 'm'), 'dist': [(1.1, 'm')]},
-    {'test': [1.1, 'm'], 'full': (1.1, 'm'), 'dist': [(1.1, 'm')]},
+    {'test': (1.1, meter), 'full': (1.1, meter), 'dist': [(1.1, meter)]},
+    {'test': [1.1, meter], 'full': (1.1, meter), 'dist': [(1.1, meter)]},
     {
-        'test': (1.1, 2.3, 'm'),
-        'full': (1.1, 2.3, 'm'),
-        'dist': [(1.1, 'm'), (2.3, 'm')]
+        'test': (1.1, 2.3, meter),
+        'full': (1.1, 2.3, meter),
+        'dist': [(1.1, meter), (2.3, meter)]
     },
     {
-        'test': [1.1, 2.3, 'm'],
-        'full': (1.1, 2.3, 'm'),
-        'dist': [(1.1, 'm'), (2.3, 'm')],
+        'test': [1.1, 2.3, meter],
+        'full': (1.1, 2.3, meter),
+        'dist': [(1.1, meter), (2.3, meter)],
     },
     {
-        'test': [(1.1, 2.3), 'm'],
-        'full': (1.1, 2.3, 'm'),
-        'dist': [(1.1, 'm'), (2.3, 'm')],
+        'test': [(1.1, 2.3), meter],
+        'full': (1.1, 2.3, meter),
+        'dist': [(1.1, meter), (2.3, meter)],
     },
     {
-        'test': [[1.1, 2.3], 'm'],
-        'full': (1.1, 2.3, 'm'),
-        'dist': [(1.1, 'm'), (2.3, 'm')],
+        'test': [[1.1, 2.3], meter],
+        'full': (1.1, 2.3, meter),
+        'dist': [(1.1, meter), (2.3, meter)],
     },
     {
-        'test': ((1.1, 'm'), (2.3, 'm')),
-        'full': (1.1, 2.3, 'm'),
-        'dist': [(1.1, 'm'), (2.3, 'm')],
+        'test': ((1.1, meter), (2.3, meter)),
+        'full': (1.1, 2.3, meter),
+        'dist': [(1.1, meter), (2.3, meter)],
     },
     {
-        'test': [(1.1, 'm'), (2.3, 'm')],
-        'full': (1.1, 2.3, 'm'),
-        'dist': [(1.1, 'm'), (2.3, 'm')],
+        'test': [(1.1, meter), (2.3, meter)],
+        'full': (1.1, 2.3, meter),
+        'dist': [(1.1, meter), (2.3, meter)],
     },
     {
-        'test': [(1.1, 'm'), (2.3, 5.8, 'm')],
-        'full': (1.1, 2.3, 5.8,'m'),
-        'dist': [(1.1, 'm'), (2.3, 'm'), (5.8, 'm')],
+        'test': [(1.1, meter), (2.3, 5.8, meter)],
+        'full': (1.1, 2.3, 5.8,meter),
+        'dist': [(1.1, meter), (2.3, meter), (5.8, meter)],
     },
 ]
 builtin_cases = [
