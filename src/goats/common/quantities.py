@@ -2565,15 +2565,15 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
 
     def __len__(self):
         """Called for len(self)."""
-        return self._get_array('size')
+        return self._get_data('size')
 
     def __iter__(self):
         """Called for iter(self)."""
-        return iter(self._get_array())
+        return iter(self._get_data())
 
     def __contains__(self, item):
         """Called for `item` in self."""
-        return item in self._get_array()
+        return item in self._get_data()
 
     _builtin = (int, slice, type(...))
 
@@ -2598,7 +2598,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         including v[:], v[...], v[i, :], v[:, j], and v[i, j], where i and j are
         integers.
         """
-        result = self._get_array(indices)
+        result = self._get_data(indices)
         if isinstance(result, numbers.Number):
             return Scalar(result, unit=self.unit())
         return self._new(
@@ -2617,7 +2617,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         if not isinstance(args, (tuple, list)):
             args = [args]
         expanded = self._expand_ellipsis(args)
-        shape = self._get_array('shape')
+        shape = self._get_data('shape')
         idx = [
             range(shape[i])
             if isinstance(arg, slice) else arg
@@ -2625,7 +2625,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         ]
         indices = np.ix_(*list(idx))
         return self._new(
-            data=self._get_array(indices),
+            data=self._get_data(indices),
             unit=self.unit(),
             axes=self.axes,
             name=self.name,
@@ -2666,12 +2666,12 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
             if not isinstance(x, self._HANDLED_TYPES + (type(self),)):
                 return NotImplemented
         inputs = tuple(
-            x._get_array() if isinstance(x, type(self))
+            x._get_data() if isinstance(x, type(self))
             else x for x in inputs
         )
         if out:
             kwargs['out'] = tuple(
-                x._get_array() if isinstance(x, type(self))
+                x._get_data() if isinstance(x, type(self))
                 else x for x in out
             )
         result = getattr(ufunc, method)(*inputs, **kwargs)
@@ -2702,14 +2702,14 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
             arr = self._HANDLED_FUNCTIONS[func](*args, **kwargs)
             return self._new_from_func(arr)
         args = tuple(
-            arg._get_array() if isinstance(arg, type(self))
+            arg._get_data() if isinstance(arg, type(self))
             else arg for arg in args
         )
         types = tuple(
             ti for ti in types
             if not issubclass(ti, type(self))
         )
-        data = self._get_array()
+        data = self._get_data()
         arr = data.__array_function__(func, types, args, kwargs)
         return self._new_from_func(arr)
 
@@ -2741,7 +2741,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
 
     def __add__(self, other: typing.Any):
         if self._add_sub_okay(other):
-            data = self._get_array().__add__(other)
+            data = self._get_data().__add__(other)
             return self._new(
                 data=data,
                 unit=self.unit(),
@@ -2752,7 +2752,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
 
     def __sub__(self, other: typing.Any):
         if self._add_sub_okay(other):
-            data = self._get_array().__sub__(other)
+            data = self._get_data().__sub__(other)
             return self._new(
                 data=data,
                 unit=self.unit(),
@@ -2781,7 +2781,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
                 axes=axes,
                 name=name,
             )
-        data = self._get_array().__mul__(other)
+        data = self._get_data().__mul__(other)
         return self._new(
             data=data,
             unit=self.unit(),
@@ -2790,7 +2790,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         )
 
     def __rmul__(self, other: typing.Any):
-        data = self._get_array().__rmul__(other)
+        data = self._get_data().__rmul__(other)
         return self._new(
             data=data,
             unit=self.unit(),
@@ -2811,7 +2811,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
                 axes=axes,
                 name=name,
             )
-        data = self._get_array().__truediv__(other)
+        data = self._get_data().__truediv__(other)
         return self._new(
             data=data,
             unit=self.unit(),
@@ -2821,7 +2821,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
 
     def __pow__(self, other: typing.Any):
         if isinstance(other, numbers.Real):
-            data = self._get_array().__pow__(other)
+            data = self._get_data().__pow__(other)
             unit = self.unit().__pow__(other)
             return self._new(
                 data=data,
@@ -2834,7 +2834,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
     @property
     def shape_dict(self) -> typing.Dict[str, int]:
         """Label and size for each axis."""
-        return dict(zip(self.axes, self._get_array('shape')))
+        return dict(zip(self.axes, self._get_data('shape')))
 
     def _extend_arrays(
         self,
@@ -2851,25 +2851,49 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         full_shape = tuple(tmp[d] for d in axes)
         idx = np.ix_(*[range(i) for i in full_shape])
         self_idx = tuple(idx[axes.index(d)] for d in self.shape_dict)
-        self_arr = self._get_array(self_idx)
+        self_arr = self._get_data(self_idx)
         other_idx = tuple(idx[axes.index(d)] for d in other.shape_dict)
-        other_arr = other._get_array(other_idx)
+        other_arr = other._get_data(other_idx)
         return self_arr, other_arr
 
-    # This will be `_get_data`
-    def _get_array(self, arg: typing.Union[str, IndexLike]=None):
-        """Access array data via index or slice notation."""
+    def _get_data(self, arg: typing.Union[str, IndexLike]=None):
+        """Access the data array or a dataset attribute.
+        
+        If `arg` is not a string, this method will assume it is an index and
+        will attempt to return the relevant portion of the dataset array (after
+        loading from disk, if necessary). If `arg` is a string, this method will
+        first search `_amount` for the named attribute, to take advantage of
+        viewers that provide metadata without loading the full dataset. If that
+        search fails, this method will attempt to retrieve the named attribute
+        from the full array.
+        """
         if not isinstance(arg, str):
-            return self._get_array1(index=arg)
+            return self._get_array(index=arg)
         if attr := getattr(self._amount, arg, None):
             return attr
-        return getattr(self._get_array1(), arg)
+        return getattr(self._get_array(), arg)
 
-    # This will be `_get_array`
-    def _get_array1(self, index: IndexLike=None):
-        """"""
+    def _get_array(self, index: IndexLike=None):
+        """Access array data via index or slice notation.
+        
+        If `index` is not null, this method will create the requested subarray
+        from `self._amount` and directly return it. If `index` is null, this
+        method will load the entire array and let execution proceed to the
+        following block, which will immediately return the array. Given the
+        latter scenario, this method will subscript the pre-loaded array on
+        subsequent calls.
+        """
         if self._array is None:
-            self._array = self.__array__()
+            if index:
+                idx = np.index_exp[index]
+                try:
+                    return np.asarray(self._amount[idx]) * self._scale
+                except (
+                    TypeError, # e.g., `list`
+                    IndexError, # e.g., `netCDF4._netCDF4.Variable`
+                ): # I feel you, buddy.
+                    return np.asarray(self._amount)[idx] * self._scale
+            self._array = np.asarray(self._amount) * self._scale
         if not index:
             return self._array
         idx = np.index_exp[index]
@@ -2886,8 +2910,8 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         `netCDF4.Dataset`. See
         https://github.com/mcgibbon/python-examples/blob/master/scripts/file-io/load_netCDF4_full.py
         """
-        data = np.asarray(self._amount)
-        return np.asanyarray(data, *args, **kwargs) * self._scale
+        data = np.asarray(self._amount) * self._scale
+        return np.asanyarray(data, *args, **kwargs)
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
@@ -2936,7 +2960,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
 @Variable.implements(np.mean)
 def _array_mean(a: Variable, **kwargs):
     """Compute the mean and update array dimensions, if necessary."""
-    data = a._get_array().mean(**kwargs)
+    data = a._get_data().mean(**kwargs)
     if (axis := kwargs.get('axis')) is not None:
         a.axes = tuple(
             d for d in a.axes
