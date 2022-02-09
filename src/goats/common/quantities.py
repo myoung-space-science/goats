@@ -2909,9 +2909,10 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         area for optimization.
         """
         if self._array is None:
+            array = self._load_array(index) * self._scale
             if index is not None:
-                return self._load_array(index)
-            self._array = self._load_array()
+                return array
+            self._array = array
         if iterables.missing(index):
             return self._array
         idx = np.index_exp[index]
@@ -2933,10 +2934,10 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         if not iterables.missing(index):
             idx = np.index_exp[index]
             try:
-                return np.asarray(self._amount[idx]) * self._scale
+                return np.asarray(self._amount[idx])
             except (TypeError, IndexError):
-                return np.asarray(self._amount)[idx] * self._scale
-        return np.asarray(self._amount) * self._scale
+                return np.asarray(self._amount)[idx]
+        return np.asarray(self._amount)
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
