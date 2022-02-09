@@ -2856,15 +2856,23 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         other_arr = other._get_array(other_idx)
         return self_arr, other_arr
 
+    # This will be `_get_data`
     def _get_array(self, arg: typing.Union[str, IndexLike]=None):
         """Access array data via index or slice notation."""
+        if not isinstance(arg, str):
+            return self._get_array1(index=arg)
+        if attr := getattr(self._amount, arg, None):
+            return attr
+        return getattr(self._get_array1(), arg)
+
+    # This will be `_get_array`
+    def _get_array1(self, index: IndexLike=None):
+        """"""
         if self._array is None:
             self._array = self.__array__()
-        if not arg:
+        if not index:
             return self._array
-        if isinstance(arg, str):
-            return getattr(self._array, arg)
-        idx = np.index_exp[arg]
+        idx = np.index_exp[index]
         return self._array[idx]
 
     def __array__(self, *args, **kwargs) -> np.ndarray:
