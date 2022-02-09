@@ -1,4 +1,4 @@
-from typing import *
+import typing
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -17,7 +17,7 @@ def restrict_shells(r: np.ndarray, r0: float):
 def radius(
     array: np.ndarray,
     reference: np.ndarray,
-    target: Iterable[float],
+    target: typing.Iterable[float],
 ) -> np.ndarray:
     """Interpolate the array to one or more radial targets."""
     interpolated = np.array([
@@ -30,7 +30,7 @@ def radius(
 def standard(
     array: np.ndarray,
     reference: np.ndarray,
-    target: Iterable[float],
+    target: typing.Iterable[float],
 ) -> np.ndarray:
     """Interpolate the array over a standard EPREM coordinate."""
     result = np.array([
@@ -46,7 +46,7 @@ def _interp_to_coordinate(
     array: np.ndarray,
     reference: np.ndarray,
     target: float,
-) -> List[float]:
+) -> typing.List[float]:
     """Interpolate data to a target coordinate value."""
     if reference.ndim == 2:
         interps = [
@@ -62,7 +62,7 @@ def _interp_to_radius(
     array: np.ndarray,
     radius: np.ndarray,
     target: float,
-) -> List[float]:
+) -> typing.List[float]:
     """Interpolate data to a single radius."""
     restricted = restrict_shells(radius, target)
     interps = [
