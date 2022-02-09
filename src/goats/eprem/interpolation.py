@@ -65,59 +65,39 @@ class Restriction:
         return np.moveaxis(result, 0, axis)
 
 
-def radius(
+def apply(
     array: np.ndarray,
     reference: np.ndarray,
     target: typing.Iterable[float],
+    coordinate: str=None,
 ) -> np.ndarray:
-    """Interpolate the array to one or more radial targets."""
-    interpolated = np.array([
-        _interp_to_radius(array, reference, value)
+    """Interpolate `array` to target values over `coordinate`."""
+    interpolated = [
+        _apply_interp1d(array, reference, value, coordinate=coordinate)
         for value in target
-    ])
-    return np.swapaxes(interpolated, 0, 1)
-
-
-def standard(
-    array: np.ndarray,
-    reference: np.ndarray,
-    target: typing.Iterable[float],
-) -> np.ndarray:
-    """Interpolate the array over a standard EPREM coordinate."""
-    result = np.array([
-        _interp_to_coordinate(array, reference, value)
-        for value in target
-    ])
+    ]
     if reference.ndim == 2:
-        return np.swapaxes(result, 0, 1)
-    return result
+        return np.swapaxes(interpolated, 0, 1)
+    return np.array(interpolated)
 
 
-def _interp_to_coordinate(
+def _apply_interp1d(
     array: np.ndarray,
     reference: np.ndarray,
     target: float,
+    coordinate: str=None,
 ) -> typing.List[float]:
-    """Interpolate data to a target coordinate value."""
+    """Interpolate data to `target` along the leading axis."""
     if reference.ndim == 2:
-        interps = [
-            interp1d(ref, arr, axis=0)
-            for ref, arr in zip(reference, array)
-        ]
+        if coordinate:
+            restriction = Restriction(restrict_shells, reference, target)
+            ref = restriction.apply(reference, axis=1)
+            arr = restriction.apply(array, axis=1)
+        else:
+            ref = reference
+            arr = array
+        interps = [interp1d(x, y, axis=0) for x, y in zip(ref, arr)]
         return [interp(target) for interp in interps]
     interp = interp1d(reference, array, axis=0)
     return interp(target)
 
-
-def _interp_to_radius(
-    array: np.ndarray,
-    radius: np.ndarray,
-    target: float,
-) -> typing.List[float]:
-    """Interpolate data to a single radius."""
-    restricted = restrict_shells(radius, target)
-    interps = [
-        interp1d(x, y, axis=0)
-        for x, y in zip(radius[:, restricted], array[:, restricted, ...])
-    ]
-    return [interp(target) for interp in interps]

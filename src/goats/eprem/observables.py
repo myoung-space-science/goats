@@ -189,10 +189,18 @@ class Application:
     ) -> np.ndarray:
         """Interpolate a variable array based on a known coordinate."""
         array = np.array(variable) if workspace is None else workspace
+        # The `source` and `destination` definitions create lists of indices
+        # used to permute the axes of `array` so that the first N will
+        # correspond to the N axes of `reference`. This is necessary, for
+        # example, when the `reference` is the energy coordinate, which is
+        # indexed by ('species', 'energy'), and `variable` is the particle
+        # distribution, which is indexed by ('time', 'shell', 'species',
+        # 'energy', 'mu'). We may be able to simplify them with
+        # `zip(enumerate(...))`.
         source = [variable.axes.index(d) for d in reference.axes]
         destination = list(range(len(source)))
         reordered = np.moveaxis(array, source, destination)
-        interpolated = interpolation.standard(
+        interpolated = interpolation.apply(
             reordered,
             np.array(reference),
             targets,
@@ -211,10 +219,11 @@ class Application:
         source = [variable.axes.index(d) for d in reference.axes]
         destination = list(range(len(source)))
         reordered = np.moveaxis(array, source, destination)
-        interpolated = interpolation.radius(
+        interpolated = interpolation.apply(
             reordered,
             np.array(reference),
             targets,
+            coordinate='radius',
         )
         return np.moveaxis(interpolated, destination, source)
 
