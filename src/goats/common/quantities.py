@@ -2884,7 +2884,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         subsequent calls.
         """
         if self._array is None:
-            if index:
+            if not iterables.missing(index):
                 idx = np.index_exp[index]
                 try:
                     return np.asarray(self._amount[idx]) * self._scale
