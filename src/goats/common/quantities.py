@@ -2910,7 +2910,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         `netCDF4.Dataset`. See
         https://github.com/mcgibbon/python-examples/blob/master/scripts/file-io/load_netCDF4_full.py
         """
-        data = np.asarray(self._amount) * self._scale
+        data = self._get_array()
         return np.asanyarray(data, *args, **kwargs)
 
     def __str__(self) -> str:
