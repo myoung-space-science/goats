@@ -2856,6 +2856,20 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         other_arr = other._get_data(other_idx)
         return self_arr, other_arr
 
+    def __array__(self, *args, **kwargs) -> np.ndarray:
+        """Support casting to `numpy` array types.
+        
+        Notes
+        -----
+        This will first cast `self._amount` (inherited from
+        `~quantities.Measured`) on its own to a `numpy.ndarray`, before applying
+        `*args` and `**kwargs`, in order to avoid a `TypeError` when using
+        `netCDF4.Dataset`. See
+        https://github.com/mcgibbon/python-examples/blob/master/scripts/file-io/load_netCDF4_full.py
+        """
+        data = self._get_array()
+        return np.asanyarray(data, *args, **kwargs)
+
     def _get_data(self, arg: typing.Union[str, IndexLike]=None):
         """Access the data array or a dataset attribute.
         
@@ -2876,42 +2890,53 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
     def _get_array(self, index: IndexLike=None):
         """Access array data via index or slice notation.
         
-        If `index` is not null, this method will create the requested subarray
-        from `self._amount` and directly return it. If `index` is null, this
+        Notes
+        -----
+        If `index` is not `None`, this method will create the requested subarray
+        from `self._amount` and directly return it. If `index` is `None`, this
         method will load the entire array and let execution proceed to the
-        following block, which will immediately return the array. Given the
-        latter scenario, this method will subscript the pre-loaded array on
-        subsequent calls.
+        following block, which will immediately return the array. It will then
+        subscript the pre-loaded array on subsequent calls. The reasoning behind
+        this algorithm is as follows: If we need to load the full array at any
+        point, we may as well save it because subscripting an in-memory
+        `numpy.ndarray` is much faster than re-reading from disk for large
+        arrays. However, we should avoid reading in the full array if the caller
+        only wants a small portion of it, and in those cases, keeping the loaded
+        data in memory will lead to incorrect results when attempting to access
+        a different portion of the full array because the indices will be
+        different. The worst-case scenario will occur when the caller repeatedly
+        tries to access a large portion of the full array; this is a possible
+        area for optimization.
         """
         if self._array is None:
-            if not iterables.missing(index):
-                idx = np.index_exp[index]
-                try:
-                    return np.asarray(self._amount[idx]) * self._scale
-                except (
-                    TypeError, # e.g., `list`
-                    IndexError, # e.g., `netCDF4._netCDF4.Variable`
-                ): # I feel you, buddy.
-                    return np.asarray(self._amount)[idx] * self._scale
-            self._array = np.asarray(self._amount) * self._scale
-        if not index:
+            if index is not None:
+                return self._load_array(index)
+            self._array = self._load_array()
+        if iterables.missing(index):
             return self._array
         idx = np.index_exp[index]
         return self._array[idx]
 
-    def __array__(self, *args, **kwargs) -> np.ndarray:
-        """Support casting to `numpy` array types.
+    def _load_array(self, index: IndexLike=None):
+        """Read the array data from disk.
         
-        Notes
-        -----
-        This will first cast `self._amount` (inherited from
-        `~quantities.Measured`) on its own to a `numpy.ndarray`, before applying
-        `*args` and `**kwargs`, in order to avoid a `TypeError` when using
-        `netCDF4.Dataset`. See
-        https://github.com/mcgibbon/python-examples/blob/master/scripts/file-io/load_netCDF4_full.py
+        If `index` is "missing" in the sense defined by `~iterables.missing`
+        this method will load and return the full array. If `index` is not
+        missing, this method will first attempt to subscript `self._amount`
+        before converting it to an array and returning it. If it catches either
+        a `TypeError` or an `IndexError`, it will create the full array before
+        subscripting and returning it. The former may occur if `self._amount` is
+        a sequence type like `list`, `tuple`, or `range`; the latter may occur
+        when attempting to subscript certain array-like objects (e.g.,
+        `netCDF4._netCDF4.Variable`) with valid `numpy` index expressions.
         """
-        data = self._get_array()
-        return np.asanyarray(data, *args, **kwargs)
+        if not iterables.missing(index):
+            idx = np.index_exp[index]
+            try:
+                return np.asarray(self._amount[idx]) * self._scale
+            except (TypeError, IndexError):
+                return np.asarray(self._amount)[idx] * self._scale
+        return np.asarray(self._amount) * self._scale
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
