@@ -1030,6 +1030,24 @@ def test_variable_name():
         assert variable.name == expected
 
 
+@pytest.mark.variable
+def test_variable_get_array(var: typing.Dict[str, quantities.Variable]):
+    """Test the internal `_get_array` method to prevent regression."""
+    v = var['reference']
+    a = v._get_array((0, 0))
+    assert a.shape == ()
+    assert a == 1.0
+    assert v._array is None
+    a = v._get_array(0)
+    assert a.shape == (2,)
+    assert np.array_equal(a, [1, 2])
+    assert v._array is None
+    a = v._get_array()
+    assert a.shape == (3, 2)
+    assert np.array_equal(a, [[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
+    assert v._array is a
+
+
 unity = '1'
 unitless = [
     {'test': 1.1, 'full': (1.1, unity), 'dist': [(1.1, unity)]},
