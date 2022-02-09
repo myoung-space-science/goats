@@ -1086,7 +1086,7 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
 
     def __init__(
         self,
-        expression: Union[str, iterables.Separable],
+        expression: Union[str, iterables.whole],
         **kwargs
     ) -> None:
         """Create a new expression from user input.
@@ -1110,7 +1110,7 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
         self._terms = self.parser.parse(string)
         self._reduce()
 
-    def _standardize(self, expression: Union[str, iterables.Separable]) -> str:
+    def _standardize(self, expression: Union[str, iterables.whole]) -> str:
         """Convert user input to a standard format."""
         if not expression:
             return '1'
@@ -1304,7 +1304,7 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
         return self._new(self._terms)
 
     @classmethod
-    def _new(cls, arg: Union[str, iterables.Separable]):
+    def _new(cls, arg: Union[str, iterables.whole]):
         """Internal helper method for creating a new instance.
 
         This method is separated out for the sake of modularity, in case of a

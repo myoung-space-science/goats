@@ -273,8 +273,8 @@ _nucleons = {
 
 def elements(mass: Iterable, charge: Iterable) -> List[str]:
     """The elemental species symbols, based on masses and charges."""
-    _mass = list(iterables.Separable(mass))
-    _charge = list(iterables.Separable(charge))
+    _mass = list(iterables.whole(mass))
+    _charge = list(iterables.whole(charge))
     if len(_mass) != len(_charge):
         message = (
             f"Length of mass ({len(_mass)})"

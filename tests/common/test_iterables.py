@@ -7,38 +7,38 @@ from goats.common import iterables
 
 
 def test_separable():
-    """Test the type that defines a separable collection."""
+    """Test the type that defines a whole collection."""
     separables = [[1, 2], (1, 2), range(1, 3)]
     for arg in separables:
-        assert isinstance(arg, iterables.Separable)
-        assert iterables.Separable(arg) == arg
+        assert isinstance(arg, iterables.whole)
+        assert iterables.whole(arg) == arg
     nonseparables = ['a', '1, 2', 1, 1.0, slice(None), slice(1)]
     for arg in nonseparables:
-        assert not isinstance(arg, iterables.Separable)
+        assert not isinstance(arg, iterables.whole)
     value = 2
-    separable = iterables.Separable(value)
-    assert len(separable) == 1
-    assert value in separable
-    assert list(separable) == [2]
+    whole = iterables.whole(value)
+    assert len(whole) == 1
+    assert value in whole
+    assert list(whole) == [2]
     values = [1, 2]
-    separable = iterables.Separable(values)
-    assert len(separable) == len(values)
-    assert all(value in separable for value in values)
-    assert list(separable) == list(values)
+    whole = iterables.whole(values)
+    assert len(whole) == len(values)
+    assert all(value in whole for value in values)
+    assert list(whole) == list(values)
     separables = [
-        iterables.Separable(None),
-        iterables.Separable([]),
-        iterables.Separable(()),
+        iterables.whole(None),
+        iterables.whole([]),
+        iterables.whole(()),
     ]
-    for separable in separables:
-        assert len(separable) == 0
-        assert not list(separable)
+    for whole in separables:
+        assert len(whole) == 0
+        assert not list(whole)
     string = '1, 2'
-    separable = iterables.Separable(string)
-    assert len(separable) == 1
-    assert string in separable
-    assert string != separable
-    assert list(separable) == [string]
+    whole = iterables.whole(string)
+    assert len(whole) == 1
+    assert string in whole
+    assert string != whole
+    assert list(whole) == [string]
 
 
 def test_unique():

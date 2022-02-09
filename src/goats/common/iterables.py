@@ -1024,12 +1024,12 @@ class SeparableTypeError(TypeError):
         return f"{self.arg!r} is not separable"
 
 
-class Separable(collections.abc.Collection, metaclass=NonStrIterable):
+class whole(collections.abc.Collection, metaclass=NonStrIterable):
     """A collection of independent members.
 
     This class represents iterable collections with members that have meaning
     independent of any other members. For example, a list of numbers is
-    separable whereas a string is not, despite the fact that both objects are
+    whole whereas a string is not, despite the fact that both objects are
     iterable collections.
 
     The motivation for this distinction is to make it easier to treat single
@@ -1037,12 +1037,12 @@ class Separable(collections.abc.Collection, metaclass=NonStrIterable):
     """
 
     def __init__(self, arg) -> None:
-        """Initialize a separable object from `arg`"""
+        """Initialize a whole object from `arg`"""
         self.arg = self.parse(arg)
 
     @staticmethod
     def parse(arg):
-        """Convert `arg` into a separable object.
+        """Convert `arg` into a whole object.
 
         For most cases, this method will try to iterate over `arg`. If that
         operation succeeds, it will simply return `arg`; if the attempt to
@@ -1071,9 +1071,9 @@ class Separable(collections.abc.Collection, metaclass=NonStrIterable):
     def __contains__(self, this: object) -> bool:
         return this in self.arg
 
-    def __eq__(self, other: 'Separable') -> bool:
-        """True if two separable iterables have equal arguments."""
-        if isinstance(other, Separable):
+    def __eq__(self, other: 'whole') -> bool:
+        """True if two whole iterables have equal arguments."""
+        if isinstance(other, whole):
             return sorted(self) == sorted(other)
         return NotImplemented
 
@@ -1089,16 +1089,16 @@ class Separable(collections.abc.Collection, metaclass=NonStrIterable):
 def distribute(a, b):
     """Distribute `a` and `b` over each other.
 
-    If both `a` and `b` are separable (see the `Separable` class), this function
-    will return their Cartesian product. If only `a` or `b` is separable, this
-    function will pair the non-separable argument with each element of the
-    separable argument. If neither is separable, this function will raise an
+    If both `a` and `b` are whole (see the `whole` class), this function
+    will return their Cartesian product. If only `a` or `b` is whole, this
+    function will pair the non-whole argument with each element of the
+    whole argument. If neither is whole, this function will raise an
     error.
     """
-    a_separable = isinstance(a, Separable)
-    b_separable = isinstance(b, Separable)
+    a_separable = isinstance(a, whole)
+    b_separable = isinstance(b, whole)
     if not (a_separable or b_separable):
-        raise TypeError("At least one argument must be separable")
+        raise TypeError("At least one argument must be whole")
     if a_separable and b_separable:
         return iter(product(a, b))
     if not a_separable:

@@ -165,7 +165,7 @@ class Application:
                 workspace=array,
             )
         if 'radius' in self.assumptions:
-            radii = iterables.Separable(self.assumptions['radius'])
+            radii = iterables.whole(self.assumptions['radius'])
             targets = np.array([float(radius) for radius in radii])
             array = self._interpolate_radius(
                 variable,
@@ -303,7 +303,7 @@ class Interface(base.Interface):
         """Update a single indexing object based on user input."""
         if not isinstance(indices, indexing.Indices):
             axis = self.axes[key]
-            indices = axis(*iterables.Separable(indices))
+            indices = axis(*iterables.whole(indices))
         if isinstance(indices, indexing.Coordinates):
             unit = self.system.get_unit(unit=indices.unit)
             return indices.with_unit(unit)
@@ -322,7 +322,7 @@ class Interface(base.Interface):
     def _update_assumption(self, scalar):
         """Update a single assumption from user input."""
         if not isinstance(scalar, quantities.Scalar):
-            scalar = quantities.Scalar(*iterables.Separable(scalar))
+            scalar = quantities.Scalar(*iterables.whole(scalar))
         unit = self.system.get_unit(unit=scalar.unit())
         return scalar.unit(unit)
 

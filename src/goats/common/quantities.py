@@ -827,12 +827,12 @@ class Dimension(algebra.Expression):
 
     def __init__(
         self,
-        expression: typing.Union['Dimension', str, iterables.Separable],
+        expression: typing.Union['Dimension', str, iterables.whole],
         **kwargs,
     ) -> None:
         if isinstance(expression, Dimension):
             expression = str(expression)
-        if isinstance(expression, iterables.Separable):
+        if isinstance(expression, iterables.whole):
             terms = [self._get_term(term) for term in expression]
             return super().__init__(terms, **kwargs)
         return super().__init__(expression, **kwargs)
@@ -883,7 +883,7 @@ class BaseUnit(typing.NamedTuple):
     name: str
     quantity: str
     system: str=None
-    aliases: iterables.Separable=None
+    aliases: iterables.whole=None
 
 
 class NamedUnit(iterables.ReprStrMixin):
@@ -1083,7 +1083,7 @@ class Unit(algebra.Expression):
 
     def __init__(
         self,
-        expression: typing.Union['Unit', str, iterables.Separable],
+        expression: typing.Union['Unit', str, iterables.whole],
         **kwargs,
     ) -> None:
         if isinstance(expression, Unit):
@@ -1540,7 +1540,7 @@ class same:
         allowed: typing.Iterable[typing.Type]=None,
     ) -> None:
         self.names = names
-        self.allowed = iterables.Separable(allowed)
+        self.allowed = iterables.whole(allowed)
 
     def __call__(self, func: typing.Callable) -> typing.Callable:
         """Ensure attribute consistency before calling `func`."""
@@ -2342,7 +2342,7 @@ class Vector(Measured):
             values = attr_dict['values']
             unit = attr_dict['unit']
         self = super().__new__(cls, values, unit=unit)
-        self._values = list(iterables.Separable(self._amount))
+        self._values = list(iterables.whole(self._amount))
         return self
 
     def __len__(self):
@@ -3009,7 +3009,7 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
     def _get_attrs(self, arg):
         """Extract initializing attributes from input, if possible."""
         if isinstance(arg, Measured):
-            values = iterables.Separable(arg._amount)
+            values = iterables.whole(arg._amount)
             unit = arg.unit()
             return list(values), unit
         try:
@@ -3018,7 +3018,7 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
         except AttributeError:
             raise TypeError(arg)
         else:
-            return list(iterables.Separable(values)), unit
+            return list(iterables.whole(values)), unit
 
     @property
     def asvector(self):
@@ -3127,8 +3127,8 @@ def parse_measurable(args, distribute: bool=False):
     if all(isinstance(arg, numbers.Number) for arg in unwrapped):
         return _wrap_measurable(unwrapped, '1', distribute)
 
-    # Recursively handle an iterable of separable items.
-    if all(isinstance(arg, iterables.Separable) for arg in unwrapped):
+    # Recursively handle an iterable of whole (distinct) items.
+    if all(isinstance(arg, iterables.whole) for arg in unwrapped):
         return _callback_parse(unwrapped, distribute)
 
     # Ensure an explicit unit-like object
