@@ -2573,7 +2573,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
 
     def __contains__(self, item):
         """Called for `item` in self."""
-        return item in self._get_data()
+        return item in self._amount or item in self._get_data()
 
     _builtin = (int, slice, type(...))
 
