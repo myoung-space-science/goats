@@ -367,7 +367,7 @@ class Methods(iterables.MappingBase):
     ) -> np.ndarray:
         """Compute the differential energy flux of a distribution."""
         dist_to_flux = 2 * np.array(energy, ndmin=1) / self.C('mp')**2
-        return dist_to_flux * isodist * 1e6 * self.C('eV')
+        return dist_to_flux * isodist
 
     def fluence(
         self,
