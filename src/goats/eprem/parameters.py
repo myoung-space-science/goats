@@ -745,8 +745,7 @@ class Arguments(aliased.Mapping):
         except KeyError:
             raise KeyError(f"No parameter corresponding to '{key}'") from None
         value = parameter['value']
-        unit = parameter['unit']
-        if unit:
+        if unit := parameter['unit']:
             if isinstance(value, list):
                 return [quantities.Scalar(v, unit) for v in value]
             return quantities.Scalar(value, unit)
