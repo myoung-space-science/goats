@@ -109,8 +109,8 @@ def _apply_interp1d(
 ) -> typing.List[float]:
     """Interpolate data to `target` along the leading axis."""
     if target in reference:
-        idx = np.where(reference == target)[0][0]
-        return array[idx, ...]
+        idx = numerical.find_nearest(reference, target).index
+        return array[idx]
     if (axis := axes.get(coordinate)) is not None:
         restriction = Restriction(
             restrict_coordinate,
