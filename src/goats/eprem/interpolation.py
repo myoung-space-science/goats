@@ -4,7 +4,7 @@ import numpy as np
 import numpy.typing
 from scipy.interpolate import interp1d
 
-from goats.common.numerical import get_bounding_indices
+from goats.common import numerical
 
 
 def restrict_coordinate(
@@ -13,10 +13,17 @@ def restrict_coordinate(
     axis: typing.SupportsIndex,
 ) -> range:
     """Restrict `array` to `target` along `axis`."""
-    bounds = get_bounding_indices(array, target, axis=axis)
-    lower = min(bounds[:, 0])
-    upper = max(bounds[:, 1])
-    return range(lower, upper+1)
+    bounds = numerical.get_bounding_indices(array, target, axis=axis)
+    if bounds.ndim == 1:
+        return range(bounds[0], bounds[1]+1)
+    if bounds.ndim == 2:
+        lower = min(bounds[:, 0])
+        upper = max(bounds[:, 1])
+        return range(lower, upper+1)
+    # NOTE: We can get `lower` and `upper` for N-D arrays by replacing `:` with
+    # `...`. The problem is that they will be (N-1)-D arrays that we will then
+    # need to split into individual index vectors before returning.
+    raise NotImplementedError(f"Can't operate on {bounds.ndim}-D array")
 
 
 class Restriction:
@@ -86,11 +93,11 @@ def apply(
     return np.array(interpolated)
 
 
-# TODO: Refactor this to use the more general (untested) `restrict` function,
-# which should work for any array, target, and axis index. That may require
-# redefining `Restriction`
 axes = {
+    'time': 0,
     'radius': 1,
+    'energy': 0,
+    'mu': 0,
 }
 
 
@@ -101,21 +108,24 @@ def _apply_interp1d(
     coordinate: str=None,
 ) -> typing.List[float]:
     """Interpolate data to `target` along the leading axis."""
+    if target in reference:
+        idx = np.where(reference == target)[0][0]
+        return array[idx, ...]
+    if (axis := axes.get(coordinate)) is not None:
+        restriction = Restriction(
+            restrict_coordinate,
+            reference,
+            target,
+            axis=axis,
+        )
+        ref = restriction.apply(reference, axis=axis)
+        arr = restriction.apply(array, axis=axis)
+    else:
+        ref = reference
+        arr = array
     if reference.ndim == 2:
-        if axis := axes.get(coordinate):
-            restriction = Restriction(
-                restrict_coordinate,
-                reference,
-                target,
-                axis=axis,
-            )
-            ref = restriction.apply(reference, axis=axis)
-            arr = restriction.apply(array, axis=axis)
-        else:
-            ref = reference
-            arr = array
         interps = [interp1d(x, y, axis=0) for x, y in zip(ref, arr)]
         return [interp(target) for interp in interps]
-    interp = interp1d(reference, array, axis=0)
+    interp = interp1d(ref, arr, axis=0)
     return interp(target)
 
