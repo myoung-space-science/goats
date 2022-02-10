@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import *
 
 import numpy as np
+import matplotlib.pyplot as plt
 import pytest
 
 from goats.common import base
@@ -102,23 +103,51 @@ def test_observation_unit(stream: observing.Stream):
 def test_interpolation(stream: observing.Stream):
     """Interpolate an observation."""
     intflux = stream['integral flux']
-    indices = {
-        'radius': {
+    cases = [
+        {
+            'index': 'shell',
+            'value': 40,
+            'color': 'blue',
+        },
+        {
+            'index': 'shell',
+            'value': 43,
+            'color': 'black',
+        },
+        {
+            'index': 'shell',
+            'value': 50,
+            'color': 'green',
+        },
+        {
+            'index': 'radius',
             'value': (1.0, 'au'),
-            'kwargs': {'linestyle': 'solid'},
+            'color': 'black',
         },
-        'shell': {
-            'value': 1000,
-            'kwargs': {'linestyle': '', 'marker': 'o', 'markevery': 10},
-        },
+    ]
+    kwargs = {
+        'radius': {'linestyle': 'solid'},
+        'shell': {'linestyle': '', 'marker': 'o', 'markevery': 10},
     }
-    for name, index in indices.items():
-        value = index['value']
-        observation = intflux.observe(
+    for case in cases:
+        name = case['index']
+        value = case['value']
+        observation = intflux.reset().observe(
             **{name: value},
             species='H+',
         )
-        assert np.array(observation).shape == (50, 1, 1)
+        result = np.array(observation)
+        assert result.shape == (50, 1, 1)
+        plt.plot(
+            result.squeeze(),
+            label=f'{name} = {value}',
+            color=case['color'],
+            **kwargs.get(name, {}),
+        )
+    plt.yscale('log')
+    plt.legend()
+    plt.savefig('test_interpolation.png')
+    plt.close()
 
 
 def test_reset_constraints(stream: observing.Stream):
