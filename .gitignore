@@ -2,6 +2,7 @@
 data/
 dev/
 goats.ini
+tests/**/*.png
 
 # Visual Studio Code
 .vscode/
