@@ -92,7 +92,10 @@ def find_nearest(
     Nearest
         A named tuple with `value` and `index` fields, respectively containing
         the value in `values` closest to `target` (given the constraint set by
-        `bound`, if any) and the index of `value` in `values`.
+        `bound`, if any) and the index of `value` in `values`. If the array
+        corresponding to `values` is one-dimensional, `index` will be an
+        integer; otherwise, it will be a tuple with one entry for each
+        dimension.
 
     Notes
     -----
@@ -100,10 +103,9 @@ def find_nearest(
     https://stackoverflow.com/questions/2566412/find-nearest-value-in-numpy-array
     However, a lower-voted answer (and the comments) has some suggestions for a
     bisection-based method.
-
     """
 
-    array = np.asarray(values).squeeze()
+    array = np.asarray(values)
     index = np.abs(array - target).argmin()
     if bound == 'lower':
         try:
