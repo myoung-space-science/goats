@@ -39,6 +39,10 @@ def test_nearest():
         found = numerical.find_nearest(values, target, bound='upper')
         assert found.index == 1
         assert found.value == 0.2
+    values = numpy.arange(3.0 * 4.0 * 5.0).reshape(3, 4, 5)
+    found = numerical.find_nearest(values, 32.9)
+    assert found.index == (1, 2, 3)
+    assert found.value == 33.0
 
 
 def test_cast():

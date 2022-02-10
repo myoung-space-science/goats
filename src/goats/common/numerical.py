@@ -117,6 +117,8 @@ def find_nearest(
                 index -= 1
         except IndexError:
             index = 0
+    if array.ndim > 1:
+        index = np.unravel_index(index, array.shape)
     return Nearest(index=index, value=array[index])
 
 
