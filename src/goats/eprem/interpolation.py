@@ -63,7 +63,8 @@ class Restriction:
         array-like
             The subarray.
         """
-        axis = axis or -1
+        if axis is None:
+            axis = -1
         permuted = np.moveaxis(array, axis, 0)
         result = permuted[self.indices, ...]
         return np.moveaxis(result, 0, axis)
