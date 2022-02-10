@@ -96,7 +96,7 @@ def apply(
 axes = {
     'time': 0,
     'radius': 1,
-    'energy': 0,
+    'energy': 1,
     'mu': 0,
 }
 
