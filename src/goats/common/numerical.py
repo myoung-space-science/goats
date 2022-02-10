@@ -2,15 +2,42 @@ import numbers
 import typing
 
 import numpy as np
+import numpy.typing
 
 
 def get_bounding_indices(
-    array: np.ndarray,
-    target: float,
-    axis: int=0,
+    array: numpy.typing.ArrayLike,
+    target: numbers.Real,
+    axis: typing.SupportsIndex=None,
 ) -> np.ndarray:
-    """Find the indices bounding the target value."""
-    return np.apply_along_axis(find_1d_indices, axis, array, target)
+    """Find the indices bounding the target value.
+    
+    Parameters
+    ----------
+    array : array-like
+        The array containing `target`.
+
+    target : real
+        The numerical value in `array` whose index to bound.
+
+    axis : integral, default=-1
+        The axis in `array` along which to bound `target`.
+
+    Returns
+    -------
+    `numpy.ndarray`
+        An array containing the indices bounding `target` at each slice along
+        `axis`. The shape will be the same as that of `array` except for `axis`,
+        which will be 2.
+    """
+    if axis is None:
+        axis = -1
+    return np.apply_along_axis(
+        find_1d_indices,
+        int(axis),
+        np.asfarray(array),
+        float(target),
+    )
 
 
 def find_1d_indices(

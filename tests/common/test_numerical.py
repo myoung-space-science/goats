@@ -1,6 +1,24 @@
 import pytest
 
+import numpy
+
 from goats.common import numerical
+
+
+def test_get_bounding_indices():
+    lower = [0.1 * i for i in range(5)]
+    upper = [i + 0.2 for i in lower]
+    array = numpy.linspace(lower, upper, num=5)
+    target = 0.21
+    indices = numerical.get_bounding_indices(array, target, axis=1)
+    i0 = indices[:, 0]
+    i1 = indices[:, 1]
+    assert list(i0) == [2, 1, 1, 0, 0]
+    assert list(i1) == [3, 2, 2, 1, 1]
+    for i, bounds in enumerate(indices):
+        j0, j1 = bounds
+        v0, v1 = array[i, j0:j1+1]
+        assert v0 <= target <= v1 or v1 <= target <= v0
 
 
 def test_nearest():
