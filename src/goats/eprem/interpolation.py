@@ -73,13 +73,13 @@ class Restriction:
 def apply(
     array: np.ndarray,
     reference: np.ndarray,
-    target: typing.Iterable[float],
+    targets: typing.Iterable[float],
     coordinate: str=None,
 ) -> np.ndarray:
     """Interpolate `array` to target values over `coordinate`."""
     interpolated = [
-        _apply_interp1d(array, reference, value, coordinate=coordinate)
-        for value in target
+        _apply_interp1d(array, reference, target, coordinate=coordinate)
+        for target in targets
     ]
     if reference.ndim == 2:
         return np.swapaxes(interpolated, 0, 1)
