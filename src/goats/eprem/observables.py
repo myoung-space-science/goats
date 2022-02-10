@@ -149,28 +149,28 @@ class Application:
     ) -> quantities.Variable:
         """Interpolate the variable over certain axes."""
         array = None
-        coordinates = [
-            {
+        coordinates = {
+            axis: {
                 'targets': np.array(indices.values),
                 'reference': self.reference[axis],
             }
             for axis, indices in self.indices.items()
             if axis in axes and isinstance(indices, indexing.Coordinates)
-        ]
-        for current in coordinates:
+        }
+        if 'radius' in self.assumptions:
+            radii = iterables.whole(self.assumptions['radius'])
+            coordinates.update(
+                radius={
+                    'targets': np.array([float(radius) for radius in radii]),
+                    'reference': self.reference['radius'],
+                }
+            )
+        for coordinate, current in coordinates.items():
             array = self._interpolate_coordinate(
                 variable,
                 current['targets'],
                 current['reference'],
-                workspace=array,
-            )
-        if 'radius' in self.assumptions:
-            radii = iterables.whole(self.assumptions['radius'])
-            targets = np.array([float(radius) for radius in radii])
-            array = self._interpolate_radius(
-                variable,
-                targets,
-                self.reference['radius'],
+                coordinate=coordinate,
                 workspace=array,
             )
         return quantities.Variable(
@@ -185,47 +185,21 @@ class Application:
         variable: quantities.Variable,
         targets: np.ndarray,
         reference: quantities.Variable,
+        coordinate: str=None,
         workspace: np.ndarray=None,
     ) -> np.ndarray:
         """Interpolate a variable array based on a known coordinate."""
         array = np.array(variable) if workspace is None else workspace
-        # The `source` and `destination` definitions create lists of indices
-        # used to permute the axes of `array` so that the first N will
-        # correspond to the N axes of `reference`. This is necessary, for
-        # example, when the `reference` is the energy coordinate, which is
-        # indexed by ('species', 'energy'), and `variable` is the particle
-        # distribution, which is indexed by ('time', 'shell', 'species',
-        # 'energy', 'mu'). We may be able to simplify them with
-        # `zip(enumerate(...))`.
-        source = [variable.axes.index(d) for d in reference.axes]
-        destination = list(range(len(source)))
-        reordered = np.moveaxis(array, source, destination)
+        indices = (variable.axes.index(d) for d in reference.axes)
+        dst, src = zip(*enumerate(indices))
+        reordered = np.moveaxis(array, src, dst)
         interpolated = interpolation.apply(
             reordered,
             np.array(reference),
             targets,
+            coordinate=coordinate,
         )
-        return np.moveaxis(interpolated, destination, source)
-
-    def _interpolate_radius(
-        self,
-        variable: quantities.Variable,
-        targets: np.ndarray,
-        reference: quantities.Variable,
-        workspace: np.ndarray=None,
-    ) -> np.ndarray:
-        """Interpolate a variable to the given radius or radii."""
-        array = np.array(variable) if workspace is None else workspace
-        source = [variable.axes.index(d) for d in reference.axes]
-        destination = list(range(len(source)))
-        reordered = np.moveaxis(array, source, destination)
-        interpolated = interpolation.apply(
-            reordered,
-            np.array(reference),
-            targets,
-            coordinate='radius',
-        )
-        return np.moveaxis(interpolated, destination, source)
+        return np.moveaxis(interpolated, dst, src)
 
     def _evaluate_function(self, function: functions.Function):
         """Gather dependencies and call this function."""
