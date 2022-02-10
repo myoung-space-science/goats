@@ -140,7 +140,7 @@ class Application:
         """True if the target value is in the given array."""
         if target < np.min(array) or target > np.max(array):
             return False
-        return np.any([np.isclose(target, array)])
+        return np.any([np.isclose(target, array, atol=0.0)])
 
     def _interpolate(
         self,
