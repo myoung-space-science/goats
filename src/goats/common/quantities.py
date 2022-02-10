@@ -2569,6 +2569,8 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
 
     def __iter__(self):
         """Called for iter(self)."""
+        if method := self._get_data('__iter__'):
+            return method()
         return iter(self._get_data())
 
     def __contains__(self, item):
