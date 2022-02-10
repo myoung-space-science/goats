@@ -81,6 +81,11 @@ def apply(
     return np.array(interpolated)
 
 
+rules = {
+    'radius': restrict_shells,
+}
+
+
 def _apply_interp1d(
     array: np.ndarray,
     reference: np.ndarray,
@@ -89,8 +94,8 @@ def _apply_interp1d(
 ) -> typing.List[float]:
     """Interpolate data to `target` along the leading axis."""
     if reference.ndim == 2:
-        if coordinate:
-            restriction = Restriction(restrict_shells, reference, target)
+        if rule := rules.get(coordinate):
+            restriction = Restriction(rule, reference, target)
             ref = restriction.apply(reference, axis=1)
             arr = restriction.apply(array, axis=1)
         else:
