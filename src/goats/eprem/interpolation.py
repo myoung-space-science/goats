@@ -7,9 +7,13 @@ from scipy.interpolate import interp1d
 from goats.common.numerical import get_bounding_indices
 
 
-def restrict_shells(r: np.ndarray, r0: float):
-    """Restrict the full array of shells to those near `r`."""
-    bounds = get_bounding_indices(r, r0, axis=1)
+def restrict_coordinate(
+    array: np.ndarray,
+    target: float,
+    axis: typing.SupportsIndex,
+) -> range:
+    """Restrict `array` to `target` along `axis`."""
+    bounds = get_bounding_indices(array, target, axis=axis)
     lower = min(bounds[:, 0])
     upper = max(bounds[:, 1])
     return range(lower, upper+1)
@@ -81,8 +85,11 @@ def apply(
     return np.array(interpolated)
 
 
-rules = {
-    'radius': restrict_shells,
+# TODO: Refactor this to use the more general (untested) `restrict` function,
+# which should work for any array, target, and axis index. That may require
+# redefining `Restriction`
+axes = {
+    'radius': 1,
 }
 
 
@@ -94,10 +101,15 @@ def _apply_interp1d(
 ) -> typing.List[float]:
     """Interpolate data to `target` along the leading axis."""
     if reference.ndim == 2:
-        if rule := rules.get(coordinate):
-            restriction = Restriction(rule, reference, target)
-            ref = restriction.apply(reference, axis=1)
-            arr = restriction.apply(array, axis=1)
+        if axis := axes.get(coordinate):
+            restriction = Restriction(
+                restrict_coordinate,
+                reference,
+                target,
+                axis=axis,
+            )
+            ref = restriction.apply(reference, axis=axis)
+            arr = restriction.apply(array, axis=axis)
         else:
             ref = reference
             arr = array
