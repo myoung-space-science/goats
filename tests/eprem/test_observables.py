@@ -11,7 +11,7 @@ import pytest
 
 from goats.common import base
 from goats.common import physical
-from goats.eprem import observing
+from goats import eprem
 
 
 def get_stream(rootpath: Path):
@@ -22,7 +22,7 @@ def get_stream(rootpath: Path):
     and calling simple plotting routines for visual end-to-end tests.
     """
     datadir = rootpath / 'cone' / 'obs'
-    return observing.Stream(name=0, path=datadir)
+    return eprem.Stream(name=0, path=datadir)
 
 
 @pytest.fixture
@@ -69,7 +69,7 @@ def observables() -> Dict[str, dict]:
 
 
 def test_observable_access(
-    stream: observing.Stream,
+    stream: eprem.Stream,
     observables: Dict[str, dict],
 ) -> None:
     """Access all observables."""
@@ -79,7 +79,7 @@ def test_observable_access(
 
 
 def test_create_observation(
-    stream: observing.Stream,
+    stream: eprem.Stream,
     observables: Dict[str, dict],
 ) -> None:
     """Create default observation from each observable."""
@@ -89,7 +89,7 @@ def test_create_observation(
         assert all(axis in observation.axes for axis in expected['axes'])
 
 
-def test_observation_unit(stream: observing.Stream):
+def test_observation_unit(stream: eprem.Stream):
     """Change the unit of an observation's values."""
     obs = stream['r'].observe()
     assert obs.unit() == 'm'
@@ -100,7 +100,7 @@ def test_observation_unit(stream: observing.Stream):
     assert np.allclose(old, new * float(physical.mks['au']))
 
 
-def test_interpolation(stream: observing.Stream):
+def test_interpolation(stream: eprem.Stream):
     """Interpolate an observation."""
     intflux = stream['integral flux']
     cases = [
@@ -150,7 +150,7 @@ def test_interpolation(stream: observing.Stream):
     plt.close()
 
 
-def test_reset_constraints(stream: observing.Stream):
+def test_reset_constraints(stream: eprem.Stream):
     """Test the ability to reset observing constraints."""
     observable = stream['dist']
     observation = observable.observe(
@@ -169,7 +169,7 @@ def test_reset_constraints(stream: observing.Stream):
     assert np.array(observation).shape == (50, 2000, 1, 20, 8)
 
 
-def test_observable_aliases(stream: observing.Stream):
+def test_observable_aliases(stream: eprem.Stream):
     """Explicitly check a few aliases to prevent regression."""
     tests = {
         'r': ['R'],
@@ -184,7 +184,7 @@ def test_observable_aliases(stream: observing.Stream):
             assert stream[alias].name == observable.name
 
 
-def test_repeated_access(stream: observing.Stream):
+def test_repeated_access(stream: eprem.Stream):
     """Test repeatedly accessing the same observable."""
     a = stream['br']
     b = stream['br']
