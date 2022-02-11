@@ -179,12 +179,19 @@ class Term(Operand):
         """Format the coefficient for printing."""
         if self.base != '1' and self.coefficient == 1:
             return ''
-        if isinstance(self.coefficient, fractions.Fraction):
-            if self.base != '1' and self.coefficient.denominator != 1:
-                return f"({self.coefficient})"
+        if self._ambiguous_coefficient():
+            return f"({self.coefficient})"
         if float(self.coefficient) == int(self.coefficient):
             return str(int(self.coefficient))
         return str(self.coefficient)
+
+    def _ambiguous_coefficient(self):
+        """True if this term's coefficient needs to be grouped."""
+        return (
+            isinstance(self.coefficient, fractions.Fraction)
+            and self.base != '1'
+            and self.coefficient.denominator != 1
+        )
 
     def _format_exponent(self, style: str):
         """Format the current exponent for printing."""
