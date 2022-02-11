@@ -171,6 +171,10 @@ strings = {
         'unit': '# cm^-2 s^-1 sr^-1 (MeV nuc^-1)^-1',
         'dimension': 'L^-2 T^-1 (M L^2 T^-2 M^-1)^-1',
     },
+    '# / ((cm^2*s*sr*MeV/nuc))': {
+        'unit': '# cm^-2 s^-1 sr^-1 (MeV nuc^-1)^-1',
+        'dimension': 'L^-2 T^-1 (M L^2 T^-2 M^-1)^-1',
+    },
 }
 conversions = {
     ('km/s', 'm/s'): 1e3,
