@@ -1245,9 +1245,9 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
         convert = converter or self._new
         try:
             converted = convert(other)
-        except TypeError:
+        except TypeError as exc:
             if fatal:
-                raise OperandError(f"Can't convert {other}")
+                raise OperandError(f"Can't convert {other}") from exc
         else:
             return converted
 
