@@ -377,6 +377,29 @@ class Methods(iterables.MappingBase):
         """Compute the distribution fluence."""
         return integrate.simps(flux, time, axis=0)
 
+    def alt_intflux(
+        self,
+        energies: np.ndarray,
+        flux: np.ndarray,
+        minimum_energy: float,
+    ) -> np.ndarray:
+        """Compute the integral flux by the old algorithm.
+        
+        Currently exists only for testing.
+        """
+        x0 = energies[0, :-1]
+        x1 = energies[0, 1:]
+        y0 = np.squeeze(flux[..., :-1])
+        y1 = np.squeeze(flux[..., 1:])
+        dlnx = np.log10(x1) - np.log10(x0)
+        kernel = 0.5 * dlnx * (x0*y0 + x1*y1)
+        kernel[..., x1 <= minimum_energy] = 0.0
+        return np.sum(
+            kernel,
+            axis=-1,
+            dtype=np.float64,
+        )
+
     def integral_flux(
         self,
         energies: np.ndarray,
