@@ -1007,6 +1007,8 @@ class NamedUnit(iterables.ReprStrMixin):
         other = type(self)(target)
         if self == other:
             return 1.0
+        if all(obj.dimension == '1' for obj in (self, other)):
+            return 1.0
         ratio = other.scale / self.scale
         if other._reference == self._reference:
             return ratio
