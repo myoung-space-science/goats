@@ -242,7 +242,7 @@ cases = {
     'shell': '1',
     'cos(mu)': '1',
     'e-': 'e',
-    '# / cm^2 s sr MeV': '# / (cm^2 s sr MeV)',
+    '# / cm^2 s sr MeV': '# / (cm^2 s sr MeV/nuc)',
 }
 
 def test_standardize():

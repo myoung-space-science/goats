@@ -364,6 +364,7 @@ unit_conversions = {
     'shell': '1',
     'cos(mu)': '1',
     'e-': 'e',
+    '# / cm^2 s sr MeV': '# / cm^2 s sr MeV/nuc',
 }
 """Conversions from non-standard EPREM units."""
 
@@ -376,9 +377,10 @@ def standardize(unit: T):
     standard unit string if it exists. If this doesn't find a standard unit
     string, it just returns the input.
     """
+    unit = unit_conversions.get(str(unit), unit)
     if '/' in unit:
-        num, den = str(unit).split('/')
-        return ' / '.join((num.strip(), f"({den.strip()})"))
-    return unit_conversions.get(str(unit), unit)
+        num, den = str(unit).split('/', maxsplit=1)
+        unit = ' / '.join((num.strip(), f"({den.strip()})"))
+    return unit
 
 
