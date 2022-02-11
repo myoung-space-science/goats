@@ -123,8 +123,8 @@ class Methods(iterables.MappingBase):
         """Look up a method on this instance."""
         try:
             method = getattr(self, name)
-        except AttributeError:
-            raise KeyError(f"No method for {name!r}.")
+        except AttributeError as exc:
+            raise KeyError(f"No method for {name!r}.") from exc
         else:
             return Method(method, metadata[name])
 
