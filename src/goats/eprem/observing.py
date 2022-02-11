@@ -144,7 +144,7 @@ class Observer(base.Observer):
         axis = self.dataset.axes[name]
         values = axis(**kwargs)
         if unit and isinstance(values, indexing.Coordinates):
-            return values.to(unit)
+            return values.with_unit(unit)
         return values
 
 
