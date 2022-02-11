@@ -235,3 +235,19 @@ def test_variables(dataset: datasets.Dataset):
         assert variable.axes == expected['axes']
         assert variable.unit() == expected['unit']['mks']
         assert variable.name == aliased.MappingKey(name, *expected['aliases'])
+
+
+cases = {
+    'julian date': 'day',
+    'shell': '1',
+    'cos(mu)': '1',
+    'e-': 'e',
+    '# / cm^2 s sr MeV': '# / (cm^2 s sr MeV)',
+}
+
+def test_standardize():
+    """Test the helper function that standardizes unit strings."""
+    for old, new in cases.items():
+        assert datasets.standardize(old) == new
+
+

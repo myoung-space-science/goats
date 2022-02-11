@@ -364,6 +364,7 @@ unit_conversions = {
     'shell': '1',
     'cos(mu)': '1',
     'e-': 'e',
+    '# / cm^2 s sr MeV': '# / (cm^2 s sr MeV)',
 }
 """Conversions from non-standard EPREM units."""
 
