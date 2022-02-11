@@ -35,6 +35,18 @@ _metadata = {
         'aliases': ('|V|', 'V', 'vmag', 'v mag'),
         'quantity': 'velocity',
     },
+    'bv_mag': {
+        'aliases': ('bv', '|bv|', 'BV', '|BV|'),
+        'quantity': 'velocity * magnetic field',
+    },
+    'v_para': {
+        'aliases': ('vpara', 'Vpara'),
+        'quantity': 'velocity',
+    },
+    'v_perp': {
+        'aliases': ('vperp', 'Vperp'),
+        'quantity': 'velocity',
+    },
     'flow_angle': {
         'aliases': ('flow angle', 'angle'),
         'quantity': 'plane angle',
@@ -178,6 +190,18 @@ class Methods(iterables.MappingBase):
         """The velocity-field magnitude."""
         return np.sqrt(vr**2 + vt**2 + vp**2)
 
+    def bv_mag(
+        self,
+        br: np.ndarray,
+        bt: np.ndarray,
+        bp: np.ndarray,
+        vr: np.ndarray,
+        vt: np.ndarray,
+        vp: np.ndarray,
+    ) -> np.ndarray:
+        """|B·V|"""
+        return self.b_mag(br, bt, bp) * self.v_mag(vr, vt, vp)
+
     def flow_angle(
         self,
         br: np.ndarray,
@@ -188,12 +212,38 @@ class Methods(iterables.MappingBase):
         vp: np.ndarray,
     ) -> np.ndarray:
         """The angle between the magnetic- and velocity-field vectors."""
-        bv_dot = br*vr + bt*vt + bp*vp
-        bv_mag = self.b_mag(br, bt, bp)*self.v_mag(vr, vt, vp)
-        arg = np.array(bv_dot / bv_mag)
+        b_dot_v = self.v_para(br, bt, bp, vr, vt, vp)
+        bv_mag = self.bv_mag(br, bt, bp, vr, vt, vp)
+        arg = np.array(b_dot_v / bv_mag)
         arg[arg < -1.0] = -1.0
         arg[arg > +1.0] = +1.0
         return np.arccos(arg)
+
+    def v_para(
+        self,
+        vr: np.ndarray,
+        vt: np.ndarray,
+        vp: np.ndarray,
+        br: np.ndarray,
+        bt: np.ndarray,
+        bp: np.ndarray,
+    ) -> np.ndarray:
+        """The velocity-field component parallel to the magnetic field."""
+        return (br*vr + bt*vt + bp*vp) / self.b_mag(br, bt, bp)
+
+    def v_perp(
+        self,
+        vr: np.ndarray,
+        vt: np.ndarray,
+        vp: np.ndarray,
+        br: np.ndarray,
+        bt: np.ndarray,
+        bp: np.ndarray,
+    ) -> np.ndarray:
+        """The velocity-field component parallel to the magnetic field."""
+        v_mag = self.v_mag(vr, vt, vp)
+        v_para = self.v_para(vr, vt, vp, br, bt, bp)
+        return np.sqrt(v_mag**2 - v_para**2)
 
     def div_v(
         self,
