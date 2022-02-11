@@ -899,14 +899,6 @@ class NamedUnit(iterables.ReprStrMixin):
         reference = BaseUnit(**unit['base'])
         return magnitude, reference
 
-
-    # The point of this somewhat awkward __new__ / __init__ combination is to
-    # create a singleton instance for each unique named unit but to avoid
-    # parsing the input twice -- first in __new__, to build the instance key,
-    # then in __init__, to set the instance attributes. This approach is almost
-    # certainly NOT thread safe. UPDATE: We may be able to avoid this by
-    # initializing the instance and returning it from __new__.
-
     def __new__(cls, arg: typing.Union[str, 'NamedUnit']):
         """Create a new instance or return an existing one."""
         if isinstance(arg, NamedUnit):
@@ -1040,15 +1032,6 @@ class NamedUnit(iterables.ReprStrMixin):
         return f"'{self.name} | {self.symbol}'"
 
 
-# TODO: This class feels awkward. It essentialy exists because `Unit` is a
-# subclass of `algebra.Expression` and I want its terms to carry information
-# from `NamedUnit`, which is not a subclass of `algebra.Term`. The reason that
-# `NamedUnit` is not a subclass of `algebra.Term` is that I want each instance
-# to a represent pure unit, without coefficient or exponent.
-#
-# Update: It's even more awkward with recent updates to the `algebra` module.
-# Consider letting `NamedUnit` subclass `algebra.Term` with coefficient=1 and
-# exponent=1.
 class UnitTerm(algebra.Term):
     """An algebraic term containing a single named unit."""
 
