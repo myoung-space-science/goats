@@ -121,7 +121,7 @@ class Observer(base.Observer):
 
     def time(self, unit: str=None):
         """This observer's times."""
-        return self._get_indices('time', unit=unit)
+        return self._get_indices('time', unit=unit).values
 
     def shell(self):
         """This observer's shells."""
@@ -133,11 +133,11 @@ class Observer(base.Observer):
 
     def energy(self, unit: str=None):
         """This observer's energies."""
-        return self._get_indices('energy', unit=unit)
+        return self._get_indices('energy', unit=unit).values
 
     def mu(self, unit: str=None):
         """This observer's pitch-angle cosines."""
-        return self._get_indices('mu', unit=unit)
+        return self._get_indices('mu', unit=unit).values
 
     def _get_indices(self, name: str, unit: str=None, **kwargs):
         """Get the index-like object for this axis."""
