@@ -1,5 +1,9 @@
 from .. import iotools
-from ._observing import Observer
+from ._observing import Observer, _pkg
+from .parameters import BaseTypesH
+
+
+basetypes = BaseTypesH(source=_pkg['src'])
 
 
 class Stream(Observer):
