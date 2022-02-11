@@ -841,7 +841,7 @@ class Dimension(algebra.Expression):
         """Create an appropriate algebraic term from input."""
         if base := getattr(obj, 'dimension', None):
             exponent = getattr(obj, 'exponent', 1)
-            return algebra.Term(base=base, exponent=exponent)
+            return algebra.Operand(base=base, exponent=exponent)
         if isinstance(obj, algebra.Term):
             return obj
         return str(obj)
