@@ -1,5 +1,6 @@
 import numbers
 import typing
+import sys
 
 import numpy as np
 import numpy.typing
@@ -163,5 +164,128 @@ def cast(
             pass
     if strict:
         raise TypeError(f"Can't convert {arg!r} to a number") from None
+
+
+class MissingArgsError(Exception):
+    pass
+
+
+class ArgsNumberError(Exception):
+    pass
+
+
+def xyz2rtp(*args):
+    """Convert (x, y, z) to (r, θ, φ).
+
+    This function treats θ as the polar angle and φ as the azimuthal angle.
+
+    Positional Parameters
+    ---------------------
+    args : ``int``s or ``tuple`` of ``int``s
+    
+    The x, y, and z values to convert. The user may either pass individual values or a three-tuple of values.
+
+    Returns
+    -------
+    ``tuple``
+    
+    A tuple containing the computed r, θ, and φ values.
+
+    Examples
+    --------
+    ```
+    >>> from eprem.tools.math import xyz2rtp
+    >>> xyz2rtp(1.0, 0.0, 0.0)
+    (1.0, 1.5707963267948966, 0.0)
+    >>> xyz2rtp(0.0, 0.0, 1.0)
+    (1.0, 0.0, 0.0)
+    >>> xyz = (0.0, 0.0, 1.0)
+    >>> xyz2rtp(xyz)
+    (1.0, 0.0, 0.0)
+    ```
+    """
+
+    if not args:
+        raise MissingArgsError
+    elif len(args) == 1:
+        x, y, z = args[0]
+    elif len(args) == 3:
+        x, y, z = args
+    else:
+        raise ArgsNumberError
+    r = np.sqrt(x*x + y*y + z*z)
+    r[np.asarray(np.abs(r) < sys.float_info.epsilon).nonzero()] = 0.0
+    t = np.arccos(z/r)
+    t[np.asarray(r == 0).nonzero()] = 0.0
+    p = np.arctan2(y, x)
+    p[np.asarray(p < 0.0).nonzero()] += 2*np.pi
+    p[np.asarray(
+        [i == 0 and j >= 0 for (i, j) in zip(x, y)]
+    ).nonzero()] = +0.5*np.pi
+    p[np.asarray(
+        [i == 0 and j < 0  for (i, j) in zip(x, y)]
+    ).nonzero()] = -0.5*np.pi
+    return (r, t, p)
+
+
+def rtp2xyz(*args):
+    """Convert (r, θ, φ) to (x, y, z).
+
+    This function treats θ as the polar angle and φ as the azimuthal angle.
+
+    Positional Parameters
+    ---------------------
+    args : ``int``s or ``tuple`` of ``int``s
+
+    The r, θ, and φ values to convert. The user may either pass individual values or a three-tuple of values.
+
+    Returns
+    -------
+    ``tuple``
+
+    A tuple containing the computed x, y, and z values.
+
+    Examples
+    --------
+    ```
+    >>> from eprem.tools.math import rtp2xyz
+    >>> import numpy as np
+    >>> rtp2xyz(1.0, 0.5*np.pi, 0)
+    (1.0, 0.0, 0.0)
+    >>> rtp2xyz(1.0, 0, 0.5*np.pi)
+    (0.0, 0.0, 1.0)
+    >>> rtp = (1.0, 0, 0.5*np.pi)
+    >>> rtp2xyz(rtp)
+    (0.0, 0.0, 1.0)
+    ```
+    """
+
+    if not args:
+        raise MissingArgsError
+    elif len(args) == 1:
+        r, t, p = args[0]
+    elif len(args) == 3:
+        r, t, p = args
+    else:
+        raise ArgsNumberError
+    x = r * np.sin(t) * np.cos(p)
+    x = zero_floor(x)
+    y = r * np.sin(t) * np.sin(p)
+    y = zero_floor(y)
+    z = r * np.cos(t)
+    z = zero_floor(z)
+    return (x, y, z)
+
+
+def zero_floor(
+    value: typing.Union[float, np.ndarray],
+) -> typing.Union[float, np.ndarray]:
+    """Round a small number, or array of small numbers, to zero."""
+    if value.shape:
+        condition = np.asarray(np.abs(value) < sys.float_info.epsilon).nonzero()
+        value[condition] = 0.0
+    else:
+        value = 0.0 if np.abs(value) < sys.float_info.epsilon else value
+    return value
 
 
