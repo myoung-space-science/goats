@@ -12,7 +12,7 @@ from goats.eprem import datasets
 from goats.eprem import observables
 
 
-_pkg = Environment('eprem')
+ENV = Environment('eprem')
 
 
 def find_file_by_template(
@@ -42,7 +42,7 @@ class Observer(base.Observer):
         self._templates = templates
         self._name = name
         self._path = path
-        self._config = self._build_confpath(config or _pkg['config'])
+        self._config = self._build_confpath(config or ENV['config'])
         self.system = quantities.MetricSystem(system)
         self._dataset = None
         self._arguments = None
@@ -79,7 +79,7 @@ class Observer(base.Observer):
     def arguments(self):
         """The parameter arguments available to this observer."""
         if self._arguments is None:
-            source_path = _pkg['src']
+            source_path = ENV['src']
             config_path = self._config
             self._arguments = parameters.Arguments(
                 source_path=source_path,

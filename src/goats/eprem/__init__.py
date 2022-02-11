@@ -1,5 +1,5 @@
 from .. import iotools
-from ._observing import Observer, _pkg
+from ._observing import Observer, ENV
 from .parameters import BaseTypesH
 
 
@@ -10,7 +10,7 @@ __all__ = [
 ]
 
 
-basetypes = BaseTypesH(source=_pkg['src'])
+basetypes = BaseTypesH(source=ENV['src'])
 
 
 class Stream(Observer):
