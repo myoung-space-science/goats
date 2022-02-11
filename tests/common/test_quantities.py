@@ -147,12 +147,30 @@ def test_unit():
 # These were copied from test_units.py; there is significant overlap with other
 # tests in this module.
 strings = {
-    'm': 'm',
-    'm / s': 'm s^-1',
-    '1 / s': 's^-1',
-    '1 / s^2': 's^-2',
-    's^3 / km^6': 's^3 km^-6',
-    '# / (cm^2*s*sr*MeV/nuc)': '# cm^-2 s^-1 sr^-1 MeV^-1 nuc',
+    'm': {
+        'unit': 'm',
+        'dimension': 'L',
+    },
+    'm / s': {
+        'unit': 'm s^-1',
+        'dimension': 'L T^-1',
+    },
+    '1 / s': {
+        'unit': 's^-1',
+        'dimension': 'T^-1',
+    },
+    '1 / s^2': {
+        'unit': 's^-2',
+        'dimension': 'T^-2',
+    },
+    's^3 / km^6': {
+        'unit': 's^3 km^-6',
+        'dimension': 'T^3 L^-6',
+    },
+    '# / (cm^2*s*sr*MeV/nuc)': {
+        'unit': '# cm^-2 s^-1 sr^-1 (MeV nuc^-1)^-1',
+        'dimension': 'L^-2 T^-1 (M L^2 T^-2 M^-1)^-1',
+    },
 }
 conversions = {
     ('km/s', 'm/s'): 1e3,
@@ -177,6 +195,14 @@ powers = {
     ('m/s', 3): 'm^3 s^-3',
     ('J*s^2/m^3', -1): 'J^-1 s^-2 m^3',
 }
+
+
+def test_unit_init():
+    """Initialize the Unit object with various strings."""
+    for arg, expected in strings.items():
+        unit = quantities.Unit(arg)
+        assert unit == expected['unit']
+        assert unit.dimension == quantities.Dimension(expected['dimension'])
 
 
 def test_multiply():
