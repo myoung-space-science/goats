@@ -250,15 +250,17 @@ class Mapping(collections.abc.Mapping):
         """Find the equivalent aliased key."""
         if mapping is None:
             mapping = self._aliased
-        match = (k for k in mapping if key == k)
-        return next(match, None)
+        for k in mapping:
+            if key == k:
+                return k
 
     def _search_by_alias(self, alias, mapping: typing.Mapping=None):
         """Find the aliased key containing this alias."""
         if mapping is None:
             mapping = self._aliased
-        match = (k for k in mapping if alias in k)
-        return next(match, None)
+        for k in mapping:
+            if alias in k:
+                return k
 
     def _build_from_aliases(
         self,
