@@ -885,6 +885,9 @@ class BaseUnit(typing.NamedTuple):
     system: str=None
 
 
+Instance = typing.TypeVar('Instance', bound='NamedUnit')
+
+
 class NamedUnit(iterables.ReprStrMixin):
     """A single named unit and corresponding metadata."""
 
