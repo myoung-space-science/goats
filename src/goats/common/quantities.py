@@ -883,7 +883,6 @@ class BaseUnit(typing.NamedTuple):
     name: str
     quantity: str
     system: str=None
-    aliases: iterables.whole=None
 
 
 class NamedUnit(iterables.ReprStrMixin):
