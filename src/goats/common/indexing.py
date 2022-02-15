@@ -99,9 +99,7 @@ class Indexer:
     def __call__(self, *user):
         """Create an index object from user input."""
         targets = self._normalize(*user)
-        if all(index in self.reference for index in targets):
-            return Indices(targets)
-        raise IndexError("Invalid target indices.")
+        return Indices(targets)
 
     def _normalize(self, *user):
         """Helper for computing target values from user input."""
