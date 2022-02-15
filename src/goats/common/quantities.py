@@ -822,22 +822,26 @@ definitions = {
 }
 
 
+Instance = typing.TypeVar('Instance', bound='Dimension')
+
+
 class Dimension(algebra.Expression):
     """An algebraic expression representing a physical dimension."""
 
-    def __init__(
-        self,
+    def __new__(
+        cls: typing.Type[Instance],
         expression: typing.Union['Dimension', str, iterables.whole],
-        **kwargs,
-    ) -> None:
-        if isinstance(expression, Dimension):
-            expression = str(expression)
+        **kwargs
+    ) -> Instance:
+        if isinstance(expression, cls):
+            return expression
         if isinstance(expression, iterables.whole):
-            terms = [self._get_term(term) for term in expression]
-            return super().__init__(terms, **kwargs)
-        return super().__init__(expression, **kwargs)
+            terms = [cls._get_term(term) for term in expression]
+            return super().__new__(cls, terms, **kwargs)
+        return super().__new__(cls, expression, **kwargs)
 
-    def _get_term(self, obj):
+    @staticmethod
+    def _get_term(obj):
         """Create an appropriate algebraic term from input."""
         if base := getattr(obj, 'dimension', None):
             exponent = getattr(obj, 'exponent', 1)
@@ -1060,34 +1064,24 @@ class UnitTerm(algebra.Term):
         return NotImplemented
 
 
+Instance = typing.TypeVar('Instance', bound='Unit')
+
+
 class Unit(algebra.Expression):
     """An algebraic expression representing a physical unit."""
 
-    def __init__(
-        self,
+    dimension: Dimension=None
+
+    def __new__(
+        cls: typing.Type[Instance],
         expression: typing.Union['Unit', str, iterables.whole],
-        **kwargs,
-    ) -> None:
-        if isinstance(expression, Unit):
-            expression = str(expression)
-        super().__init__(expression, **kwargs)
-        self._dimension = None
-        self._unit_terms = None
-
-    @property
-    def terms(self) -> typing.List[UnitTerm]:
-        if self._unit_terms is None:
-            self._unit_terms = [
-                UnitTerm(*term.attrs) for term in super().terms
-            ]
-        return self._unit_terms
-
-    @property
-    def dimension(self):
-        """The dimension of this unit."""
-        if self._dimension is None:
-            self._dimension = Dimension(self.terms)
-        return self._dimension
+        **kwargs
+    ) -> Instance:
+        """"""
+        new = super().__new__(cls, expression, **kwargs)
+        new.terms = [UnitTerm(*term.attrs) for term in new.terms]
+        new.dimension = Dimension(new.terms)
+        return new
 
     def __floordiv__(self, other: 'Unit') -> float:
         """Compute the magnitude of this unit relative to another.
