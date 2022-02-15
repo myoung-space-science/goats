@@ -501,10 +501,9 @@ def test_expression_algebra():
 
     # Test in-place exponentiation
     e = expressions[0]
-    ec = e.copy()
-    ec **= 3
+    e **= 3
     expected = algebra.Expression('a^3')
-    assert ec == expected
+    assert e == expected
 
     # Test exponentiation with multiple terms
     assert expressions[2] ** 3 == algebra.Expression('c^9 * b^-9')
@@ -524,14 +523,6 @@ def test_algebra_with_conversion():
     expected = algebra.Expression('a * b^3 / (c^2 * d)')
     assert expr * 'b^2 * c / (a * d)' == expected
     assert expr / 'a * d / (b^2 * c)' == expected
-
-
-@pytest.mark.expression
-def test_expression_copy():
-    """Test the method that creates a copy of an expression."""
-    expr = algebra.Expression('a * b^2 / c^3')
-    assert expr.copy() == expr
-    assert expr.copy() is not expr
 
 
 @pytest.mark.expression
