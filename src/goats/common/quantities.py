@@ -893,85 +893,71 @@ class NamedUnit(iterables.ReprStrMixin):
 
     @classmethod
     def parse(cls, string: str):
-        unit = named_units[string]
+        """Determine the magnitude and reference of a unit.
+        
+        Parameters
+        ----------
+        string : str
+            A string representing a metric unit.
+
+        Returns
+        -------
+        tuple
+            A 2-tuple in which the first element is a `~quantities.MetricPrefix`
+            representing the order-of-magnitude of the given unit and the second
+            element is a `~quantities.BaseUnit` representing the unscaled (i.e.,
+            order-unity) metric unit.
+
+        Examples
+        --------
+        >>> mag, ref = NamedUnit.parse('km')
+        >>> mag
+        MetricPrefix(symbol='k', name='kilo', factor=1000.0)
+        >>> ref
+        BaseUnit(symbol='m', name='meter', quantity='length', system='mks')
+        """
+        try:
+            unit = named_units[string]
+        except KeyError as err:
+            raise UnitParsingError(string) from err
         magnitude = MetricPrefix(**unit['prefix'])
         reference = BaseUnit(**unit['base'])
         return magnitude, reference
+
+    _magnitude: MetricPrefix=None
+    _reference: BaseUnit=None
+    name: str=None
+    symbol: str=None
+    scale: float=None
+    quantity: str=None
+    dimension: str=None
 
     def __new__(cls, arg: typing.Union[str, 'NamedUnit']):
         """Create a new instance or return an existing one."""
         if isinstance(arg, NamedUnit):
             return arg
         string = str(arg)
-        try:
-            key = cls.parse(string)
-            available = cls._instances.get(key)
-            if not available:
-                cls._instances[key] = super().__new__(cls)
-            cls._latest = key
-        except KeyError:
-            raise UnitParsingError(string)
-        else:
-            return cls._instances[key]
-
-    # This will be true after the first pass through __init__ for a given unit.
-    # The instance __getattribute__ uses it to control access to certain
-    # attributes that are only necessary during instantiation.
-    _init = False
-
-    def __init__(self, arg: typing.Union[str, 'NamedUnit']) -> None:
-        self._arg = arg
-        if not self._init and self._latest:
-            self._magnitude, self._reference = self._latest
-            self._latest = None
-        self._name = None
-        self._symbol = None
-        self._scale = None
-        self._quantity = None
-        self._dimension = None
-        self._init = True
-
-    def __getattribute__(self, name: str) -> typing.Any:
-        if name == '_latest' and self._init:
-            raise AttributeError(f"{name!r} is not accessible on instances")
-        return super().__getattribute__(name)
-
-    @property
-    def name(self) -> str:
+        magnitude, reference = cls.parse(string)
+        key = (magnitude, reference)
+        if available := cls._instances.get(key):
+            return available
+        new = super().__new__(cls)
+        new._magnitude = magnitude
+        new._reference = reference
+        new.name = f"{magnitude.name}{reference.name}"
         """The full name of this unit."""
-        if self._name is None:
-            self._name = f"{self._magnitude.name}{self._reference.name}"
-        return self._name
-
-    @property
-    def symbol(self) -> str:
+        new.symbol = f"{magnitude.symbol}{reference.symbol}"
         """The abbreviated symbol for this unit."""
-        if self._symbol is None:
-            self._symbol = f"{self._magnitude.symbol}{self._reference.symbol}"
-        return self._symbol
-
-    @property
-    def scale(self) -> float:
+        new.scale = magnitude.factor
         """The metric scale factor of this unit."""
-        if self._scale is None:
-            self._scale = self._magnitude.factor
-        return self._scale
-
-    @property
-    def quantity(self) -> str:
+        new.quantity = reference.quantity
         """The physical quantity of this unit."""
-        if self._quantity is None:
-            self._quantity = self._reference.quantity
-        return self._quantity
-
-    @property
-    def dimension(self) -> str:
+        dimensions = get_property(new.quantity, 'dimensions')
+        system = new._reference.system or 'mks'
+        new.dimension = dimensions[system]
         """The physical dimension of this unit."""
-        if self._dimension is None:
-            system = self._reference.system or 'mks'
-            dimensions = get_property(self.quantity, 'dimensions')
-            self._dimension = dimensions[system]
-        return self._dimension
+        cls._instances[key] = new
+        return new
 
     def __floordiv__(self, target: typing.Union[str, 'NamedUnit']) -> float:
         """Compute the magnitude of this unit relative to another.
