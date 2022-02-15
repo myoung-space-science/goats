@@ -6,8 +6,7 @@ import itertools
 import numbers
 import re
 from operator import attrgetter
-from typing import *
-from typing import Pattern
+import typing
 
 from goats.common import iterables
 
@@ -216,7 +215,7 @@ class Term(Operand):
         return super().__eq__(other)
 
 
-def asterms(these: Iterable[str]):
+def asterms(these: typing.Iterable[str]):
     """Convert strings to terms, if possible."""
     return [OperandFactory().create(this) for this in these]
 
@@ -229,8 +228,8 @@ class OperandValueError(ValueError):
     pass
 
 
-T = TypeVar('T', bound=Part)
-class PartMatch(Generic[T], iterables.ReprStrMixin):
+T = typing.TypeVar('T', bound=Part)
+class PartMatch(typing.Generic[T], iterables.ReprStrMixin):
     """An object that represents the result of a RE pattern match."""
 
     def __new__(cls, result, context):
@@ -240,7 +239,7 @@ class PartMatch(Generic[T], iterables.ReprStrMixin):
                 f"Result must be an Part"
                 f", not {type(result)}"
             ) from None
-        if not isinstance(context, (re.Match, Mapping)):
+        if not isinstance(context, (re.Match, typing.Mapping)):
             raise TypeError(
                 f"Context may be a Match object or a Mapping"
                 f", not {type(context)}"
@@ -250,17 +249,17 @@ class PartMatch(Generic[T], iterables.ReprStrMixin):
     def __init__(
         self,
         result: T,
-        context: Union[re.Match, Mapping],
+        context: typing.Union[re.Match, typing.Mapping],
     ) -> None:
         self.result = result
         """The result of the match attempt."""
         self._context = self._set_context(context)
 
-    def _set_context(self, user: Any) -> dict:
+    def _set_context(self, user: typing.Any) -> dict:
         """Normalize the instance context from user input."""
         if isinstance(user, re.Match):
             return self._set_from_match(user)
-        if isinstance(user, Mapping):
+        if isinstance(user, typing.Mapping):
             return self._set_from_mapping(user)
 
     def _set_from_match(self, match: re.Match):
@@ -271,7 +270,7 @@ class PartMatch(Generic[T], iterables.ReprStrMixin):
             'string': match.string,
         }
 
-    def _set_from_mapping(self, mapping: Mapping):
+    def _set_from_mapping(self, mapping: typing.Mapping):
         """Set the instance context from a mapping."""
         attrs = (
             'start',
@@ -313,8 +312,8 @@ class PartMatch(Generic[T], iterables.ReprStrMixin):
         return ', '.join(f"{k}: {getattr(self, v)}" for k, v in attrs.items())
 
 
-@runtime_checkable
-class PartFactory(Protocol):
+@typing.runtime_checkable
+class PartFactory(typing.Protocol):
     """Protocol for algebraic factories."""
 
     @abc.abstractmethod
@@ -410,7 +409,7 @@ class OperandFactory(PartFactory):
         'exponent': (numbers.Real, str),
     }
     @classmethod
-    def isvalid(cls, name: str, this: Any):
+    def isvalid(cls, name: str, this: typing.Any):
         """True if `this` is valid for use as the named attribute."""
         return isinstance(this, cls._argtypes[name])
 
@@ -432,7 +431,7 @@ class OperandFactory(PartFactory):
             f" (got {nargs})"
         )
 
-    def _length_1(self, args: Any):
+    def _length_1(self, args: typing.Any):
         """Normalize a length-1 argument tuple, if possible.
 
         A length-1 tuple may represent either:
@@ -454,7 +453,7 @@ class OperandFactory(PartFactory):
             f" not {type(arg)}"
         )
 
-    def _length_2(self, args: Any):
+    def _length_2(self, args: typing.Any):
         """Normalize a length-2 argument tuple, if possible.
 
         A length-2 tuple may represent either:
@@ -481,7 +480,7 @@ class OperandFactory(PartFactory):
             f"({', '.join(str(t) for t in badtypes)})"
         )
 
-    def _length_3(self, args: Any):
+    def _length_3(self, args: typing.Any):
         """Normalize a length-3 argument tuple.
 
         A length-3 tuple must have the form (coefficient <Real>, base <str>,
@@ -494,7 +493,7 @@ class OperandFactory(PartFactory):
             fill=True,
         )
 
-    def create(self, *args, strict: bool=False) -> Optional[Operand]:
+    def create(self, *args, strict: bool=False) -> typing.Optional[Operand]:
         """Create an operand from input.
 
         Parameters
@@ -630,7 +629,7 @@ class OperandFactory(PartFactory):
         string: str,
         mode: str='match',
         start: int=0,
-    ) -> Optional[PartMatch[Operand]]:
+    ) -> typing.Optional[PartMatch[Operand]]:
         """Attempt to find an irreducible term at the start of `string`.
 
         Notes
@@ -659,14 +658,14 @@ class OperandFactory(PartFactory):
         self,
         pattern: str,
         mode: str,
-    ) -> Callable[[str], re.Match]:
+    ) -> typing.Callable[[str], re.Match]:
         """Look up the appropriate matching method for `pattern` and `mode`."""
         return getattr(self.patterns[pattern], mode)
 
     def _get_build_method(
         self,
         pattern: str,
-    ) -> Callable[[re.Match], PartMatch[Operand]]:
+    ) -> typing.Callable[[re.Match], PartMatch[Operand]]:
         """Look up the appropriate building method for `pattern`."""
         return getattr(self, f'_build_{pattern}')
 
@@ -692,7 +691,7 @@ class OperandFactory(PartFactory):
         string: str,
         mode: str='match',
         start: int=0,
-    ) -> Optional[PartMatch[Operand]]:
+    ) -> typing.Optional[PartMatch[Operand]]:
         """Attempt to match a complex operand at the start of `string`."""
         target = string[start:]
         bounds = self.find_bounds(target)
@@ -798,7 +797,7 @@ class OperandFactory(PartFactory):
         self,
         fill: bool=False,
         **given
-    ) -> Dict[str, Union[float, int, str, fractions.Fraction]]:
+    ) -> typing.Dict[str, typing.Union[float, int, str, fractions.Fraction]]:
         """Cast to appropriate types and fill in defaults, if necessary."""
         full = {
             'coefficient': {'callable': self._standard_coefficient},
@@ -861,7 +860,8 @@ class OperandFactory(PartFactory):
 
 class ParsingError(Exception):
     """Base class for exceptions encountered during algebraic parsing."""
-    def __init__(self, arg: Any) -> None:
+
+    def __init__(self, arg: typing.Any) -> None:
         self.arg = arg
 
 
@@ -976,7 +976,7 @@ class Parser:
         operand = Operand(base=string)
         return self._resolve_operations(operand)
 
-    def _resolve_operations(self, current: Operand) -> List[Term]:
+    def _resolve_operations(self, current: Operand) -> typing.List[Term]:
         """Separate an algebraic group into operators and operands."""
         operands = self._parse_operand(current)
         return [
@@ -984,7 +984,7 @@ class Parser:
             for term in self._update_terms(operand)
         ] + [Term(coefficient=current.coefficient)]
 
-    def _parse_operand(self, initial: Operand) -> List[Operand]:
+    def _parse_operand(self, initial: Operand) -> typing.List[Operand]:
         """Resolve a general operand into simpler operands.
 
         This method parses known operators and operands from the initial operand
@@ -1093,7 +1093,7 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
 
     def __init__(
         self,
-        expression: Union[str, iterables.whole],
+        expression: typing.Union[str, iterables.whole],
         **kwargs
     ) -> None:
         """Create a new expression from user input.
@@ -1117,7 +1117,10 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
         self._terms = self.parser.parse(string)
         self._reduce()
 
-    def _standardize(self, expression: Union[str, iterables.whole]) -> str:
+    def _standardize(
+        self,
+        expression: typing.Union[str, iterables.whole],
+    ) -> str:
         """Convert user input to a standard format."""
         if not expression:
             return '1'
@@ -1126,11 +1129,11 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
         return ' * '.join(f"({part})" for part in expression)
 
     @property
-    def terms(self) -> List[Term]:
+    def terms(self) -> typing.List[Term]:
         """The algebraic terms in this expression."""
         return self._terms or []
 
-    def __iter__(self) -> Iterator[Term]:
+    def __iter__(self) -> typing.Iterator[Term]:
         return iter(self.terms)
 
     def __len__(self) -> int:
@@ -1183,7 +1186,7 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
         terms = self._reduce(self._terms, other)
         return self._new(terms)
 
-    def __rmul__(self, other: Any):
+    def __rmul__(self, other: typing.Any):
         """Called for other * self."""
         return self._convert(other).__mul__(self)
 
@@ -1201,7 +1204,7 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
             return NotImplemented
         return self.__mul__([term ** -1 for term in other])
 
-    def __rtruediv__(self, other: Any):
+    def __rtruediv__(self, other: typing.Any):
         """Called for other / self."""
         return self._convert(other).__truediv__(self)
 
@@ -1224,7 +1227,12 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
             term **= exp
         return self._reduce()
 
-    def _convert(self, other, converter: Callable=None, fatal: bool=False):
+    def _convert(
+        self,
+        other,
+        converter: typing.Callable=None,
+        fatal: bool=False,
+    ):
         """Convert `other` to a new type, if possible.
 
         Parameters
@@ -1251,7 +1259,7 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
         else:
             return converted
 
-    def _reduce(self, *groups: Iterable[Term]):
+    def _reduce(self, *groups: typing.Iterable[Term]):
         """Algebraically reduce terms with equal bases.
 
         Parameters
@@ -1272,7 +1280,7 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
         terms = (term for group in groups for term in group)
         return self._reducer(terms)
 
-    def _reducer(self, terms: Iterable[Term]):
+    def _reducer(self, terms: typing.Iterable[Term]):
         """Internal helper for `reduce`.
 
         This method handles the actual logic for combining terms with the same
@@ -1311,7 +1319,7 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
         return self._new(self._terms)
 
     @classmethod
-    def _new(cls, arg: Union[str, iterables.whole]):
+    def _new(cls, arg: typing.Union[str, iterables.whole]):
         """Internal helper method for creating a new instance.
 
         This method is separated out for the sake of modularity, in case of a
