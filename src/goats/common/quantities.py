@@ -1447,6 +1447,10 @@ class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
             return other.name == self.name
         return NotImplemented
 
+    def __bool__(self) -> bool:
+        """A defined metric system is always truthy."""
+        return True
+
     def keys(self) -> typing.KeysView[str]:
         return super().keys()
 
