@@ -1321,8 +1321,10 @@ class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
         """Get the metric for the requested quantity in this system."""
         try:
             quantity = get_quantity(key)
-        except KeyError:
-            raise MetricKeyError(f"No known quantity called '{key}'")
+        except KeyError as err:
+            raise MetricKeyError(
+                f"No known quantity called '{key}'"
+            ) from err
         else:
             return quantity[self.name]
 
