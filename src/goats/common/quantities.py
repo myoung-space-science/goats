@@ -1976,7 +1976,7 @@ class Measured(Ordered):
         return self
 
     @classmethod
-    def _new(cls, *args, **kwargs):
+    def _new(cls: typing.Type[Instance], *args, **kwargs) -> Instance:
         """Create a new instance from updated attributes."""
         return cls(*args, **kwargs)
 
