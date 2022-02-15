@@ -1274,10 +1274,9 @@ def test_system_unit_lookup():
         quantities.MetricSystem('mks').get_unit(unit='Erg')
 
 
-def test_system_idempotence():
-    """Make sure we can initialize an instance with an existing instance."""
+def test_system_singleton():
+    """Metric systems should be singletons of their lower-case name."""
     for system in ('mks', 'cgs'):
         old = quantities.MetricSystem(system)
         new = quantities.MetricSystem(old)
-        assert new == old
-        assert new is not old
+        assert new is old

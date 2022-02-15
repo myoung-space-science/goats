@@ -1278,24 +1278,44 @@ class MetricSearchError(KeyError):
     pass
 
 
-class MetricSystem(iterables.MappingBase, iterables.ReprStrMixin):
+class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
     """Representations of physical quantities within a given metric system."""
 
-    def __init__(self, arg: typing.Union[str, 'MetricSystem']) -> None:
-        """Initialize this instance.
+    _instances = {}
+    name: str=None
+    dimensions: typing.Dict[str, str]=None
+
+    def __new__(cls, arg: typing.Union[str, 'MetricSystem']):
+        """Return an existing instance or create a new one.
 
         Parameters
         ----------
-        arg : str or instance
-            The name of a known metric system (e.g., 'mks') or an existing
-            instance of this class from which to initialize this instance.
+        arg : str or `~quantities.MetricSystem`
+            The name of the metric system to represent (e.g., 'mks') or an
+            existing instance. Names are case sensitive. Instances are
+            singletons.
         """
-        self.name = arg.lower() if isinstance(arg, str) else arg.name
-        super().__init__(definitions.keys())
-        self.dimensions = {
-            get_property(q, 'dimensions')[self.name]: q
-            for q in self
+        if isinstance(arg, cls):
+            return arg
+        name = arg.lower()
+        if instance := cls._instances.get(name):
+            return instance
+        new = super().__new__(cls)
+        new.name = name
+        new.dimensions = {
+            get_property(q, 'dimensions')[name]: q
+            for q in definitions
         }
+        cls._instances[name] = new
+        return new
+
+    def __len__(self) -> int:
+        """The number of quantities defined in this metric system."""
+        return definitions.__len__()
+
+    def __iter__(self) -> typing.Iterator:
+        """Iterate over defined metric quantities."""
+        return definitions.__iter__()
 
     def __getitem__(self, key: str):
         """Get the metric for the requested quantity in this system."""
