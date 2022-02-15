@@ -193,6 +193,9 @@ class Mapping(collections.abc.Mapping):
     ) -> None:
         """Initialize this instance."""
         self._aliased = self._build_aliased(mapping, aliases=aliases)
+        self._keymap = {
+            alias: key for key in self._aliased for alias in key
+        }
 
     def _flat_keys(self) -> typing.KeysView[str]:
         """Define a flat list of all the keys in this mapping."""
@@ -243,24 +246,31 @@ class Mapping(collections.abc.Mapping):
     def _resolve(self, key: typing.Union[MappingKey, typing.Any]):
         """Resolve `key` into an existing or new aliased key."""
         if isinstance(key, MappingKey):
-            return self._search_by_key(key)
-        return self._search_by_alias(key)
+            return self._look_up_key(key)
+        return self._keymap.get(key)
 
-    def _search_by_key(self, key: MappingKey, mapping: typing.Mapping=None):
-        """Find the equivalent aliased key."""
-        if mapping is None:
-            mapping = self._aliased
-        for k in mapping:
-            if key == k:
-                return k
-
-    def _search_by_alias(self, alias, mapping: typing.Mapping=None):
-        """Find the aliased key containing this alias."""
-        if mapping is None:
-            mapping = self._aliased
-        for k in mapping:
-            if alias in k:
-                return k
+    def _look_up_key(self, target: MappingKey):
+        """Find the aliased key equivalent to `target`.
+        
+        Notes
+        -----
+        Checking ``key in self._aliased`` doesn't always work because `dict`
+        look-up will first compare the key's hash value to those of existing
+        keys before comparing the key itself. This may fail in the first stage
+        due to the fact that `MappingKey.__hash__` uses `tuple.__hash__`, which
+        depends on order, despite the fact that the second stage should pass
+        because `MappingKey.__eq__` does not depend on order. See
+        https://stackoverflow.com/q/327311/4739101.
+        """
+        try:
+            found = next(
+                key for key in self._aliased
+                if key == target
+            )
+        except StopIteration:
+            return
+        else:
+            return found
 
     def _build_from_aliases(
         self,
@@ -269,11 +279,11 @@ class Mapping(collections.abc.Mapping):
         """Build a `dict` that maps aliased keys to user values."""
         out = {}
         for key, value in mapping.items():
-            aliased_key = self._search_by_alias(key, mapping=out)
-            if aliased_key in out:
-                out[aliased_key] = value
-            else:
-                out[MappingKey(key)] = value
+            try:
+                aliased_key = next(k for k in out if key in k)
+            except StopIteration:
+                aliased_key = MappingKey(key)
+            out[aliased_key] = value
         return out
 
     def _build_from_key(
@@ -559,6 +569,7 @@ class MutableMapping(Mapping, collections.abc.MutableMapping):
         """Assign a value to `key` and its aliases."""
         resolved = self._resolve(key) or MappingKey(key)
         self._aliased[resolved] = value
+        self._refresh()
 
     def __delitem__(self, key: str):
         """Remove the item corresponding to `key`."""
@@ -566,6 +577,13 @@ class MutableMapping(Mapping, collections.abc.MutableMapping):
         if not resolved:
             raise KeyError(f"'{key!r}' is not a known name or alias.") from None
         del self._aliased[resolved]
+        self._refresh()
+
+    def _refresh(self):
+        """Perform common tasks after setting or deleting an item."""
+        self._keymap = {
+            alias: key for key in self._aliased for alias in key
+        }
 
     def alias(self, *current: str, include=False, **new: str):
         """Get the alias for an existing key or register new ones."""
