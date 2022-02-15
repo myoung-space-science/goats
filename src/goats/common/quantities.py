@@ -894,6 +894,50 @@ class NamedUnit(iterables.ReprStrMixin):
     _instances = {}
     _latest = None
 
+    _magnitude: MetricPrefix=None
+    _reference: BaseUnit=None
+    name: str=None
+    symbol: str=None
+    scale: float=None
+    quantity: str=None
+    dimension: str=None
+
+    def __new__(
+        cls: typing.Type[Instance],
+        arg: typing.Union[str, Instance],
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        arg : string or instance
+            A string representing the metric unit to create, or an existing instance of this class.
+        """
+        if isinstance(arg, cls):
+            return arg
+        string = str(arg)
+        magnitude, reference = cls.parse(string)
+        key = (magnitude, reference)
+        if available := cls._instances.get(key):
+            return available
+        new = super().__new__(cls)
+        new._magnitude = magnitude
+        new._reference = reference
+        new.name = f"{magnitude.name}{reference.name}"
+        """The full name of this unit."""
+        new.symbol = f"{magnitude.symbol}{reference.symbol}"
+        """The abbreviated symbol for this unit."""
+        new.scale = magnitude.factor
+        """The metric scale factor of this unit."""
+        new.quantity = reference.quantity
+        """The physical quantity of this unit."""
+        dimensions = get_property(new.quantity, 'dimensions')
+        system = new._reference.system or 'mks'
+        new.dimension = dimensions[system]
+        """The physical dimension of this unit."""
+        cls._instances[key] = new
+        return new
+
     @classmethod
     def parse(cls, string: str):
         """Determine the magnitude and reference of a unit.
@@ -926,41 +970,6 @@ class NamedUnit(iterables.ReprStrMixin):
         magnitude = MetricPrefix(**unit['prefix'])
         reference = BaseUnit(**unit['base'])
         return magnitude, reference
-
-    _magnitude: MetricPrefix=None
-    _reference: BaseUnit=None
-    name: str=None
-    symbol: str=None
-    scale: float=None
-    quantity: str=None
-    dimension: str=None
-
-    def __new__(cls, arg: typing.Union[str, 'NamedUnit']):
-        """Create a new instance or return an existing one."""
-        if isinstance(arg, NamedUnit):
-            return arg
-        string = str(arg)
-        magnitude, reference = cls.parse(string)
-        key = (magnitude, reference)
-        if available := cls._instances.get(key):
-            return available
-        new = super().__new__(cls)
-        new._magnitude = magnitude
-        new._reference = reference
-        new.name = f"{magnitude.name}{reference.name}"
-        """The full name of this unit."""
-        new.symbol = f"{magnitude.symbol}{reference.symbol}"
-        """The abbreviated symbol for this unit."""
-        new.scale = magnitude.factor
-        """The metric scale factor of this unit."""
-        new.quantity = reference.quantity
-        """The physical quantity of this unit."""
-        dimensions = get_property(new.quantity, 'dimensions')
-        system = new._reference.system or 'mks'
-        new.dimension = dimensions[system]
-        """The physical dimension of this unit."""
-        cls._instances[key] = new
-        return new
 
     def __floordiv__(self, target: typing.Union[str, 'NamedUnit']) -> float:
         """Compute the magnitude of this unit relative to another.
