@@ -218,18 +218,20 @@ class Term(Operand):
             return f"^{{{self.exponent}}}"
         raise ValueError(f"Can't format {self.exponent}")
 
-    def __int__(self) -> int:
+    def __int__(self):
         """Called for int(self)."""
-        if self.base == '1':
-            return int(self.coefficient)
-        errmsg = f"Can't convert term with base {self.base!r} to int"
-        raise TypeError(errmsg) from None
+        return self._cast_to(int)
 
-    def __float__(self) -> float:
+    def __float__(self):
         """Called for float(self)."""
+        return self._cast_to(float)
+
+    _T = typing.TypeVar('_T', int, float)
+    def _cast_to(self, __type: _T) -> _T:
+        """Internal method for casting to numeric type."""
         if self.base == '1':
-            return float(self.coefficient)
-        errmsg = f"Can't convert term with base {self.base!r} to float"
+            return __type(self.coefficient)
+        errmsg = f"Can't convert term with base {self.base!r} to {__type}"
         raise TypeError(errmsg) from None
 
     def __eq__(self, other) -> bool:
