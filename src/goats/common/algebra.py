@@ -1091,7 +1091,7 @@ class OperandError(TypeError):
 Instance = typing.TypeVar('Instance', bound='Expression')
 
 
-class Expression(collections.abc.Collection, iterables.ReprStrMixin):
+class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
     """An object representing an algebraic expression."""
 
     terms: typing.List[Term]=None
@@ -1138,14 +1138,25 @@ class Expression(collections.abc.Collection, iterables.ReprStrMixin):
             return expression
         return ' * '.join(f"({part})" for part in expression)
 
-    def __iter__(self) -> typing.Iterator[Term]:
-        return iter(self.terms)
-
     def __len__(self) -> int:
         return len(self.terms)
 
-    def __contains__(self, key: str) -> bool:
-        return key in self.terms
+    @typing.overload
+    def __getitem__(self, index: typing.SupportsIndex) -> Term: ...
+
+    @typing.overload
+    def __getitem__(self, index: slice) -> typing.Iterable[Term]: ...
+
+    def __getitem__(self, index):
+        """Access terms via standard indexing."""
+        if isinstance(index, typing.SupportsIndex):
+            idx = int(index)
+            if idx > len(self):
+                raise IndexError(index)
+            if idx < 0:
+                idx += len(self)
+            return self.terms[idx]
+        return self.terms[index]
 
     def __str__(self) -> str:
         """A simplified representation of this instance."""

@@ -542,3 +542,19 @@ def equal_terms(
         return False
     return all(term in expression.terms for term in terms)
 
+
+@pytest.mark.expression
+def test_expression_index():
+    """Users should be able to access terms via index notation."""
+    expression = algebra.Expression('a * b^-2 * c^-1')
+    terms = [
+        algebra.Term(1, 'a', 1),
+        algebra.Term(1, 'b', -2),
+        algebra.Term(1, 'c', -1),
+    ]
+    assert expression[0] == terms[0]
+    assert expression[:] == terms[:]
+    assert expression[:2] == terms[:2]
+    assert expression[1:2] == terms[1:2]
+    assert expression[-1] == terms[-1]
+
