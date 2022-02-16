@@ -63,6 +63,13 @@ def test_simple_term_operators():
     z **= -3
     assert z == algebra.Term(1, 'z', -3)
 
+@pytest.mark.term
+def test_term_cast():
+    """Test the ability to cast constant terms to `int` or `float`."""
+    constant = algebra.Term(2, '1', 1)
+    assert int(constant) == 2
+    assert float(constant) == 2.0
+
 
 @pytest.mark.term
 def test_term_evaluate():

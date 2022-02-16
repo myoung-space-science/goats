@@ -160,7 +160,7 @@ class Term(Operand):
         
         This method will attempt to substitute `value` for this term's `base`
         attribute. If successful, it will return a constant term that the caller
-        may cast to a `float`.
+        may cast to `int` or `float` type.
 
         Parameters
         ----------
@@ -218,12 +218,19 @@ class Term(Operand):
             return f"^{{{self.exponent}}}"
         raise ValueError(f"Can't format {self.exponent}")
 
+    def __int__(self) -> int:
+        """Called for int(self)."""
+        if self.base == '1':
+            return int(self.coefficient)
+        errmsg = f"Can't convert term with base {self.base!r} to int"
+        raise TypeError(errmsg) from None
+
     def __float__(self) -> float:
         """Called for float(self)."""
         if self.base == '1':
             return float(self.coefficient)
         errmsg = f"Can't convert term with base {self.base!r} to float"
-        raise TypeError(errmsg)
+        raise TypeError(errmsg) from None
 
     def __eq__(self, other) -> bool:
         if isinstance(other, numbers.Real):
