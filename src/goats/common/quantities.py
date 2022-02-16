@@ -896,7 +896,6 @@ class NamedUnit(iterables.ReprStrMixin):
     """A single named unit and corresponding metadata."""
 
     _instances = {}
-    _latest = None
 
     _magnitude: MetricPrefix=None
     _reference: BaseUnit=None
