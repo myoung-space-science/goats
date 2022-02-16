@@ -65,8 +65,8 @@ def test_simple_term_operators():
 
 
 @pytest.mark.term
-def test_term_substitute():
-    """Test the ability to substitute a value in a variable term."""
+def test_term_evaluate():
+    """Test the ability to evaluate a variable term."""
     variable = algebra.Term(3, 'a', 2)
     values = [4, -7, 11.3]
     for value in values:

@@ -156,7 +156,23 @@ class Term(Operand):
     """An algebraic operand with an irreducible base."""
 
     def __call__(self, value: numbers.Real):
-        """Evaluate a variable term at this value."""
+        """Evaluate a variable term at this value.
+        
+        This method will attempt to substitute `value` for this term's `base`
+        attribute. If successful, it will return a constant term that the caller
+        may cast to a `float`.
+
+        Parameters
+        ----------
+        value : real
+            The numerical value at which to evaluate this term.
+
+        Returns
+        -------
+        `~algebra.Term`
+            A new instance of this class equivalent to the constant numerical
+            value of this term when `base == value`.
+        """
         if not isinstance(value, numbers.Real):
             errmsg = f"Can't evaluate term with value {value!r}"
             raise TypeError(errmsg)
