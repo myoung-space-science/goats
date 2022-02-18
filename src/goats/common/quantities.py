@@ -978,33 +978,31 @@ def _search_conversions(u0: str, u1: str, name: str):
         return result / options[reverse]
 
 
+Conversions = typing.TypeVar('Conversions', bound=typing.Mapping)
+Conversions = typing.Mapping[typing.Tuple[str, str], float]
+
+
 Instance = typing.TypeVar('Instance', bound='_Conversion')
 
 
 class _Conversion:
     """Internal type representing a unit conversion."""
 
-    CT = typing.TypeVar('CT', bound=tuple)
-    CT = typing.Tuple[str, str]
-
     @typing.overload
     def __new__(
         cls: typing.Type[Instance],
-        forward: CT,
-        scale: numbers.Real=None,
+        u0: str,
+        u1: str,
     ) -> Instance:
         """Create a new instance or return an existing one.
         
         Parameters
         ----------
-        forward : tuple
-            A two-tuple of strings that represents the forward conversion. In
-            other words, an argument with the form `(u0, u1)` represents the
-            conversion from `u0` to `u1`.
+        u0 : str
+            The unit from which to convert.
 
-        scale : real number, default=None
-            An optional numerical scale factor by which to multiple the
-            numerical conversion factor. A missing value defaults to 1.0.
+        u1 : str
+            The unit to which to convert.
         """
 
     @typing.overload
@@ -1022,35 +1020,59 @@ class _Conversion:
 
     _instances = {}
 
-    forward: CT=None
-    """The forward conversion.
-    
-    When attempting to convert `u0` to `u1`, this will be `(u0, u1)`.
-    """
-    reverse: CT=None
-    """The reverse conversion.
+    u0: str=None
+    u1: str=None
 
-    When attempting to convert `u0` to `u1`, this will be `(u1, u0)`.
-    """
-    scale: float=None
-    """An external factor by which to scale the value of this conversion."""
-
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args):
         """Concrete implementation"""
-        if not kwargs and len(args) == 1 and isinstance(args[0], cls):
+        if len(args) == 1 and isinstance(args[0], cls):
             return args[0]
-        if len(args) == 2:
-            forward, scale = args
-        elif len(args) == 1:
-            forward = args[0]
-            scale = kwargs.get('scale')
-        if available := cls._instances.get(forward):
+        try:
+            u0, u1 = args
+        except ValueError as err:
+            raise TypeError(
+                "Unit conversion requires two units."
+                f" (found {len(args)})"
+            ) from err
+        if available := cls._instances.get((u0, u1)):
             return available
         self = super().__new__(cls)
-        self.scale = 1.0 if iterables.missing(scale) else float(scale)
-        self.forward = forward
-        self.reverse = forward[::-1]
+        self.u0 = u0
+        self.u1 = u1
         return self
+
+    def search(self, conversions: Conversions):
+        """Retrieve or build a conversion from `conversions`."""
+        forward = (self.u0, self.u1)
+        if found := self._search(forward, conversions):
+            return found
+        scale = 1.0
+        ux = None
+        for pair, factor in conversions.items():
+            if self.u0 in pair:
+                if self.u0 == pair[0]:
+                    scale *= factor
+                    ux = pair[1]
+                else:
+                    scale /= factor
+                    ux = pair[0]
+        if ux:
+            forward = (ux, self.u1)
+            if found := self._search(forward, conversions, scale=scale):
+                return found
+
+    def _search(
+        self,
+        forward: typing.Tuple[str, str],
+        conversions: Conversions,
+        scale: float=1.0,
+    ) -> float:
+        """Search `conversion` for the target conversion or its inverse."""
+        if forward in conversions:
+            return scale * conversions[forward]
+        reverse = forward[::-1]
+        if reverse in conversions:
+            return scale / conversions[reverse]
 
 
 Instance = typing.TypeVar('Instance', bound='_ConversionTarget')
@@ -1060,18 +1082,11 @@ Instance = typing.TypeVar('Instance', bound='_ConversionTarget')
 class _ConversionTarget:
     """Internal class for managing conversion factors."""
 
-    CKT = typing.TypeVar('CKT', bound=tuple)
-    CKT = typing.Tuple[str, str]
-    CVT = typing.TypeVar('CVT', bound=numbers.Real)
-    CVT = float
-    Factors = typing.TypeVar('Factors', bound=typing.Mapping)
-    Factors = typing.Mapping[CKT, CVT]
-
     @typing.overload
     def __new__(
         cls: typing.Type[Instance],
         unit: str,
-        factors: Factors,
+        factors: Conversions,
         substitutions: typing.Mapping[str, str]=None,
     ) -> Instance:
         """Create a new instance or return an existing one.
@@ -1109,7 +1124,7 @@ class _ConversionTarget:
     _instances = {}
 
     unit: str=None
-    factors: Factors=None
+    factors: Conversions=None
     substitutions: typing.Mapping[str, str]
 
     def __new__(cls, *args, **kwargs) -> Instance:
@@ -1175,49 +1190,20 @@ class _ConversionTarget:
         """
         if self.unit == target:
             return 1.0
-        if value := self._evaluate(self.unit, target):
-            return value
+        conversion = _Conversion(self.unit, target)
+        if factor := conversion.search(self.factors):
+            return factor
         u0 = NamedUnit(self.unit)
         u1 = NamedUnit(target)
         if u0._reference == u1._reference:
             return u0.scale / u1.scale
+        conversion = _Conversion(u0._reference.symbol, u1._reference.symbol)
         scale = u0._magnitude.factor / u1._magnitude.factor
-        pair = (u0._reference.symbol, u1._reference.symbol)
-        if value := self._evaluate(*pair, scale=scale):
-            return value
+        if factor := conversion.search(self.factors):
+            return scale * factor
         raise ValueError(
             f"Unknown conversion from {self.unit!r} to {target!r}."
         ) from None
-
-    def _evaluate(self, u0: str, u1: str, scale: float=1.0):
-        """Look up or build the appropriate conversion."""
-        conversion = _Conversion((u0, u1))
-        if found := self._check(conversion):
-            return scale * found
-        conversion = self._chain(u0, u1)
-        if found := self._check(conversion):
-            return scale * found
-
-    def _check(self, conversion: _Conversion):
-        """Attempt to retrieve the forward or reverse conversion."""
-        if conversion.forward in self.factors:
-            return conversion.scale * self.factors[conversion.forward]
-        if conversion.reverse in self.factors:
-            return conversion.scale / self.factors[conversion.reverse]
-
-    def _chain(self, u0: str, u1: str):
-        """Iteratively build a conversion from existing conversions."""
-        scale = 1.0
-        ux = None
-        for pair, factor in self.factors.items():
-            if u0 in pair:
-                if u0 == pair[0]:
-                    scale *= factor
-                    ux = pair[1]
-                else:
-                    scale /= factor
-                    ux = pair[0]
-        return _Conversion((ux, u1), scale=scale)
 
 
 Instance = typing.TypeVar('Instance', bound='_Converter')
