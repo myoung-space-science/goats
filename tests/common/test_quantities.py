@@ -11,36 +11,45 @@ from goats.common import quantities
 
 def test_conversion_factor():
     cases = {
-        'momentum': {
+        'length': {
+            ('m', 'm'): 1.0, # trivial conversion
+            ('m', 'cm'): 1e2, # defined metric-system conversion
+            ('m', 'km'): 1e-3, # base-unit rescale
+            ('m', 'mm'): 1e3, # (same)
+            ('mm', 'm'): 1e-3, # (same)
+            ('cm', 'mks'): 1e-2, # metric-system substitution
+            ('m', 'cgs'): 1e2, #(same)
+            ('mks', 'cm'): 1e2, #(same)
+            ('cgs', 'm'): 1e-2, #(same)
+            ('mks', 'cgs'): 1e2, #(same)
+            ('cgs', 'mks'): 1e-2, #(same)
+            ('m', 'au'): 1 / 1.495978707e11, # to non-system unit
+            ('au', 'm'): 1.495978707e11, # from non-system unit
+            ('au', 'au'): 1.0, # trivial non-system conversion
+        },
+        'momentum': { # complex unit expressions
             ('kg * m / s', 'g * cm / s'): 1e5,
             ('g * cm / s', 'kg * m / s'): 1e-5,
-            ('kg * m / s', 'kg * m / s'): 1.0,
-            ('mks', 'g * cm / s'): 1e5, # Tests unit-system substitution
-            ('cgs', 'kg * m / s'): 1e-5, # (same)
-            ('mks', 'cgs'): 1e5, # (same)
-            ('cgs', 'mks'): 1e-5, # (same)
         },
-        'energy': {
+        'energy': { # multiple defined conversions
             ('J', 'erg'): 1e7,
             ('eV', 'J'): 1.6022e-19,
-            ('erg', 'J',): 1e-7, # Tests reverse conversion
+            ('erg', 'J',): 1e-7, # reverse conversion
             ('J', 'eV'): 1 / 1.6022e-19, # (same)
-            ('eV', 'erg'): 1.6022e-12, # Tests chained search
+            ('eV', 'erg'): 1.6022e-12, # chained conversion
             ('erg', 'eV'): 1 / 1.6022e-12, # (same)
+            ('MeV', 'J'): 1.6022e-13, # conversion with rescale
+            ('J', 'MeV'): 1 / 1.6022e-13, # (same)
         },
         # 'energy density': { # Tests formulaic conversion
         #     ('J / m^3', 'erg / cm^3'): 1e1,
         #     ('erg / cm^3', 'J / m^3'): 1e-1,
         # },
-        None: { # This will test the branch that searches all quantities
-            ('kg * m / s', 'g * cm / s'): 1e5,
-            ('J', 'erg'): 1e7,
-            ('eV', 'erg'): 1.6022e-12,
-        },
     }
-    for quantity, conversion in cases.items():
-        for pair, expected in conversion.items():
-            result = quantities.get_conversion_factor(pair, quantity)
+    for name, conversion in cases.items():
+        for (u0, u1), expected in conversion.items():
+            quantity = quantities.Quantity(name)
+            result = quantity.convert(u0).to(u1)
             assert result == pytest.approx(expected)
 
 
@@ -140,8 +149,6 @@ def test_unit():
     assert u0**2 / u1**3 == quantities.Unit('m^2 / J^3')
     assert (u0 / u1)**2 == quantities.Unit('m^2 / J^2')
     assert quantities.Unit('cm') // u0 == 100
-    assert u0.dimension == quantities.Dimension('L')
-    assert u1.dimension == quantities.Dimension('M * L^2 / T^2')
 
 
 # These were copied from test_units.py; there is significant overlap with other
@@ -206,7 +213,6 @@ def test_unit_init():
     for arg, expected in strings.items():
         unit = quantities.Unit(arg)
         assert unit == expected['unit']
-        assert unit.dimension == quantities.Dimension(expected['dimension'])
 
 
 def test_multiply():

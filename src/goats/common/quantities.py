@@ -822,6 +822,483 @@ definitions = {
 }
 
 
+Instance = typing.TypeVar('Instance', bound='Property')
+
+
+class Property(collections.abc.Mapping, iterables.ReprStrMixin):
+    """All definitions of a single metric property."""
+
+    _instances = {}
+    _supported = (
+        'dimensions',
+        'units',
+    )
+
+    key: str=None
+
+    def __new__(
+        cls: typing.Type[Instance],
+        arg: typing.Union[str, Instance],
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        arg : string or instance
+            A string representing the metric property to create, or an existing
+            instance of this class.
+        """
+        if isinstance(arg, cls):
+            return arg
+        key = str(arg)
+        if key not in cls._supported:
+            raise ValueError(f"Unsupported property: {key}") from None
+        if available := cls._instances.get(key):
+            return available
+        self = super().__new__(cls)
+        self.key = key
+        return self
+
+    LEN = len(definitions) # No need to compute every time.
+    def __len__(self) -> int:
+        """The number of defined quantities. Called for len(self)."""
+        return self.LEN
+
+    def __iter__(self) -> typing.Iterator[str]:
+        """Iterate over names of defined quantities. Called for iter(self)."""
+        return iter(definitions)
+
+    def __getitem__(self, name: str):
+        """Get a named property of a defined quantity.
+        
+        This method will search for `name` in the module-level collection of
+        defined quantities. If it finds an `dict` entry, it will attempt to
+        extract the values corresponding to this property's `key`. If it finds a
+        `str` entry, it will attempt to create the equivalent `dict` by
+        algebraically evaluating the terms in the entry.
+        """
+        if name not in definitions:
+            raise KeyError(f"No definition for '{name}'")
+        q = definitions[name]
+        if isinstance(q, dict):
+            return q.get(self.key, {})
+        if not isinstance(q, str):
+            raise TypeError(f"Expected {name} to be a string")
+        # TODO: Cache computed results.
+        return self._parse(q)
+
+    # TODO: Define a function in `algebra.py` that wraps
+    # `OperandFactory.create`, so we can call it from here instead of creating
+    # this awkward instance.
+    _operand = algebra.OperandFactory()
+    def _parse(self, string: str):
+        """Parse a string representing a compound quantity."""
+        if ' ' in string and all(c not in string for c in ['*', '/']):
+            string = string.replace(' ', '_')
+        expr = algebra.Expression(string)
+        parts = []
+        for term in expr:
+            prop = get_property(term.base.replace('_', ' '), self.key)
+            tmp = {
+                k: _operand.create(v, term.exponent)
+                for k, v in prop.items()
+            }
+            parts.append(tmp)
+        keys = {key for part in parts for key in part.keys()}
+        merged = {key: [] for key in keys}
+        for part in parts:
+            for key, value in part.items():
+                merged[key].append(value)
+        return {
+            k: str(algebra.Expression(v))
+            for k, v in merged.items()
+        }
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return self.key
+
+
+# Does this make sense?
+UNITS = Property('units')
+DIMENSIONS = Property('dimensions')
+
+
+class Metric(typing.NamedTuple):
+    """A canonical physical quantity within a named metric system."""
+
+    # NOTE: These types are not `Unit` and `Dimension` because we need
+    # `Quantity` and `Metric` to define `Unit`.
+    unit: str=None
+    dimension: str=None
+
+
+# Deprecate after incorporating into `Quantity.convert`
+def get_conversion_factor(pair: typing.Tuple[str], quantity: str=None):
+    """Get the conversion factor for the given pair of units."""
+    if quantity:
+        return _search_conversions(*pair, quantity)
+    for quantity in definitions:
+        if f := _search_conversions(*pair, quantity):
+            return f
+
+
+# Deprecate after incorporating into `Quantity.convert`
+def _search_conversions(u0: str, u1: str, name: str):
+    """Helper function for getting a conversion factor."""
+    defined = get_quantity(name)
+    if not (options := defined.conversions):
+        return
+    units = {'u0': u0, 'u1': u1}
+    for k, v in units.items():
+        if v in defined.units:
+            units[k] = defined.units[v]
+    u0, u1 = units['u0'], units['u1']
+    if u0 == u1:
+        return 1.0
+    forward, reverse = (u0, u1), (u1, u0)
+    if forward in options:
+        return options[forward]
+    if reverse in options:
+        return 1.0 / options[reverse]
+    result = 1.0
+    ux = None
+    for pair, factor in options.items():
+        if u0 in pair:
+            if u0 == pair[0]:
+                result *= factor
+                ux = pair[1]
+            else:
+                result /= factor
+                ux = pair[0]
+    forward, reverse = (ux, u1), (u1, ux)
+    if forward in options:
+        return result * options[forward]
+    if reverse in options:
+        return result / options[reverse]
+
+
+Instance = typing.TypeVar('Instance', bound='_ConversionTarget')
+
+
+class _ConversionTarget:
+    """Internal class for managing conversion factors."""
+
+    CKT = typing.TypeVar('CKT')
+    CKT = typing.Union[typing.Tuple[str, str], str]
+    CVT = typing.TypeVar('CVT', bound=float)
+    CVT = float
+    Factors = typing.TypeVar('Factors', bound=typing.Mapping)
+    Factors = typing.Mapping[CKT, CVT]
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        unit: str,
+        factors: Factors,
+        substitutions: typing.Mapping[str, str]=None,
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        unit : string
+            The unit to be converted.
+
+        factors : mapping
+            A mapping from pairs of unit strings to their corresponding
+            numerical conversion factors, or from the name of a metric system to
+            the numerical conversion factor necessary to convert `unit` into
+            that system.
+
+        substitutions : mapping, optional
+            A one-to-one mapping from string keys to canonical unit strings. If
+            present, the user will be able to request a conversion to the
+            canonical unit by passing the corresponding key.
+        """
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        instance: Instance,
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        instance
+            An existing instance of this class.
+        """
+
+    _instances = {}
+
+    unit: str=None
+    factors: Factors=None
+    substitutions: typing.Mapping[str, str]
+
+    def __new__(cls, *args, **kwargs) -> Instance:
+        """Concrete implementation."""
+        if not kwargs and len(args) == 1 and isinstance(args[0], cls):
+            return args[0]
+        if len(args) != 2:
+            raise TypeError(
+                f"{cls} takes two positional arguments"
+                ": the unit to convert and a mapping of conversion factors"
+            ) from None
+        unit = str(args[0])
+        if available := cls._instances.get(unit):
+            return available
+        self = super().__new__(cls)
+        factors = args[1]
+        # NOTE: This used to raise a `TypeError` when `factors` was empty but I
+        # took that out because we can still compute conversions based on metric
+        # scale factors (e.g., 'm' to 'km'). We may want to return to `factors`
+        # being optional.
+        if not isinstance(factors, typing.Mapping):
+            raise TypeError(
+                "Second argument must be a mapping, "
+                f"not {type(factors)}"
+            ) from None
+        self.factors = factors
+        self.substitutions = kwargs.get('substitutions', {})
+        self.unit = self.substitutions.get(unit) or unit
+        return self
+
+    def __call__(self, target: str):
+        """Compute the conversion from `self.unit` to `unit`."""
+        unit = self.substitutions.get(target) or target
+        return self._convert_to(unit)
+
+    def _convert_to(self, target: str):
+        """Internal unit-conversion logic.
+        
+        Parameters
+        ----------
+        target : string
+            The unit or system to which to convert the current unit. See Notes
+            for details on how this method handles `target`.
+
+        Notes
+        -----
+        This method proceeds as follows:
+        
+        1. If `target` and the current unit are the same, return 1.0.
+        1. If the conversion to `target` is defined, return the corresponding
+           value.
+        1. If the conversion from `target` is defined, return the inverse of the
+           corresponding value.
+        1. If `target` and the current unit have the same base unit (e.g., 'm'
+           for 'cm' and 'km'), return the ratio of their scale factors. This
+           happens later in the chain because it requires two conversions to
+           `~quantities.NamedUnit` and an arithmetic operation, whereas previous
+           cases only require a mapping look-up.
+        1. Raise an exception to alert the caller that the conversion is
+           undefined.
+        """
+        # Same unit; conversion unnecessary
+        if self.unit == target:
+            return 1.0
+        # Look up known conversion
+        scale = 1.0
+        forward = (self.unit, target)
+        if forward in self.factors:
+            return scale * self.factors[forward]
+        reverse = forward[::-1]
+        if reverse in self.factors:
+            return scale / self.factors[reverse]
+        # Chain multiple known conversions
+        scale = 1.0
+        ux = None
+        for pair, factor in self.factors.items():
+            if self.unit in pair:
+                if self.unit == pair[0]:
+                    scale *= factor
+                    ux = pair[1]
+                else:
+                    scale /= factor
+                    ux = pair[0]
+        forward, reverse = (ux, target), (target, ux)
+        if forward in self.factors:
+            return scale * self.factors[forward]
+        if reverse in self.factors:
+            return scale / self.factors[reverse]
+        # TODO:
+        # - handle metric scale factors in conversions (e.g., 'J' to 'MeV')
+        u0 = NamedUnit(self.unit)
+        u1 = NamedUnit(target)
+        if u0._reference == u1._reference:
+            return u0.scale / u1.scale
+        raise ValueError(
+            f"Unknown conversion from {self.unit!r} to {target!r}."
+        ) from None
+
+    def _build_pair(self, target: str):
+        """"""
+
+
+Instance = typing.TypeVar('Instance', bound='_Conversion')
+
+
+class _Conversion:
+    """Internal type that creates singleton conversion targets."""
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        unit: str,
+        quantity: str,
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        unit : string
+            The unit to be converted.
+
+        quantity : string
+            The physical quantity of `unit`.
+        """
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        instance: Instance,
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        instance
+            An existing instance of this class.
+        """
+
+    _instances = {}
+
+    unit: str=None
+    quantity: str=None
+    _defined: typing.Union[str, typing.Dict[str, dict]]
+
+    def __new__(cls, *args):
+        """Concrete implementation."""
+        if len(args) == 1 and isinstance(args[0], cls):
+            return args[0]
+        unit, quantity = (str(arg) for arg in args)
+        if available := cls._instances.get(unit):
+            return available
+        self = super().__new__(cls)
+        self.unit = unit
+        defined = definitions.get(quantity)
+        if not defined:
+            raise ValueError(f"Unknown quantity {quantity}")
+        self.quantity = quantity
+        self._defined = defined
+        return self
+
+    @property
+    def to(self) -> _ConversionTarget:
+        """Create appropriate targets for converting this object."""
+        # TODO: This will need 
+        # * parsing logic similar to that in `Property` in order to handle
+        #   derived quantities (e.g., area)
+        # * the logic from `_search_conversions` for computing
+        #   reverse-conversion factors
+        # * an algorithm for computing conversion factors for derived quantities
+        factors = {} # PLACEHOLDER
+        if isinstance(self._defined, dict):
+            factors = self._defined.get('conversions', {})
+            substitutions = self._defined['units'].copy()
+        elif isinstance(self._defined, str) and self._defined in definitions:
+            actual = definitions[self._defined]
+            factors = actual.get('conversions', {})
+            substitutions = actual['units'].copy()
+        return _ConversionTarget(
+            self.unit,
+            factors,
+            substitutions=substitutions,
+        )
+
+
+Instance = typing.TypeVar('Instance', bound='Quantity')
+
+
+class Quantity(iterables.ReprStrMixin):
+    """A single physical quantity."""
+
+    _instances = {}
+
+    Attr = typing.TypeVar('Attr', bound=dict)
+    Attr = typing.Mapping[str, typing.Dict[str, str]]
+
+    name: str=None
+    _units: Attr=None
+    _dimensions: Attr=None
+
+    def __new__(
+        cls: typing.Type[Instance],
+        arg: typing.Union[str, Instance],
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        arg : string or instance
+            A string representing the physical quantity to create, or an
+            existing instance of this class.
+        """
+        if isinstance(arg, cls):
+            return arg
+        name = str(arg).lower()
+        if available := cls._instances.get(name):
+            return available
+        self = super().__new__(cls)
+        self.name = name
+        """The name of this physical quantity."""
+        self._units = UNITS[self.name]
+        self._dimensions = DIMENSIONS[self.name]
+        cls._instances[name] = self
+        return self
+
+    def __getitem__(self, system: str):
+        """Get this quantity's representation in the named metric system."""
+        try:
+            name = system.lower()
+            dimension = self._dimensions[name]
+            unit = self._units[name]
+        except KeyError as err:
+            raise KeyError(
+                f"No metric available for system '{system}'"
+            ) from err
+        else:
+            return Metric(dimension=dimension, unit=unit)
+
+    # NOTE: This is here because unit conversions are only defined within their
+    # respective quantities, even though two quantities may have identical
+    # conversions (e.g., frequency and vorticity).
+    def convert(self, unit: str) -> _Conversion:
+        """Create a conversion object for `unit`."""
+        return _Conversion(unit, self.name)
+
+    _attrs = ('_dimensions', '_units')
+
+    def __eq__(self, other) -> bool:
+        """True if two quantities have equal attributes."""
+        if isinstance(other, Quantity):
+            try:
+                equal = [
+                    getattr(self, attr) == getattr(other, attr)
+                    for attr in self._attrs
+                ]
+            except AttributeError:
+                return False
+            else:
+                return all(equal)
+        return NotImplemented
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return self.name
+
+
 Instance = typing.TypeVar('Instance', bound='Dimension')
 
 
@@ -924,8 +1401,8 @@ class NamedUnit(iterables.ReprStrMixin):
         if available := cls._instances.get(key):
             return available
         new = super().__new__(cls)
-        new._magnitude = magnitude
-        new._reference = reference
+        new._magnitude = magnitude # Rename this `prefix`
+        new._reference = reference # Rename this `base`
         new.name = f"{magnitude.name}{reference.name}"
         """The full name of this unit."""
         new.symbol = f"{magnitude.symbol}{reference.symbol}"
@@ -974,6 +1451,8 @@ class NamedUnit(iterables.ReprStrMixin):
         reference = BaseUnit(**unit['base'])
         return magnitude, reference
 
+    # TODO: We may be able to simplify or remove this after finishing the
+    # re-implementation of `Unit.__floordiv__`.
     def __floordiv__(self, target: typing.Union[str, 'NamedUnit']) -> float:
         """Compute the magnitude of this unit relative to another.
 
@@ -1034,53 +1513,19 @@ class NamedUnit(iterables.ReprStrMixin):
         return f"'{self.name} | {self.symbol}'"
 
 
-class UnitTerm(algebra.Term):
-    """An algebraic term containing a single named unit."""
-
-    def __init__(
-        self,
-        coefficient: numbers.Real=1,
-        base: typing.Union[str, algebra.Term]='1',
-        exponent: numbers.Real=1,
-    ) -> None:
-        super().__init__(
-            coefficient=coefficient,
-            base=str(base),
-            exponent=exponent
-        )
-        self._unit = NamedUnit(self.base)
-        self.dimension = self._unit.dimension
-        self.quantity = self._unit.quantity
-
-    def __floordiv__(self, other):
-        if isinstance(other, UnitTerm):
-            if other.exponent == self.exponent:
-                return (self._unit // other._unit) ** self.exponent
-            raise ValueError(
-                f"Can't compute {self} // {other}"
-                ". Ratio must be unitless."
-            )
-        return NotImplemented
-
-
 Instance = typing.TypeVar('Instance', bound='Unit')
 
 
 class Unit(algebra.Expression):
     """An algebraic expression representing a physical unit."""
 
-    dimension: Dimension=None
-
     def __new__(
         cls: typing.Type[Instance],
         expression: typing.Union['Unit', str, iterables.whole],
         **kwargs
     ) -> Instance:
-        """"""
-        new = super().__new__(cls, expression, **kwargs)
-        new.terms = [UnitTerm(*term.attrs) for term in new.terms]
-        new.dimension = Dimension(new.terms)
-        return new
+        """Create a new unit from `expression`."""
+        return super().__new__(cls, expression, **kwargs)
 
     def __floordiv__(self, other: 'Unit') -> float:
         """Compute the magnitude of this unit relative to another.
@@ -1107,33 +1552,41 @@ class Unit(algebra.Expression):
         These results are equivalent to the statement that there are 100
         centimeters in a meter.
         """
-        self_dim = self.dimension
-        other_dim = other.dimension
-        if self_dim != other_dim:
-            raise TypeError(
-                "Can't compute a numerical factor from"
-                f" {other.format(separator=' * ')!r}"
-                f" (dimension {other_dim})"
-                " with"
-                f" {self.format(separator=' * ')!r}"
-                f" (dimension {self_dim})"
-                ". You can use the '/' operator if you want to"
-                " create a new unit representing the ratio."
-            )
+        # NOTE: This ignores `term.coefficient` because all terms should be
+        # normalized (i.e., coefficient of 1). Are there pathological cases that
+        # warrant explicitly checking this?
+
         ratio = self / other
+        if not isinstance(ratio, type(self)):
+            raise TypeError(f"Could not compute {self} / {other}")
+        r0 = NamedUnit(ratio[0].base)._reference
         factor = 1.0
+        if all(
+            NamedUnit(term.base)._reference == r0
+            for term in ratio[1:]
+        ): # TODO: Put this `all` logic in a method or module function.
+            for term in ratio:
+                unit = NamedUnit(term.base)
+                factor *= unit._magnitude.factor ** term.exponent
+            return 1.0 / factor
         for term in ratio:
-            quantity = get_quantity(term.quantity)
-            reference = UnitTerm(
-                base=quantity.units['mks'],
-                exponent=term.exponent,
-            )
-            factor *= term // reference
+            unit = NamedUnit(term.base)
+            quantity = Quantity(unit.quantity)
+            f = quantity.convert(term.base).to('mks')
+            factor *= float(term(f))
         return factor
 
 
+# TODO: Deprecate (re-implemented in Property)
 def get_property(name: str, key: str):
-    """Get a named property of a defined quantity."""
+    """Get a named property of a defined quantity.
+    
+    This function will search for `name` in the module-level collection of
+    defined quantities. If it finds an `dict` entry, it will attempt to extract
+    the values corresponding to `key`. If it finds a `str` entry, it will
+    attempt to create the equivalent `dict` by algebraically evaluating the
+    terms in the entry.
+    """
     if name not in definitions:
         raise KeyError(f"No definition for '{name}'")
     q = definitions[name]
@@ -1145,6 +1598,7 @@ def get_property(name: str, key: str):
 
 
 _operand = algebra.OperandFactory()
+# TODO: Deprecate (re-implemented in Property)
 def parse_quantity(string: str, key: str):
     """Parse a string representing a compound quantity."""
     if ' ' in string and all(c not in string for c in ['*', '/']):
@@ -1169,75 +1623,7 @@ def parse_quantity(string: str, key: str):
     }
 
 
-class Metric(iterables.ReprStrMixin):
-    """A canonical physical quantity within a named system."""
-
-    def __init__(self, dimension, unit) -> None:
-        self.dimension = Dimension(dimension)
-        self.unit = Unit(unit)
-
-    def __eq__(self, other: typing.Any) -> bool:
-        """True if two instances have the same unit and dimension."""
-        if isinstance(other, Metric):
-            return self.unit == other.unit and self.dimension == other.dimension
-        return NotImplemented
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        return f"{self.unit=} {self.dimension=}"
-
-
-class Quantity(iterables.ReprStrMixin):
-    """A single physical quantity."""
-
-    def __init__(
-        self,
-        dimensions: typing.Mapping[str, str],
-        units: typing.Mapping[str, str],
-        conversions: typing.Mapping[typing.Tuple[str], float]=None,
-    ) -> None:
-        self.dimensions = dimensions
-        self.conversions = conversions or {}
-        self.units = {
-            **units,
-            'alt': [
-                unit for key in conversions.keys() for unit in key
-                if unit not in units.values()
-            ],
-        }
-
-    def __getitem__(self, system: str):
-        """Get this quantity's representation in the named metric system."""
-        try:
-            name = system.lower()
-            dimension = self.dimensions[name]
-            unit = self.units[name]
-        except KeyError:
-            raise KeyError(f"No metric available for system '{system}'")
-        else:
-            return Metric(dimension=dimension, unit=unit)
-
-    def __eq__(self, other) -> bool:
-        """True if two quantities have equal attributes."""
-        if isinstance(other, Quantity):
-            attrs = ['dimensions', 'units', 'conversions']
-            try:
-                equal = [
-                    getattr(self, attr) == getattr(other, attr)
-                    for attr in attrs
-                ]
-            except AttributeError:
-                return False
-            else:
-                return all(equal)
-        return NotImplemented
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        attrs = ['dimensions', 'units', 'conversions']
-        return ', '.join(f"{attr}={getattr(self, attr)}" for attr in attrs)
-
-
+# Deprecate
 def get_quantity(name: str):
     """Retrieve a named quantity or build it from a formula."""
     result = {
@@ -1268,6 +1654,9 @@ class MetricSearchError(KeyError):
     pass
 
 
+# TODO: This class will need significant updates after changes to `Unit`,
+# `Quantity`, and `Metric`. Its main role is exposing `get_unit` for
+# algorithmically updating units on variables (cf. `eprem.datasets`).
 class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
     """Representations of physical quantities within a given metric system."""
 
@@ -1453,49 +1842,6 @@ class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
     def __str__(self) -> str:
         """A simplified representation of this object."""
         return str(self.name)
-
-
-def get_conversion_factor(pair: typing.Tuple[str], quantity: str=None):
-    """Get the conversion factor for the given pair of units."""
-    if quantity:
-        return _search_conversions(*pair, quantity)
-    for quantity in definitions:
-        if f := _search_conversions(*pair, quantity):
-            return f
-
-
-def _search_conversions(u0: str, u1: str, name: str):
-    """Helper function for getting a conversion factor."""
-    defined = get_quantity(name)
-    if not (options := defined.conversions):
-        return
-    units = {'u0': u0, 'u1': u1}
-    for k, v in units.items():
-        if v in defined.units:
-            units[k] = defined.units[v]
-    u0, u1 = units['u0'], units['u1']
-    if u0 == u1:
-        return 1.0
-    forward, reverse = (u0, u1), (u1, u0)
-    if forward in options:
-        return options[forward]
-    if reverse in options:
-        return 1.0 / options[reverse]
-    result = 1.0
-    ux = None
-    for pair, factor in options.items():
-        if u0 in pair:
-            if u0 == pair[0]:
-                result *= factor
-                ux = pair[1]
-            else:
-                result /= factor
-                ux = pair[0]
-    forward, reverse = (ux, u1), (u1, ux)
-    if forward in options:
-        return result * options[forward]
-    if reverse in options:
-        return result / options[reverse]
 
 
 def build_unit_aliases(prefix, unit):
