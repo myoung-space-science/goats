@@ -978,15 +978,91 @@ def _search_conversions(u0: str, u1: str, name: str):
         return result / options[reverse]
 
 
+Instance = typing.TypeVar('Instance', bound='_Conversion')
+
+
+class _Conversion:
+    """Internal type representing a unit conversion."""
+
+    CT = typing.TypeVar('CT', bound=tuple)
+    CT = typing.Tuple[str, str]
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        forward: CT,
+        scale: numbers.Real=None,
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        forward : tuple
+            A two-tuple of strings that represents the forward conversion. In
+            other words, an argument with the form `(u0, u1)` represents the
+            conversion from `u0` to `u1`.
+
+        scale : real number, default=None
+            An optional numerical scale factor by which to multiple the
+            numerical conversion factor. A missing value defaults to 1.0.
+        """
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        instance: Instance,
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        instance
+            An existing instance of this class.
+        """
+
+    _instances = {}
+
+    forward: CT=None
+    """The forward conversion.
+    
+    When attempting to convert `u0` to `u1`, this will be `(u0, u1)`.
+    """
+    reverse: CT=None
+    """The reverse conversion.
+
+    When attempting to convert `u0` to `u1`, this will be `(u1, u0)`.
+    """
+    scale: float=None
+    """An external factor by which to scale the value of this conversion."""
+
+    def __new__(cls, *args, **kwargs):
+        """Concrete implementation"""
+        if not kwargs and len(args) == 1 and isinstance(args[0], cls):
+            return args[0]
+        if len(args) == 2:
+            forward, scale = args
+        elif len(args) == 1:
+            forward = args[0]
+            scale = kwargs.get('scale')
+        if available := cls._instances.get(forward):
+            return available
+        self = super().__new__(cls)
+        self.scale = 1.0 if iterables.missing(scale) else float(scale)
+        self.forward = forward
+        self.reverse = forward[::-1]
+        return self
+
+
 Instance = typing.TypeVar('Instance', bound='_ConversionTarget')
 
 
+# I'm no longer sure that these need (or even ought) to be singletons.
 class _ConversionTarget:
     """Internal class for managing conversion factors."""
 
-    CKT = typing.TypeVar('CKT')
-    CKT = typing.Union[typing.Tuple[str, str], str]
-    CVT = typing.TypeVar('CVT', bound=float)
+    CKT = typing.TypeVar('CKT', bound=tuple)
+    CKT = typing.Tuple[str, str]
+    CVT = typing.TypeVar('CVT', bound=numbers.Real)
     CVT = float
     Factors = typing.TypeVar('Factors', bound=typing.Mapping)
     Factors = typing.Mapping[CKT, CVT]
@@ -1053,7 +1129,7 @@ class _ConversionTarget:
         # NOTE: This used to raise a `TypeError` when `factors` was empty but I
         # took that out because we can still compute conversions based on metric
         # scale factors (e.g., 'm' to 'km'). We may want to return to `factors`
-        # being optional.
+        # being optional but we will still need to check for it in `args`.
         if not isinstance(factors, typing.Mapping):
             raise TypeError(
                 "Second argument must be a mapping, "
@@ -1092,54 +1168,62 @@ class _ConversionTarget:
            happens later in the chain because it requires two conversions to
            `~quantities.NamedUnit` and an arithmetic operation, whereas previous
            cases only require a mapping look-up.
+        1. Compute ratio of the units' metric scale factors, and re-check the
+           forward and reverse conversions on the base units.
         1. Raise an exception to alert the caller that the conversion is
            undefined.
         """
-        # Same unit; conversion unnecessary
         if self.unit == target:
             return 1.0
-        # Look up known conversion
-        scale = 1.0
-        forward = (self.unit, target)
-        if forward in self.factors:
-            return scale * self.factors[forward]
-        reverse = forward[::-1]
-        if reverse in self.factors:
-            return scale / self.factors[reverse]
-        # Chain multiple known conversions
+        if value := self._evaluate(self.unit, target):
+            return value
+        u0 = NamedUnit(self.unit)
+        u1 = NamedUnit(target)
+        if u0._reference == u1._reference:
+            return u0.scale / u1.scale
+        scale = u0._magnitude.factor / u1._magnitude.factor
+        pair = (u0._reference.symbol, u1._reference.symbol)
+        if value := self._evaluate(*pair, scale=scale):
+            return value
+        raise ValueError(
+            f"Unknown conversion from {self.unit!r} to {target!r}."
+        ) from None
+
+    def _evaluate(self, u0: str, u1: str, scale: float=1.0):
+        """Look up or build the appropriate conversion."""
+        conversion = _Conversion((u0, u1))
+        if found := self._check(conversion):
+            return scale * found
+        conversion = self._chain(u0, u1)
+        if found := self._check(conversion):
+            return scale * found
+
+    def _check(self, conversion: _Conversion):
+        """Attempt to retrieve the forward or reverse conversion."""
+        if conversion.forward in self.factors:
+            return conversion.scale * self.factors[conversion.forward]
+        if conversion.reverse in self.factors:
+            return conversion.scale / self.factors[conversion.reverse]
+
+    def _chain(self, u0: str, u1: str):
+        """Iteratively build a conversion from existing conversions."""
         scale = 1.0
         ux = None
         for pair, factor in self.factors.items():
-            if self.unit in pair:
-                if self.unit == pair[0]:
+            if u0 in pair:
+                if u0 == pair[0]:
                     scale *= factor
                     ux = pair[1]
                 else:
                     scale /= factor
                     ux = pair[0]
-        forward, reverse = (ux, target), (target, ux)
-        if forward in self.factors:
-            return scale * self.factors[forward]
-        if reverse in self.factors:
-            return scale / self.factors[reverse]
-        # TODO:
-        # - handle metric scale factors in conversions (e.g., 'J' to 'MeV')
-        u0 = NamedUnit(self.unit)
-        u1 = NamedUnit(target)
-        if u0._reference == u1._reference:
-            return u0.scale / u1.scale
-        raise ValueError(
-            f"Unknown conversion from {self.unit!r} to {target!r}."
-        ) from None
-
-    def _build_pair(self, target: str):
-        """"""
+        return _Conversion((ux, u1), scale=scale)
 
 
-Instance = typing.TypeVar('Instance', bound='_Conversion')
+Instance = typing.TypeVar('Instance', bound='_Converter')
 
 
-class _Conversion:
+class _Converter:
     """Internal type that creates singleton conversion targets."""
 
     @typing.overload
@@ -1274,9 +1358,9 @@ class Quantity(iterables.ReprStrMixin):
     # NOTE: This is here because unit conversions are only defined within their
     # respective quantities, even though two quantities may have identical
     # conversions (e.g., frequency and vorticity).
-    def convert(self, unit: str) -> _Conversion:
+    def convert(self, unit: str) -> _Converter:
         """Create a conversion object for `unit`."""
-        return _Conversion(unit, self.name)
+        return _Converter(unit, self.name)
 
     _attrs = ('_dimensions', '_units')
 
