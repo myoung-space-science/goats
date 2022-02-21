@@ -1256,22 +1256,67 @@ class _ConversionTarget:
         unit = self.substitutions.get(target) or target
         if self.unit == unit:
             return 1.0
-        if conversion := self._search(self.unit, unit):
+        if conversion := self._evaluate(self.unit, unit):
             return conversion
-        # TODO: Cache computed conversions.
-        u0 = NamedUnit(self.unit)
-        u1 = NamedUnit(unit)
+        try:
+            conversion = self._compute(self.unit, unit)
+        except UnitParsingError:
+            pairs = self._get_ratio_pairs(self.unit, unit)
+            conversions = [
+                self._compute(
+                    u0.base,
+                    u1.base,
+                    default=0.0,
+                ) ** exponent
+                for u0, u1, exponent in pairs
+            ]
+            conversion = functools.reduce(lambda x, y: x*y, conversions)
+        if conversion:
+            return conversion
+        raise ValueError(
+            f"Unknown conversion from {self.unit!r} to {unit!r}."
+        ) from None
+
+    def _get_ratio_pairs(self, u0: str, u1: str):
+        """"""
+        e0 = algebra.Expression(u0)
+        e1 = algebra.Expression(u1)
+        if len(e0) != len(e1): # Eventually want to handle this.
+            raise ValueError(
+                f"Can't parse pairs from {u0} / {u1}"
+            ) from None
+        ratio = list(e0 / e1)
+        pairs = []
+        while ratio:
+            t0 = ratio.pop()
+            i1 = next(
+                i for i, t in enumerate(ratio)
+                if NamedUnit(t.base).quantity == NamedUnit(t0.base).quantity
+                and t.exponent == -t0.exponent
+            )
+            t1 = ratio.pop(i1)
+            pairs.append((t0, t1, t0.exponent))
+        return pairs
+
+    _DT = typing.TypeVar('_DT')
+    def _compute(
+        self,
+        __u0: str,
+        __u1: str,
+        default: _DT=None,
+    ) -> typing.Union[float, _DT]:
+        """Compute this conversion, if possible."""
+        u0 = NamedUnit(__u0)
+        u1 = NamedUnit(__u1)
         ratio = u0.scale / u1.scale
         if u0._reference == u1._reference:
             return ratio
         pair = (u0._reference.symbol, u1._reference.symbol)
-        if conversion := self._search(*pair):
+        if conversion := self._evaluate(*pair):
             return ratio * conversion
         if conversion := self._build(*pair):
             return ratio * conversion
-        raise ValueError(
-            f"Unknown conversion from {self.unit!r} to {unit!r}."
-        ) from None
+        return default
 
     def _build(self, u0: str, u1: str):
         """Build a new conversion from known conversions."""
@@ -1311,7 +1356,7 @@ class _ConversionTarget:
         """Create a generator of unit-conversion pairs."""
         return (pair for pair in self.definitions if unit in pair)
 
-    def _search(self, u0: str, u1: str):
+    def _evaluate(self, u0: str, u1: str):
         """Get the appropriate unit-conversion factor, if available.
         
         If the conversion to the target unit is defined, this method will return
