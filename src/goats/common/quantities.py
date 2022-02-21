@@ -978,10 +978,6 @@ def _search_conversions(u0: str, u1: str, name: str):
         return result / options[reverse]
 
 
-Conversions = typing.TypeVar('Conversions', bound=typing.Mapping)
-Conversions = typing.Mapping[typing.Tuple[str, str], float]
-
-
 Instance = typing.TypeVar('Instance', bound='_ConversionTarget')
 
 
@@ -992,7 +988,7 @@ class _ConversionTarget:
     def __new__(
         cls: typing.Type[Instance],
         unit: str,
-        definitions: Conversions=None,
+        definitions: typing.Mapping[typing.Tuple[str, str], float]=None,
         substitutions: typing.Mapping[str, str]=None,
     ) -> Instance:
         """Create a new instance or return an existing one.
@@ -1026,7 +1022,7 @@ class _ConversionTarget:
         """
 
     unit: str=None
-    definitions: Conversions=None
+    definitions: typing.Mapping[typing.Tuple[str, str], float]=None
     substitutions: typing.Mapping[str, str]=None
 
     def __new__(cls, *args, **kwargs) -> Instance:
