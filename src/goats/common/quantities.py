@@ -974,6 +974,191 @@ def _search_conversions(u0: str, u1: str, name: str):
         return result / options[reverse]
 
 
+class UnitParsingError(Exception):
+    """Error when attempting to parse string into unit."""
+
+    def __init__(self, string: str) -> None:
+        self.string = string
+
+    def __str__(self) -> str:
+        return f"Could not determine unit and magnitude of '{self.string}'"
+
+
+class UnitConversionError(Exception):
+    """Unknown unit conversion."""
+
+    def __init__(self, u0: str, u1: str) -> None:
+        self._from = u0
+        self._to = u1
+
+    def __str__(self) -> str:
+        return f"Can't convert {self._from} to {self._to}"
+
+
+class MetricPrefix(typing.NamedTuple):
+    """Metadata for a metric order-of-magnitude prefix."""
+
+    symbol: str
+    name: str
+    factor: float
+
+
+class BaseUnit(typing.NamedTuple):
+    """Metadata for a named unit without metric prefix."""
+
+    symbol: str
+    name: str
+    quantity: str
+    system: str=None
+
+
+Instance = typing.TypeVar('Instance', bound='NamedUnit')
+
+
+class NamedUnit(iterables.ReprStrMixin):
+    """A single named unit and corresponding metadata."""
+
+    _instances = {}
+
+    _magnitude: MetricPrefix=None
+    _reference: BaseUnit=None
+    name: str=None
+    symbol: str=None
+    scale: float=None
+    quantity: str=None
+    dimension: str=None
+
+    def __new__(
+        cls: typing.Type[Instance],
+        arg: typing.Union[str, Instance],
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        arg : string or instance
+            A string representing the metric unit to create, or an existing instance of this class.
+        """
+        if isinstance(arg, cls):
+            return arg
+        string = str(arg)
+        magnitude, reference = cls.parse(string)
+        key = (magnitude, reference)
+        if available := cls._instances.get(key):
+            return available
+        new = super().__new__(cls)
+        new._magnitude = magnitude # Rename this `prefix`
+        new._reference = reference # Rename this `base`
+        new.name = f"{magnitude.name}{reference.name}"
+        """The full name of this unit."""
+        new.symbol = f"{magnitude.symbol}{reference.symbol}"
+        """The abbreviated symbol for this unit."""
+        new.scale = magnitude.factor
+        """The metric scale factor of this unit."""
+        new.quantity = reference.quantity
+        """The physical quantity of this unit."""
+        dimensions = get_property(new.quantity, 'dimensions')
+        system = new._reference.system or 'mks'
+        new.dimension = dimensions[system]
+        """The physical dimension of this unit."""
+        cls._instances[key] = new
+        return new
+
+    @classmethod
+    def parse(cls, string: str):
+        """Determine the magnitude and reference of a unit.
+        
+        Parameters
+        ----------
+        string : str
+            A string representing a metric unit.
+
+        Returns
+        -------
+        tuple
+            A 2-tuple in which the first element is a `~quantities.MetricPrefix`
+            representing the order-of-magnitude of the given unit and the second
+            element is a `~quantities.BaseUnit` representing the unscaled (i.e.,
+            order-unity) metric unit.
+
+        Examples
+        --------
+        >>> mag, ref = NamedUnit.parse('km')
+        >>> mag
+        MetricPrefix(symbol='k', name='kilo', factor=1000.0)
+        >>> ref
+        BaseUnit(symbol='m', name='meter', quantity='length', system='mks')
+        """
+        try:
+            unit = named_units[string]
+        except KeyError as err:
+            raise UnitParsingError(string) from err
+        magnitude = MetricPrefix(**unit['prefix'])
+        reference = BaseUnit(**unit['base'])
+        return magnitude, reference
+
+    # TODO: We may be able to simplify or remove this after finishing the
+    # re-implementation of `Unit.__floordiv__`.
+    def __floordiv__(self, target: typing.Union[str, 'NamedUnit']) -> float:
+        """Compute the magnitude of this unit relative to another.
+
+        Examples
+        --------
+        The following are all equivalent to the statement that there are 100
+        centimeters per meter:
+
+            >>> NamedUnit('centimeter') // NamedUnit('meter')
+            100.0
+            >>> NamedUnit('cm') // NamedUnit('m')
+            100.0
+            >>> NamedUnit('meter') // NamedUnit('centimeter')
+            0.01
+
+        Only one of the operands need be an instance of this type:
+
+            >>> NamedUnit('second') // NamedUnit('day')
+            86400.0
+            >>> NamedUnit('second') // 'day'
+            86400.0
+            >>> 'second' // NamedUnit('day')
+            86400.0
+
+        Attempting this operation between two units with different dimensions
+        will raise an exception:
+
+            >>> NamedUnit('meter') // NamedUnit('second')
+            <raises UnitConversionError>
+        """
+        other = type(self)(target)
+        if self == other:
+            return 1.0
+        if all(obj.dimension == '1' for obj in (self, other)):
+            return 1.0
+        ratio = other.scale / self.scale
+        if other._reference == self._reference:
+            return ratio
+        if other.quantity == self.quantity:
+            pair = (other._reference.symbol, self._reference.symbol)
+            if factor := get_conversion_factor(pair, self.quantity):
+                return ratio * factor
+        raise UnitConversionError(self.name, other.name) from None
+
+    def __rfloordiv__(self, target):
+        """Support target // self. See `__floordiv__` for details."""
+        return 1.0 / self.__floordiv__(target)
+
+    def __eq__(self, other) -> bool:
+        """True if two representations have equal magnitude and reference."""
+        that = type(self)(other)
+        same_magnitude = (self._magnitude == that._magnitude)
+        same_reference = (self._reference == that._reference)
+        return same_magnitude and same_reference
+
+    def __str__(self) -> str:
+        """A printable representation of this unit."""
+        return f"'{self.name} | {self.symbol}'"
+
+
 Instance = typing.TypeVar('Instance', bound='_ConversionTarget')
 
 
@@ -1333,191 +1518,6 @@ class Dimension(algebra.Expression):
         if isinstance(obj, algebra.Term):
             return obj
         return str(obj)
-
-
-class UnitParsingError(Exception):
-    """Error when attempting to parse string into unit."""
-
-    def __init__(self, string: str) -> None:
-        self.string = string
-
-    def __str__(self) -> str:
-        return f"Could not determine unit and magnitude of '{self.string}'"
-
-
-class UnitConversionError(Exception):
-    """Unknown unit conversion."""
-
-    def __init__(self, u0: str, u1: str) -> None:
-        self._from = u0
-        self._to = u1
-
-    def __str__(self) -> str:
-        return f"Can't convert {self._from} to {self._to}"
-
-
-class MetricPrefix(typing.NamedTuple):
-    """Metadata for a metric order-of-magnitude prefix."""
-
-    symbol: str
-    name: str
-    factor: float
-
-
-class BaseUnit(typing.NamedTuple):
-    """Metadata for a named unit without metric prefix."""
-
-    symbol: str
-    name: str
-    quantity: str
-    system: str=None
-
-
-Instance = typing.TypeVar('Instance', bound='NamedUnit')
-
-
-class NamedUnit(iterables.ReprStrMixin):
-    """A single named unit and corresponding metadata."""
-
-    _instances = {}
-
-    _magnitude: MetricPrefix=None
-    _reference: BaseUnit=None
-    name: str=None
-    symbol: str=None
-    scale: float=None
-    quantity: str=None
-    dimension: str=None
-
-    def __new__(
-        cls: typing.Type[Instance],
-        arg: typing.Union[str, Instance],
-    ) -> Instance:
-        """Create a new instance or return an existing one.
-        
-        Parameters
-        ----------
-        arg : string or instance
-            A string representing the metric unit to create, or an existing instance of this class.
-        """
-        if isinstance(arg, cls):
-            return arg
-        string = str(arg)
-        magnitude, reference = cls.parse(string)
-        key = (magnitude, reference)
-        if available := cls._instances.get(key):
-            return available
-        new = super().__new__(cls)
-        new._magnitude = magnitude # Rename this `prefix`
-        new._reference = reference # Rename this `base`
-        new.name = f"{magnitude.name}{reference.name}"
-        """The full name of this unit."""
-        new.symbol = f"{magnitude.symbol}{reference.symbol}"
-        """The abbreviated symbol for this unit."""
-        new.scale = magnitude.factor
-        """The metric scale factor of this unit."""
-        new.quantity = reference.quantity
-        """The physical quantity of this unit."""
-        dimensions = get_property(new.quantity, 'dimensions')
-        system = new._reference.system or 'mks'
-        new.dimension = dimensions[system]
-        """The physical dimension of this unit."""
-        cls._instances[key] = new
-        return new
-
-    @classmethod
-    def parse(cls, string: str):
-        """Determine the magnitude and reference of a unit.
-        
-        Parameters
-        ----------
-        string : str
-            A string representing a metric unit.
-
-        Returns
-        -------
-        tuple
-            A 2-tuple in which the first element is a `~quantities.MetricPrefix`
-            representing the order-of-magnitude of the given unit and the second
-            element is a `~quantities.BaseUnit` representing the unscaled (i.e.,
-            order-unity) metric unit.
-
-        Examples
-        --------
-        >>> mag, ref = NamedUnit.parse('km')
-        >>> mag
-        MetricPrefix(symbol='k', name='kilo', factor=1000.0)
-        >>> ref
-        BaseUnit(symbol='m', name='meter', quantity='length', system='mks')
-        """
-        try:
-            unit = named_units[string]
-        except KeyError as err:
-            raise UnitParsingError(string) from err
-        magnitude = MetricPrefix(**unit['prefix'])
-        reference = BaseUnit(**unit['base'])
-        return magnitude, reference
-
-    # TODO: We may be able to simplify or remove this after finishing the
-    # re-implementation of `Unit.__floordiv__`.
-    def __floordiv__(self, target: typing.Union[str, 'NamedUnit']) -> float:
-        """Compute the magnitude of this unit relative to another.
-
-        Examples
-        --------
-        The following are all equivalent to the statement that there are 100
-        centimeters per meter:
-
-            >>> NamedUnit('centimeter') // NamedUnit('meter')
-            100.0
-            >>> NamedUnit('cm') // NamedUnit('m')
-            100.0
-            >>> NamedUnit('meter') // NamedUnit('centimeter')
-            0.01
-
-        Only one of the operands need be an instance of this type:
-
-            >>> NamedUnit('second') // NamedUnit('day')
-            86400.0
-            >>> NamedUnit('second') // 'day'
-            86400.0
-            >>> 'second' // NamedUnit('day')
-            86400.0
-
-        Attempting this operation between two units with different dimensions
-        will raise an exception:
-
-            >>> NamedUnit('meter') // NamedUnit('second')
-            <raises UnitConversionError>
-        """
-        other = type(self)(target)
-        if self == other:
-            return 1.0
-        if all(obj.dimension == '1' for obj in (self, other)):
-            return 1.0
-        ratio = other.scale / self.scale
-        if other._reference == self._reference:
-            return ratio
-        if other.quantity == self.quantity:
-            pair = (other._reference.symbol, self._reference.symbol)
-            if factor := get_conversion_factor(pair, self.quantity):
-                return ratio * factor
-        raise UnitConversionError(self.name, other.name) from None
-
-    def __rfloordiv__(self, target):
-        """Support target // self. See `__floordiv__` for details."""
-        return 1.0 / self.__floordiv__(target)
-
-    def __eq__(self, other) -> bool:
-        """True if two representations have equal magnitude and reference."""
-        that = type(self)(other)
-        same_magnitude = (self._magnitude == that._magnitude)
-        same_reference = (self._reference == that._reference)
-        return same_magnitude and same_reference
-
-    def __str__(self) -> str:
-        """A printable representation of this unit."""
-        return f"'{self.name} | {self.symbol}'"
 
 
 Instance = typing.TypeVar('Instance', bound='Unit')
