@@ -992,7 +992,7 @@ class _ConversionTarget:
     def __new__(
         cls: typing.Type[Instance],
         unit: str,
-        factors: Conversions=None,
+        definitions: Conversions=None,
         substitutions: typing.Mapping[str, str]=None,
     ) -> Instance:
         """Create a new instance or return an existing one.
@@ -1002,7 +1002,7 @@ class _ConversionTarget:
         unit : string
             The unit to be converted.
 
-        factors : mapping, optional
+        definitions : mapping, optional
             A mapping from pairs of unit strings to their corresponding
             numerical conversion factors.
 
@@ -1026,7 +1026,7 @@ class _ConversionTarget:
         """
 
     unit: str=None
-    factors: Conversions=None
+    definitions: Conversions=None
     substitutions: typing.Mapping[str, str]=None
 
     def __new__(cls, *args, **kwargs) -> Instance:
@@ -1035,15 +1035,15 @@ class _ConversionTarget:
             return args[0]
         self = super().__new__(cls)
         if len(args) == 3:
-            unit, factors, substitutions = args
+            unit, definitions, substitutions = args
         if len(args) == 2:
-            unit, factors = args
+            unit, definitions = args
             substitutions = kwargs.get('substitutions')
         if len(args) == 1:
             unit = args[0]
-            factors = kwargs.get('factors')
+            definitions = kwargs.get('definitions')
             substitutions = kwargs.get('substitutions')
-        self.factors = factors or {}
+        self.definitions = definitions or {}
         self.substitutions = substitutions or {}
         self.unit = self.substitutions.get(unit) or unit
         return self
@@ -1117,7 +1117,7 @@ class _ConversionTarget:
                 ux = found[0] if found[1] == u0 else found[1]
                 pair = self._pair_gen(ux)
         # Collect all the numerical factors in this chain of conversions.
-        factors = [self.factors[pair] for pair in pairs]
+        factors = [self.definitions[pair] for pair in pairs]
         # Co-multiply factors to compute the full scale factor.
         scale = functools.reduce(lambda x, y: x*y, factors)
         # Determine whether we built the forward or reverse conversion.
@@ -1132,7 +1132,7 @@ class _ConversionTarget:
 
     def _pair_gen(self, unit: str):
         """Create a generator of unit-conversion pairs."""
-        return (pair for pair in self.factors if unit in pair)
+        return (pair for pair in self.definitions if unit in pair)
 
     def _search(self, u0: str, u1: str):
         """Get the appropriate unit-conversion factor, if available.
@@ -1144,11 +1144,11 @@ class _ConversionTarget:
         other methods a chance.
         """
         forward = (u0, u1)
-        if forward in self.factors:
-            return self.factors[forward]
+        if forward in self.definitions:
+            return self.definitions[forward]
         reverse = (u1, u0)
-        if reverse in self.factors:
-            return 1 / self.factors[reverse]
+        if reverse in self.definitions:
+            return 1 / self.definitions[reverse]
 
 
 Instance = typing.TypeVar('Instance', bound='_Converter')
