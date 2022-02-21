@@ -763,99 +763,6 @@ _CONVERSIONS = {
 }
 
 
-Instance = typing.TypeVar('Instance', bound='Property')
-
-
-class Property(collections.abc.Mapping, iterables.ReprStrMixin):
-    """All definitions of a single metric property."""
-
-    _instances = {}
-    _supported = (
-        'dimensions',
-        'units',
-    )
-
-    key: str=None
-
-    def __new__(
-        cls: typing.Type[Instance],
-        arg: typing.Union[str, Instance],
-    ) -> Instance:
-        """Create a new instance or return an existing one.
-        
-        Parameters
-        ----------
-        arg : string or instance
-            A string representing the metric property to create, or an existing
-            instance of this class.
-        """
-        if isinstance(arg, cls):
-            return arg
-        key = str(arg)
-        if key not in cls._supported:
-            raise ValueError(f"Unsupported property: {key}") from None
-        if available := cls._instances.get(key):
-            return available
-        self = super().__new__(cls)
-        self.key = key
-        return self
-
-    LEN = len(_QUANTITIES) # No need to compute every time.
-    def __len__(self) -> int:
-        """The number of defined quantities. Called for len(self)."""
-        return self.LEN
-
-    def __iter__(self) -> typing.Iterator[str]:
-        """Iterate over names of defined quantities. Called for iter(self)."""
-        return iter(_QUANTITIES)
-
-    def __getitem__(self, name: str):
-        """Get a named property of a defined quantity.
-        
-        This method will search for `name` in the module-level collection of
-        defined quantities. If it finds an `dict` entry, it will attempt to
-        extract the values corresponding to this property's `key`. If it finds a
-        `str` entry, it will attempt to create the equivalent `dict` by
-        algebraically evaluating the terms in the entry.
-        """
-        if name not in _QUANTITIES:
-            raise KeyError(f"No definition for '{name}'")
-        q = _QUANTITIES[name]
-        if isinstance(q, dict):
-            return q.get(self.key, {})
-        if not isinstance(q, str):
-            raise TypeError(f"Expected {name} to be a string")
-        # TODO: Cache computed results.
-        return self._parse(q)
-
-    def _parse(self, string: str):
-        """Parse a string representing a compound quantity."""
-        if ' ' in string and all(c not in string for c in ['*', '/']):
-            string = string.replace(' ', '_')
-        parts = [self._expand(term) for term in algebra.Expression(string)]
-        keys = {key for part in parts for key in part.keys()}
-        merged = {key: [] for key in keys}
-        for part in parts:
-            for key, value in part.items():
-                merged[key].append(value)
-        return {
-            k: str(algebra.Expression(v))
-            for k, v in merged.items()
-        }
-
-    _operand = algebra.OperandFactory()
-    def _expand(self, term: algebra.Term):
-        """Create a `dict` of operands from this term."""
-        return {
-            k: _operand.create(v, term.exponent)
-            for k, v in self[term.base.replace('_', ' ')].items()
-        }
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        return self.key
-
-
 class Metric(typing.NamedTuple):
     """A canonical physical quantity within a named metric system."""
 
@@ -1415,6 +1322,99 @@ class _Converter:
     def _build_definition(self):
         """Build definitions for a derived quantity."""
         raise NotImplementedError("Complex conversions")
+
+
+Instance = typing.TypeVar('Instance', bound='Property')
+
+
+class Property(collections.abc.Mapping, iterables.ReprStrMixin):
+    """All definitions of a single metric property."""
+
+    _instances = {}
+    _supported = (
+        'dimensions',
+        'units',
+    )
+
+    key: str=None
+
+    def __new__(
+        cls: typing.Type[Instance],
+        arg: typing.Union[str, Instance],
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        arg : string or instance
+            A string representing the metric property to create, or an existing
+            instance of this class.
+        """
+        if isinstance(arg, cls):
+            return arg
+        key = str(arg)
+        if key not in cls._supported:
+            raise ValueError(f"Unsupported property: {key}") from None
+        if available := cls._instances.get(key):
+            return available
+        self = super().__new__(cls)
+        self.key = key
+        return self
+
+    LEN = len(_QUANTITIES) # No need to compute every time.
+    def __len__(self) -> int:
+        """The number of defined quantities. Called for len(self)."""
+        return self.LEN
+
+    def __iter__(self) -> typing.Iterator[str]:
+        """Iterate over names of defined quantities. Called for iter(self)."""
+        return iter(_QUANTITIES)
+
+    def __getitem__(self, name: str):
+        """Get a named property of a defined quantity.
+        
+        This method will search for `name` in the module-level collection of
+        defined quantities. If it finds an `dict` entry, it will attempt to
+        extract the values corresponding to this property's `key`. If it finds a
+        `str` entry, it will attempt to create the equivalent `dict` by
+        algebraically evaluating the terms in the entry.
+        """
+        if name not in _QUANTITIES:
+            raise KeyError(f"No definition for '{name}'")
+        q = _QUANTITIES[name]
+        if isinstance(q, dict):
+            return q.get(self.key, {})
+        if not isinstance(q, str):
+            raise TypeError(f"Expected {name} to be a string")
+        # TODO: Cache computed results.
+        return self._parse(q)
+
+    def _parse(self, string: str):
+        """Parse a string representing a compound quantity."""
+        if ' ' in string and all(c not in string for c in ['*', '/']):
+            string = string.replace(' ', '_')
+        parts = [self._expand(term) for term in algebra.Expression(string)]
+        keys = {key for part in parts for key in part.keys()}
+        merged = {key: [] for key in keys}
+        for part in parts:
+            for key, value in part.items():
+                merged[key].append(value)
+        return {
+            k: str(algebra.Expression(v))
+            for k, v in merged.items()
+        }
+
+    _operand = algebra.OperandFactory()
+    def _expand(self, term: algebra.Term):
+        """Create a `dict` of operands from this term."""
+        return {
+            k: _operand.create(v, term.exponent)
+            for k, v in self[term.base.replace('_', ' ')].items()
+        }
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return self.key
 
 
 Instance = typing.TypeVar('Instance', bound='Quantity')
