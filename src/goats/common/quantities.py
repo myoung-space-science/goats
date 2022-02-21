@@ -1062,18 +1062,17 @@ class _ConversionTarget:
         This method proceeds as follows:
         
         1. Substitute a known unit for `target`, if necessary.
-        1. If the target unit and the current unit are the same, return 1.0.
-        1. If the conversion to the target unit is defined, return the
-        1. corresponding value.
-        1. If the conversion from the target unit is defined, return the inverse
-           of the corresponding value.
-        1. If the target unit and the current unit have the same base unit
-           (e.g., 'm' for 'cm' and 'km'), return the ratio of their scale
-           factors. This happens later in the process because it requires two
+        1. Return 1.0 if the target unit and the current unit are the same.
+        1. Search for the forward or reverse conversion and, if found, return
+           the corresponding numerical factor.
+        1. Return the ratio of metric scale factors between the target unit and
+           the current unit if they have the same base unit (e.g., 'm' for 'cm'
+           and 'km'). This happens later in the process because it requires two
            conversions to `~quantities.NamedUnit` and an arithmetic operation,
            whereas previous cases only require a mapping look-up.
-        1. Compute the ratio of the units' metric scale factors, and re-check
-           the forward and reverse conversions on the base units.
+        1. Search for the forward or reverse conversion between base units and,
+           if found, return the corresponding numerical factor after rescaling
+           by the metric ratio.
         1. Raise an exception to alert the caller that the conversion is
            undefined.
         """
@@ -1136,7 +1135,14 @@ class _ConversionTarget:
         return (pair for pair in self.factors if unit in pair)
 
     def _search(self, u0: str, u1: str):
-        """Get the appropriate unit-conversion factor, if available."""
+        """Get the appropriate unit-conversion factor, if available.
+        
+        If the conversion to the target unit is defined, this method will return
+        the corresponding value. If the conversion from the target unit is
+        defined, this method will return the inverse of the corresponding value.
+        If it meets neither condition, it will return `None` in order to give
+        other methods a chance.
+        """
         forward = (u0, u1)
         if forward in self.factors:
             return self.factors[forward]
