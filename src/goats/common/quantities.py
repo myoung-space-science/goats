@@ -326,12 +326,6 @@ _BASE_QUANTITIES = iterables.Table(
     ]
 )
 
-# NOTE: Defined here to avoid a circular import with physical.py.
-C = 2.99792458e10
-"""The speed of light in cm/s."""
-PI = np.pi
-"""The ratio of a circle's circumference to its diameter."""
-
 _QUANTITIES = {
     'amount': {
         'dimensions': {
@@ -342,7 +336,6 @@ _QUANTITIES = {
             'mks': 'mol',
             'cgs': 'mol',
         },
-        'conversions': {},
     },
     'area': 'length^2',
     'capacitance': {
@@ -354,9 +347,6 @@ _QUANTITIES = {
             'mks': 'F',
             'cgs': 'cm',
         },
-        'conversions': {
-            ('F', 'cm'): C**2 * 1e-9,
-        },
     },
     'charge': {
         'dimensions': {
@@ -366,10 +356,6 @@ _QUANTITIES = {
         'units': {
             'mks': 'C',
             'cgs': 'statC',
-        },
-        'conversions': {
-            ('C', 'statC'): 10*C,
-            ('e', 'C'): 1.6022e-19,
         },
     },
     'charge density': 'charge / volume',
@@ -382,9 +368,6 @@ _QUANTITIES = {
             'mks': 'S',
             'cgs': 'cm / s',
         },
-        'conversions': {
-            ('S', 'cm / s'): C**2 * 1e-5,
-        },
     },
     'conductivity': 'conductance / length',
     'current': {
@@ -395,9 +378,6 @@ _QUANTITIES = {
         'units': {
             'mks': 'A',
             'cgs': 'statA',
-        },
-        'conversions': {
-            ('A', 'statA'): 10*C,
         },
     },
     'current density': 'current / area',
@@ -410,9 +390,6 @@ _QUANTITIES = {
             'mks': 'C / m^2',
             'cgs': 'statC / m^2',
         },
-        'conversions': {
-            ('C / m^2', 'statC / m^2'): 4*PI * C * 1e-3,
-        },
     },
     'dosage': {
         'dimensions': {
@@ -422,9 +399,6 @@ _QUANTITIES = {
         'units': {
             'mks': 'Gy',
             'cgs': 'erg / g', # Historically, 'rad', but that's in use.
-        },
-        'conversions': {
-            ('Gy', 'erg / g'): 1e4,
         },
     },
     'electric charge': 'charge',
@@ -439,10 +413,6 @@ _QUANTITIES = {
             'mks': 'J',
             'cgs': 'erg',
         },
-        'conversions': {
-            ('J', 'erg'): 1e7,
-            ('eV', 'J'): 1.6022e-19,
-        },
     },
     'energy density': 'energy / volume',
     'force': {
@@ -454,9 +424,6 @@ _QUANTITIES = {
             'mks': 'N',
             'cgs': 'dyn',
         },
-        'conversions': {
-            ('N', 'dyn'): 1e5,
-        },
     },
     'frequency': {
         'dimensions': {
@@ -467,7 +434,6 @@ _QUANTITIES = {
             'mks': 'Hz',
             'cgs': 'Hz',
         },
-        'conversions': {},
     },
     'identity': {
         'dimensions': {
@@ -478,7 +444,6 @@ _QUANTITIES = {
             'mks': '1',
             'cgs': '1',
         },
-        'conversions': {},
     },
     'illumunance': { # See note about radian (Kalinin 2019).
         'dimensions': {
@@ -489,7 +454,6 @@ _QUANTITIES = {
             'mks': 'cd * sr / m^2',
             'cgs': 'cd * sr / cm^2',
         },
-        'conversions': {},
     },
     'impedance': {
         'dimensions': {
@@ -500,9 +464,6 @@ _QUANTITIES = {
             'mks': 'ohm',
             'cgs': 's / cm',
         },
-        'conversions': {
-            ('ohm', 's / cm'): 1e5 / C**2,
-        },
     },
     'inductance': {
         'dimensions': {
@@ -512,9 +473,6 @@ _QUANTITIES = {
         'units': {
             'mks': 'H',
             'cgs': 's^2 / cm',
-        },
-        'conversions': {
-            ('H', 's^2 / cm'): 1e5 / C**2,
         },
     },
     'induction': 'magnetic induction',
@@ -527,10 +485,6 @@ _QUANTITIES = {
             'mks': 'm',
             'cgs': 'cm',
         },
-        'conversions': {
-            ('m', 'cm'): 1e2,
-            ('au', 'm'): 1.495978707e11,
-        },
     },
     'luminous flux': { # See note about radian (Kalinin 2019).
         'dimensions': {
@@ -541,7 +495,6 @@ _QUANTITIES = {
             'mks': 'cd * sr',
             'cgs': 'cd * sr',
         },
-        'conversions': {},
     },
     'luminous intensity': {
         'dimensions': {
@@ -552,7 +505,6 @@ _QUANTITIES = {
             'mks': 'cd',
             'cgs': 'cd',
         },
-        'conversions': {},
     },
     'magnetic field': 'magnetic induction',
     'magnetic flux': {
@@ -564,9 +516,6 @@ _QUANTITIES = {
             'mks': 'Wb',
             'cgs': 'Mx',
         },
-        'conversions': {
-            ('Wb', 'Mx'): 1e8,
-        },
     },
     'magnetic induction': {
         'dimensions': {
@@ -576,9 +525,6 @@ _QUANTITIES = {
         'units': {
             'mks': 'T',
             'cgs': 'G',
-        },
-        'conversions': {
-            ('T', 'G'): 1e4,
         },
     },
     'magnetic intensity': {
@@ -590,9 +536,6 @@ _QUANTITIES = {
             'mks': 'A / m',
             'cgs': 'Oe',
         },
-        'conversions': {
-            ('A / m', 'Oe'): 4*PI * 1e-3,
-        },
     },
     'magnetic moment': {
         'dimensions': {
@@ -602,9 +545,6 @@ _QUANTITIES = {
         'units': {
             'mks': 'A * m^2',
             'cgs': 'Oe * cm^3',
-        },
-        'conversions': {
-            ('A * m^2', 'Oe * cm^3'): 1e-3,
         },
     },
     'magnetization': 'magnetic intensity',
@@ -618,11 +558,6 @@ _QUANTITIES = {
             'mks': 'kg',
             'cgs': 'g',
         },
-        'conversions': {
-            ('kg', 'g'): 1e3,
-            ('nuc', 'kg'): 1.6605e-27,
-            ('amu', 'kg'): 1.6605e-27,
-        },
     },
     'mass density': 'mass / volume',
     'momentum': {
@@ -633,9 +568,6 @@ _QUANTITIES = {
         'units': {
             'mks': 'kg * m / s',
             'cgs': 'g * cm / s',
-        },
-        'conversions': {
-            ('kg * m / s', 'g * cm / s'): 1e5,
         },
     },
     'momentum density': 'momentum / volume',
@@ -651,9 +583,6 @@ _QUANTITIES = {
             'mks': 'H / m',
             'cgs': '1',
         },
-        'conversions': {
-            ('H / m', '1'): 1e7 / 4*PI,
-        },
     },
     'permitivity': {
         'dimensions': {
@@ -664,9 +593,6 @@ _QUANTITIES = {
             'mks': 'F / m',
             'cgs': '1',
         },
-        'conversions': {
-            ('F / m', '1'): 36*PI * 1e9,
-        },
     },
     'plane angle': { # See note about radian (Kalinin 2019).
         'dimensions': {
@@ -676,9 +602,6 @@ _QUANTITIES = {
         'units': {
             'mks': 'rad',
             'cgs': 'rad',
-        },
-        'conversions': {
-            ('rad', 'deg'): 180 / PI,
         },
     },
     'polarization': 'charge / area',
@@ -691,9 +614,6 @@ _QUANTITIES = {
             'mks': 'V',
             'cgs': 'statV',
         },
-        'conversions': {
-            ('V', 'statV'): 1e6 / C,
-        },
     },
     'power': {
         'dimensions': {
@@ -703,9 +623,6 @@ _QUANTITIES = {
         'units': {
             'mks': 'W',
             'cgs': 'erg / s',
-        },
-        'conversions': {
-            ('W', 'erg / s'): 1e7,
         },
     },
     'power density': 'power / volume',
@@ -718,9 +635,6 @@ _QUANTITIES = {
             'mks': 'Pa',
             'cgs': 'dyn / cm^2', # also barye (Ba)?
         },
-        'conversions': {
-            ('Pa', 'dyn / cm^2'): 1e1,
-        },
     },
     'radioactivity': {
         'dimensions': {
@@ -730,9 +644,6 @@ _QUANTITIES = {
         'units': {
             'mks': 'Bq',
             'cgs': 'Ci',
-        },
-        'conversions': {
-            ('Bq', 'Ci'): 1.0 / 3.7e10,
         },
     },
     'ratio': 'identity',
@@ -744,9 +655,6 @@ _QUANTITIES = {
         'units': {
             'mks': 'A / Wb',
             'cgs': '1 / cm',
-        },
-        'conversions': {
-            ('A / Wb', '1 / cm'): 4*PI * 1e-9,
         },
     },
     'resistance': 'impedance',
@@ -760,7 +668,6 @@ _QUANTITIES = {
             'mks': 'K',
             'cgs': 'K',
         },
-        'conversions': {},
     },
     'thermal conductivity': 'power / (length * temperature)',
     'time': {
@@ -772,11 +679,6 @@ _QUANTITIES = {
             'mks': 's',
             'cgs': 's',
         },
-        'conversions': {
-            ('s', 'min'): 1.0 / 60.0,
-            ('s', 'h'): 1.0 / 3600.0,
-            ('s', 'd'): 1.0 / 86400.0,
-        },
     },
     'solid angle': { # See note about radian (Kalinin 2019).
         'dimensions': {
@@ -787,7 +689,6 @@ _QUANTITIES = {
             'mks': 'sr',
             'cgs': 'sr',
         },
-        'conversions': {},
     },
     'vector potential': {
         'dimensions': {
@@ -797,9 +698,6 @@ _QUANTITIES = {
         'units': {
             'mks': 'Wb / m',
             'cgs': 'G * cm',
-        },
-        'conversions': {
-            ('Wb / m', 'G * cm'): 1e6,
         },
     },
     'velocity': 'length / time',
@@ -812,13 +710,56 @@ _QUANTITIES = {
             'mks': 'kg / (m * s)',
             'cgs': 'P',
         },
-        'conversions': {
-            ('kg / (m * s)', 'P'): 1e1,
-        },
     },
     'volume': 'length^3',
     'vorticity': 'frequency',
     'work': 'energy',
+}
+
+
+# NOTE: Defined here to avoid a circular import with physical.py.
+C = 2.99792458e10
+"""The speed of light in cm/s."""
+PI = np.pi
+"""The ratio of a circle's circumference to its diameter."""
+
+
+_CONVERSIONS = {
+    ('F', 'cm'): C**2 * 1e-9,
+    ('C', 'statC'): 10*C,
+    ('e', 'C'): 1.6022e-19,
+    ('S', 'cm / s'): C**2 * 1e-5,
+    ('A', 'statA'): 10*C,
+    # ('C / m^2', 'statC / m^2'): 4*PI * C * 1e-3,
+    ('Gy', 'erg / g'): 1e4,
+    ('J', 'erg'): 1e7,
+    ('eV', 'J'): 1.6022e-19,
+    ('N', 'dyn'): 1e5,
+    ('ohm', 's / cm'): 1e5 / C**2,
+    ('H', 's^2 / cm'): 1e5 / C**2,
+    # ('m', 'cm'): 1e2,
+    ('au', 'm'): 1.495978707e11,
+    ('Wb', 'Mx'): 1e8,
+    ('T', 'G'): 1e4,
+    ('A / m', 'Oe'): 4*PI * 1e-3,
+    # ('A * m^2', 'Oe * cm^3'): 1e-3,
+    # ('kg', 'g'): 1e3,
+    ('nuc', 'kg'): 1.6605e-27,
+    ('amu', 'kg'): 1.6605e-27,
+    # ('kg * m / s', 'g * cm / s'): 1e5,
+    ('H / m', '1'): 1e7 / 4*PI,
+    ('F / m', '1'): 36*PI * 1e9,
+    ('rad', 'deg'): 180 / PI,
+    ('V', 'statV'): 1e6 / C,
+    ('W', 'erg / s'): 1e7,
+    ('Pa', 'dyn / cm^2'): 1e1,
+    ('Bq', 'Ci'): 1.0 / 3.7e10,
+    ('A / Wb', '1 / cm'): 4*PI * 1e-9,
+    ('s', 'min'): 1.0 / 60.0,
+    ('s', 'h'): 1.0 / 3600.0,
+    ('s', 'd'): 1.0 / 86400.0,
+    ('Wb / m', 'G * cm'): 1e6,
+    ('kg / (m * s)', 'P'): 1e1,
 }
 
 
