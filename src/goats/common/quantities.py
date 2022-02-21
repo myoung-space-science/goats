@@ -915,6 +915,23 @@ def _search_conversions(u0: str, u1: str, name: str):
         return result / options[reverse]
 
 
+def build_unit_aliases(prefix, unit):
+    """Define all aliases for the given metric prefix and base unit."""
+    key = [f"{prefix[k]}{unit[k]}" for k in ['name', 'symbol']]
+    if prefix['symbol'] == 'μ':
+        key += [f"u{unit['symbol']}"]
+    return tuple(key)
+
+
+# Tables may not be necessary with this.
+named_units = aliased.Mapping(
+    {
+        build_unit_aliases(prefix, unit): {'base': unit, 'prefix': prefix}
+        for prefix in _PREFIXES for unit in _UNITS
+    }
+)
+
+
 class UnitParsingError(Exception):
     """Error when attempting to parse string into unit."""
 
@@ -1844,23 +1861,6 @@ class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
     def __str__(self) -> str:
         """A simplified representation of this object."""
         return str(self.name)
-
-
-def build_unit_aliases(prefix, unit):
-    """Define all aliases for the given metric prefix and base unit."""
-    key = [f"{prefix[k]}{unit[k]}" for k in ['name', 'symbol']]
-    if prefix['symbol'] == 'μ':
-        key += [f"u{unit['symbol']}"]
-    return tuple(key)
-
-
-# Tables may not be necessary with this.
-named_units = aliased.Mapping(
-    {
-        build_unit_aliases(prefix, unit): {'base': unit, 'prefix': prefix}
-        for prefix in _PREFIXES for unit in _UNITS
-    }
-)
 
 
 class ComparisonError(TypeError):
