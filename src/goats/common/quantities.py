@@ -982,111 +982,6 @@ Conversions = typing.TypeVar('Conversions', bound=typing.Mapping)
 Conversions = typing.Mapping[typing.Tuple[str, str], float]
 
 
-Instance = typing.TypeVar('Instance', bound='_Conversion')
-
-
-class _Conversion:
-    """Internal type representing a unit conversion."""
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        u0: str,
-        u1: str,
-    ) -> Instance:
-        """Create a new instance or return an existing one.
-        
-        Parameters
-        ----------
-        u0 : str
-            The unit from which to convert.
-
-        u1 : str
-            The unit to which to convert.
-        """
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        instance: Instance,
-    ) -> Instance:
-        """Create a new instance or return an existing one.
-        
-        Parameters
-        ----------
-        instance
-            An existing instance of this class.
-        """
-
-    _instances = {}
-
-    u0: str=None
-    u1: str=None
-
-    def __new__(cls, *args):
-        """Concrete implementation"""
-        if len(args) == 1 and isinstance(args[0], cls):
-            return args[0]
-        try:
-            u0, u1 = args
-        except ValueError as err:
-            raise TypeError(
-                "Unit conversion requires two units."
-                f" (found {len(args)})"
-            ) from err
-        if available := cls._instances.get((u0, u1)):
-            return available
-        self = super().__new__(cls)
-        self.u0 = u0
-        self.u1 = u1
-        return self
-
-    def search(self, conversions: Conversions):
-        """Retrieve or build a conversion from `conversions`."""
-        forward = (self.u0, self.u1)
-        if found := self._search(forward, conversions):
-            return found
-        return self._iterate(conversions)
-        # scale = 1.0
-        # ux = None
-        # for pair, factor in conversions.items():
-        #     if self.u0 in pair:
-        #         if self.u0 == pair[0]:
-        #             scale *= factor
-        #             ux = pair[1]
-        #         else:
-        #             scale /= factor
-        #             ux = pair[0]
-        # if ux:
-        #     forward = (ux, self.u1)
-        #     if found := self._search(forward, conversions, scale=scale):
-        #         return found
-
-    def _iterate(self, conversions: Conversions, u0: str, scale: float=1.0):
-        """"""
-        match = (pair for pair in conversions if self.u0 in pair)
-        found = next(match, False)
-        if not found:
-            return
-        i = found.index(self.u0)
-        u1 = match[(i + 1) % 2]
-        op = (operator.mul, operator.truediv)[i]
-        return 
-
-    def _search(
-        self,
-        forward: typing.Tuple[str, str],
-        conversions: Conversions,
-        scale: float=1.0,
-    ) -> float:
-        """Search `conversion` for the target conversion or its inverse."""
-        if forward in conversions:
-            return scale * conversions[forward]
-        reverse = forward[::-1]
-        if reverse in conversions:
-            return scale / conversions[reverse]
-
-
 Instance = typing.TypeVar('Instance', bound='_ConversionTarget')
 
 
@@ -1185,7 +1080,7 @@ class _ConversionTarget:
         unit = self.substitutions.get(target) or target
         if self.unit == unit:
             return 1.0
-        if conversion := self._get(self.unit, unit):
+        if conversion := self._search(self.unit, unit):
             return conversion
         # TODO: Cache computed conversions.
         u0 = NamedUnit(self.unit)
@@ -1194,88 +1089,54 @@ class _ConversionTarget:
         if u0._reference == u1._reference:
             return ratio
         pair = (u0._reference.symbol, u1._reference.symbol)
+        if conversion := self._search(*pair):
+            return ratio * conversion
         if conversion := self._build(*pair):
             return ratio * conversion
         raise ValueError(
             f"Unknown conversion from {self.unit!r} to {unit!r}."
         ) from None
 
-    # def _evaluate(self, u0: str, u1: str):
-    #     """"""
-    #     try:
-    #         factor = self._build(u0, u1)
-    #     except ValueError:
-    #         factor = None
-    #     return factor
-
-    # def _build(self, u0: str, u1: str):
-    #     """"""
-    #     if known := self._get(u0, u1):
-    #         return known
-    #     match = (pair for pair in self.factors if u0 in pair)
-    #     found = next(match, False)
-    #     if not found:
-    #         raise ValueError(f"No conversions with {u0}") from None
-    #     scale = self._get(*found)
-    #     # if u1 in found:
-    #     #     return scale
-    #     ux, uy = found
-    #     if u0 == ux:
-    #         return scale * self._build(uy, u1)
-    #     if u0 == uy:
-    #         return scale * self._build(ux, u1)
-
-    # def _build(self, u0: str, u1: str):
-    #     """Build a conversion from known conversions."""
-    #     # BUG: This needs to know if it has built the forward or reverse
-    #     # conversion, and to invert the result in the latter case.
-    #     gen = self._find_partial(u0)
-    #     found = next(gen)
-    #     scale = self._get(*found)
-    #     while u1 not in found:
-    #         last = found
-    #         ux = last[0] if last[1] == u0 else last[1]
-    #         gen = self._find_partial(ux)
-    #         found = next(pair for pair in gen if pair != last)
-    #         scale *= self._get(*found)
-    #     return scale
-
     def _build(self, u0: str, u1: str):
-        """"""
+        """Build a new conversion from known conversions."""
+        # Find a conversion pair containing `u0`.
         pair = self._pair_gen(u0)
         found = next(pair)
+        # Use it to create a collection of found pairs.
         pairs = [found]
+        # Save this conversion for final comparison to `(u0, u1)`.
         p0 = found
+        # Initialize the search for the next pair.
+        ux = found[0] if found[1] == u0 else found[1]
+        pair = self._pair_gen(ux)
+        # Search for new pairs until we find one with `u1`.
         while u1 not in found:
-            ux = found[0] if found[1] == u0 else found[1]
-            pair = self._pair_gen(ux)
             found = next(pair)
-            while found in pairs:
-                found = next(pair)
-            pairs.append(found)
+            # Only add this pair if it isn't already in our collection.
+            if found not in pairs:
+                pairs.append(found)
+                ux = found[0] if found[1] == u0 else found[1]
+                pair = self._pair_gen(ux)
+        # Collect all the numerical factors in this chain of conversions.
         factors = [self.factors[pair] for pair in pairs]
+        # Co-multiply factors to compute the full scale factor.
         scale = functools.reduce(lambda x, y: x*y, factors)
+        # Determine whether we built the forward or reverse conversion.
         p1 = found
         if (u0, u1) == (p0[0], p1[1]):
+            # It's the forward conversion; return the scale factor.
             return scale
         if (u0, u1) == (p0[1], p1[0]):
+            # It's the reverse conversion; return the inverse factor.
             return 1 / scale
         raise ValueError
 
-    # def _find_partial(self, unit: str):
-    #     """Yield a conversion containing `unit`."""
-    #     # yield from (pair for pair in self.factors if unit in pair)
-    #     match = (pair for pair in self.factors if unit in pair)
-    #     if found := next(match, None):
-    #         return found
-    #     raise ValueError(f"No conversions with {unit}") from None
-
     def _pair_gen(self, unit: str):
-        """"""
+        """Create a generator of unit-conversion pairs."""
         return (pair for pair in self.factors if unit in pair)
 
-    def _get(self, u0: str, u1: str):
-        """"""
+    def _search(self, u0: str, u1: str):
+        """Get the appropriate unit-conversion factor, if available."""
         forward = (u0, u1)
         if forward in self.factors:
             return self.factors[forward]
