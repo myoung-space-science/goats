@@ -961,8 +961,8 @@ class NamedUnit(iterables.ReprStrMixin):
 
     _instances = {}
 
-    _magnitude: MetricPrefix=None
-    _reference: BaseUnit=None
+    prefix: MetricPrefix=None
+    base: BaseUnit=None
     name: str=None
     symbol: str=None
     scale: float=None
@@ -988,8 +988,8 @@ class NamedUnit(iterables.ReprStrMixin):
         if available := cls._instances.get(key):
             return available
         new = super().__new__(cls)
-        new._magnitude = magnitude # Rename this `prefix`
-        new._reference = reference # Rename this `base`
+        new.prefix = magnitude
+        new.base = reference
         new.name = f"{magnitude.name}{reference.name}"
         """The full name of this unit."""
         new.symbol = f"{magnitude.symbol}{reference.symbol}"
@@ -999,7 +999,7 @@ class NamedUnit(iterables.ReprStrMixin):
         new.quantity = reference.quantity
         """The physical quantity of this unit."""
         dimensions = get_property(new.quantity, 'dimensions')
-        system = new._reference.system or 'mks'
+        system = new.base.system or 'mks'
         new.dimension = dimensions[system]
         """The physical dimension of this unit."""
         cls._instances[key] = new
@@ -1076,10 +1076,10 @@ class NamedUnit(iterables.ReprStrMixin):
         if all(obj.dimension == '1' for obj in (self, other)):
             return 1.0
         ratio = other.scale / self.scale
-        if other._reference == self._reference:
+        if other.base == self.base:
             return ratio
         if other.quantity == self.quantity:
-            pair = (other._reference.symbol, self._reference.symbol)
+            pair = (other.base.symbol, self.base.symbol)
             if factor := get_conversion_factor(pair, self.quantity):
                 return ratio * factor
         raise UnitConversionError(self.name, other.name) from None
@@ -1091,8 +1091,8 @@ class NamedUnit(iterables.ReprStrMixin):
     def __eq__(self, other) -> bool:
         """True if two representations have equal magnitude and reference."""
         that = type(self)(other)
-        same_magnitude = (self._magnitude == that._magnitude)
-        same_reference = (self._reference == that._reference)
+        same_magnitude = (self.prefix == that.prefix)
+        same_reference = (self.base == that.base)
         return same_magnitude and same_reference
 
     def __str__(self) -> str:
@@ -1250,9 +1250,9 @@ class _ConversionTarget:
         u0 = NamedUnit(__u0)
         u1 = NamedUnit(__u1)
         ratio = u0.scale / u1.scale
-        if u0._reference == u1._reference:
+        if u0.base == u1.base:
             return ratio
-        pair = (u0._reference.symbol, u1._reference.symbol)
+        pair = (u0.base.symbol, u1.base.symbol)
         if conversion := self._evaluate(*pair):
             return ratio * conversion
         if conversion := self._build(*pair):
@@ -1561,15 +1561,15 @@ class Unit(algebra.Expression):
         ratio = self / other
         if not isinstance(ratio, type(self)):
             raise TypeError(f"Could not compute {self} / {other}")
-        r0 = NamedUnit(ratio[0].base)._reference
+        r0 = NamedUnit(ratio[0].base).base
         factor = 1.0
         if all(
-            NamedUnit(term.base)._reference == r0
+            NamedUnit(term.base).base == r0
             for term in ratio[1:]
         ): # TODO: Put this `all` logic in a method or module function.
             for term in ratio:
                 unit = NamedUnit(term.base)
-                factor *= unit._magnitude.factor ** term.exponent
+                factor *= unit.prefix.factor ** term.exponent
             return 1.0 / factor
         for term in ratio:
             unit = NamedUnit(term.base)
