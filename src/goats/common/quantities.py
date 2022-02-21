@@ -887,23 +887,11 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
         # TODO: Cache computed results.
         return self._parse(q)
 
-    # TODO: Define a function in `algebra.py` that wraps
-    # `OperandFactory.create`, so we can call it from here instead of creating
-    # this awkward instance.
-    _operand = algebra.OperandFactory()
     def _parse(self, string: str):
         """Parse a string representing a compound quantity."""
         if ' ' in string and all(c not in string for c in ['*', '/']):
             string = string.replace(' ', '_')
-        expr = algebra.Expression(string)
-        parts = []
-        for term in expr:
-            prop = get_property(term.base.replace('_', ' '), self.key)
-            tmp = {
-                k: _operand.create(v, term.exponent)
-                for k, v in prop.items()
-            }
-            parts.append(tmp)
+        parts = [self._expand(term) for term in algebra.Expression(string)]
         keys = {key for part in parts for key in part.keys()}
         merged = {key: [] for key in keys}
         for part in parts:
@@ -912,6 +900,14 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
         return {
             k: str(algebra.Expression(v))
             for k, v in merged.items()
+        }
+
+    _operand = algebra.OperandFactory()
+    def _expand(self, term: algebra.Term):
+        """Create a `dict` of operands from this term."""
+        return {
+            k: _operand.create(v, term.exponent)
+            for k, v in self[term.base.replace('_', ' ')].items()
         }
 
     def __str__(self) -> str:
