@@ -1395,19 +1395,28 @@ class _Converter:
         # * the logic from `_search_conversions` for computing
         #   reverse-conversion factors
         # * an algorithm for computing conversion factors for derived quantities
-        factors = {} # PLACEHOLDER
-        if isinstance(self._defined, dict):
-            factors = self._defined.get('conversions', {})
-            substitutions = self._defined['units'].copy()
-        elif isinstance(self._defined, str) and self._defined in _QUANTITIES:
-            actual = _QUANTITIES[self._defined]
-            factors = actual.get('conversions', {})
-            substitutions = actual['units'].copy()
+        quantity = self._get_definition()
+        definitions = quantity.get('conversions', {})
+        substitutions = quantity['units'].copy()
         return _ConversionTarget(
             self.unit,
-            factors,
+            definitions=definitions,
             substitutions=substitutions,
         )
+
+    def _get_definition(self) -> typing.Dict[str, dict]:
+        """Internal helper for retrieving a quantity definition."""
+        if isinstance(self._defined, dict):
+            return self._defined
+        if isinstance(self._defined, str):
+            if self._defined in _QUANTITIES:
+                return _QUANTITIES[self._defined]
+            return self._build_definition()
+        return {}
+
+    def _build_definition(self):
+        """Build definitions for a derived quantity."""
+        raise NotImplementedError("Complex conversions")
 
 
 Instance = typing.TypeVar('Instance', bound='Quantity')
