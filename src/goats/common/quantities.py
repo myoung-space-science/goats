@@ -37,7 +37,7 @@ _prefixes = [
     {'symbol': 'y', 'name': 'yocto', 'factor': 1e-24},
 ]
 
-prefixes = iterables.Table(_prefixes)
+_PREFIXES = iterables.Table(_prefixes)
 
 
 _units = [
@@ -292,7 +292,7 @@ _units = [
     },
 ]
 
-units = iterables.Table(_units)
+_UNITS = iterables.Table(_units)
 
 
 # A note about angles: Kalinin (2019) "On the status of plane and solid in the
@@ -313,7 +313,7 @@ units = iterables.Table(_units)
 #   (zero), which, ironically, looks more like $\Theta$ than 'O'.
 # - This module adds an identity quantity with '1' as its dimension and unit
 
-base_quantities = iterables.Table(
+_BASE_QUANTITIES = iterables.Table(
     [
         {'name': 'identity', 'dimension': '1', 'unit': '1'},
         {'name': 'amount', 'dimension': 'N', 'unit': 'mol'},
@@ -332,7 +332,7 @@ C = 2.99792458e10
 PI = np.pi
 """The ratio of a circle's circumference to its diameter."""
 
-definitions = {
+_QUANTITIES = {
     'amount': {
         'dimensions': {
             'mks': 'N',
@@ -859,14 +859,14 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
         self.key = key
         return self
 
-    LEN = len(definitions) # No need to compute every time.
+    LEN = len(_QUANTITIES) # No need to compute every time.
     def __len__(self) -> int:
         """The number of defined quantities. Called for len(self)."""
         return self.LEN
 
     def __iter__(self) -> typing.Iterator[str]:
         """Iterate over names of defined quantities. Called for iter(self)."""
-        return iter(definitions)
+        return iter(_QUANTITIES)
 
     def __getitem__(self, name: str):
         """Get a named property of a defined quantity.
@@ -877,9 +877,9 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
         `str` entry, it will attempt to create the equivalent `dict` by
         algebraically evaluating the terms in the entry.
         """
-        if name not in definitions:
+        if name not in _QUANTITIES:
             raise KeyError(f"No definition for '{name}'")
-        q = definitions[name]
+        q = _QUANTITIES[name]
         if isinstance(q, dict):
             return q.get(self.key, {})
         if not isinstance(q, str):
@@ -938,7 +938,7 @@ def get_conversion_factor(pair: typing.Tuple[str], quantity: str=None):
     """Get the conversion factor for the given pair of units."""
     if quantity:
         return _search_conversions(*pair, quantity)
-    for quantity in definitions:
+    for quantity in _QUANTITIES:
         if f := _search_conversions(*pair, quantity):
             return f
 
@@ -1198,7 +1198,7 @@ class _Converter:
             return available
         self = super().__new__(cls)
         self.unit = unit
-        defined = definitions.get(quantity)
+        defined = _QUANTITIES.get(quantity)
         if not defined:
             raise ValueError(f"Unknown quantity {quantity}")
         self.quantity = quantity
@@ -1218,8 +1218,8 @@ class _Converter:
         if isinstance(self._defined, dict):
             factors = self._defined.get('conversions', {})
             substitutions = self._defined['units'].copy()
-        elif isinstance(self._defined, str) and self._defined in definitions:
-            actual = definitions[self._defined]
+        elif isinstance(self._defined, str) and self._defined in _QUANTITIES:
+            actual = _QUANTITIES[self._defined]
             factors = actual.get('conversions', {})
             substitutions = actual['units'].copy()
         return _ConversionTarget(
@@ -1598,9 +1598,9 @@ def get_property(name: str, key: str):
     attempt to create the equivalent `dict` by algebraically evaluating the
     terms in the entry.
     """
-    if name not in definitions:
+    if name not in _QUANTITIES:
         raise KeyError(f"No definition for '{name}'")
-    q = definitions[name]
+    q = _QUANTITIES[name]
     if isinstance(q, dict):
         return q.get(key, {})
     if not isinstance(q, str):
@@ -1641,7 +1641,7 @@ def get_quantity(name: str):
         key: get_property(name, key=key)
         for key in ['dimensions', 'units']
     }
-    definition = definitions[name]
+    definition = _QUANTITIES[name]
     try:
         options = definition['conversions']
     except (KeyError, TypeError):
@@ -1694,18 +1694,18 @@ class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
         new.name = name
         new.dimensions = {
             get_property(q, 'dimensions')[name]: q
-            for q in definitions
+            for q in _QUANTITIES
         }
         cls._instances[name] = new
         return new
 
     def __len__(self) -> int:
         """The number of quantities defined in this metric system."""
-        return definitions.__len__()
+        return _QUANTITIES.__len__()
 
     def __iter__(self) -> typing.Iterator:
         """Iterate over defined metric quantities."""
-        return definitions.__iter__()
+        return _QUANTITIES.__iter__()
 
     def __getitem__(self, key: str):
         """Get the metric for the requested quantity in this system."""
@@ -1867,7 +1867,7 @@ def build_unit_aliases(prefix, unit):
 named_units = aliased.Mapping(
     {
         build_unit_aliases(prefix, unit): {'base': unit, 'prefix': prefix}
-        for prefix in prefixes for unit in units
+        for prefix in _PREFIXES for unit in _UNITS
     }
 )
 
