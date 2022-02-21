@@ -856,11 +856,6 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
         return self.key
 
 
-# Does this make sense?
-UNITS = Property('units')
-DIMENSIONS = Property('dimensions')
-
-
 class Metric(typing.NamedTuple):
     """A canonical physical quantity within a named metric system."""
 
@@ -1428,6 +1423,8 @@ Instance = typing.TypeVar('Instance', bound='Quantity')
 class Quantity(iterables.ReprStrMixin):
     """A single physical quantity."""
 
+    _properties = {k: Property(k) for k in ('units', 'dimensions')}
+
     _instances = {}
 
     Attr = typing.TypeVar('Attr', bound=dict)
@@ -1457,8 +1454,8 @@ class Quantity(iterables.ReprStrMixin):
         self = super().__new__(cls)
         self.name = name
         """The name of this physical quantity."""
-        self._units = UNITS[self.name]
-        self._dimensions = DIMENSIONS[self.name]
+        self._units = cls._properties['units'][self.name]
+        self._dimensions = cls._properties['dimensions'][self.name]
         cls._instances[name] = self
         return self
 
