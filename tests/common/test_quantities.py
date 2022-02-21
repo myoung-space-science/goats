@@ -28,8 +28,12 @@ def test_conversion_factor():
             ('au', 'au'): 1.0, # trivial non-system conversion
         },
         'momentum': { # complex unit expressions
-            ('kg * m / s', 'g * cm / s'): 1e5,
-            ('g * cm / s', 'kg * m / s'): 1e-5,
+            ('kg * m / s', 'g * cm / s'): 1e5, # defined (forward)
+            ('g * cm / s', 'kg * m / s'): 1e-5, # defined (reverse)
+            ('g * km / s', 'g * cm / s'): 1e5, # undefined (forward)
+            ('g * cm / s', 'g * km / s'): 1e-5, # undefined (reverse)
+            ('g * km / day', 'g * cm / s'): 1e5 / 86400, # undefined (forward)
+            ('g * cm / s', 'g * km / day'): 86400 / 1e5, # undefined (reverse)
         },
         'energy': { # multiple defined conversions
             ('J', 'erg'): 1e7,
@@ -41,48 +45,16 @@ def test_conversion_factor():
             ('MeV', 'J'): 1.6022e-13, # conversion with rescale
             ('J', 'MeV'): 1 / 1.6022e-13, # (same)
         },
-        # 'energy density': { # Tests formulaic conversion
-        #     ('J / m^3', 'erg / cm^3'): 1e1,
-        #     ('erg / cm^3', 'J / m^3'): 1e-1,
-        # },
+        'energy density': { # Tests formulaic conversion
+            ('J / m^3', 'erg / cm^3'): 1e1,
+            ('erg / cm^3', 'J / m^3'): 1e-1,
+        },
     }
     for name, conversion in cases.items():
         for (u0, u1), expected in conversion.items():
             quantity = quantities.Quantity(name)
             result = quantity.convert(u0).to(u1)
             assert result == pytest.approx(expected)
-
-
-def test_get_quantity():
-    cases = {
-        'current': { # Tests retrieval
-            'dimensions': {
-                'mks': 'I',
-                'cgs': '(M^1/2 * L^3/2) / T^2',
-            },
-            'units': {
-                'mks': 'A',
-                'cgs': 'statA',
-            },
-            'conversions': {
-                ('A', 'statA'): 10*quantities.C,
-            },
-        },
-        'current density': { # Tests construction
-            'dimensions': {
-                'mks': 'I L^-2',
-                'cgs': 'M^1/2 L^-1/2 T^-2',
-            },
-            'units': {
-                'mks': 'A m^-2',
-                'cgs': 'statA cm^-2',
-            },
-            'conversions': {},
-        }
-    }
-    for name, expected in cases.items():
-        quantity = quantities.get_quantity(name)
-        assert quantity == quantities.Quantity(**expected)
 
 
 def test_build_named_unit():
@@ -115,29 +87,6 @@ def test_build_named_unit():
             assert getattr(unit, key) == value
     with pytest.raises(quantities.UnitParsingError):
         quantities.NamedUnit('cat')
-
-
-def test_named_unit_floordiv():
-    cases = {
-        ('cm', 'm'): 1e2,
-        ('m', 'cm'): 1e-2,
-        ('cm', 'cm'): 1.0,
-        ('m', 'au'): 1.495978707e11,
-        ('erg', 'J'): 1e7,
-        ('J', 'erg'): 1e-7,
-        ('erg', 'joule'): 1e7,
-        ('erg', 'eV'): 1.6022e-12,
-        ('erg', 'MeV'): 1.6022e-6,
-    }
-    for (s0, s1), expected in cases.items():
-        u0 = quantities.NamedUnit(s0)
-        u1 = quantities.NamedUnit(s1)
-        u0_per_u1 = u0 // u1
-        assert u0_per_u1 == pytest.approx(expected)
-        u0_per_s1 = u0 // s1
-        assert u0_per_s1 == pytest.approx(expected)
-        s0_per_u1 = s0 // u1
-        assert s0_per_u1 == pytest.approx(expected)
 
 
 def test_unit():
