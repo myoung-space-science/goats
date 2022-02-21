@@ -1,9 +1,9 @@
 import abc
 import collections.abc
-import inspect
 import functools
 import math
 import numbers
+import operator
 import typing
 
 import numpy as np
@@ -1046,20 +1046,32 @@ class _Conversion:
         forward = (self.u0, self.u1)
         if found := self._search(forward, conversions):
             return found
-        scale = 1.0
-        ux = None
-        for pair, factor in conversions.items():
-            if self.u0 in pair:
-                if self.u0 == pair[0]:
-                    scale *= factor
-                    ux = pair[1]
-                else:
-                    scale /= factor
-                    ux = pair[0]
-        if ux:
-            forward = (ux, self.u1)
-            if found := self._search(forward, conversions, scale=scale):
-                return found
+        return self._iterate(conversions)
+        # scale = 1.0
+        # ux = None
+        # for pair, factor in conversions.items():
+        #     if self.u0 in pair:
+        #         if self.u0 == pair[0]:
+        #             scale *= factor
+        #             ux = pair[1]
+        #         else:
+        #             scale /= factor
+        #             ux = pair[0]
+        # if ux:
+        #     forward = (ux, self.u1)
+        #     if found := self._search(forward, conversions, scale=scale):
+        #         return found
+
+    def _iterate(self, conversions: Conversions, u0: str, scale: float=1.0):
+        """"""
+        match = (pair for pair in conversions if self.u0 in pair)
+        found = next(match, False)
+        if not found:
+            return
+        i = found.index(self.u0)
+        u1 = match[(i + 1) % 2]
+        op = (operator.mul, operator.truediv)[i]
+        return 
 
     def _search(
         self,
@@ -1078,7 +1090,6 @@ class _Conversion:
 Instance = typing.TypeVar('Instance', bound='_ConversionTarget')
 
 
-# I'm no longer sure that these need (or even ought) to be singletons.
 class _ConversionTarget:
     """Internal class for managing conversion factors."""
 
@@ -1086,7 +1097,7 @@ class _ConversionTarget:
     def __new__(
         cls: typing.Type[Instance],
         unit: str,
-        factors: Conversions,
+        factors: Conversions=None,
         substitutions: typing.Mapping[str, str]=None,
     ) -> Instance:
         """Create a new instance or return an existing one.
@@ -1096,11 +1107,9 @@ class _ConversionTarget:
         unit : string
             The unit to be converted.
 
-        factors : mapping
+        factors : mapping, optional
             A mapping from pairs of unit strings to their corresponding
-            numerical conversion factors, or from the name of a metric system to
-            the numerical conversion factor necessary to convert `unit` into
-            that system.
+            numerical conversion factors.
 
         substitutions : mapping, optional
             A one-to-one mapping from string keys to canonical unit strings. If
@@ -1121,89 +1130,158 @@ class _ConversionTarget:
             An existing instance of this class.
         """
 
-    _instances = {}
-
     unit: str=None
     factors: Conversions=None
-    substitutions: typing.Mapping[str, str]
+    substitutions: typing.Mapping[str, str]=None
 
     def __new__(cls, *args, **kwargs) -> Instance:
         """Concrete implementation."""
         if not kwargs and len(args) == 1 and isinstance(args[0], cls):
             return args[0]
-        if len(args) != 2:
-            raise TypeError(
-                f"{cls} takes two positional arguments"
-                ": the unit to convert and a mapping of conversion factors"
-            ) from None
-        unit = str(args[0])
-        if available := cls._instances.get(unit):
-            return available
         self = super().__new__(cls)
-        factors = args[1]
-        # NOTE: This used to raise a `TypeError` when `factors` was empty but I
-        # took that out because we can still compute conversions based on metric
-        # scale factors (e.g., 'm' to 'km'). We may want to return to `factors`
-        # being optional but we will still need to check for it in `args`.
-        if not isinstance(factors, typing.Mapping):
-            raise TypeError(
-                "Second argument must be a mapping, "
-                f"not {type(factors)}"
-            ) from None
-        self.factors = factors
-        self.substitutions = kwargs.get('substitutions', {})
+        if len(args) == 3:
+            unit, factors, substitutions = args
+        if len(args) == 2:
+            unit, factors = args
+            substitutions = kwargs.get('substitutions')
+        if len(args) == 1:
+            unit = args[0]
+            factors = kwargs.get('factors')
+            substitutions = kwargs.get('substitutions')
+        self.factors = factors or {}
+        self.substitutions = substitutions or {}
         self.unit = self.substitutions.get(unit) or unit
         return self
 
     def __call__(self, target: str):
-        """Compute the conversion from `self.unit` to `unit`."""
-        unit = self.substitutions.get(target) or target
-        return self._convert_to(unit)
-
-    def _convert_to(self, target: str):
-        """Internal unit-conversion logic.
+        """Compute the conversion from `self.unit` to `target`.
         
         Parameters
         ----------
         target : string
-            The unit or system to which to convert the current unit. See Notes
+            The unit or keyword to which to convert the current unit. See Notes
             for details on how this method handles `target`.
 
         Notes
         -----
         This method proceeds as follows:
         
-        1. If `target` and the current unit are the same, return 1.0.
-        1. If the conversion to `target` is defined, return the corresponding
-           value.
-        1. If the conversion from `target` is defined, return the inverse of the
-           corresponding value.
-        1. If `target` and the current unit have the same base unit (e.g., 'm'
-           for 'cm' and 'km'), return the ratio of their scale factors. This
-           happens later in the chain because it requires two conversions to
-           `~quantities.NamedUnit` and an arithmetic operation, whereas previous
-           cases only require a mapping look-up.
-        1. Compute ratio of the units' metric scale factors, and re-check the
-           forward and reverse conversions on the base units.
+        1. Substitute a known unit for `target`, if necessary.
+        1. If the target unit and the current unit are the same, return 1.0.
+        1. If the conversion to the target unit is defined, return the
+        1. corresponding value.
+        1. If the conversion from the target unit is defined, return the inverse
+           of the corresponding value.
+        1. If the target unit and the current unit have the same base unit
+           (e.g., 'm' for 'cm' and 'km'), return the ratio of their scale
+           factors. This happens later in the process because it requires two
+           conversions to `~quantities.NamedUnit` and an arithmetic operation,
+           whereas previous cases only require a mapping look-up.
+        1. Compute the ratio of the units' metric scale factors, and re-check
+           the forward and reverse conversions on the base units.
         1. Raise an exception to alert the caller that the conversion is
            undefined.
         """
-        if self.unit == target:
+        unit = self.substitutions.get(target) or target
+        if self.unit == unit:
             return 1.0
-        conversion = _Conversion(self.unit, target)
-        if factor := conversion.search(self.factors):
-            return factor
+        if conversion := self._get(self.unit, unit):
+            return conversion
+        # TODO: Cache computed conversions.
         u0 = NamedUnit(self.unit)
-        u1 = NamedUnit(target)
+        u1 = NamedUnit(unit)
+        ratio = u0.scale / u1.scale
         if u0._reference == u1._reference:
-            return u0.scale / u1.scale
-        conversion = _Conversion(u0._reference.symbol, u1._reference.symbol)
-        scale = u0._magnitude.factor / u1._magnitude.factor
-        if factor := conversion.search(self.factors):
-            return scale * factor
+            return ratio
+        pair = (u0._reference.symbol, u1._reference.symbol)
+        if conversion := self._build(*pair):
+            return ratio * conversion
         raise ValueError(
-            f"Unknown conversion from {self.unit!r} to {target!r}."
+            f"Unknown conversion from {self.unit!r} to {unit!r}."
         ) from None
+
+    # def _evaluate(self, u0: str, u1: str):
+    #     """"""
+    #     try:
+    #         factor = self._build(u0, u1)
+    #     except ValueError:
+    #         factor = None
+    #     return factor
+
+    # def _build(self, u0: str, u1: str):
+    #     """"""
+    #     if known := self._get(u0, u1):
+    #         return known
+    #     match = (pair for pair in self.factors if u0 in pair)
+    #     found = next(match, False)
+    #     if not found:
+    #         raise ValueError(f"No conversions with {u0}") from None
+    #     scale = self._get(*found)
+    #     # if u1 in found:
+    #     #     return scale
+    #     ux, uy = found
+    #     if u0 == ux:
+    #         return scale * self._build(uy, u1)
+    #     if u0 == uy:
+    #         return scale * self._build(ux, u1)
+
+    # def _build(self, u0: str, u1: str):
+    #     """Build a conversion from known conversions."""
+    #     # BUG: This needs to know if it has built the forward or reverse
+    #     # conversion, and to invert the result in the latter case.
+    #     gen = self._find_partial(u0)
+    #     found = next(gen)
+    #     scale = self._get(*found)
+    #     while u1 not in found:
+    #         last = found
+    #         ux = last[0] if last[1] == u0 else last[1]
+    #         gen = self._find_partial(ux)
+    #         found = next(pair for pair in gen if pair != last)
+    #         scale *= self._get(*found)
+    #     return scale
+
+    def _build(self, u0: str, u1: str):
+        """"""
+        pair = self._pair_gen(u0)
+        found = next(pair)
+        pairs = [found]
+        p0 = found
+        while u1 not in found:
+            ux = found[0] if found[1] == u0 else found[1]
+            pair = self._pair_gen(ux)
+            found = next(pair)
+            while found in pairs:
+                found = next(pair)
+            pairs.append(found)
+        factors = [self.factors[pair] for pair in pairs]
+        scale = functools.reduce(lambda x, y: x*y, factors)
+        p1 = found
+        if (u0, u1) == (p0[0], p1[1]):
+            return scale
+        if (u0, u1) == (p0[1], p1[0]):
+            return 1 / scale
+        raise ValueError
+
+    # def _find_partial(self, unit: str):
+    #     """Yield a conversion containing `unit`."""
+    #     # yield from (pair for pair in self.factors if unit in pair)
+    #     match = (pair for pair in self.factors if unit in pair)
+    #     if found := next(match, None):
+    #         return found
+    #     raise ValueError(f"No conversions with {unit}") from None
+
+    def _pair_gen(self, unit: str):
+        """"""
+        return (pair for pair in self.factors if unit in pair)
+
+    def _get(self, u0: str, u1: str):
+        """"""
+        forward = (u0, u1)
+        if forward in self.factors:
+            return self.factors[forward]
+        reverse = (u1, u0)
+        if reverse in self.factors:
+            return 1 / self.factors[reverse]
 
 
 Instance = typing.TypeVar('Instance', bound='_Converter')
