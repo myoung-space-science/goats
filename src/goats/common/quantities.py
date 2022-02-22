@@ -1014,6 +1014,10 @@ class NamedUnit(iterables.ReprStrMixin):
         same_reference = (self.base == that.base)
         return same_magnitude and same_reference
 
+    def __hash__(self) -> int:
+        """Called for hash(self). Supports use as mapping key."""
+        return hash((self.base, self.prefix))
+
     def __floordiv__(self, other):
         """The magnitude of self relative to other.
 
