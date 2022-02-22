@@ -1008,11 +1008,58 @@ class NamedUnit(iterables.ReprStrMixin):
         return magnitude, reference
 
     def __eq__(self, other) -> bool:
-        """True if two representations have equal magnitude and reference."""
+        """True if two representations have equal magnitude and base unit."""
         that = type(self)(other)
         same_magnitude = (self.prefix == that.prefix)
         same_reference = (self.base == that.base)
         return same_magnitude and same_reference
+
+    def __floordiv__(self, other):
+        """The magnitude of self relative to other.
+
+        Examples
+        --------
+        The following are all equivalent to the statement that there are 100
+        centimeters per meter:
+
+            >>> NamedUnit('centimeter') // NamedUnit('meter')
+            100.0
+            >>> NamedUnit('cm') // NamedUnit('m')
+            100.0
+            >>> NamedUnit('meter') // NamedUnit('centimeter')
+            0.01
+
+        Only one of the operands need be an instance of this type:
+
+            >>> NamedUnit('m') // 'cm'
+            100.0
+            >>> 'm' // NamedUnit('cm')
+            100.0
+
+        Attempting this operation between two units with different bases
+        will raise an exception:
+
+            >>> NamedUnit('m') // NamedUnit('au')
+            <raises ValueError>
+            >>> NamedUnit('m') // NamedUnit('s')
+            <raises ValueError>
+
+        Therefore, this operation is not intended for unit conversion.
+        """
+        if not isinstance(other, (str, NamedUnit)):
+            return NotImplemented
+        that = type(self)(other)
+        if that == self:
+            return 1.0
+        if that.base != self.base:
+            raise ValueError(
+                f"Can't compute magnitude of {self!r} relative to {other!r}"
+            ) from None
+        return that.scale / self.scale
+
+    def __rfloordiv__(self, other):
+        """The magnitude of other relative to self."""
+        return 1.0 / (self // other)
 
     def __str__(self) -> str:
         """A printable representation of this unit."""

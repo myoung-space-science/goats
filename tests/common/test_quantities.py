@@ -92,6 +92,30 @@ def test_build_named_unit():
         quantities.NamedUnit('cat')
 
 
+def test_named_unit_floordiv():
+    """Calling u0 // u1 should compute the relative magnitude."""
+    cases = {
+        ('cm', 'm'): 1e2,
+        ('m', 'cm'): 1e-2,
+        ('cm', 'cm'): 1.0,
+        ('km', 'm'): 1e-3,
+        ('m', 'km'): 1e3,
+    }
+    for (s0, s1), expected in cases.items():
+        u0 = quantities.NamedUnit(s0)
+        u1 = quantities.NamedUnit(s1)
+        u0_per_u1 = u0 // u1 # defined between instances
+        assert u0_per_u1 == pytest.approx(expected)
+        u0_per_s1 = u0 // s1 # defined for instance // string
+        assert u0_per_s1 == pytest.approx(expected)
+        s0_per_u1 = s0 // u1 # defined for string // instance
+        assert s0_per_u1 == pytest.approx(expected)
+    with pytest.raises(ValueError):
+        u0 = quantities.NamedUnit('m')
+        u1 = quantities.NamedUnit('J')
+        u0 // u1 # not defined for different base units
+
+
 def test_unit():
     u0 = quantities.Unit('m')
     u1 = quantities.Unit('J')
