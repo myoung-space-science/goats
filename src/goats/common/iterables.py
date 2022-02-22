@@ -949,6 +949,81 @@ class Table(MappingBase):
         raise TableLookupError(request)
 
 
+class Connections(collections.abc.Collection, ReprStrMixin):
+    """A graph defined by a collection of weighted edges."""
+
+    def __init__(self, base: typing.Mapping=None) -> None:
+        """Initialize an instance.
+
+        Parameters
+        ----------
+        base : mapping, optional
+            The mapping of weighted connections from which to initialize this
+            instance. Items in the mapping must have the form ``((start, end),
+            weight)``.
+        """
+        self.connections: typing.Dict[typing.Tuple[str, str], float] = {}
+        """The forward and reverse links in this graph."""
+        base = base or {}
+        for (start, end), weight in base.items():
+            self.add_connection(start, end, weight)
+
+    def __contains__(self, connection: typing.Tuple[str, str]):
+        """True if `connection` is available."""
+        return connection in self.connections
+
+    def __len__(self) -> int:
+        """The number of connections. Called for len(self)."""
+        return len(self.connections)
+
+    def __iter__(self):
+        """Iterate over connections. Called for iter(self)."""
+        return iter(self.connections)
+
+    @property
+    def nodes(self):
+        """The distinct nodes in this graph."""
+        return {n for connection in self.connections for n in connection}
+
+    def get_adjacencies(self, node: str):
+        """Retrieve the connections to this node, if possible."""
+        if node in self.nodes:
+            return {
+                end: v for (start, end), v in self.connections.items()
+                if start == node
+            }
+        raise KeyError(f"No node information for {node!r}") from None
+
+    def get_weight(self, start: str, end: str):
+        """Retrieve the weight of this link, if possible."""
+        if (start, end) in self.connections:
+            return self.connections[(start, end)]
+        raise KeyError(
+            f"No connection between {start!r} and {end!r}"
+        ) from None
+
+    def add_connection(
+        self,
+        start: str,
+        end: str,
+        weight: float=None,
+    ) -> None:
+        """Add a connection (with optional weight) to the graph."""
+        forward = ((start, end), weight)
+        inverse = 1 / weight if weight else weight
+        reverse = ((end, start), inverse)
+        for edge, value in (forward, reverse):
+            if edge not in self.connections:
+                self.connections[edge] = value
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return '\n'.join(
+            f"({n0} -> {n1}): {wt}"
+            for (n0, n1), wt in self.connections.items()
+        )
+
+
 class Singleton:
     """A simple base class for creating singletons."""
 

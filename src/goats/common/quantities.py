@@ -763,6 +763,9 @@ _CONVERSIONS = {
 }
 
 
+CONVERSIONS = iterables.Connections(_CONVERSIONS)
+
+
 Instance = typing.TypeVar('Instance', bound='Property')
 
 
