@@ -1204,12 +1204,13 @@ class _Converter:
         if self._defined is None:
             conversions = {}
             for (u0, u1), factor in _CONVERSIONS.items():
-                conversion = Conversion(u0, u1, factor)
-                for c in (conversion, conversion.inverse):
-                    if c.u0 not in conversions:
-                        conversions[c.u0] = {}
-                    if c.u1 not in conversions[c.u0]:
-                        conversions[c.u0][c.u1] = c.factor
+                forward = (u0, u1, factor)
+                reverse = (u1, u0, 1 / factor)
+                for ux, uy, s in (forward, reverse):
+                    if ux not in conversions:
+                        conversions[ux] = {}
+                    if uy not in conversions[ux]:
+                        conversions[ux][uy] = s
             self._defined = conversions
         return self._defined
 
