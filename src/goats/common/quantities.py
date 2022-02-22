@@ -1019,6 +1019,79 @@ class NamedUnit(iterables.ReprStrMixin):
         return f"'{self.name} | {self.symbol}'"
 
 
+Instance = typing.TypeVar('Instance', bound='Conversion')
+
+
+class Conversion(iterables.ReprStrMixin):
+    """A single defined unit conversion."""
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        u0: str,
+        u1: str,
+        factor: float,
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        u0 : string
+            The unit from which to convert.
+
+        u1 : string
+            The unit to which to convert.
+
+        factor : float
+            The numerical scale factor associated with converting `u0` to `u1`.
+        """
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        instance: Instance,
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        instance
+            An existing instance of this class.
+        """
+
+    _instances = {}
+
+    u0: str=None
+    u1: str=None
+    factor: float=None
+
+    def __new__(cls, *args):
+        """Concrete implementation."""
+        if len(args) == 1 and isinstance(args[0], cls):
+            return args[0]
+        key = tuple(args)
+        if available := cls._instances.get(key):
+            return available
+        u0, u1, factor = key
+        self = super().__new__(cls)
+        self.u0 = u0
+        self.u1 = u1
+        self.factor = factor
+        return self
+
+    def __rtruediv__(self, other):
+        """Implemented for inversion."""
+        if not isinstance(other, numbers.Real):
+            return NotImplemented
+        if other != 1.0:
+            raise ValueError("Division only defined for 1 / self")
+        return type(self)(self.u1, self.u0, 1 / self.factor)
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return f"{self.u0!r} -> {self.u1!r}: {self.factor!r}"
+
+
 Instance = typing.TypeVar('Instance', bound='_Converter')
 
 
