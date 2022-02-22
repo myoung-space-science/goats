@@ -49,6 +49,9 @@ def test_conversion_factor():
             ('J / m^3', 'erg / cm^3'): 1e1,
             ('erg / cm^3', 'J / m^3'): 1e-1,
         },
+        'mass': {
+            ('nuc', 'g'): 1.6055e-24, # conversion has non-base unit
+        },
     }
     for name, conversion in cases.items():
         for (u0, u1), expected in conversion.items():
