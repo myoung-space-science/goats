@@ -1096,7 +1096,7 @@ Instance = typing.TypeVar('Instance', bound='_Converter')
 
 
 class _Converter:
-    """Internal type that creates singleton conversion targets."""
+    """Unit conversions for a known physical quantity."""
 
     @typing.overload
     def __new__(
@@ -1134,7 +1134,8 @@ class _Converter:
 
     unit: str=None
     quantity: str=None
-    _substitutions: typing.Dict[str, str]
+    _substitutions: typing.Dict[str, str]=None
+    _defined: typing.Dict[str, typing.Dict[str, float]]=None
 
     def __new__(cls, *args):
         """Concrete implementation."""
@@ -1146,7 +1147,24 @@ class _Converter:
         self = super().__new__(cls)
         self._substitutions = self._units[quantity]
         self.unit = self._substitutions.get(unit) or unit
+        self._defined = None
         return self
+
+    @property
+    def defined(self):
+        """An expanded mapping of defined conversions."""
+        if self._defined is None:
+            conversions = {}
+            for (u0, u1), factor in _CONVERSIONS.items():
+                forward = Conversion(u0, u1, factor)
+                reverse = 1 / forward
+                for c in (forward, reverse):
+                    if c.u0 not in conversions:
+                        conversions[c.u0] = {}
+                    if c.u1 not in conversions[c.u0]:
+                        conversions[c.u0][c.u1] = c.factor
+            self._defined = conversions
+        return self._defined
 
     def to(self, target: str):
         """Compute the conversion from `self.unit` to `target`.
