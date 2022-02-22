@@ -1240,7 +1240,7 @@ class _Converter:
         unit = self._substitutions.get(target) or target
         if self.unit == unit:
             return 1.0
-        if conversion := self._evaluate(self.unit, unit):
+        if conversion := self._search(self.unit, unit):
             return conversion
         try:
             conversion = self._compute(self.unit, unit)
@@ -1296,7 +1296,7 @@ class _Converter:
         if u0.base == u1.base:
             return ratio
         pair = (u0.base.symbol, u1.base.symbol)
-        if conversion := self._evaluate(*pair):
+        if conversion := self._search(*pair):
             return ratio * conversion
         if conversion := self._build(*pair):
             return ratio * conversion
@@ -1340,21 +1340,9 @@ class _Converter:
         """Create a generator of unit-conversion pairs."""
         return (pair for pair in _CONVERSIONS if unit in pair)
 
-    def _evaluate(self, u0: str, u1: str):
-        """Get the appropriate unit-conversion factor, if available.
-        
-        If the conversion to the target unit is defined, this method will return
-        the corresponding value. If the conversion from the target unit is
-        defined, this method will return the inverse of the corresponding value.
-        If it meets neither condition, it will return `None` in order to give
-        other methods a chance.
-        """
-        forward = (u0, u1)
-        if forward in _CONVERSIONS:
-            return _CONVERSIONS[forward]
-        reverse = (u1, u0)
-        if reverse in _CONVERSIONS:
-            return 1 / _CONVERSIONS[reverse]
+    def _search(self, u0: str, u1: str):
+        """Search for a defined conversion from `u0` to `u1`."""
+        return self.defined.get(u0, {}).get(u1)
 
 
 Instance = typing.TypeVar('Instance', bound='Quantity')
