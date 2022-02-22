@@ -1126,12 +1126,9 @@ class Conversion(iterables.ReprStrMixin):
         self.factor = factor
         return self
 
-    def __rtruediv__(self, other):
-        """Implemented for inversion."""
-        if not isinstance(other, numbers.Real):
-            return NotImplemented
-        if other != 1.0:
-            raise ValueError("Division only defined for 1 / self")
+    @property
+    def inverse(self):
+        """Define the conversion from `u1` to `u0`."""
         return type(self)(self.u1, self.u0, 1 / self.factor)
 
     def __str__(self) -> str:
@@ -1203,9 +1200,8 @@ class _Converter:
         if self._defined is None:
             conversions = {}
             for (u0, u1), factor in _CONVERSIONS.items():
-                forward = Conversion(u0, u1, factor)
-                reverse = 1 / forward
-                for c in (forward, reverse):
+                conversion = Conversion(u0, u1, factor)
+                for c in (conversion, conversion.inverse):
                     if c.u0 not in conversions:
                         conversions[c.u0] = {}
                     if c.u1 not in conversions[c.u0]:
