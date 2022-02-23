@@ -936,10 +936,15 @@ class NamedUnit(iterables.ReprStrMixin):
     prefix: MetricPrefix=None
     base: BaseUnit=None
     name: str=None
+    """The full name of this unit."""
     symbol: str=None
+    """The abbreviated symbol for this unit."""
     scale: float=None
+    """The metric scale factor of this unit."""
     quantity: str=None
+    """The physical quantity of this unit."""
     dimension: str=None
+    """The physical dimension of this unit."""
 
     def __new__(
         cls: typing.Type[Instance],
@@ -963,17 +968,12 @@ class NamedUnit(iterables.ReprStrMixin):
         new.prefix = magnitude
         new.base = reference
         new.name = f"{magnitude.name}{reference.name}"
-        """The full name of this unit."""
         new.symbol = f"{magnitude.symbol}{reference.symbol}"
-        """The abbreviated symbol for this unit."""
         new.scale = magnitude.factor
-        """The metric scale factor of this unit."""
         new.quantity = reference.quantity
-        """The physical quantity of this unit."""
         dimensions = cls._dimensions[new.quantity]
         system = new.base.system or 'mks'
         new.dimension = dimensions[system]
-        """The physical dimension of this unit."""
         cls._instances[key] = new
         return new
 
