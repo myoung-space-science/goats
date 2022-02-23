@@ -1010,6 +1010,25 @@ class NamedUnit(iterables.ReprStrMixin):
         reference = BaseUnit(**unit['base'])
         return magnitude, reference
 
+    @classmethod
+    def knows_about(cls, unit: str):
+        """True if `unit` is a known named unit.
+        
+        This class method provides a self-consistent way to check if calling
+        code can expect to create an instance of this class. It may provide an
+        inexpensive alternative to `try...except` blocks.
+
+        Parameters
+        ----------
+        unit : string
+            The string to test as a possible instance.
+
+        Returns
+        -------
+        bool
+        """
+        return unit in named_units
+
     def __eq__(self, other) -> bool:
         """True if two representations have equal magnitude and base unit."""
         that = type(self)(other)

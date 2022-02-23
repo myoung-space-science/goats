@@ -69,6 +69,14 @@ def test_conversion_factor():
             assert result == pytest.approx(expected)
 
 
+def test_named_unit_knows_about():
+    """Test the convenience method for testing possible instances."""
+    for unit in quantities.named_units:
+        assert quantities.NamedUnit.knows_about(unit)
+    for unit in ['m^2', 'm / s', 'H / m', 'dogs^2 * cats']:
+        assert not quantities.NamedUnit.knows_about(unit)
+
+
 def test_build_named_unit():
     cases = {
         'm': { # A simple case
