@@ -1179,35 +1179,49 @@ class Conversion(iterables.ReprStrMixin):
             return scale * found
         if ratio := self._compute_ratio(u0, u1):
             return scale * ratio
-        if u0 not in CONVERSIONS.nodes:
-            if rescaled := self._rescale(u0, u1):
-                return scale * rescaled
+        units = CONVERSIONS.nodes
+        if u0 not in units or u1 not in units:
+            if u0 not in units:
+                if rescaled := self._rescale(u0, u1):
+                    return scale * rescaled
+            if u1 not in units:
+                if rescaled := self._rescale(u1, u0):
+                    return scale / rescaled
             if expanded := self._expand(u0, u1):
                 return scale * expanded
         conversions = CONVERSIONS.get_adjacencies(u0).items()
         for unit, weight in conversions:
             if unit not in self._checked:
                 return weight * self._convert(unit, u1, scale=scale)
-        # We will miss conversions of the form (u0 -> Pu1), where (u0 -> u1) is
-        # defined and P is a metric prefix.
         raise UnitConversionError(self.u0, self.u1)
-        # return 0.0
 
     available = NamedUnit.knows_about
     """Local copy of `~quantities.NamedUnit.knows_about`."""
 
     def _search(cls, u0: str, u1: str):
-        """Search for a known conversion from `u0` to `u1`."""
+        """Search the defined conversions.
+        
+        This method will first search for a defined conversion from `u0` to
+        `u1`. If it can't find one, it will search for a defined conversion from
+        an alias of `u0` to an alias of `u1`. See `~_get_aliases_of` for more
+        information.
+        """
         if (u0, u1) in CONVERSIONS:
             return CONVERSIONS.get_weight(u0, u1)
-        starts = cls._get_aliases_for(u0)
-        ends = cls._get_aliases_for(u1)
-        for pair in zip(starts, ends):
-            if pair in CONVERSIONS:
-                return CONVERSIONS.get_weight(*pair)
+        starts = cls._get_aliases_of(u0)
+        ends = cls._get_aliases_of(u1)
+        for ux in starts:
+            for uy in ends:
+                if (ux, uy) in CONVERSIONS:
+                    return CONVERSIONS.get_weight(ux, uy)
 
-    def _get_aliases_for(cls, unit: str):
-        """Build a list of possible variations of this unit string."""
+    def _get_aliases_of(cls, unit: str):
+        """Build a list of possible variations of this unit string.
+        
+        The aliases of `unit` comprise the given string, as well as the
+        canonical name and symbol of the corresponding named unit, if one
+        exists.
+        """
         built = [unit]
         if cls.available(unit):
             known = NamedUnit(unit)
@@ -1234,13 +1248,11 @@ class Conversion(iterables.ReprStrMixin):
         if not self.available(u0):
             return
         n0 = NamedUnit(u0)
-        for node in CONVERSIONS.nodes:
-            if self.available(node):
-                n1 = NamedUnit(node)
-                if n1.base == n0.base:
-                    ratio = n0 // n1
-                    ux = n1.base.symbol
-                    return ratio * self._convert(ux, u1)
+        for ux in CONVERSIONS.nodes:
+            if self.available(ux):
+                nx = NamedUnit(ux)
+                if nx.base == n0.base:
+                    return (nx // n0) * self._search(ux, u1)
 
     def _expand(self, u0: str, u1: str):
         """Convert complex unit expressions term-by-term."""
@@ -1386,119 +1398,10 @@ class _Converter:
             return 1.0
         if conversion := Conversion(self.unit, unit):
             return conversion.factor
-        # conversion = Conversion(self.unit, unit)
-        # if conversion:
-        #     return conversion.factor
-        # inverse = conversion.inverse
-        # if inverse:
-        #     return inverse.factor
         raise ValueError(
             f"Unknown conversion from {self.unit!r} to {unit!r}."
         ) from None
-        # path = self._build(self.unit, unit)
-        # pairs = zip(path[:-1], path[1:])
-        # scale = 1.0
-        # for (u0, u1) in pairs:
-        #     scale *= self.defined[u0][u1]
-        # return scale
 
-    def _get_ratio_pairs(self, u0: str, u1: str):
-        """"""
-        e0 = algebra.Expression(u0)
-        e1 = algebra.Expression(u1)
-        if len(e0) != len(e1): # Eventually want to handle this.
-            raise ValueError(
-                f"Can't parse pairs from {u0} / {u1}"
-            ) from None
-        ratio = list(e0 / e1)
-        pairs = []
-        while ratio:
-            t0 = ratio.pop()
-            i1 = next(
-                i for i, t in enumerate(ratio)
-                if NamedUnit(t.base).quantity == NamedUnit(t0.base).quantity
-                and t.exponent == -t0.exponent
-            )
-            t1 = ratio.pop(i1)
-            pairs.append((t0, t1, t0.exponent))
-        return pairs
-
-    def _search(self, u0: str, u1: str):
-        """Search for a defined conversion from `u0` to `u1`."""
-        return self.defined.get(u0, {}).get(u1)
-
-    _DT = typing.TypeVar('_DT')
-    def _compute(
-        self,
-        __u0: str,
-        __u1: str,
-        default: _DT=None,
-    ) -> typing.Union[float, _DT]:
-        """Compute this conversion, if possible."""
-        u0 = NamedUnit(__u0)
-        u1 = NamedUnit(__u1)
-        ratio = u0.scale / u1.scale
-        if u0.base == u1.base:
-            return ratio
-        pair = (u0.base.symbol, u1.base.symbol)
-        if conversion := self._search(*pair):
-            return ratio * conversion
-        if conversion := self._build(*pair):
-            return ratio * conversion
-        return default
-
-    def _build(self, u0: str, u1: str):
-        """Build a new conversion from known conversions."""
-        # Find a conversion pair containing `u0`.
-        pair = self._pair_gen(u0)
-        found = next(pair)
-        # Use it to create a collection of found pairs.
-        pairs = [found]
-        # Save this conversion for final comparison to `(u0, u1)`.
-        p0 = found
-        # Initialize the search for the next pair.
-        ux = found[0] if found[1] == u0 else found[1]
-        pair = self._pair_gen(ux)
-        # Search for new pairs until we find one with `u1`.
-        while u1 not in found:
-            found = next(pair)
-            # Only add this pair if it isn't already in our collection.
-            if found not in pairs:
-                pairs.append(found)
-                ux = found[0] if found[1] == u0 else found[1]
-                pair = self._pair_gen(ux)
-        # Collect all the numerical factors in this chain of conversions.
-        factors = [_CONVERSIONS[pair] for pair in pairs]
-        # Co-multiply factors to compute the full scale factor.
-        scale = functools.reduce(lambda x, y: x*y, factors)
-        # Determine whether we built the forward or reverse conversion.
-        p1 = found
-        if (u0, u1) == (p0[0], p1[1]):
-            # It's the forward conversion; return the scale factor.
-            return scale
-        if (u0, u1) == (p0[1], p1[0]):
-            # It's the reverse conversion; return the inverse factor.
-            return 1 / scale
-        raise ValueError
-
-    def _pair_gen(self, unit: str):
-        """Create a generator of unit-conversion pairs."""
-        return (pair for pair in _CONVERSIONS if unit in pair)
-
-    def _build(self, u0: str, u1: str, path: list=None):
-        """"""
-        default = []
-        path = path or default
-        path += [u0]
-        if u0 == u1:
-            return path
-        if u0 not in self.defined:
-            return default
-        for unit in self.defined[u0]:
-            if unit not in path:
-                if newpath := self._build(unit, u1, path=path):
-                    return newpath
-        return default
 
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
