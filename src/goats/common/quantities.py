@@ -1179,16 +1179,8 @@ class Conversion(iterables.ReprStrMixin):
             return scale * found
         if ratio := self._compute_ratio(u0, u1):
             return scale * ratio
-        units = CONVERSIONS.nodes
-        if u0 not in units or u1 not in units:
-            if u0 not in units:
-                if rescaled := self._rescale(u0, u1):
-                    return scale * rescaled
-            if u1 not in units:
-                if rescaled := self._rescale(u1, u0):
-                    return scale / rescaled
-            if expanded := self._expand(u0, u1):
-                return scale * expanded
+        if modified := self._compute_modified(u0, u1):
+            return scale * modified
         conversions = CONVERSIONS.get_adjacencies(u0).items()
         for unit, weight in conversions:
             if unit not in self._checked:
@@ -1235,6 +1227,28 @@ class Conversion(iterables.ReprStrMixin):
         except (ValueError, UnitParsingError):
             scale = None
         return scale
+
+    def _compute_modified(self, u0: str, u1: str):
+        """Compute the conversion after modifying `u0` or `u1`.
+        
+        Notes
+        -----
+        It is possible to have `u0` or `u1` individually in `CONVERSIONS.nodes`
+        despite the fact that `(u0, u1)` is not in `CONVERSIONS`. For example,
+        there are nodes for both 'min' (minute) and 'd' (day), each with a
+        conversion to 's' (second), but there is no direct conversion from 'min'
+        to 'd'.
+        """
+        units = CONVERSIONS.nodes
+        if u0 not in units or u1 not in units:
+            if u0 not in units:
+                if rescaled := self._rescale(u0, u1):
+                    return rescaled
+            if u1 not in units:
+                if rescaled := self._rescale(u1, u0):
+                    return 1 / rescaled
+            if expanded := self._expand(u0, u1):
+                return expanded
 
     def _rescale(self, u0: str, u1: str):
         """Compute a new conversion after rescaling `u0`.
