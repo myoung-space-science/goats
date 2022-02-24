@@ -308,11 +308,12 @@ def get_mass_indices(nucleons: Dict[str, int], targets: Iterable) -> list:
     return [get_index(values, round(target)) for target in targets]
 
 
-class PlasmaSpecies:
+class PlasmaSpecies(iterables.ReprStrMixin):
     """A class to represent a single species in a plasma."""
+
     def __init__(
         self,
-        symbol: str='',
+        symbol: str=None,
         mass: float=None,
         charge: float=None,
     ) -> None:
@@ -337,7 +338,8 @@ class PlasmaSpecies:
             base = self._symbol.rstrip('+-')
             element = _elements.find(base, unique=True)
             unit = 'nucleon'
-            self._mass = quantities.Measurement(element['mass'], unit)
+            mass = quantities.Measurement(element['mass'], unit)
+            self._mass = mass[0]
         return self._mass
 
     @property
@@ -353,13 +355,18 @@ class PlasmaSpecies:
             sign = self._symbol.lstrip(base)
             value = sum(float(f"{s}1.0") for s in sign)
             unit = 'e'
-            self._charge = quantities.Measurement(value, unit)
+            charge = quantities.Measurement(value, unit)
+            self._charge = charge[0]
         return self._charge
 
     @property
     def q(self):
         """Alias for charge."""
         return self.charge
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return f"{self.symbol!r}, mass={self.m}, charge={self.q}"
 
 
 def _show_constants():
