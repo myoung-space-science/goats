@@ -2082,6 +2082,9 @@ class Quantified(RealValued, iterables.ReprStrMixin):
         return f"{self._amount} {self._quantity}"
 
 
+Instance = typing.TypeVar('Instance', bound='Ordered')
+
+
 class Ordered(Quantified):
     """A quantified object that supports comparisons
 
@@ -2138,6 +2141,9 @@ class Ordered(Quantified):
         return f"{self._amount} {self._quantity}"
 
 
+Instance = typing.TypeVar('Instance', bound='Measured')
+
+
 class Measured(Ordered):
     """An ordered object with a unit.
 
@@ -2181,7 +2187,7 @@ class Measured(Ordered):
     def __new__(
         cls: typing.Type[Instance],
         amount: RealValued,
-        unit: str,
+        unit: typing.Union[str, Unit],
     ) -> Instance:
         """Create a new measured object.
         
@@ -2190,24 +2196,7 @@ class Measured(Ordered):
         amount : real-valued
             The measured amount.
 
-        unit : string
-            The unit in which `amount` is measured.
-        """
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        amount: RealValued,
-        unit: Unit,
-    ) -> Instance:
-        """Create a new measured object.
-        
-        Parameters
-        ----------
-        amount : real-valued
-            The measured amount.
-
-        unit : `~quantities.Unit`
+        unit : string or `~quantities.Unit`
             The unit in which `amount` is measured.
         """
 
@@ -2260,16 +2249,39 @@ class Measured(Ordered):
         return cls(*args, **kwargs)
 
     @typing.overload
-    def unit(self: Instance) -> Unit: ...
+    def unit(self: Instance) -> Unit:
+        """Get this object's unit of measurement.
+        
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        `~quantities.Unit`
+            The current unit of `amount`.
+        """
 
     @typing.overload
-    def unit(self: Instance, new: str) -> Instance: ...
+    def unit(
+        self: Instance,
+        new: typing.Union[str, Unit],
+    ) -> Instance:
+        """Update this object's unit of measurement.
 
-    @typing.overload
-    def unit(self: Instance, new: Unit) -> Instance: ...
+        Parameters
+        ----------
+        new : string or `~quantities.Unit`
+            The new unit in which to measure `amount`.
+
+        Returns
+        -------
+        Subclass of `~quantities.Measured`
+            A new instance of this class.
+        """
 
     def unit(self, new=None):
-        """Get or set the unit of this object's value."""
+        """Concrete implementation."""
         if not new:
             return self._unit
         scale = Unit(new) // self._unit
@@ -2371,6 +2383,9 @@ class Measured(Ordered):
         return f"{self._amount} [{self._unit}]"
 
 
+Instance = typing.TypeVar('Instance', bound='Measured')
+
+
 VT = typing.TypeVar('VT', bound=RealValued)
 VT = RealValued
 
@@ -2397,7 +2412,7 @@ class Scalar(Measured, allowed=allowed):
     def __new__(
         cls: typing.Type[Instance],
         value: VT,
-        unit: str,
+        unit: typing.Union[str, Unit],
     ) -> Instance:
         """Create a new scalar object.
         
@@ -2407,25 +2422,7 @@ class Scalar(Measured, allowed=allowed):
             The numerical value of this scalar. The argument must implement the
             `~numbers.Real` interface.
 
-        unit : string
-            The metric unit of `value`.
-        """
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        value: VT,
-        unit: Unit,
-    ) -> Instance:
-        """Create a new scalar object.
-        
-        Parameters
-        ----------
-        value : real number
-            The numerical value of this scalar. The argument must implement the
-            `~numbers.Real` interface.
-
-        unit : `~quantities.Unit`
+        unit : string or  `~quantities.Unit`
             The metric unit of `value`.
         """
 
@@ -2531,6 +2528,9 @@ class Scalar(Measured, allowed=allowed):
         return hash((self._value, str(self._unit)))
 
 
+Instance = typing.TypeVar('Instance', bound='Measured')
+
+
 class Vector(Measured):
     """Multiple numerical values and their associated unit."""
 
@@ -2554,7 +2554,7 @@ class Vector(Measured):
     def __new__(
         cls: typing.Type[Instance],
         values: typing.Iterable[VT],
-        unit: str,
+        unit: typing.Union[str, Unit],
     ) -> Instance:
         """Create a new vector object.
         
@@ -2564,26 +2564,8 @@ class Vector(Measured):
             The numerical values of this vector. Each member must implement the
             `~numbers.Real` interface.
 
-        unit : string
-            The unit of `values`.
-        """
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        values: typing.Iterable[VT],
-        unit: Unit,
-    ) -> Instance:
-        """Create a new vector object.
-        
-        Parameters
-        ----------
-        values : iterable of real numbers
-            The numerical values of this vector. Each member must implement the
-            `~numbers.Real` interface.
-
-        unit : `~quantities.Unit`
-            The unit of `values`.
+        unit : string or `~quantities.Unit`
+            The metric unit of `values`.
         """
 
     @typing.overload
@@ -2817,16 +2799,39 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         return self
 
     @typing.overload
-    def unit(self: Instance) -> Unit: ...
+    def unit(self: Instance) -> Unit:
+        """Get this object's unit of measurement.
+        
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        `~quantities.Unit`
+            The current unit of `amount`.
+        """
 
     @typing.overload
-    def unit(self: Instance, new: str) -> Instance: ...
+    def unit(
+        self: Instance,
+        new: typing.Union[str, Unit],
+    ) -> Instance:
+        """Update this object's unit of measurement.
 
-    @typing.overload
-    def unit(self: Instance, new: Unit) -> Instance: ...
+        Parameters
+        ----------
+        new : string or `~quantities.Unit`
+            The new unit in which to measure `amount`.
+
+        Returns
+        -------
+        Subclass of `~quantities.Measured`
+            A new instance of this class.
+        """
 
     def unit(self, new=None):
-        """Get or set the unit of this object's value."""
+        """Concrete implementation."""
         if not new:
             return self._unit
         scale = (Unit(new) // self._unit) * self._scale
