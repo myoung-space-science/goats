@@ -143,7 +143,8 @@ class IndexComputer(Indexer):
         targets = self._normalize(*user)
         if all(isinstance(value, numbers.Integral) for value in targets):
             return Indices(targets)
-        vector = quantities.measure(*targets).asvector
+        measured = quantities.measure(*targets)
+        vector = quantities.Vector(measured.values, measured.unit)
         values = (
             vector.unit(self.unit)
             if vector.unit().dimension == self.unit.dimension
