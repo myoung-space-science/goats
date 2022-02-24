@@ -1525,7 +1525,7 @@ class Unit(algebra.Expression):
             self._dimension = Dimension(self)
         return self._dimension
 
-    def __floordiv__(self, other: 'Unit') -> float:
+    def __floordiv__(self, other):
         """Compute the magnitude of this unit relative to another.
 
         This method essentially computes the amount of `self` per `other`. The
@@ -1533,12 +1533,12 @@ class Unit(algebra.Expression):
         unit `other` to the equivalent quantity with unit `self`. In algebraic
         terms, suppose you have an amount q0 of some physical quantity when
         expressed in unit u0. The equivalent amount when expressed in unit u1 is
-        q0 [u0] = q0 * (u1 // u0) [u1] = q1 [u1].
+        q1 = (u1 // u0) * q0.
 
         Examples
         --------
         Create two unit objects representing a meter and a centimeter, and
-        compute their relative magnitude:
+        compute their relative magnitude::
 
             >>> m = Unit('m')
             >>> cm = Unit('cm')
@@ -1547,32 +1547,27 @@ class Unit(algebra.Expression):
             >>> cm // m
             100.0
 
-        These results are equivalent to the statement that there are 100
-        centimeters in a meter.
-        """
-        # NOTE: This ignores `term.coefficient` because all terms should be
-        # normalized (i.e., coefficient of 1). Are there pathological cases that
-        # warrant explicitly checking this?
+        As with `~quantities.NamedUnit`, these results are equivalent to the
+        statement that there are 100 centimeters in a meter. However, this class
+        also supports more complex unit expressions, and can therefore compute
+        more complex ratios::
 
-        ratio = self / other
-        if not isinstance(ratio, type(self)):
-            raise TypeError(f"Could not compute {self} / {other}")
-        r0 = NamedUnit(ratio[0].base).base
-        factor = 1.0
-        if all(
-            NamedUnit(term.base).base == r0
-            for term in ratio[1:]
-        ): # TODO: Put this `all` logic in a method or module function.
-            for term in ratio:
-                unit = NamedUnit(term.base)
-                factor *= unit.prefix.factor ** term.exponent
-            return 1.0 / factor
-        for term in ratio:
-            unit = NamedUnit(term.base)
-            quantity = Quantity(unit.quantity)
-            f = quantity.convert(term.base).to('mks')
-            factor *= float(term(f))
-        return factor
+            >>> Unit('kg * m^2 / s^2') // Unit('g * m^2 / s^2')
+            0.001
+            >>> Unit('kg * m^2 / s^2') // Unit('g * mm^2 / s^2')
+            1e-09
+            >>> Unit('kg * m^2 / s^2') // Unit('g * m^2 / day^2')
+            1.3395919067215364e-13
+            >>> Unit('kg * m^2 / s^2') // Unit('g * au^2 / day^2')
+            2997942777.7207007
+        """
+        if not isinstance(other, (str, Unit)):
+            return NotImplemented
+        return Conversion(str(other), str(self)).factor
+
+    def __rfloordiv__(self, other):
+        """Compute the inverse of self // other."""
+        return 1.0 / self.__floordiv__(other)
 
 
 Instance = typing.TypeVar('Instance', bound='Dimension')
