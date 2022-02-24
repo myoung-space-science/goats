@@ -1500,40 +1500,13 @@ class Quantity(iterables.ReprStrMixin):
         return self.name
 
 
-Instance = typing.TypeVar('Instance', bound='Dimension')
-
-
-class Dimension(algebra.Expression):
-    """An algebraic expression representing a physical dimension."""
-
-    def __new__(
-        cls: typing.Type[Instance],
-        expression: typing.Union['Dimension', str, iterables.whole],
-        **kwargs
-    ) -> Instance:
-        if isinstance(expression, cls):
-            return expression
-        if isinstance(expression, iterables.whole):
-            terms = [cls._get_term(term) for term in expression]
-            return super().__new__(cls, terms, **kwargs)
-        return super().__new__(cls, expression, **kwargs)
-
-    @staticmethod
-    def _get_term(obj):
-        """Create an appropriate algebraic term from input."""
-        if base := getattr(obj, 'dimension', None):
-            exponent = getattr(obj, 'exponent', 1)
-            return algebra.Operand(base=base, exponent=exponent)
-        if isinstance(obj, algebra.Term):
-            return obj
-        return str(obj)
-
-
 Instance = typing.TypeVar('Instance', bound='Unit')
 
 
 class Unit(algebra.Expression):
     """An algebraic expression representing a physical unit."""
+
+    _dimension=None
 
     def __new__(
         cls: typing.Type[Instance],
@@ -1541,7 +1514,16 @@ class Unit(algebra.Expression):
         **kwargs
     ) -> Instance:
         """Create a new unit from `expression`."""
-        return super().__new__(cls, expression, **kwargs)
+        self = super().__new__(cls, expression, **kwargs)
+        self._dimension = None
+        return self
+
+    @property
+    def dimension(self):
+        """The physical dimension of this unit."""
+        if self._dimension is None:
+            self._dimension = Dimension(self)
+        return self._dimension
 
     def __floordiv__(self, other: 'Unit') -> float:
         """Compute the magnitude of this unit relative to another.
@@ -1591,6 +1573,31 @@ class Unit(algebra.Expression):
             f = quantity.convert(term.base).to('mks')
             factor *= float(term(f))
         return factor
+
+
+Instance = typing.TypeVar('Instance', bound='Dimension')
+
+
+class Dimension(algebra.Expression):
+    """An algebraic expression representing a physical dimension.
+    
+    This class exists to support the `dimension` property of `~quantities.Unit`.
+    It is essentially a thin wrapper around `~algebra.Expression` with logic to
+    compute the dimension of a `~quantities.Unit` instance or equivalent object.
+    """
+
+    def __new__(
+        cls: typing.Type[Instance],
+        unit: typing.Union[Unit, str, iterables.whole],
+    ) -> Instance:
+        expression = algebra.Expression(unit)
+        terms = [
+            algebra.Term(
+                base=NamedUnit(term.base).dimension,
+                exponent=term.exponent,
+            ) for term in expression
+        ]
+        return super().__new__(cls, terms)
 
 
 class MetricKeyError(KeyError):
