@@ -3305,6 +3305,23 @@ class Measurement(Vector):
         """
         return super().unit()
 
+    def __float__(self) -> float:
+        """Represent a single-valued measurement as a `float`."""
+        return self._cast_to(float)
+
+    def __int__(self) -> int:
+        """Represent a single-valued measurement as a `int`."""
+        return self._cast_to(int)
+
+    _T = typing.TypeVar('_T', int, float)
+    def _cast_to(self, __type: _T) -> _T:
+        """Internal method for casting to numeric type."""
+        nv = len(self.values)
+        if nv == 1:
+            return __type(self.values[0])
+        errmsg = f"Can't convert measurement with {nv!r} values to {__type}"
+        raise TypeError(errmsg) from None
+
     def __str__(self) -> str:
         """A simplified representation of this object."""
         return f"{self.values} [{self.unit}]"

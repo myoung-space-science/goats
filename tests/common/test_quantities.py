@@ -1179,6 +1179,21 @@ def test_measurement():
         assert measurement[i] == quantities.Scalar(value, unit)
 
 
+def test_single_valued_measurement():
+    """Test special properties of a single-valued measurement."""
+    unit = 'm'
+    values = [1.1]
+    measurement = quantities.Measurement(values, unit)
+    assert float(measurement) == float(values[0])
+    assert int(measurement) == int(values[0])
+    values = [1.1, 2.3]
+    measurement = quantities.Measurement(values, unit)
+    with pytest.raises(TypeError):
+        float(measurement)
+    with pytest.raises(TypeError):
+        int(measurement)
+
+
 def test_system():
     """Test the object that represents a system of quantities."""
     # Cases:
