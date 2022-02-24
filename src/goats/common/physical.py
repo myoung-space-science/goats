@@ -337,7 +337,7 @@ class PlasmaSpecies:
             base = self._symbol.rstrip('+-')
             element = _elements.find(base, unique=True)
             unit = 'nucleon'
-            self._mass = quantities.Measurement((element['mass'], unit))
+            self._mass = quantities.Measurement(element['mass'], unit)
         return self._mass
 
     @property
@@ -353,7 +353,7 @@ class PlasmaSpecies:
             sign = self._symbol.lstrip(base)
             value = sum(float(f"{s}1.0") for s in sign)
             unit = 'e'
-            self._charge = quantities.Measurement((value, unit))
+            self._charge = quantities.Measurement(value, unit)
         return self._charge
 
     @property

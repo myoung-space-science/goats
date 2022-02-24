@@ -3277,7 +3277,7 @@ def _array_mean(a: Variable, **kwargs):
     return data
 
 
-class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
+class Measurement(Vector):
     """The result of measuring an object.
 
     While it is possible to directly instantiate this class, it serves primarily
@@ -3285,46 +3285,25 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
     domain of arguments.
     """
 
-    def __init__(self, arg) -> None:
-        self.values, self.unit = self._get_attrs(arg)
-
-    def _get_attrs(self, arg):
-        """Extract initializing attributes from input, if possible."""
-        if isinstance(arg, Measured):
-            values = iterables.whole(arg._amount)
-            unit = arg.unit()
-            return list(values), unit
-        try:
-            values = getattr(arg, 'values', None) or getattr(arg, 'value')
-            unit = getattr(arg, 'unit')
-        except AttributeError:
-            raise TypeError(arg)
-        else:
-            return list(iterables.whole(values)), unit
-
-    @property
-    def asvector(self):
-        """A new `Vector` object equivalent to this measurement."""
-        return Vector(self.values, unit=self.unit)
-
     def __getitem__(self, index):
         """Called for index-based value access."""
         if index < 0:
             index += len(self)
-        return Scalar(self.values[index], self.unit)
+        return Scalar(self._values[index], self.unit)
 
-    def __len__(self) -> int:
-        """The number of values. Called for len(self)."""
-        return len(self.values)
+    @property
+    def values(self):
+        """The numerical values of this measurement."""
+        return self._values
 
-    def __eq__(self, other) -> bool:
-        """True if `other` has equivalent values and unit."""
-        try:
-            values, unit = self._get_attrs(other)
-        except AttributeError:
-            False
-        else:
-            return self.values == values and self.unit == unit
+    @property
+    def unit(self):
+        """The metric unit of this measurement.
+        
+        Unlike instances of `~quantities.Vector`, this object does not support
+        updates to `unit`.
+        """
+        return super().unit()
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
@@ -3368,8 +3347,7 @@ def measure(*args):
     if len(args) == 1 and isinstance(args[0], Measurable):
         return args[0].__measure__()
     parsed = parse_measurable(args, distribute=False)
-    measured = Vector(parsed[:-1], unit=parsed[-1])
-    return Measurement(measured)
+    return Measurement(parsed[:-1], parsed[-1])
 
 
 def parse_measurable(args, distribute: bool=False):

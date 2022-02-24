@@ -1161,59 +1161,22 @@ def test_parse_measurable():
 def test_measure():
     """Test the function that creates a measurement object."""
     for case in builtin_cases:
-        measurement = quantities.measure(case['test'])
-        values = case['full'][:-1]
-        unit = case['full'][-1]
-        measured = quantities.Vector(values, unit=unit)
-        expected = quantities.Measurement(measured)
-        assert measurement == expected
-
-
-class FakeScalar(typing.NamedTuple):
-    """A test class that acts like a scalar."""
-    value: numbers.Real
-    unit: str
-
-
-class FakeVector(typing.NamedTuple):
-    """A test class that acts like a vector."""
-    values: typing.Iterable[numbers.Real]
-    unit: str
+        measured = quantities.measure(case['test'])
+        assert isinstance(measured, quantities.Measurement)
 
 
 def test_measurement():
     """Test the measurement object on its own."""
-    _values_ = [1.1, 2.3]
-    _unit_ = 'm'
-    cases = [
-        {
-            'object': quantities.Vector(_values_, unit=_unit_),
-            'values': _values_,
-            'unit': _unit_,
-        },
-        {
-            'object': FakeVector(_values_, unit=_unit_),
-            'values': _values_,
-            'unit': _unit_,
-        },
-        {
-            'object': FakeScalar(_values_[0], unit=_unit_),
-            'values': [_values_[0]],
-            'unit': _unit_,
-        },
-    ]
-    for case in cases:
-        measurement = quantities.Measurement(case['object'])
-        values = case['values']
-        unit = case['unit']
-        assert isinstance(measurement, quantities.Measurement)
-        assert isinstance(measurement, typing.Sequence)
-        assert measurement.values == values
-        assert measurement.unit == unit
-        assert len(measurement) == len(values)
-        for i, value in enumerate(values):
-            assert measurement[i] == quantities.Scalar(value, unit)
-        assert measurement.asvector == quantities.Vector(values, unit=unit)
+    values = [1.1, 2.3]
+    unit = 'm'
+    measurement = quantities.Measurement(values, unit)
+    assert isinstance(measurement, quantities.Measurement)
+    assert isinstance(measurement, quantities.Vector)
+    assert measurement.values == values
+    assert measurement.unit == unit
+    assert len(measurement) == len(values)
+    for i, value in enumerate(values):
+        assert measurement[i] == quantities.Scalar(value, unit)
 
 
 def test_system():
