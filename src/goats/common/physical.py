@@ -301,11 +301,11 @@ def get_mass_indices(nucleons: Dict[str, int], targets: Iterable) -> list:
     def get_index(this: list, that: int):
         try:
             return this.index(that)
-        except ValueError:
-            raise MassValueError(that)
+        except ValueError as err:
+            raise MassValueError(that) from err
 
     values = list(nucleons.values())
-    return [get_index(values, target) for target in targets]
+    return [get_index(values, round(target)) for target in targets]
 
 
 class PlasmaSpecies:
