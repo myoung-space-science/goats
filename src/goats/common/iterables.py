@@ -738,14 +738,14 @@ class AmbiguousValueError(TableValueError):
     """Failed to find a unique entry by value."""
 
     def __str__(self) -> str:
-        return f"No unique entry containing {self.value}"
+        return f"No unique entry containing {self.value!r}"
 
 
 class MissingValueError(TableValueError):
     """Failed to find any qualifying entries by value."""
 
     def __str__(self) -> str:
-        return f"No entries containing {self.value}"
+        return f"No entries containing {self.value!r}"
 
 
 class TableRequestError(Exception):
