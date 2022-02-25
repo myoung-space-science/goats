@@ -1280,16 +1280,20 @@ class Conversion(iterables.ReprStrMixin):
             raise ValueError(
                 f"Can't parse pairs from {u0} / {u1}"
             ) from None
-        pairs = list(zip(e0, e1))
+        # BUG: This assumes that pairs of units have the same quantity. In other
+        # words, conversion will succeed for something like `(kg * m^-1 -> g *
+        # cm^-1)` but will fail for `(kg * m^-1 -> cm^-1 * g)`.
         factor = 1.0
-        for pair in pairs:
+        for pair in self._create_pairs(e0, e1):
             ux, uy = (term.base for term in pair)
             # May need to make sure exponents match.
             factor *= self._convert(ux, uy) ** pair[0].exponent
         return factor
 
-    def _create_pairs(self, ):
+    def _create_pairs(self, e0: algebra.Expression, e1: algebra.Expression):
         """"""
+        return list(zip(e0, e1))
+
 
     def __bool__(self):
         """True if this conversion exists."""
