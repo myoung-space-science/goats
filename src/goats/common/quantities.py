@@ -816,6 +816,10 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
         self.key = key
         return self
 
+    def system(self, system: str):
+        """Get all definitions of this property for `system`."""
+        return {k: v[system] for k, v in self.items()}
+
     LEN = len(_QUANTITIES) # No need to compute every time.
     def __len__(self) -> int:
         """The number of defined quantities. Called for len(self)."""
