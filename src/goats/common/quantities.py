@@ -792,6 +792,7 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
     )
 
     key: str=None
+    _cache: dict=None
 
     def __new__(
         cls: typing.Type[Instance],
@@ -814,6 +815,7 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
             return available
         self = super().__new__(cls)
         self.key = key
+        self._cache = {}
         return self
 
     def system(self, system: str):
@@ -829,24 +831,32 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
         """Iterate over names of defined quantities. Called for iter(self)."""
         return iter(_QUANTITIES)
 
-    def __getitem__(self, name: str):
+    def __getitem__(self, quantity: str):
+        """Create or retrieve a named property."""
+        if quantity in self._cache:
+            return self._cache[quantity]
+        if new := self._get_property(quantity):
+            self._cache[quantity] = new
+            return new
+        raise KeyError(f"Unknown quantity {quantity}") from None
+
+    def _get_property(self, quantity: str):
         """Get a named property of a defined quantity.
         
-        This method will search for `name` in the module-level collection of
+        This method will search for `quantity` in the module-level collection of
         defined quantities. If it doesn't find an entry, it will attempt to
-        parse `name` into known quantities. If it finds a `dict` entry, it will
-        attempt to extract the values corresponding to this property's `key`. If
-        it finds a `str` entry, it will attempt to create the equivalent `dict`
-        by algebraically evaluating the terms in the entry.
+        parse `quantity` into known quantities. If it finds a `dict` entry, it
+        will attempt to extract the values corresponding to this property's
+        `key`. If it finds a `str` entry, it will attempt to create the
+        equivalent `dict` by algebraically evaluating the terms in the entry.
         """
-        if name not in _QUANTITIES:
-            return self._parse(name)
-        q = _QUANTITIES[name]
+        if quantity not in _QUANTITIES:
+            return self._parse(quantity)
+        q = _QUANTITIES[quantity]
         if isinstance(q, dict):
             return q.get(self.key, {})
         if not isinstance(q, str):
-            raise TypeError(f"Expected {name} to be a string")
-        # TODO: Cache computed results.
+            raise TypeError(f"Expected {quantity} to be a string") from None
         return self._parse(q)
 
     def _parse(self, string: str):
