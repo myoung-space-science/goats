@@ -1612,28 +1612,6 @@ class Unit(algebra.Expression):
             self._dimension = Dimension(self)
         return self._dimension
 
-    @property
-    def quantity(self):
-        """The physical quantity of this unit, if defined."""
-        if self._quantity is None:
-            if quantity := self._get_quantity():
-                self._quantity = Quantity(quantity)
-        return self._quantity
-
-    def _get_quantity(self):
-        """Determine this unit's physical quantity, if possible."""
-        this_unit = str(self)
-        if NamedUnit.knows_about(this_unit):
-            return NamedUnit(this_unit).quantity
-        for name in _QUANTITIES:
-            quantity = Quantity(name)
-            if this_unit in quantity.units.values():
-                return quantity
-            if str(self.dimension) in quantity.dimensions.values():
-                return quantity
-            if Dimension(quantity.units.values()) == self.dimension:
-                return quantity
-
     def __floordiv__(self, other):
         """Compute the magnitude of this unit relative to another.
 
@@ -1678,11 +1656,6 @@ class Unit(algebra.Expression):
         """Compute the inverse of self // other."""
         return 1.0 / self.__floordiv__(other)
 
-    def to(self, system: str):
-        """Convert this unit to the named system, if possible."""
-        if self.quantity:
-            return self.quantity.convert(str(self)).to(system)
-
 
 Instance = typing.TypeVar('Instance', bound='Dimension')
 
@@ -1697,22 +1670,19 @@ class Dimension(algebra.Expression):
 
     def __new__(
         cls: typing.Type[Instance],
-        unit: typing.Union[Unit, str, iterables.whole],
+        arg: typing.Union[Unit, Metric, str, iterables.whole],
     ) -> Instance:
-        expression = algebra.Expression(unit)
-        terms = [
-            algebra.Term(
-                base=NamedUnit(term.base).dimension,
-                exponent=term.exponent,
-            ) for term in expression
-        ]
-        return super().__new__(cls, terms)
-
-    def __eq__(self, other):
-        """True if `other` is equal or equivalent to `self`."""
-        if isinstance(other, str):
-            return super().__eq__(algebra.Expression(other))
-        return super().__eq__(other)
+        if isinstance(arg, Unit):
+            terms = [
+                algebra.Term(
+                    base=NamedUnit(term.base).dimension,
+                    exponent=term.exponent,
+                ) for term in algebra.Expression(arg)
+            ]
+            return super().__new__(cls, terms)
+        if isinstance(arg, Metric):
+            return super().__new__(cls, arg.dimension)
+        return super().__new__(cls, arg)
 
 
 class MetricKeyError(KeyError):

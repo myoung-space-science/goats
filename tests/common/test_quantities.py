@@ -108,17 +108,37 @@ def test_quantity_convert():
 
 def test_dimension():
     """Test the Dimension class."""
-    cases = {
-        'm': ['L'],
-        'm / s': ['L T^-1', 'T^-1 L'],
-        'km / s': ['L T^-1', 'T^-1 L'],
-        'J': ['M L^2 T^-2', 'M T^-2 L^2', 'L^2 M T^-2'],
-    }
-    for unit, strings in cases.items():
-        dimension = quantities.Dimension(unit)
-        assert isinstance(dimension, quantities.Dimension)
-        for string in strings:
-            assert dimension == string
+    cases = [
+        {
+            'unit': 'm',
+            'quantity': 'length',
+            'forms': ['L'],
+        },
+        {
+            'unit': 'm / s',
+            'quantity': 'velocity',
+            'forms': ['L T^-1', 'T^-1 L'],
+        },
+        {
+            'unit': 'km / s',
+            'quantity': 'velocity',
+            'forms': ['L T^-1', 'T^-1 L'],
+        },
+        {
+            'unit': 'J',
+            'quantity': 'energy',
+            'forms': ['M L^2 T^-2', 'M T^-2 L^2', 'L^2 M T^-2'],
+        },
+    ]
+    for current in cases:
+        unit = quantities.Unit(current['unit'])
+        quantity = quantities.Quantity(current['quantity'])
+        forms = current['forms']
+        for target in (unit, quantity['mks']):
+            dimension = quantities.Dimension(target)
+            assert isinstance(dimension, quantities.Dimension)
+            for form in forms:
+                assert dimension == form
 
 
 def test_named_unit_knows_about():
@@ -225,24 +245,6 @@ def test_unit_floordiv():
     unit = quantities.Unit('m / s')
     assert unit // 'km / h' == pytest.approx(1e3 / 3600)
     assert 'km / h' // unit == pytest.approx(3600 / 1e3)
-
-
-def test_unit_to_system():
-    """Test unit conversion to a named system."""
-    cases = {
-        'J': {
-            'mks': 1.0,
-            'cgs': 1e7,
-        },
-        'km / s': {
-            'mks': 1e3,
-            'cgs': 1e5,
-        },
-    }
-    for unit, target in cases.items():
-        this = quantities.Unit(unit)
-        for system, value in target.items():
-            assert this.to(system) == value
 
 
 # These were copied from test_units.py; there is significant overlap with other
