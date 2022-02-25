@@ -1330,28 +1330,28 @@ def test_system():
 def test_system_unit_lookup():
     """Test the ability to retrieve the appropriate unit."""
     systems = {
-        'mks': {
-            'quantity': ('length', 'm'),
-            'dimension': ('L', 'm'),
-            'unit': ('au', 'm'),
-            'dimension': ('1', '1'),
-            'unit': ('1', '1'),
-        },
-        'cgs': {
-            'quantity': ('length', 'cm'),
-            'dimension': ('L', 'cm'),
-            'unit': ('au', 'cm'),
-            'dimension': ('1', '1'),
-            'unit': ('1', '1'),
-        },
+        'mks': [
+            ('quantity', 'length', 'm'),
+            ('dimension', 'L', 'm'),
+            ('unit', 'au', 'm'),
+            ('dimension', '1', '1'),
+            ('unit', '1', '1'),
+            ('unit', 'erg', 'J'),
+        ],
+        'cgs': [
+            ('quantity', 'length', 'cm'),
+            ('dimension', 'L', 'cm'),
+            ('unit', 'au', 'cm'),
+            ('dimension', '1', '1'),
+            ('unit', '1', '1'),
+            ('unit', 'J', 'erg'),
+        ],
     }
     for name, cases in systems.items():
         system = quantities.MetricSystem(name)
-        for key, (test, expected) in cases.items():
+        for (key, test, expected) in cases:
             search = {key: test}
             assert system.get_unit(**search) == expected
-    with pytest.raises(KeyError):
-        quantities.MetricSystem('mks').get_unit(unit='Erg')
 
 
 def test_system_singleton():

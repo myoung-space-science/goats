@@ -1713,6 +1713,7 @@ class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
     _instances = {}
     name: str=None
     dimensions: typing.Dict[str, str]=None
+    units: typing.Dict[str, str]=None
 
     def __new__(cls, arg: typing.Union[str, 'MetricSystem']):
         """Return an existing instance or create a new one.
@@ -1729,11 +1730,12 @@ class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
         name = arg.lower()
         if instance := cls._instances.get(name):
             return instance
-        new = super().__new__(cls)
-        new.name = name
-        new.dimensions = Property('dimensions')
-        cls._instances[name] = new
-        return new
+        self = super().__new__(cls)
+        self.name = name
+        self.dimensions = Property('dimensions').system(name)
+        self.units = Property('units').system(name)
+        cls._instances[name] = self
+        return self
 
     def __len__(self) -> int:
         """The number of quantities defined in this metric system."""
@@ -1743,7 +1745,7 @@ class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
         """Iterate over defined metric quantities."""
         return _QUANTITIES.__iter__()
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: typing.Union[str, Quantity]):
         """Get the metric for the requested quantity in this system."""
         try:
             quantity = Quantity(key)
@@ -1797,8 +1799,8 @@ class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
         }
         return self._get_unit(methods, targets)
 
-    T = typing.TypeVar('T', Unit, Dimension, Quantity)
-    T = typing.Union[Unit, Dimension, Quantity]
+    T = typing.TypeVar('T', str, Unit, Dimension, Quantity)
+    T = typing.Union[str, Unit, Dimension, Quantity]
 
     def _get_unit(
         self,
@@ -1810,7 +1812,7 @@ class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
         cases = [(methods[k], v) for k, v in nonnull.items()]
         for (method, arg) in cases:
             if str(arg) == '1':
-                return self['identity'].unit
+                return Unit(self['identity'].unit)
             if result := method(arg):
                 return result
         args = self._format_targets(nonnull)
@@ -1826,40 +1828,31 @@ class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
             return ' or '.join(args)
         return f"{', '.join(str(arg) for arg in args[:-1])}, or {args[-1]}"
 
-    def _unit_from_unit(self, unit) -> Unit:
+    def _unit_from_unit(
+        self,
+        target: typing.Union[str, Unit],
+    ) -> Unit:
         """Get the canonical unit corresponding to the given unit."""
-        string = str(unit)
-        if string == '1':
-            return self['identity'].unit
-        try:
-            quantities = [
-                NamedUnit(term.base).quantity
-                for term in Unit(string)
-            ]
-        except UnitParsingError:
-            pass
-        else:
-            if all(quantity in self for quantity in quantities):
-                bases = [self[quantity].unit for quantity in quantities]
-                exponents = [term.exponent for term in Unit(string)]
-                expression = [
-                    base ** exponent
-                    for base, exponent in zip(bases, exponents)
-                ]
-                return Unit(expression)
+        unit = Unit(target)
+        if unit == '1' or unit in self.units.values():
+            return unit
+        return self._unit_from_dimension(unit.dimension)
 
-    def _unit_from_dimension(self, dimension) -> Unit:
+    def _unit_from_dimension(
+        self,
+        target: typing.Union[str, Dimension],
+    ) -> Unit:
         """Get the canonical unit corresponding to the given dimension."""
-        string = str(dimension)
-        if string == '1':
-            return self['identity'].unit
-        if string in self.dimensions:
-            dimension = self.dimensions[string]
-            return self[dimension].unit
+        for quantity, dimension in self.dimensions.items():
+            if dimension == target:
+                return Unit(self.units[quantity])
 
-    def _unit_from_quantity(self, quantity) -> Unit:
+    def _unit_from_quantity(
+        self,
+        quantity: typing.Union[str, Quantity],
+    ) -> Unit:
         """Get the canonical unit corresponding to the given quantity."""
-        return self[str(quantity)].unit
+        return Unit(self[quantity].unit)
 
     def __eq__(self, other) -> bool:
         """True if two systems have the same `name` attribute."""
