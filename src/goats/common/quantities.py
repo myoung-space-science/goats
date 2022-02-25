@@ -241,6 +241,12 @@ _units = [
         'system': 'cgs',
     },
     {
+        'symbol': 'Oe',
+        'name': 'Oersted',
+        'quantity': 'magnetic intensity',
+        'system': 'cgs',
+    },
+    {
         'symbol': 'H',
         'name': 'henry',
         'quantity': 'inductance',
@@ -272,6 +278,13 @@ _units = [
         'symbol': 'Bq',
         'name': 'becquerel',
         'quantity': 'radioactivity',
+        'system': 'mks',
+    },
+    {
+        'symbol': 'Ci',
+        'name': 'Curie',
+        'quantity': 'radioactivity',
+        'system': 'cgs',
     },
     {
         'symbol': 'Gy',
