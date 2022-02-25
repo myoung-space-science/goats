@@ -1046,6 +1046,27 @@ class NamedUnit(iterables.ReprStrMixin):
         """
         return unit in named_units
 
+    def decompose(self):
+        """Convert this instance into base-quantity units."""
+        terms = algebra.Expression(self.dimension)
+        quantities = [
+            _BASE_QUANTITIES.find(term.base)[0]['name']
+            for term in terms
+        ]
+        units = [
+            _QUANTITIES[quantity]['units'][self.base.system]
+            for quantity in quantities
+        ]
+        parsed = [self.parse(unit) for unit in units]
+        result = [
+            algebra.Term(
+                coefficient=part[0].factor*self.scale,
+                base=part[1].symbol,
+                exponent=term.exponent,
+            ) for part, term in zip(parsed, terms)
+        ]
+        return result
+
     def __eq__(self, other) -> bool:
         """True if two representations have equal magnitude and base unit."""
         that = type(self)(other)

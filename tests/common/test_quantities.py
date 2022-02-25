@@ -133,6 +133,26 @@ def test_named_unit_floordiv():
         u0 // u1 # not defined for different base units
 
 
+def test_named_unit_decompose():
+    """"""
+    cases = [
+        ('m', [(1e0, 'm', 1)]),
+        ('cm', [(1e-2, 'm', 1)]),
+        ('km', [(1e3, 'm', 1)]),
+        ('J', [(1e3, 'g', 1), (1e0, 'm', 2), (1e0, 's', -2)]),
+        ('mJ', [(1e0, 'g', 1), (1e-3, 'm', 2), (1e-3, 's', -2)]),
+        ('erg', [(1e0, 'g', 1), (1e-2, 'm', 2), (1e0, 's', -2)]),
+        ('merg', [(1e-3, 'g', 1), (1e-5, 'm', 2), (1e-3, 's', -2)]),
+    ]
+    for (unit, expected) in cases:
+        decomposed = quantities.NamedUnit(unit).decompose()
+        result = [
+            (float(term.coefficient), term.base, int(term.exponent))
+            for term in decomposed
+        ]
+        assert result == expected
+
+
 def test_unit():
     u0 = quantities.Unit('m')
     u1 = quantities.Unit('J')
