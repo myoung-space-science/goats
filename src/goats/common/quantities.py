@@ -1046,8 +1046,9 @@ class NamedUnit(iterables.ReprStrMixin):
         """
         return unit in named_units
 
-    def decompose(self):
-        """Convert this instance into base-quantity units."""
+    @property
+    def decomposed(self):
+        """The representation of this unit in base-quantity units."""
         terms = algebra.Expression(self.dimension)
         quantities = [
             _BASE_QUANTITIES.find(term.base)[0]['name']
@@ -1058,14 +1059,13 @@ class NamedUnit(iterables.ReprStrMixin):
             for quantity in quantities
         ]
         parsed = [self.parse(unit) for unit in units]
-        result = [
+        return [
             algebra.Term(
                 coefficient=part[0].factor*self.scale,
                 base=part[1].symbol,
                 exponent=term.exponent,
             ) for part, term in zip(parsed, terms)
         ]
-        return result
 
     def __eq__(self, other) -> bool:
         """True if two representations have equal magnitude and base unit."""
@@ -1321,6 +1321,8 @@ class Conversion(iterables.ReprStrMixin):
         # BUG: This assumes that pairs of units have the same quantity. In other
         # words, conversion will succeed for something like `(kg * m^-1 -> g *
         # cm^-1)` but will fail for `(kg * m^-1 -> cm^-1 * g)`.
+        #
+        # Consider using new `NamedUnit.decompose()`.
         factor = 1.0
         for pair in self._create_pairs(e0, e1):
             ux, uy = (term.base for term in pair)

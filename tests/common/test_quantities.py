@@ -134,7 +134,7 @@ def test_named_unit_floordiv():
 
 
 def test_named_unit_decompose():
-    """"""
+    """Test the decomposed property of NamedUnit."""
     cases = [
         ('m', [(1e0, 'm', 1)]),
         ('cm', [(1e-2, 'm', 1)]),
@@ -145,7 +145,7 @@ def test_named_unit_decompose():
         ('merg', [(1e-3, 'g', 1), (1e-5, 'm', 2), (1e-3, 's', -2)]),
     ]
     for (unit, expected) in cases:
-        decomposed = quantities.NamedUnit(unit).decompose()
+        decomposed = quantities.NamedUnit(unit).decomposed
         result = [
             (float(term.coefficient), term.base, int(term.exponent))
             for term in decomposed
