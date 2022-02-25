@@ -72,7 +72,7 @@ class Observer(base.Observer):
     def dataset(self):
         """This observer's dataset."""
         if self._dataset is None:
-            return datasets.Dataset(self.path, self.system)
+            self._dataset = datasets.Dataset(self.path, self.system)
         return self._dataset
 
     @property
