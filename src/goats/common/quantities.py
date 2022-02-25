@@ -1691,6 +1691,12 @@ class Dimension(algebra.Expression):
         ]
         return super().__new__(cls, terms)
 
+    def __eq__(self, other):
+        """True if `other` is equal or equivalent to `self`."""
+        if isinstance(other, str):
+            return super().__eq__(algebra.Expression(other))
+        return super().__eq__(other)
+
 
 class MetricKeyError(KeyError):
     """Metric-system mapping-key error."""
