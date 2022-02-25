@@ -833,13 +833,14 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
         """Get a named property of a defined quantity.
         
         This method will search for `name` in the module-level collection of
-        defined quantities. If it finds an `dict` entry, it will attempt to
-        extract the values corresponding to this property's `key`. If it finds a
-        `str` entry, it will attempt to create the equivalent `dict` by
-        algebraically evaluating the terms in the entry.
+        defined quantities. If it doesn't find an entry, it will attempt to
+        parse `name` into known quantities. If it finds a `dict` entry, it will
+        attempt to extract the values corresponding to this property's `key`. If
+        it finds a `str` entry, it will attempt to create the equivalent `dict`
+        by algebraically evaluating the terms in the entry.
         """
         if name not in _QUANTITIES:
-            raise KeyError(f"No definition for '{name}'")
+            return self._parse(name)
         q = _QUANTITIES[name]
         if isinstance(q, dict):
             return q.get(self.key, {})
