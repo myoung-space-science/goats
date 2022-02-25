@@ -190,7 +190,8 @@ def test_named_unit_decompose():
         assert result == expected
 
 
-def test_unit():
+def test_unit_algebra():
+    """Test algebraic operations on the Unit class."""
     u0 = quantities.Unit('m')
     u1 = quantities.Unit('J')
     assert u0**2 is not u0
@@ -198,7 +199,17 @@ def test_unit():
     assert u0 / u1 == quantities.Unit('m / J')
     assert u0**2 / u1**3 == quantities.Unit('m^2 / J^3')
     assert (u0 / u1)**2 == quantities.Unit('m^2 / J^2')
-    assert quantities.Unit('cm') // u0 == 100
+
+
+def test_unit_floordiv():
+    """Test conversion with the Unit class."""
+    unit = quantities.Unit('m')
+    assert quantities.Unit('cm') // unit == 1e2
+    assert unit // 'cm' == 1e-2
+    assert 'cm' // unit == 1e2
+    unit = quantities.Unit('m / s')
+    assert unit // 'km / h' == pytest.approx(1e3 / 3600)
+    assert 'km / h' // unit == pytest.approx(3600 / 1e3)
 
 
 # These were copied from test_units.py; there is significant overlap with other
