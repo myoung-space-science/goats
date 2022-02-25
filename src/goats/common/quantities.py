@@ -1502,8 +1502,8 @@ class Quantity(iterables.ReprStrMixin):
     Attr = typing.Mapping[str, typing.Dict[str, str]]
 
     name: str=None
-    _units: Attr=None
-    _dimensions: Attr=None
+    units: Attr=None
+    dimensions: Attr=None
 
     def __new__(
         cls: typing.Type[Instance],
@@ -1525,8 +1525,8 @@ class Quantity(iterables.ReprStrMixin):
         self = super().__new__(cls)
         self.name = name
         """The name of this physical quantity."""
-        self._units = cls._properties['units'][self.name]
-        self._dimensions = cls._properties['dimensions'][self.name]
+        self.units = cls._properties['units'][self.name]
+        self.dimensions = cls._properties['dimensions'][self.name]
         cls._instances[name] = self
         return self
 
@@ -1534,8 +1534,8 @@ class Quantity(iterables.ReprStrMixin):
         """Get this quantity's representation in the named metric system."""
         try:
             name = system.lower()
-            dimension = self._dimensions[name]
-            unit = self._units[name]
+            dimension = self.dimensions[name]
+            unit = self.units[name]
         except KeyError as err:
             raise KeyError(
                 f"No metric available for system '{system}'"
@@ -1550,7 +1550,7 @@ class Quantity(iterables.ReprStrMixin):
         """Create a conversion object for `unit`."""
         return _Converter(unit, self.name)
 
-    _attrs = ('_dimensions', '_units')
+    _attrs = ('dimensions', 'units')
 
     def __eq__(self, other) -> bool:
         """True if two quantities have equal attributes."""
