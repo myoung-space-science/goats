@@ -216,6 +216,9 @@ def test_unit_to_system():
     """Test unit conversion to a named system."""
     unit = quantities.Unit('J')
     assert unit.to('mks') == 1.0
+    assert unit.to('cgs') == 1e7
+    unit = quantities.Unit('km / s')
+    assert unit.to('mks') == 1e3
 
 
 # These were copied from test_units.py; there is significant overlap with other
