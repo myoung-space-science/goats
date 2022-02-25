@@ -187,6 +187,10 @@ def show_at_most(
 class ReprStrMixin:
     """A mixin class that provides support for `__repr__` and `__str__`."""
 
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return ""
+
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
         return f"{self.__class__.__qualname__}({self})"
