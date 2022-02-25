@@ -929,6 +929,32 @@ Instance = typing.TypeVar('Instance', bound='NamedUnit')
 class NamedUnit(iterables.ReprStrMixin):
     """A single named unit and corresponding metadata."""
 
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        unit: str,
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        unit : string
+            A string representing the metric unit to create.
+        """
+
+    @typing.overload
+    def __new__(
+        cls: typing.Type[Instance],
+        instance: Instance,
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        instance : `~quantities.NamedUnit`
+            An existing instance of this class.
+        """
+
     _dimensions = Property('dimensions')
 
     _instances = {}
@@ -946,17 +972,8 @@ class NamedUnit(iterables.ReprStrMixin):
     dimension: str=None
     """The physical dimension of this unit."""
 
-    def __new__(
-        cls: typing.Type[Instance],
-        arg: typing.Union[str, Instance],
-    ) -> Instance:
-        """Create a new instance or return an existing one.
-        
-        Parameters
-        ----------
-        arg : string or instance
-            A string representing the metric unit to create, or an existing instance of this class.
-        """
+    def __new__(cls, arg):
+        """Concrete implementation."""
         if isinstance(arg, cls):
             return arg
         string = str(arg)
@@ -964,18 +981,18 @@ class NamedUnit(iterables.ReprStrMixin):
         key = (magnitude, reference)
         if available := cls._instances.get(key):
             return available
-        new = super().__new__(cls)
-        new.prefix = magnitude
-        new.base = reference
-        new.name = f"{magnitude.name}{reference.name}"
-        new.symbol = f"{magnitude.symbol}{reference.symbol}"
-        new.scale = magnitude.factor
-        new.quantity = reference.quantity
-        dimensions = cls._dimensions[new.quantity]
-        system = new.base.system or 'mks'
-        new.dimension = dimensions[system]
-        cls._instances[key] = new
-        return new
+        self = super().__new__(cls)
+        self.prefix = magnitude
+        self.base = reference
+        self.name = f"{magnitude.name}{reference.name}"
+        self.symbol = f"{magnitude.symbol}{reference.symbol}"
+        self.scale = magnitude.factor
+        self.quantity = reference.quantity
+        dimensions = cls._dimensions[self.quantity]
+        system = self.base.system or 'mks'
+        self.dimension = dimensions[system]
+        cls._instances[key] = self
+        return self
 
     @classmethod
     def parse(cls, string: str):
