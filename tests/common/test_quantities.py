@@ -214,11 +214,20 @@ def test_unit_floordiv():
 
 def test_unit_to_system():
     """Test unit conversion to a named system."""
-    unit = quantities.Unit('J')
-    assert unit.to('mks') == 1.0
-    assert unit.to('cgs') == 1e7
-    unit = quantities.Unit('km / s')
-    assert unit.to('mks') == 1e3
+    cases = {
+        'J': {
+            'mks': 1.0,
+            'cgs': 1e7,
+        },
+        'km / s': {
+            'mks': 1e3,
+            'cgs': 1e5,
+        },
+    }
+    for unit, target in cases.items():
+        this = quantities.Unit(unit)
+        for system, value in target.items():
+            assert this.to(system) == value
 
 
 # These were copied from test_units.py; there is significant overlap with other
