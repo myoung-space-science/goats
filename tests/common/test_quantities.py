@@ -212,6 +212,12 @@ def test_unit_floordiv():
     assert 'km / h' // unit == pytest.approx(3600 / 1e3)
 
 
+def test_unit_to_system():
+    """Test unit conversion to a named system."""
+    unit = quantities.Unit('J')
+    assert unit.to('mks') == 1.0
+
+
 # These were copied from test_units.py; there is significant overlap with other
 # tests in this module.
 strings = {
