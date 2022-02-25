@@ -1315,25 +1315,52 @@ class Conversion(iterables.ReprStrMixin):
             # the same units, with possibly different metric prefixes (e.g.,
             # `(kg / s -> g / ms)`). We eventually want to handle those more
             # complex conversions (e.g., `(kg * m^2 / s^2 -> erg)`).
+            #
+            # Consider using new `NamedUnit.decompose()`.
             raise ValueError(
                 f"Can't parse pairs from {u0} / {u1}"
             ) from None
-        # BUG: This assumes that pairs of units have the same quantity. In other
-        # words, conversion will succeed for something like `(kg * m^-1 -> g *
-        # cm^-1)` but will fail for `(kg * m^-1 -> cm^-1 * g)`.
-        #
-        # Consider using new `NamedUnit.decompose()`.
+        if factor := self._inner_product(e0, e1):
+            return factor
+        if factor := self._outer_product(e0, e1):
+            return factor
+
+    def _inner_product(self, e0: algebra.Expression, e1: algebra.Expression):
+        """Compute ratios of all pairs of terms, if possible.
+        
+        This method attempts to compute a pseudo-inner product of `e0` with `e1`
+        by computing individual ratios of sequential pairs of terms taken from
+        both expressions. Success requires that the expressions' terms are
+        ordered such that each pair has a common base. If the expressions do not
+        meet that criterion, this method will return `None` in order to give
+        subsequent methods a chance.
+        """
+        done = [self._reduce_pair(*pair) for pair in zip(e0, e1)]
+        if all(done):
+            return functools.reduce(lambda x, y: x*y, done)
+
+    def _outer_product(self, e0: algebra.Expression, e1: algebra.Expression):
+        """Iteratively compute ratios of terms.
+        
+        This method attempts to compute a pseudo-outer product of `e0` with `e1`
+        by iteratively comparing each term in `e0` to terms in `e1` until it
+        finds a term with matching base.
+        """
+        l0 = list(e0)
+        l1 = list(e1)
         factor = 1.0
-        for pair in self._create_pairs(e0, e1):
-            ux, uy = (term.base for term in pair)
-            # May need to make sure exponents match.
-            factor *= self._convert(ux, uy) ** pair[0].exponent
+        while l0:
+            t0 = l0.pop()
+            for t1 in l1:
+                if value := self._reduce_pair(t0, t1):
+                    factor *= value
+                    l1.remove(t1)
         return factor
 
-    def _create_pairs(self, e0: algebra.Expression, e1: algebra.Expression):
-        """"""
-        return list(zip(e0, e1))
-
+    def _reduce_pair(self, t0: algebra.Term, t1: algebra.Term):
+        """Compute the ratio of units with a common exponent."""
+        if t0.exponent == t1.exponent:
+            return self._convert(t0.base, t1.base) ** t0.exponent
 
     def __bool__(self):
         """True if this conversion exists."""

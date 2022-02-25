@@ -57,6 +57,9 @@ def test_conversion_factor():
         'energy density': { # Tests formulaic conversion
             ('J / m^3', 'erg / cm^3'): 1e1,
             ('erg / cm^3', 'J / m^3'): 1e-1,
+            ('J m^-3', 'erg cm^-3'): 1e1,
+            ('m^-3 J', 'erg cm^-3'): 1e1,
+            ('J m^-3', 'cm^-3 erg'): 1e1,
         },
         'mass': {
             ('nuc', 'g'): 1.6055e-24, # conversion has non-base unit
