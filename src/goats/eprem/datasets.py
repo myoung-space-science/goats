@@ -45,7 +45,8 @@ class Energy(indexing.IndexComputer):
         s = self.map(species)[0]
         if targets == self.reference:
             targets = targets[s, :]
-        vector = quantities.measure(*targets).asvector
+        measured = quantities.measure(*targets)
+        vector = quantities.Vector(measured.values, measured.unit)
         values = (
             vector.unit(self.unit)
             if vector.unit().dimension == self.unit.dimension
