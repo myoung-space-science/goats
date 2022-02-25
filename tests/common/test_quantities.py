@@ -106,6 +106,21 @@ def test_quantity_convert():
             assert result == pytest.approx(expected)
 
 
+def test_dimension():
+    """Test the Dimension class."""
+    cases = {
+        'm': ['L'],
+        'm / s': ['L T^-1', 'T^-1 L'],
+        'km / s': ['L T^-1', 'T^-1 L'],
+        'J': ['M L^2 T^-2', 'M T^-2 L^2', 'L^2 M T^-2'],
+    }
+    for unit, strings in cases.items():
+        dimension = quantities.Dimension(unit)
+        assert isinstance(dimension, quantities.Dimension)
+        for string in strings:
+            assert dimension == string
+
+
 def test_named_unit_knows_about():
     """Test the convenience method for testing possible instances."""
     for unit in quantities.named_units:
