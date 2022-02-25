@@ -1574,10 +1574,12 @@ class Quantity(iterables.ReprStrMixin):
 Instance = typing.TypeVar('Instance', bound='Unit')
 
 
+# TODO: Cache instances if they correspond to a defined quantity.
 class Unit(algebra.Expression):
     """An algebraic expression representing a physical unit."""
 
     _dimension=None
+    _quantity=None
 
     def __new__(
         cls: typing.Type[Instance],
@@ -1587,6 +1589,7 @@ class Unit(algebra.Expression):
         """Create a new unit from `expression`."""
         self = super().__new__(cls, expression, **kwargs)
         self._dimension = None
+        self._quantity = None
         return self
 
     @property
@@ -1595,6 +1598,24 @@ class Unit(algebra.Expression):
         if self._dimension is None:
             self._dimension = Dimension(self)
         return self._dimension
+
+    @property
+    def quantity(self):
+        """The physical quantity of this unit, if defined."""
+        if self._quantity is None:
+            if quantity := self._get_quantity():
+                self._quantity = Quantity(quantity)
+        return self._quantity
+
+    def _get_quantity(self):
+        """Determine this unit's physical quantity, if possible."""
+        this_unit = str(self)
+        if NamedUnit.knows_about(this_unit):
+            return NamedUnit(this_unit).quantity
+        for name in _QUANTITIES:
+            quantity = Quantity(name)
+            if this_unit in quantity.units.values():
+                return quantity
 
     def __floordiv__(self, other):
         """Compute the magnitude of this unit relative to another.
@@ -1639,6 +1660,11 @@ class Unit(algebra.Expression):
     def __rfloordiv__(self, other):
         """Compute the inverse of self // other."""
         return 1.0 / self.__floordiv__(other)
+
+    def to(self, system: str):
+        """Convert this unit to the named system, if possible."""
+        if self.quantity:
+            return self.quantity.convert(str(self)).to(system)
 
 
 Instance = typing.TypeVar('Instance', bound='Dimension')
