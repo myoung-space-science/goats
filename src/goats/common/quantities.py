@@ -1627,7 +1627,11 @@ class Unit(algebra.Expression):
             return NamedUnit(this_unit).quantity
         for name in _QUANTITIES:
             quantity = Quantity(name)
+            if this_unit in quantity.units.values():
+                return quantity
             if str(self.dimension) in quantity.dimensions.values():
+                return quantity
+            if Dimension(quantity.units.values()) == self.dimension:
                 return quantity
 
     def __floordiv__(self, other):
