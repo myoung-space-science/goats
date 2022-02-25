@@ -18,51 +18,85 @@ def test_conversions():
         assert quantities.CONVERSIONS.get_weight(u1, u0) == 1 / wt
 
 
-def test_conversion_factor():
+def test_conversion():
+    """Test the unit-conversion class"""
+    cases = {
+        # Length (common and simple)
+        ('m', 'm'): 1.0, # trivial conversion
+        ('m', 'cm'): 1e2, # defined metric-system conversion
+        ('m', 'km'): 1e-3, # base-unit rescale
+        ('m', 'mm'): 1e3, # (same)
+        ('mm', 'm'): 1e-3, # (same)
+        ('m', 'au'): 1 / 1.495978707e11, # to non-system unit
+        ('au', 'm'): 1.495978707e11, # from non-system unit
+        ('au', 'au'): 1.0, # trivial non-system conversion
+        # Momentum (requires algebraic expressions)
+        ('kg * m / s', 'g * cm / s'): 1e5, # defined (forward)
+        ('g * cm / s', 'kg * m / s'): 1e-5, # defined (reverse)
+        ('g * km / s', 'g * cm / s'): 1e5, # undefined (forward)
+        ('g * cm / s', 'g * km / s'): 1e-5, # undefined (reverse)
+        ('g * km / day', 'g * cm / s'): 1e5 / 86400, # undefined (forward)
+        ('g * cm / s', 'g * km / day'): 86400 / 1e5, # undefined (reverse)
+        # Energy (has multiple defined conversions)
+        ('J', 'erg'): 1e7,
+        ('eV', 'J'): 1.6022e-19,
+        ('erg', 'J',): 1e-7, # reverse conversion
+        ('J', 'eV'): 1 / 1.6022e-19, # (same)
+        ('eV', 'erg'): 1.6022e-12, # chained conversion
+        ('erg', 'eV'): 1 / 1.6022e-12, # (same)
+        ('MeV', 'J'): 1.6022e-13, # conversion with rescale
+        ('J', 'MeV'): 1 / 1.6022e-13, # (same)
+        # Energy density (requires building quantity from formula)
+        ('J / m^3', 'erg / cm^3'): 1e1,
+        ('erg / cm^3', 'J / m^3'): 1e-1,
+        ('J m^-3', 'erg cm^-3'): 1e1,
+        ('m^-3 J', 'erg cm^-3'): 1e1,
+        ('J m^-3', 'cm^-3 erg'): 1e1,
+        # Mass
+        ('nuc', 'g'): 1.6055e-24, # conversion has non-base unit
+        # Velocity
+        ('km/s', 'm/s'): 1e3,
+        ('km/h', 'km/s'): 1/3600, # non-system time unit
+        ('m/h', 'cm/s'): 1/36, # variation on above
+        # Common or pathological conversions
+        ('G', 'nT'): 1e5, # `B` units: cgs -> sim
+        ('nT', 'G'): 1e-5, # `B` units: cgs -> sim
+        ('s^3/km^6', 's^3/cm^6'): 1e-30, # `dist`: sim -> mks
+        ('ms^3 m^-2', 'km^-2 s^3'): 1e-3, # terms in different order
+        ('ms^3 m^-2', 's^3 km^-2'): 1e-3, # above conversion, but in order
+        ('s^3 m^-6', 'km^-6 s^3'): 1e18, # different order; `dist` units
+    }
+    for (u0, u1), factor in cases.items():
+        conversion = quantities.Conversion(u0, u1)
+        assert conversion.factor == pytest.approx(factor)
+
+
+def test_quantity_convert():
+    """Test conversions with substitution within a quantity."""
     cases = {
         'length': {
-            ('m', 'm'): 1.0, # trivial conversion
-            ('m', 'cm'): 1e2, # defined metric-system conversion
-            ('m', 'km'): 1e-3, # base-unit rescale
-            ('m', 'mm'): 1e3, # (same)
-            ('mm', 'm'): 1e-3, # (same)
-            ('cm', 'mks'): 1e-2, # metric-system substitution
-            ('m', 'cgs'): 1e2, #(same)
-            ('mks', 'cm'): 1e2, #(same)
-            ('cgs', 'm'): 1e-2, #(same)
-            ('mks', 'cgs'): 1e2, #(same)
-            ('cgs', 'mks'): 1e-2, #(same)
-            ('m', 'au'): 1 / 1.495978707e11, # to non-system unit
-            ('au', 'm'): 1.495978707e11, # from non-system unit
-            ('au', 'au'): 1.0, # trivial non-system conversion
+            ('cm', 'mks'): 1e-2,
+            ('m', 'cgs'): 1e2,
+            ('mks', 'cm'): 1e2,
+            ('cgs', 'm'): 1e-2,
+            ('mks', 'cgs'): 1e2,
+            ('cgs', 'mks'): 1e-2,
         },
-        'momentum': { # complex unit expressions
-            ('kg * m / s', 'g * cm / s'): 1e5, # defined (forward)
-            ('g * cm / s', 'kg * m / s'): 1e-5, # defined (reverse)
-            ('g * km / s', 'g * cm / s'): 1e5, # undefined (forward)
-            ('g * cm / s', 'g * km / s'): 1e-5, # undefined (reverse)
-            ('g * km / day', 'g * cm / s'): 1e5 / 86400, # undefined (forward)
-            ('g * cm / s', 'g * km / day'): 86400 / 1e5, # undefined (reverse)
+        'momentum': {
+            ('mks', 'cgs'): 1e5,
+            ('cgs', 'mks'): 1e-5,
         },
-        'energy': { # multiple defined conversions
-            ('J', 'erg'): 1e7,
-            ('eV', 'J'): 1.6022e-19,
-            ('erg', 'J',): 1e-7, # reverse conversion
-            ('J', 'eV'): 1 / 1.6022e-19, # (same)
-            ('eV', 'erg'): 1.6022e-12, # chained conversion
-            ('erg', 'eV'): 1 / 1.6022e-12, # (same)
-            ('MeV', 'J'): 1.6022e-13, # conversion with rescale
-            ('J', 'MeV'): 1 / 1.6022e-13, # (same)
+        'energy': {
+            ('mks', 'cgs'): 1e7,
+            ('cgs', 'mks'): 1e-7,
+            ('eV', 'mks'): 1.6022e-19,
+            ('mks', 'eV'): 1 / 1.6022e-19,
+            ('eV', 'cgs'): 1.6022e-12,
+            ('cgs', 'eV'): 1 / 1.6022e-12,
         },
-        'energy density': { # Tests formulaic conversion
-            ('J / m^3', 'erg / cm^3'): 1e1,
-            ('erg / cm^3', 'J / m^3'): 1e-1,
-            ('J m^-3', 'erg cm^-3'): 1e1,
-            ('m^-3 J', 'erg cm^-3'): 1e1,
-            ('J m^-3', 'cm^-3 erg'): 1e1,
-        },
-        'mass': {
-            ('nuc', 'g'): 1.6055e-24, # conversion has non-base unit
+        'energy density': {
+            ('mks', 'cgs'): 1e1,
+            ('cgs', 'mks'): 1e-1,
         },
     }
     for name, conversion in cases.items():
