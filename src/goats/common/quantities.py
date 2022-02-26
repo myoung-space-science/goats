@@ -1602,22 +1602,28 @@ class Quantity(iterables.ReprStrMixin):
 Instance = typing.TypeVar('Instance', bound='Unit')
 
 
-# TODO: Cache instances if they correspond to a defined quantity.
 class Unit(algebra.Expression):
     """An algebraic expression representing a physical unit."""
+
+    _instances = {}
 
     _dimension=None
     _quantity=None
 
     def __new__(
         cls: typing.Type[Instance],
-        expression: typing.Union['Unit', str, iterables.whole],
+        arg: typing.Union['Unit', str, iterables.whole],
         **kwargs
     ) -> Instance:
-        """Create a new unit from `expression`."""
-        self = super().__new__(cls, expression, **kwargs)
+        """Create a new unit from `arg`."""
+        if isinstance(arg, cls):
+            return arg
+        if isinstance(arg, str) and arg in cls._instances:
+            return cls._instances[arg]
+        self = super().__new__(cls, arg, **kwargs)
         self._dimension = None
         self._quantity = None
+        cls._instances[str(self)] = self
         return self
 
     @property
