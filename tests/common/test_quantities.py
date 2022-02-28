@@ -71,8 +71,11 @@ def test_conversion():
         ): 1.036387467232555e-10, # identity term in one unit
     }
     for (u0, u1), factor in cases.items():
-        conversion = quantities.Conversion(u0, u1)
-        assert conversion.factor == pytest.approx(factor)
+        check_conversion(u0, u1, factor)
+
+def check_conversion(u0: str, u1: str, factor: float):
+    conversion = quantities.Conversion(u0, u1)
+    assert conversion.factor == pytest.approx(factor)
 
 
 def test_quantity_convert():
