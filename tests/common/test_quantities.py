@@ -68,7 +68,7 @@ def test_conversion():
         (
             '# cm^-2 s^-1 sr^-1 (MeV/nuc)^-1',
             'm^-2 s^-1 sr^-1 (J/kg)^-1',
-        ): None, # identity term in one unit
+        ): 1.036387467232555e-10, # identity term in one unit
     }
     for (u0, u1), factor in cases.items():
         conversion = quantities.Conversion(u0, u1)
