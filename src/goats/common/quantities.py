@@ -1332,7 +1332,8 @@ class Conversion(iterables.ReprStrMixin):
             if self.available(ux):
                 nx = NamedUnit(ux)
                 if nx.base == n0.base:
-                    return (nx // n0) * self._search(ux, u1)
+                    if found := self._search(ux, u1):
+                        return (nx // n0) * found
 
     def _expand(self, u0: str, u1: str):
         """Convert complex unit expressions term-by-term."""
