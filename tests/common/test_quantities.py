@@ -65,6 +65,10 @@ def test_conversion():
         ('ms^3 m^-2', 'km^-2 s^3'): 1e-3, # terms in different order
         ('ms^3 m^-2', 's^3 km^-2'): 1e-3, # above conversion, but in order
         ('s^3 m^-6', 'km^-6 s^3'): 1e18, # different order; `dist` units
+        (
+            '# cm^-2 s^-1 sr^-1 (MeV/nuc)^-1',
+            'm^-2 s^-1 sr^-1 (J/kg)^-1',
+        ): None, # identity term in one unit
     }
     for (u0, u1), factor in cases.items():
         conversion = quantities.Conversion(u0, u1)
