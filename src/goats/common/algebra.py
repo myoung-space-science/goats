@@ -237,6 +237,9 @@ class Term(Operand):
     def __eq__(self, other) -> bool:
         if isinstance(other, numbers.Real):
             return float(self) == float(other)
+        if isinstance(other, str):
+            term = OperandFactory().create(other)
+            return super().__eq__(term)
         return super().__eq__(other)
 
 

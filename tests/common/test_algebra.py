@@ -36,6 +36,7 @@ def test_create_term():
         assert float(term.coefficient) == float(expected['coefficient'])
         assert term.base == expected['base']
         assert term.exponent == fractions.Fraction(expected['exponent'])
+        assert term == string # Probably should be separate test
     invalid = [
         '^3', # exponent only
         'a^', # missing exponent
@@ -62,6 +63,7 @@ def test_simple_term_operators():
     assert isinstance(z, algebra.Term)
     z **= -3
     assert z == algebra.Term(1, 'z', -3)
+
 
 @pytest.mark.term
 def test_term_cast():
