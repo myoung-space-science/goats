@@ -1339,40 +1339,42 @@ class Conversion(iterables.ReprStrMixin):
         e0 = algebra.Expression(u0)
         e1 = algebra.Expression(u1)
         if len(e0) != len(e1):
-            # This will happen if `u0` and `u1` are not simply expressions of
-            # the same units, with possibly different metric prefixes (e.g.,
-            # `(kg / s -> g / ms)`). We eventually want to handle those more
-            # complex conversions (e.g., `(kg * m^2 / s^2 -> erg)`).
-            #
-            # Consider using new `NamedUnit.decompose()`.
             raise ValueError(
-                f"Can't parse pairs from {u0} / {u1}"
+                f"Can't parse pairs from {u0!r} / {u1!r}"
             ) from None
         if factor := self._inner_product(e0, e1):
             return factor
         if factor := self._outer_product(e0, e1):
             return factor
 
-    def _inner_product(self, e0: algebra.Expression, e1: algebra.Expression):
+    def _inner_product(
+        self,
+        e0: typing.Iterable[algebra.Term],
+        e1: typing.Iterable[algebra.Term],
+    ) -> typing.Optional[float]:
         """Compute ratios of all pairs of terms, if possible.
         
-        This method attempts to compute a pseudo-inner product of `e0` with `e1`
-        by computing individual ratios of sequential pairs of terms taken from
-        both expressions. Success requires that the expressions' terms are
-        ordered such that each pair has a common base. If the expressions do not
-        meet that criterion, this method will return `None` in order to give
-        subsequent methods a chance.
+        This method attempts to compute a pseudo-inner product of two iterables
+        of terms by computing individual ratios of sequential pairs of terms
+        taken from both expressions. Success requires that the expressions'
+        terms are ordered such that each pair has a common base. If the
+        expressions do not meet that criterion, this method will return `None`
+        in order to give subsequent methods a chance.
         """
         done = [self._reduce_pair(*pair) for pair in zip(e0, e1)]
         if all(done):
             return functools.reduce(lambda x, y: x*y, done)
 
-    def _outer_product(self, e0: algebra.Expression, e1: algebra.Expression):
+    def _outer_product(
+        self,
+        e0: typing.Iterable[algebra.Term],
+        e1: typing.Iterable[algebra.Term],
+    ) -> float:
         """Iteratively compute ratios of terms.
         
-        This method attempts to compute a pseudo-outer product of `e0` with `e1`
-        by iteratively comparing each term in `e0` to terms in `e1` until it
-        finds a term with matching base.
+        This method attempts to compute a pseudo-outer product of two iterables
+        of terms by iteratively comparing each term in the first to terms in the
+        second until it finds a term with matching base.
         """
         l0 = list(e0)
         l1 = list(e1)
@@ -1385,7 +1387,11 @@ class Conversion(iterables.ReprStrMixin):
                     l1.remove(t1)
         return factor
 
-    def _reduce_pair(self, t0: algebra.Term, t1: algebra.Term):
+    def _reduce_pair(
+        self,
+        t0: algebra.Term,
+        t1: algebra.Term,
+    ) -> typing.Optional[float]:
         """Compute the ratio of units with a common exponent."""
         if t0.exponent == t1.exponent:
             return self._convert(t0.base, t1.base) ** t0.exponent
