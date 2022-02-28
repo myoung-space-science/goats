@@ -1338,6 +1338,8 @@ class Conversion(iterables.ReprStrMixin):
         """Convert complex unit expressions term-by-term."""
         e0 = self._create_terms(u0)
         e1 = self._create_terms(u1)
+        if e0 == e1:
+            return 1.0
         if len(e0) != len(e1):
             raise ValueError(
                 f"Can't parse pairs from {u0!r} / {u1!r}"
