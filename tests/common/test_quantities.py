@@ -9,7 +9,7 @@ import pytest
 from goats.common import quantities
 
 
-def test_conversions():
+def test_defined_conversions():
     """Test the collection of defined conversions."""
     assert len(quantities.CONVERSIONS) == 2 * len(quantities._CONVERSIONS)
     for (u0, u1), wt in quantities._CONVERSIONS.items():
@@ -18,7 +18,7 @@ def test_conversions():
         assert quantities.CONVERSIONS.get_weight(u1, u0) == 1 / wt
 
 
-def test_conversion():
+def test_conversion_class():
     """Test the unit-conversion class"""
     cases = {
         # Length (common and simple)
