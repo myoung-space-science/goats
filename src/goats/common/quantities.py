@@ -1336,8 +1336,8 @@ class Conversion(iterables.ReprStrMixin):
 
     def _expand(self, u0: str, u1: str):
         """Convert complex unit expressions term-by-term."""
-        e0 = algebra.Expression(u0)
-        e1 = algebra.Expression(u1)
+        e0 = self._create_terms(u0)
+        e1 = self._create_terms(u1)
         if len(e0) != len(e1):
             raise ValueError(
                 f"Can't parse pairs from {u0!r} / {u1!r}"
@@ -1346,6 +1346,13 @@ class Conversion(iterables.ReprStrMixin):
             return factor
         if factor := self._outer_product(e0, e1):
             return factor
+
+    def _create_terms(self, unit: str):
+        """Create an iterable of terms representing `unit`."""
+        if '#' in unit:
+            expression = algebra.Expression(unit)
+            return [term for term in expression if term.base != '#']
+        return algebra.Expression(unit)
 
     def _inner_product(
         self,
