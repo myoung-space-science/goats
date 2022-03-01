@@ -1199,8 +1199,7 @@ class Conversion(iterables.ReprStrMixin):
 
     u0: str=None
     u1: str=None
-    _factor: float=None
-    _path: list=None
+    factor: float=None
 
     def __new__(cls, *args):
         """Concrete implementation."""
@@ -1213,25 +1212,17 @@ class Conversion(iterables.ReprStrMixin):
         self = super().__new__(cls)
         self.u0 = u0
         self.u1 = u1
-        self._factor = None
-        self._checked = None
+        methods = (
+            self._convert_strings,
+            self._convert_expressions,
+        )
+        self.factor = self._compute(methods)
         return self
 
     @property
     def inverse(self):
         """The conversion from `u1` to `u0`."""
         return type(self)(self.u1, self.u0)
-
-    @property
-    def factor(self):
-        """The numerical scale associated with this conversion."""
-        if self._factor is None:
-            methods = (
-                self._convert_strings,
-                self._convert_expressions,
-            )
-            self._factor = self._compute(methods)
-        return self._factor
 
     def _compute(
         self,
