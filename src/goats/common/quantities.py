@@ -1414,12 +1414,15 @@ class Conversion(iterables.ReprStrMixin):
             term for term in terms
             if term != target and term.exponent == -exponent
         ]
+        methods = (
+            self._compute_simple_conversion,
+            self._compute_rescaled,
+        )
         for term in like_terms:
             u1 = term.base
-            if conversion := self._compute_simple_conversion(u0, u1):
-                return conversion ** exponent, term
-            if conversion := self._compute_rescaled(u0, u1):
-                return conversion ** exponent, term
+            for method in methods:
+                if conversion := method(u0, u1):
+                    return conversion ** exponent, term
 
     def __bool__(self):
         """True if this conversion exists."""
