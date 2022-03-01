@@ -64,130 +64,16 @@ class Mu(indexing.IndexComputer):
     """EPREM pitch-angle cosine indexer."""
 
 
-class SubsetKeys(typing.NamedTuple):
-    """A subset of names of attributes."""
-
-    full: typing.Tuple[str]
-    aliased: typing.Tuple[aliased.MappingKey]
-    canonical: typing.Tuple[str]
-
-
-class Dataset(collections.abc.Container):
-    """Interface to an EPREM dataset."""
+class VariablesView(aliased.Mapping):
+    """A view of the variables in a dataset."""
 
     def __init__(
         self,
-        path: typing.Union[str, Path],
-        system: typing.Union[str, quantities.MetricSystem]=None,
+        dataset: datasets.DatasetView,
+        system: str=None,
     ) -> None:
-        dataset = datasets.DatasetView(path)
-        self._system = quantities.MetricSystem(system) if system else None
-        self._quantities = None
-        self._units = None
-        self._variables = None
-        self._axes = None
-        self._init_v = self._build_variables(dataset)
-        self._init_a = self._build_axes(dataset)
-        self._canonical = {
-            'variables': tuple(
-                variable for variable in self._init_v
-                if variable in dataset.variables
-            ),
-            'axes': tuple(
-                axis for axis in self._init_a
-                if axis in dataset.axes
-            ),
-        }
-
-    def __contains__(self, key: str) -> bool:
-        """True if `key` corresponds to an available variable or axis."""
-        return key in self.variables or key in self.axes
-
-    @property
-    def variables(self):
-        """The variables in this dataset."""
-        if self._variables is None:
-            base = {
-                key: variable.unit(self.units[key])
-                for key, variable in self._init_v.items(aliased=True)
-            } if self._system else self._init_v
-            self._variables = aliased.Mapping(base)
-        return self._variables
-
-    @property
-    def units(self):
-        """The unit of each dataset attribute in the current system."""
-        if self._units is None:
-            base = {
-                key: self._system.get_unit(quantity=quantity)
-                for key, quantity in self.quantities.items(aliased=True)
-            } if self._system else {
-                key: variable.unit()
-                for key, variable in self._init_v
-            }
-            self._units = aliased.Mapping(base)
-        return self._units
-
-    @property
-    def quantities(self):
-        """The physical quantities of each dataset attribute."""
-        if self._quantities is None:
-            base = {
-                key: variable['quantity']
-                for key, variable in metadata['variables'].items(aliased=True)
-                if key in self._init_v.keys(aliased=True)
-            }
-            self._quantities = aliased.Mapping(base)
-        return self._quantities
-
-    @property
-    def axes(self):
-        """The axes in this dataset."""
-        if self._axes is None:
-            axes = self._init_a
-            self._axes = aliased.Mapping(axes)
-        return self._axes
-
-    def system(self, new: str=None):
-        """Get or set the metric system for this dataset."""
-        if not new:
-            return self._system
-        self._system = quantities.MetricSystem(new)
-        self._variables = None
-        self._units = None
-        return self
-
-    def available(self, key: str):
-        """Provide the names of available attributes."""
-        if key in {'variable', 'variables'}:
-            return SubsetKeys(
-                full=tuple(self._init_v),
-                aliased=tuple(self._init_v.keys(aliased=True)),
-                canonical=self._canonical['variables'],
-            )
-        if key in {'axis', 'axes'}:
-            return SubsetKeys(
-                full=tuple(self._init_a),
-                aliased=tuple(self._init_a.keys(aliased=True)),
-                canonical=self._canonical['axes'],
-            )
-
-    def iter_axes(self, name: str):
-        """Iterate over the axes for the named variable."""
-        if name in self._init_v:
-            variable = self._init_v[name]
-            return iter(variable.axes)
-        return iter(())
-
-    def resolve_axes(self, names: typing.Iterable[str]):
-        """Compute and order the available axes in `names`."""
-        axes = self.available('axes').canonical
-        return tuple(name for name in axes if name in names)
-
-    def _build_variables(self, dataset: datasets.DatasetView):
-        """Create a collection of variables from the dataset."""
         meta = metadata['variables'].copy()
-        base = {
+        self._attrs = {
             name: {
                 'data': data,
                 'axes': self._get_axes_from_data(data),
@@ -195,19 +81,21 @@ class Dataset(collections.abc.Container):
                 'name': meta.alias(name, include=True),
             } for name, data in dataset.variables.items()
         }
-        variable = quantities.Variable
+        create = quantities.Variable
         variables = {
-            current['name']: variable(**current)
-            for name, current in base.items()
+            current['name']: create(**current)
+            for name, current in self._attrs.items()
             if name in _VARIABLES
         }
-        return aliased.Mapping(variables)
+        super().__init__(variables)
+        self._system = quantities.MetricSystem(system) if system else None
 
     def _get_axes_from_data(self, data):
         """Compute appropriate variable axes from a dataset object."""
         return tuple(getattr(data, 'dimensions', ()))
 
     _ukeys = ('unit', 'units')
+
     def _get_unit_from_data(self, data):
         """Compute appropriate variable units from a dataset object."""
         available = (
@@ -216,17 +104,40 @@ class Dataset(collections.abc.Container):
         )
         return next(available, None)
 
-    def _build_axes(self, dataset: datasets.DatasetView):
-        """Create a collection of axes from the dataset."""
-        mass = self.variables['mass'].unit('nuc')
-        charge = self.variables['charge'].unit('e')
+    def __getitem__(self, key: str):
+        """Get a variable by name or alias."""
+        if key in self._flat_keys():
+            variable = super().__getitem__(key)
+            if not self._system:
+                return variable
+            unit = self._get_unit(key)
+            return variable.unit(unit)
+        raise KeyError(f"No variable corresponding to {key!r}") from None
+
+    def _get_unit(self, key: str):
+        """Get a variable's unit in the current metric system."""
+        if variable := metadata['variables'].get(key):
+            return self._system.get_unit(quantity=variable['quantity'])
+
+
+class AxesView(aliased.Mapping):
+    """A view of the axis-indexing objects for a dataset."""
+
+    def __init__(
+        self,
+        dataset: datasets.DatasetView,
+        system: quantities.MetricSystem=None,
+    ) -> None:
+        variables = VariablesView(dataset, system)
+        mass = variables['mass'].unit('nuc')
+        charge = variables['charge'].unit('e')
         sizes = dataset.sizes
         arrays = {
-            'time': self.variables['time'],
-            'shell': np.array(self.variables['shell'], dtype=int),
+            'time': variables['time'],
+            'shell': np.array(variables['shell'], dtype=int),
             'species': physical.elements(mass, charge),
-            'energy': self.variables['energy'],
-            'mu': self.variables['mu'],
+            'energy': variables['energy'],
+            'mu': variables['mu'],
         }
         args = {
             name: {
@@ -252,7 +163,91 @@ class Dataset(collections.abc.Container):
             for name, attrs in base.items()
             if name in _AXES
         }
-        return aliased.Mapping(axes)
+        super().__init__(axes)
+
+
+class SubsetKeys(typing.NamedTuple):
+    """A subset of names of attributes."""
+
+    full: typing.Tuple[str]
+    aliased: typing.Tuple[aliased.MappingKey]
+    canonical: typing.Tuple[str]
+
+
+class Dataset(collections.abc.Container):
+    """Interface to an EPREM dataset."""
+
+    def __init__(
+        self,
+        path: typing.Union[str, Path],
+        system: typing.Union[str, quantities.MetricSystem]=None,
+    ) -> None:
+        self._dataset = datasets.DatasetView(path)
+        self._system = system
+        self._variables = None
+        self._axes = None
+        self._canonical = {
+            'variables': tuple(
+                variable for variable in self.variables
+                if variable in self._dataset.variables
+            ),
+            'axes': tuple(
+                axis for axis in self.axes
+                if axis in self._dataset.axes
+            ),
+        }
+
+    def __contains__(self, key: str) -> bool:
+        """True if `key` corresponds to an available variable or axis."""
+        return key in self.variables or key in self.axes
+
+    @property
+    def variables(self):
+        """The variables in this dataset."""
+        if self._variables is None:
+            self._variables = VariablesView(self._dataset, self._system)
+        return self._variables
+
+    @property
+    def axes(self):
+        """The axis-indexing objects for this dataset."""
+        if self._axes is None:
+            self._axes = AxesView(self._dataset, self._system)
+        return self._axes
+
+    def system(self, new: str=None):
+        """Get or set the metric system for this dataset."""
+        if not new:
+            return self._system
+        self._system = new
+        self._variables = None
+        self._axes = None
+        return self
+
+    def available(self, key: str):
+        """Provide the names of available attributes."""
+        if key in {'variable', 'variables'}:
+            return SubsetKeys(
+                full=tuple(self.variables),
+                aliased=tuple(self.variables.keys(aliased=True)),
+                canonical=self._canonical['variables'],
+            )
+        if key in {'axis', 'axes'}:
+            return SubsetKeys(
+                full=tuple(self.axes),
+                aliased=tuple(self.axes.keys(aliased=True)),
+                canonical=self._canonical['axes'],
+            )
+
+    def iter_axes(self, name: str):
+        """Iterate over the axes for the named variable."""
+        this = self.variables[name].axes if name in self.variables else ()
+        return iter(this)
+
+    def resolve_axes(self, names: typing.Iterable[str]):
+        """Compute and order the available axes in `names`."""
+        axes = self.available('axes').canonical
+        return tuple(name for name in axes if name in names)
 
 
 _VARIABLES = {
