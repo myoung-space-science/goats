@@ -1256,6 +1256,7 @@ class Conversion(iterables.ReprStrMixin):
     available = NamedUnit.knows_about
     """Local copy of `~quantities.NamedUnit.knows_about`."""
 
+    @classmethod
     def _search(cls, u0: str, u1: str):
         """Search the defined conversions.
         
@@ -1273,6 +1274,7 @@ class Conversion(iterables.ReprStrMixin):
                 if (ux, uy) in CONVERSIONS:
                     return CONVERSIONS.get_weight(ux, uy)
 
+    @classmethod
     def _get_aliases_of(cls, unit: str):
         """Build a list of possible variations of this unit string.
         
@@ -1286,7 +1288,8 @@ class Conversion(iterables.ReprStrMixin):
             built.extend([known.symbol, known.name])
         return built
 
-    def _compute_ratio(self, u0: str, u1: str):
+    @staticmethod
+    def _compute_ratio(u0: str, u1: str):
         """Return the relative magnitude of `u1` to `u0`, if possible."""
         try:
             scale = NamedUnit(u1) // NamedUnit(u0)
@@ -1294,29 +1297,37 @@ class Conversion(iterables.ReprStrMixin):
             scale = None
         return scale
 
+    units = CONVERSIONS.nodes
+    """Local copy of `~quantities.CONVERSIONS.nodes`."""
+
     def _compute_modified(self, u0: str, u1: str):
         """Compute the conversion after modifying `u0` or `u1`.
         
         Notes
         -----
         It is possible to have `u0` or `u1` individually in `CONVERSIONS.nodes`
-        despite the fact that `(u0, u1)` is not in `CONVERSIONS`. For example,
-        there are nodes for both 'min' (minute) and 'd' (day), each with a
-        conversion to 's' (second), but there is no direct conversion from 'min'
-        to 'd'.
+        even when `(u0, u1)` is not in `CONVERSIONS`. For example, there are
+        nodes for both 'min' (minute) and 'd' (day), each with a conversion to
+        's' (second), but there is no direct conversion from 'min' to 'd'.
         """
-        units = CONVERSIONS.nodes
-        if u0 not in units or u1 not in units:
-            if u0 not in units:
-                if rescaled := self._rescale(u0, u1):
-                    return rescaled
-            if u1 not in units:
-                if rescaled := self._rescale(u1, u0):
-                    return 1 / rescaled
-            if expanded := self._expand(u0, u1):
+        if u0 not in self.units or u1 not in self.units:
+            if rescaled := self._compute_rescaled(u0, u1):
+                return rescaled
+            if expanded := self._compute_expanded(u0, u1):
                 return expanded
 
-    def _rescale(self, u0: str, u1: str):
+    @classmethod
+    def _compute_rescaled(cls, u0: str, u1: str):
+        """Compute the forward or reverse conversion after rescaling."""
+        if u0 not in cls.units:
+            if rescaled := cls._rescale(u0, u1):
+                return rescaled
+        if u1 not in cls.units:
+            if rescaled := cls._rescale(u1, u0):
+                return 1 / rescaled
+
+    @classmethod
+    def _rescale(cls, u0: str, u1: str):
         """Compute a new conversion after rescaling `u0`.
         
         This method will look for a unit, `ux`, in `~quantities.CONVERSIONS`
@@ -1325,17 +1336,17 @@ class Conversion(iterables.ReprStrMixin):
         magnitude of `u0` to `ux`. In other words, it attempts to compute ``(u0
         // ux) * (ux -> u1)`` in place of ``(u0 -> u1)``.
         """
-        if not self.available(u0):
+        if not cls.available(u0):
             return
         n0 = NamedUnit(u0)
-        for ux in CONVERSIONS.nodes:
-            if self.available(ux):
+        for ux in cls.units:
+            if cls.available(ux):
                 nx = NamedUnit(ux)
                 if nx.base == n0.base:
-                    if found := self._search(ux, u1):
+                    if found := cls._search(ux, u1):
                         return (nx // n0) * found
 
-    def _expand(self, u0: str, u1: str):
+    def _compute_expanded(self, u0: str, u1: str):
         """Convert complex unit expressions term-by-term."""
         e0 = self._create_terms(u0)
         e1 = self._create_terms(u1)
@@ -1350,7 +1361,8 @@ class Conversion(iterables.ReprStrMixin):
         if factor := self._outer_product(e0, e1):
             return factor
 
-    def _create_terms(self, unit: str):
+    @staticmethod
+    def _create_terms(unit: str):
         """Create an iterable of terms representing `unit`."""
         if '#' in unit:
             expression = algebra.Expression(unit)
