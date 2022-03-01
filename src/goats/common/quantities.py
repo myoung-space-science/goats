@@ -1247,10 +1247,8 @@ class Conversion(iterables.ReprStrMixin):
             return scale * ratio
         if modified := self._compute_modified(u0, u1):
             return scale * modified
-        conversions = CONVERSIONS.get_adjacencies(u0).items()
-        for unit, weight in conversions:
-            if unit not in self._checked:
-                return weight * self._convert(unit, u1, scale=scale)
+        if built := self._build_conversion(u0, u1, scale):
+            return built
         raise UnitConversionError(self.u0, self.u1)
 
     available = NamedUnit.knows_about
@@ -1315,6 +1313,13 @@ class Conversion(iterables.ReprStrMixin):
                 return rescaled
             if expanded := self._compute_expanded(u0, u1):
                 return expanded
+
+    def _build_conversion(self, u0: str, u1: str, scale: float):
+        """Recursively build the conversion from `u0` to `u1`."""
+        conversions = CONVERSIONS.get_adjacencies(u0).items()
+        for unit, weight in conversions:
+            if unit not in self._checked:
+                return weight * self._convert(unit, u1, scale=scale)
 
     @classmethod
     def _compute_rescaled(cls, u0: str, u1: str):
