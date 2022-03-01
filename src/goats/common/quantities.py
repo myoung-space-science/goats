@@ -1226,12 +1226,26 @@ class Conversion(iterables.ReprStrMixin):
     def factor(self):
         """The numerical scale associated with this conversion."""
         if self._factor is None:
-            self._checked = []
-            self._factor = self._convert(self.u0, self.u1)
+            methods = (
+                self._convert_strings,
+                self._convert_expressions,
+            )
+            self._factor = self._compute(methods)
         return self._factor
 
-    def _convert(self, u0: str, u1: str, scale: float=1.0):
-        """Convert `u0` to `u1`, if possible.
+    def _compute(
+        self,
+        methods: typing.Iterable[typing.Callable[[str, str], float]],
+    ) -> typing.Optional[float]:
+        """Call conversion methods on this instance's units."""
+        for method in methods:
+            self._checked = []
+            if conversion := method(self.u0, self.u1):
+                return conversion
+        raise UnitConversionError(self.u0, self.u1)
+
+    def _convert_strings(self, u0: str, u1: str, scale: float=1.0):
+        """Attempt to convert `u0` to `u1` as strings.
         
         This method will attempt to look up or compute the appropriate numerical
         conversion factor via various strategies, including searching for
@@ -1239,15 +1253,12 @@ class Conversion(iterables.ReprStrMixin):
         existing conversions.
         """
         self._checked += [u0]
-        if conversion := self._compute_simple_conversion(u0, u1):
-            return scale * conversion
-        if conversion := self._compute_complex_conversion(u0, u1):
-            return scale * conversion
-        if conversion := self._build_conversion(u0, u1, scale):
+        if conversion := self._simple_conversion(u0, u1):
             return conversion
-        raise UnitConversionError(self.u0, self.u1)
+        if conversion := self._complex_conversion(u0, u1):
+            return conversion
 
-    def _compute_simple_conversion(cls, u0: str, u1: str):
+    def _simple_conversion(cls, u0: str, u1: str, scale: float=1.0):
         """Attempt to compute a simple conversion from `u0` to `u1`.
         
         This method will attempt the following conversions, in the order listed:
@@ -1260,14 +1271,14 @@ class Conversion(iterables.ReprStrMixin):
         methods an opportunity to convert `u0` to `u1`.
         """
         if u0 == u1:
-            return 1.0
+            return scale
         if found := cls._search(u0, u1):
-            return found
+            return scale * found
         try:
             ratio = NamedUnit(u1) // NamedUnit(u0)
         except (ValueError, UnitParsingError):
             return
-        return ratio
+        return scale * ratio
 
     available = NamedUnit.knows_about
     """Local copy of `~quantities.NamedUnit.knows_about`."""
@@ -1307,7 +1318,7 @@ class Conversion(iterables.ReprStrMixin):
     units = CONVERSIONS.nodes
     """Local copy of `~quantities.CONVERSIONS.nodes`."""
 
-    def _compute_complex_conversion(self, u0: str, u1: str):
+    def _complex_conversion(self, u0: str, u1: str, scale: float=1.0):
         """Attempt to compute a complex conversion from `u0` to `u1`.
 
         This method will attempt the following conversions, in the order listed:
@@ -1317,7 +1328,8 @@ class Conversion(iterables.ReprStrMixin):
           `~Conversion._rescale`);
         * the inverse of the above process applied to the conversion from `u1`
           to `u0`;
-        * a term-by-term conversion of an algebraic expression;
+        * a multi-step conversion recursively built by calling back to
+          `~Conversions._convert_strings`
 
         If it does not succeed, it will return ``None`` in order to allow other
         methods an opportunity to convert `u0` to `u1`.
@@ -1330,34 +1342,17 @@ class Conversion(iterables.ReprStrMixin):
         with a conversion to 's' (second), but there is no direct conversion
         from 'min' to 'd'.
         """
-        if u0 not in self.units or u1 not in self.units:
-            if rescaled := self._compute_rescaled(u0, u1):
-                return rescaled
-            if expanded := self._compute_expanded(u0, u1):
-                return expanded
-
-    def _build_conversion(self, u0: str, u1: str, scale: float):
-        """Recursively build the conversion from `u0` to `u1`.
-        
-        This method will attempt to chain together conversions from `u0` to `u1`
-        by iteratively calling back to `~Conversions._convert`. If it does not
-        succeed, it will return ``None`` in order to let `~Conversions._convert`
-        decide how to proceed.
-        """
+        if u0 not in self.units:
+            if computed := self._rescale(u0, u1):
+                return scale * computed
+        if u1 not in self.units:
+            if computed := self._rescale(u1, u0):
+                return scale / computed
         conversions = CONVERSIONS.get_adjacencies(u0).items()
         for unit, weight in conversions:
             if unit not in self._checked:
-                return weight * self._convert(unit, u1, scale=scale)
-
-    @classmethod
-    def _compute_rescaled(cls, u0: str, u1: str):
-        """Compute the forward or reverse conversion after rescaling."""
-        if u0 not in cls.units:
-            if rescaled := cls._rescale(u0, u1):
-                return rescaled
-        if u1 not in cls.units:
-            if rescaled := cls._rescale(u1, u0):
-                return 1 / rescaled
+                if value := self._convert_strings(unit, u1, scale=scale):
+                    return weight * value
 
     @classmethod
     def _rescale(cls, u0: str, u1: str):
@@ -1379,7 +1374,7 @@ class Conversion(iterables.ReprStrMixin):
                     if found := cls._search(ux, u1):
                         return (nx // n0) * found
 
-    def _compute_expanded(self, u0: str, u1: str):
+    def _convert_expressions(self, u0: str, u1: str):
         """Convert complex unit expressions term-by-term."""
         e0, e1 = (algebra.Expression(unit) for unit in (u0, u1))
         if e0 == e1:
@@ -1413,15 +1408,10 @@ class Conversion(iterables.ReprStrMixin):
             term for term in terms
             if term != target and term.exponent == -exponent
         ]
-        methods = (
-            self._compute_simple_conversion,
-            self._compute_rescaled,
-        )
         for term in like_terms:
             u1 = term.base
-            for method in methods:
-                if conversion := method(u0, u1):
-                    return conversion ** exponent, term
+            if conversion := self._convert_strings(u0, u1):
+                return conversion ** exponent, term
 
     def __bool__(self):
         """True if this conversion exists."""
