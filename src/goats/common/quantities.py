@@ -1394,10 +1394,9 @@ class Conversion(iterables.ReprStrMixin):
                 if match := self._match_terms(target, unmatched):
                     value, term = match
                     factor *= value
-                    matched.append(target)
-                    matched.append(term)
-                    unmatched.remove(target)
-                    unmatched.remove(term)
+                    for this in (target, term):
+                        matched.append(this)
+                        unmatched.remove(this)
         if not unmatched:
             return factor
         raise RuntimeError
