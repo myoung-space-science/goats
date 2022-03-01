@@ -46,6 +46,8 @@ def test_conversion_class():
         ('erg', 'eV'): 1 / 1.6022e-12, # (same)
         ('MeV', 'J'): 1.6022e-13, # conversion with rescale
         ('J', 'MeV'): 1 / 1.6022e-13, # (same)
+        ('MeV', 'erg'): 1.6022e-6, # chained conversion with rescale
+        ('erg', 'MeV'): 1 / 1.6022e-6, # (same)
         # Energy density (requires building quantity from formula)
         ('J / m^3', 'erg / cm^3'): 1e1,
         ('erg / cm^3', 'J / m^3'): 1e-1,
