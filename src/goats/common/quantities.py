@@ -1381,75 +1381,45 @@ class Conversion(iterables.ReprStrMixin):
 
     def _compute_expanded(self, u0: str, u1: str):
         """Convert complex unit expressions term-by-term."""
-        e0 = self._create_terms(u0)
-        e1 = self._create_terms(u1)
+        e0, e1 = (algebra.Expression(unit) for unit in (u0, u1))
         if e0 == e1:
             return 1.0
-        if len(e0) != len(e1):
-            raise ValueError(
-                f"Can't parse pairs from {u0!r} / {u1!r}"
-            ) from None
-        if factor := self._inner_product(e0, e1):
-            return factor
-        if factor := self._outer_product(e0, e1):
-            return factor
-
-    @staticmethod
-    def _create_terms(unit: str):
-        """Create an iterable of terms representing `unit`."""
-        if '#' in unit:
-            expression = algebra.Expression(unit)
-            return [term for term in expression if term.base != '#']
-        return algebra.Expression(unit)
-
-    def _inner_product(
-        self,
-        e0: typing.Iterable[algebra.Term],
-        e1: typing.Iterable[algebra.Term],
-    ) -> typing.Optional[float]:
-        """Compute ratios of all pairs of terms, if possible.
-        
-        This method attempts to compute a pseudo-inner product of two iterables
-        of terms by computing individual ratios of sequential pairs of terms
-        taken from both expressions. Success requires that the expressions'
-        terms are ordered such that each pair has a common base. If the
-        expressions do not meet that criterion, this method will return `None`
-        in order to give subsequent methods a chance.
-        """
-        done = [self._reduce_pair(*pair) for pair in zip(e0, e1)]
-        if all(done):
-            return functools.reduce(lambda x, y: x*y, done)
-
-    def _outer_product(
-        self,
-        e0: typing.Iterable[algebra.Term],
-        e1: typing.Iterable[algebra.Term],
-    ) -> float:
-        """Iteratively compute ratios of terms.
-        
-        This method attempts to compute a pseudo-outer product of two iterables
-        of terms by iteratively comparing each term in the first to terms in the
-        second until it finds a term with matching base.
-        """
-        l0 = list(e0)
-        l1 = list(e1)
+        identities = {'#', '1'}
+        ratio = [term for term in e0 / e1 if term.base not in identities]
         factor = 1.0
-        while l0:
-            t0 = l0.pop()
-            for t1 in l1:
-                if value := self._reduce_pair(t0, t1):
+        matched = []
+        unmatched = ratio.copy()
+        for target in ratio:
+            if target not in matched:
+                if match := self._match_terms(target, unmatched):
+                    value, term = match
                     factor *= value
-                    l1.remove(t1)
-        return factor
+                    matched.append(target)
+                    matched.append(term)
+                    unmatched.remove(target)
+                    unmatched.remove(term)
+        if not unmatched:
+            return factor
+        raise RuntimeError
 
-    def _reduce_pair(
+    def _match_terms(
         self,
-        t0: algebra.Term,
-        t1: algebra.Term,
-    ) -> typing.Optional[float]:
-        """Compute the ratio of units with a common exponent."""
-        if t0.exponent == t1.exponent:
-            return self._convert(t0.base, t1.base) ** t0.exponent
+        target: algebra.Term,
+        terms: typing.Iterable[algebra.Term],
+    ) -> typing.Optional[typing.Union[float, algebra.Term]]:
+        """Attempt to convert `target` to a term in `terms`."""
+        u0 = target.base
+        exponent = target.exponent
+        like_terms = [
+            term for term in terms
+            if term != target and term.exponent == -exponent
+        ]
+        for term in like_terms:
+            u1 = term.base
+            if conversion := self._compute_simple_conversion(u0, u1):
+                return conversion ** exponent, term
+            if conversion := self._compute_rescaled(u0, u1):
+                return conversion ** exponent, term
 
     def __bool__(self):
         """True if this conversion exists."""
