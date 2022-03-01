@@ -89,6 +89,7 @@ class VariablesView(aliased.Mapping):
         }
         super().__init__(variables)
         self._system = quantities.MetricSystem(system) if system else None
+        self._cache = {}
 
     def _get_axes_from_data(self, data):
         """Compute appropriate variable axes from a dataset object."""
@@ -106,13 +107,21 @@ class VariablesView(aliased.Mapping):
 
     def __getitem__(self, key: str):
         """Get a variable by name or alias."""
+        if key in self._cache:
+            return self._cache[key]
         if key in self._flat_keys():
-            variable = super().__getitem__(key)
-            if not self._system:
-                return variable
-            unit = self._get_unit(key)
-            return variable.unit(unit)
+            variable = self._get_variable(key)
+            self._cache[key] = variable
+            return variable
         raise KeyError(f"No variable corresponding to {key!r}") from None
+
+    def _get_variable(self, key: str):
+        """Retrieve a variable and update, if necessary."""
+        variable = super().__getitem__(key)
+        if not self._system:
+            return variable
+        unit = self._get_unit(key)
+        return variable.unit(unit)
 
     def _get_unit(self, key: str):
         """Get a variable's unit in the current metric system."""
