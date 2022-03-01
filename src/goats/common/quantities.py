@@ -1239,17 +1239,35 @@ class Conversion(iterables.ReprStrMixin):
         existing conversions.
         """
         self._checked += [u0]
-        if u0 == u1:
-            return scale
-        if found := self._search(u0, u1):
-            return scale * found
-        if ratio := self._compute_ratio(u0, u1):
-            return scale * ratio
-        if modified := self._compute_modified(u0, u1):
-            return scale * modified
-        if built := self._build_conversion(u0, u1, scale):
-            return built
+        if conversion := self._compute_simple_conversion(u0, u1):
+            return scale * conversion
+        if conversion := self._compute_complex_conversion(u0, u1):
+            return scale * conversion
+        if conversion := self._build_conversion(u0, u1, scale):
+            return conversion
         raise UnitConversionError(self.u0, self.u1)
+
+    def _compute_simple_conversion(cls, u0: str, u1: str):
+        """Attempt to compute a simple conversion from `u0` to `u1`.
+        
+        This method will attempt the following conversions, in the order listed:
+        
+        * the identity conversion (i.e., `u0 == u1`);
+        * a defined conversion from `u0` to `u1`;
+        * the metric ratio of `u1` to `u0` (e.g., `'km'` to `'m'`);
+
+        If it does not succeed, it will return ``None`` in order to allow other
+        methods an opportunity to convert `u0` to `u1`.
+        """
+        if u0 == u1:
+            return 1.0
+        if found := cls._search(u0, u1):
+            return found
+        try:
+            ratio = NamedUnit(u1) // NamedUnit(u0)
+        except (ValueError, UnitParsingError):
+            return
+        return ratio
 
     available = NamedUnit.knows_about
     """Local copy of `~quantities.NamedUnit.knows_about`."""
@@ -1286,27 +1304,31 @@ class Conversion(iterables.ReprStrMixin):
             built.extend([known.symbol, known.name])
         return built
 
-    @staticmethod
-    def _compute_ratio(u0: str, u1: str):
-        """Return the relative magnitude of `u1` to `u0`, if possible."""
-        try:
-            scale = NamedUnit(u1) // NamedUnit(u0)
-        except (ValueError, UnitParsingError):
-            scale = None
-        return scale
-
     units = CONVERSIONS.nodes
     """Local copy of `~quantities.CONVERSIONS.nodes`."""
 
-    def _compute_modified(self, u0: str, u1: str):
-        """Compute the conversion after modifying `u0` or `u1`.
+    def _compute_complex_conversion(self, u0: str, u1: str):
+        """Attempt to compute a complex conversion from `u0` to `u1`.
+
+        This method will attempt the following conversions, in the order listed:
+
+        * a defined conversion to `u1` from a unit that has the same base unit
+          as, but different metric scale than, `u0` (see
+          `~Conversion._rescale`);
+        * the inverse of the above process applied to the conversion from `u1`
+          to `u0`;
+        * a term-by-term conversion of an algebraic expression;
+
+        If it does not succeed, it will return ``None`` in order to allow other
+        methods an opportunity to convert `u0` to `u1`.
         
         Notes
         -----
-        It is possible to have `u0` or `u1` individually in `CONVERSIONS.nodes`
-        even when `(u0, u1)` is not in `CONVERSIONS`. For example, there are
-        nodes for both 'min' (minute) and 'd' (day), each with a conversion to
-        's' (second), but there is no direct conversion from 'min' to 'd'.
+        It is possible for `u0` or `u1` to individually be in
+        `CONVERSIONS.nodes` even when `(u0, u1)` is not in `CONVERSIONS`. For
+        example, there are nodes for both 'min' (minute) and 'd' (day), each
+        with a conversion to 's' (second), but there is no direct conversion
+        from 'min' to 'd'.
         """
         if u0 not in self.units or u1 not in self.units:
             if rescaled := self._compute_rescaled(u0, u1):
@@ -1315,7 +1337,13 @@ class Conversion(iterables.ReprStrMixin):
                 return expanded
 
     def _build_conversion(self, u0: str, u1: str, scale: float):
-        """Recursively build the conversion from `u0` to `u1`."""
+        """Recursively build the conversion from `u0` to `u1`.
+        
+        This method will attempt to chain together conversions from `u0` to `u1`
+        by iteratively calling back to `~Conversions._convert`. If it does not
+        succeed, it will return ``None`` in order to let `~Conversions._convert`
+        decide how to proceed.
+        """
         conversions = CONVERSIONS.get_adjacencies(u0).items()
         for unit, weight in conversions:
             if unit not in self._checked:
