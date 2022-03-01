@@ -990,13 +990,23 @@ class Connections(collections.abc.Collection, ReprStrMixin):
         return {n for connection in self.connections for n in connection}
 
     def get_adjacencies(self, node: str):
-        """Retrieve the connections to this node, if possible."""
-        if node in self.nodes:
-            return {
-                end: v for (start, end), v in self.connections.items()
-                if start == node
-            }
-        raise KeyError(f"No node information for {node!r}") from None
+        """Retrieve the connections to this node.
+        
+        Parameters
+        ----------
+        node : string
+            The key corresponding to the target node.
+
+        Returns
+        -------
+        `~dict`
+            A dictionary whose keys represent the nodes connected to `node` and
+            whose values represent the corresponding edge weight. An empty dictionary represents a node with no connections.
+        """
+        return {
+            end: v for (start, end), v in self.connections.items()
+            if start == node
+        } if node in self.nodes else {}
 
     def get_weight(self, start: str, end: str):
         """Retrieve the weight of this link, if possible."""
