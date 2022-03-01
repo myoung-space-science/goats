@@ -7,14 +7,14 @@ from goats.eprem import datasets
 
 
 @pytest.fixture
-def dataset(datadirs: dict):
-    """An EPREM dataset."""
-    datapath = datadirs['cone']['obs'] / 'obs000000.nc'
-    return datasets.Dataset(datapath, 'mks')
+def datapath(datadirs: dict):
+    """The path to an EPREM test dataset."""
+    return datadirs['cone']['obs'] / 'obs000000.nc'
 
 
-def test_axes(dataset: datasets.Dataset):
+def test_axes(datapath):
     """Test the axis-indexing objects."""
+    dataset = datasets.Dataset(datapath, 'mks')
     axes = dataset.axes
     cases = {
         'time': {
@@ -88,8 +88,9 @@ def test_axes(dataset: datasets.Dataset):
         assert numpy.allclose(user.values, test['values'])
 
 
-def test_single_index(dataset: datasets.Dataset):
+def test_single_index(datapath):
     """Users should be able to provide a single numerical value."""
+    dataset = datasets.Dataset(datapath, 'mks')
     axes = dataset.axes
     cases = {
         'time': {
@@ -130,7 +131,7 @@ def test_single_index(dataset: datasets.Dataset):
             assert result.unit == expected['unit']
 
 
-def test_variables(dataset: datasets.Dataset):
+def test_variables(datapath):
     """Test the dataset variable objects."""
     T, S, P, E, M = 'time', 'shell', 'species', 'energy', 'mu'
     cases = {
@@ -229,12 +230,15 @@ def test_variables(dataset: datasets.Dataset):
             'aliases': ['dist', 'f'],
         },
     }
-    variables = dataset.variables
-    for name, expected in cases.items():
-        variable = variables[name]
-        assert variable.axes == expected['axes']
-        assert variable.unit() == expected['unit']['mks']
-        assert variable.name == aliased.MappingKey(name, *expected['aliases'])
+    for system in {'mks', 'cgs'}:
+        dataset = datasets.Dataset(datapath, system)
+        variables = dataset.variables
+        for name, expected in cases.items():
+            variable = variables[name]
+            assert variable.axes == expected['axes']
+            assert variable.unit() == expected['unit'][system]
+            key = aliased.MappingKey(name, *expected['aliases'])
+            assert variable.name == key
 
 
 cases = {
