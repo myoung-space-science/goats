@@ -3407,9 +3407,13 @@ class Measurement(Vector):
 
     def __getitem__(self, index):
         """Called for index-based value access."""
-        if index < 0:
+        if isinstance(index, typing.SupportsIndex) and index < 0:
             index += len(self)
-        return Scalar(self._values[index], self.unit)
+        values = self._values[index]
+        return (
+            Scalar(values, self.unit) if not isinstance(values, typing.Iterable)
+            else [Scalar(value, self._unit) for value in values]
+        )
 
     @property
     def values(self):
