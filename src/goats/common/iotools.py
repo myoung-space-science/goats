@@ -33,25 +33,25 @@ class SelectiveSingleton:
         return new
 
 
-class SingleInstance(type):
-    """A metaclass for defining singleton-like objects.
+class PathSet(iterables.InstanceSet):
+    """A metaclass for sets of path-based objects.
 
     Using this class as the metaclass for a class that manages path-based
     objects (e.g., datasets) will ensure that only one instance of the object
     exists. This may be useful when multiple other objects need to access an
-    instance of the class given a common path. This metaclass will simply return
-    the existing instance instead of creating a new one.
+    instance of the class given a common path.
 
     See https://refactoring.guru/design-patterns/singleton/python/example
     """
+
     _instances = {}
-    def __call__(cls, path: PathLike, *args, **kwargs):
-        """Ensure that only one instance of the given object exists."""
-        if path not in cls._instances:
-            cls._instances[path] = super(
-                SingleInstance, cls
-            ).__call__(path, *args, **kwargs)
-        return cls._instances[path]
+
+    def _generate_key(self, *args, **kwargs):
+        if not kwargs and len(args) == 1:
+            arg = args[0]
+            if isinstance(arg, (str, pathlib.Path)):
+                return arg
+        return super()._generate_key()
 
 
 class NonExistentPathError(Exception):
