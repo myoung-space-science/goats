@@ -8,30 +8,6 @@ from goats.common import iterables
 PathLike = typing.TypeVar('PathLike')
 PathLike = typing.Union[str, pathlib.Path]
 
-class SelectiveSingleton:
-    """A base object for creating classes with special singleton instances.
-
-    Subclasses of this class must provide an iterable of cases to treat as
-    singletons. The given iterable may be empty. At instance creation, this
-    class will check for an existing instance with the given key. If it finds an
-    existing instance it will return that instance; otherwise, it will create a
-    new instance, store the instance if the key corresponds to a singleton case,
-    and return the instance. Note that the key must be hashable.
-    """
-    _instances = {}
-    _singletons = None
-    def __new__(cls, key: typing.Hashable, *args, **kwargs) -> typing.Any:
-        """Create a new instance or return an existing instance."""
-        if cls._singletons is None:
-            message = f"Singleton cases must be iterable, not {cls._singletons}"
-            raise NotImplementedError(message) from None
-        if key in cls._instances:
-            return cls._instances[key]
-        new = super(SelectiveSingleton, cls).__new__(cls, *args, **kwargs)
-        if key in cls._singletons:
-            cls._instances[key] = new
-        return new
-
 
 class PathSet(iterables.InstanceSet):
     """A metaclass for sets of path-based objects.
