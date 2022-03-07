@@ -1053,6 +1053,38 @@ class Singleton:
         return new
 
 
+class InstanceSet(abc.ABCMeta):
+    """A metaclass for sets of singletons.
+
+    Using this class as a metaclass will ensure that only one instance of the
+    object class exists for a given combination of initializing arguments. Given
+    a concrete implementation of `_generate_key`, this metaclass will simply
+    return the appropriate existing instance instead of creating a new one.
+
+    See https://refactoring.guru/design-patterns/singleton/python/example
+    """
+
+    _instances = {}
+
+    def __call__(self, *args, **kwargs):
+        """Ensure that only one instance of the given object exists."""
+        key = self._generate_key(*args, **kwargs)
+        if key not in self._instances:
+            self._instances[key] = super().__call__(*args, **kwargs)
+        return self._instances[key]
+
+    @abc.abstractmethod
+    def _generate_key(self, *args, **kwargs):
+        """Generate a unique instance key.
+        
+        Concrete implementations of this method must map the given arguments to
+        a valid dictionary key, which will be associated with a unique instance.
+        """
+        raise TypeError(
+            "Can't generate unique mapping key from arguments"
+        ) from None
+
+
 class NothingType(Singleton):
     """An object that represents nothing in a variety of ways."""
 
