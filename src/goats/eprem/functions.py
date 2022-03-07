@@ -1,6 +1,6 @@
 import sys
 import inspect
-from typing import *
+import typing
 
 import numpy as np
 from scipy import integrate
@@ -105,8 +105,8 @@ class Method(iterables.ReprStrMixin):
 
     def __init__(
         self,
-        __callable: Callable[..., np.ndarray],
-        __metadata: Mapping[str, Any]=None,
+        __callable: typing.Callable[..., np.ndarray],
+        __metadata: typing.Mapping[str, typing.Any]=None,
     ) -> None:
         self.callable = __callable
         self.metadata = __metadata or {}
@@ -278,9 +278,9 @@ class Methods(iterables.MappingBase):
 
     def rigidity(
         self,
-        energy: Union[float, Iterable[float]],
-        mass: Union[np.ndarray, float],
-        charge: Union[np.ndarray, float],
+        energy: typing.Union[float, typing.Iterable[float]],
+        mass: typing.Union[np.ndarray, float],
+        charge: typing.Union[np.ndarray, float],
     ) -> np.ndarray:
         """The magnetic rigidity.
 
@@ -299,8 +299,8 @@ class Methods(iterables.MappingBase):
         self,
         r: np.ndarray,
         energy: np.ndarray,
-        mass: Union[np.ndarray, float],
-        charge: Union[np.ndarray, float],
+        mass: typing.Union[np.ndarray, float],
+        charge: typing.Union[np.ndarray, float],
         mfp_radial_power: float,
         rigidity_power: float,
         lambda0: float,
@@ -412,7 +412,7 @@ class Methods(iterables.MappingBase):
 
     def flux(
         self,
-        energy: Union[float, Iterable[float]],
+        energy: typing.Union[float, typing.Iterable[float]],
         isodist: np.ndarray,
     ) -> np.ndarray:
         """Compute the differential energy flux of a distribution."""
@@ -510,8 +510,8 @@ class Function(iterables.ReprStrMixin):
         self,
         method: Method,
         quantity: str,
-        axes: Tuple[str],
-        dependencies: Iterable[str]=None,
+        axes: typing.Tuple[str],
+        dependencies: typing.Iterable[str]=None,
         name: str=None,
     ) -> None:
         self.method = method
@@ -521,20 +521,20 @@ class Function(iterables.ReprStrMixin):
         self.dependencies = tuple(dependencies or ())
         self.name = name or '<anonymous>'
 
-    Argument = TypeVar(
+    Argument = typing.TypeVar(
         'Argument',
         quantities.Variable,
         quantities.Scalar,
     )
-    Argument = Union[
+    Argument = typing.Union[
         quantities.Variable,
         quantities.Scalar,
     ]
 
     def __call__(
         self,
-        arguments: Mapping[str, Argument],
-        unit: Union[str, quantities.Unit],
+        arguments: typing.Mapping[str, Argument],
+        unit: typing.Union[str, quantities.Unit],
     ) -> quantities.Variable:
         """Build a variable by calling the instance method."""
         arrays = [
