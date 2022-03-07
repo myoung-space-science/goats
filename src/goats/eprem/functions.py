@@ -454,7 +454,7 @@ class Methods(iterables.MappingBase):
         self,
         energies: np.ndarray,
         flux: np.ndarray,
-        minimum_energy: float,
+        *minimum_energy: float,
     ) -> np.ndarray:
         """Compute the integral flux of a distribution above a given energy."""
         if energies.ndim == 1:
@@ -467,14 +467,15 @@ class Methods(iterables.MappingBase):
                 # dimensions is if the species dimensions was squeezed. Is this
                 # a good assumption?
                 flux = flux[:, :, None, :]
-        int_flux = np.zeros(flux.shape[:3])
-        m = max(minimum_energy, sys.float_info.min)
-        use_all = m < np.min(energies)
-        for s, species_energy in enumerate(energies):
-            f = flux[..., s, :]
-            e = species_energy
-            y, x = (f, e) if use_all else self._interpolate(f, e, m)
-            int_flux[..., s] = integrate.simps(y, x)
+        int_flux = np.zeros((*flux.shape[:3], len(minimum_energy)))
+        for i, bound in enumerate(minimum_energy):
+            m = max(bound, sys.float_info.min)
+            use_all = m < np.min(energies)
+            for s, species_energy in enumerate(energies):
+                f = flux[..., s, :]
+                e = species_energy
+                y, x = (f, e) if use_all else self._interpolate(f, e, m)
+                int_flux[..., s, i] = integrate.simps(y, x)
         return int_flux
 
     def _interpolate(
