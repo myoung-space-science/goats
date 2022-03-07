@@ -137,7 +137,7 @@ def test_interpolation(stream: eprem.Stream):
             species='H+',
         )
         result = np.array(observation)
-        assert result.shape == (50, 1, 1)
+        assert result.shape == (50, 1, 1, 1)
         plt.plot(
             result.squeeze(),
             label=f'{name} = {value}',

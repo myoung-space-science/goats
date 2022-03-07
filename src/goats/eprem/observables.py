@@ -304,10 +304,12 @@ class Interface(base.Interface):
 
     def _update_assumption(self, scalar):
         """Update a single assumption from user input."""
-        if not isinstance(scalar, quantities.Scalar):
-            scalar = quantities.Scalar(*iterables.whole(scalar))
-        unit = self.system.get_unit(unit=scalar.unit())
-        return scalar.unit(unit)
+        if isinstance(scalar, quantities.Scalar):
+            unit = self.system.get_unit(unit=scalar.unit())
+            return scalar.unit(unit)
+        measured = quantities.measure(scalar)
+        assumption = [self._update_assumption(v) for v in measured[:]]
+        return assumption[0] if len(assumption) == 1 else assumption
 
     def apply(self, constraints: Mapping):
         """Construct the target variable within the given constraints."""

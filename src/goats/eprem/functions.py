@@ -526,10 +526,12 @@ class Function(iterables.ReprStrMixin):
         'Argument',
         quantities.Variable,
         quantities.Scalar,
+        typing.Iterable[quantities.Scalar],
     )
     Argument = typing.Union[
         quantities.Variable,
         quantities.Scalar,
+        typing.Iterable[quantities.Scalar],
     ]
 
     def __call__(
@@ -538,16 +540,21 @@ class Function(iterables.ReprStrMixin):
         unit: typing.Union[str, quantities.Unit],
     ) -> quantities.Variable:
         """Build a variable by calling the instance method."""
-        arrays = [
-            np.array(arg)
-            for key, arg in arguments.items()
-            if key in self.parameters and isinstance(arg, quantities.Variable)
+        arrays = []
+        floats = []
+        known = [
+            argument for key, argument in arguments.items()
+            if key in self.parameters
         ]
-        floats = [
-            float(arg)
-            for key, arg in arguments.items()
-            if key in self.parameters and isinstance(arg, quantities.Scalar)
-        ]
+        for arg in known:
+            if isinstance(arg, quantities.Variable):
+                arrays.append(np.array(arg))
+            elif isinstance(arg, quantities.Scalar):
+                floats.append(float(arg))
+            elif (
+                isinstance(arg, typing.Iterable)
+                and all(isinstance(a, quantities.Scalar) for a in arg)
+            ): floats.extend([float(a) for a in arg])
         data = self.method(*arrays, *floats)
         return quantities.Variable(
             data,
