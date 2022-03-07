@@ -1,5 +1,5 @@
 import argparse
-from typing import *
+import typing
 
 import numpy as np
 
@@ -128,7 +128,7 @@ class Constants(iterables.MappingBase):
     """A class to manage sets of physical constants."""
     def __init__(
         self,
-        system: Union[str, quantities.MetricSystem],
+        system: typing.Union[str, quantities.MetricSystem],
     ) -> None:
         self.system = str(system).lower()
         self._mapping = _CONSTANTS.copy()
@@ -271,7 +271,10 @@ _nucleons = {
     for element in _elements
 }
 
-def elements(mass: Iterable, charge: Iterable) -> List[str]:
+def elements(
+    mass: typing.Iterable,
+    charge: typing.Iterable,
+) -> typing.List[str]:
     """The elemental species symbols, based on masses and charges."""
     _mass = list(iterables.whole(mass))
     _charge = list(iterables.whole(charge))
@@ -296,7 +299,10 @@ class MassValueError(Exception):
         return f"Cannot find an element with atomic mass {self.value}"
 
 
-def get_mass_indices(nucleons: Dict[str, int], targets: Iterable) -> list:
+def get_mass_indices(
+    nucleons: typing.Dict[str, int],
+    targets: typing.Iterable,
+) -> list:
     """Get the indices in `_elements` corresponding to the given masses."""
     def get_index(this: list, that: int):
         try:

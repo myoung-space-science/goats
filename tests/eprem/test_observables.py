@@ -3,7 +3,7 @@ This module contains high-level tests of the observer/observable/observation fra
 """
 
 from pathlib import Path
-from typing import *
+import typing
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -32,7 +32,7 @@ def stream(rootpath: Path):
 
 
 @pytest.fixture
-def observables() -> Dict[str, dict]:
+def observables() -> typing.Dict[str, dict]:
     """Information about each observable."""
     T, S, P, E, M = 'time', 'shell', 'species', 'energy', 'mu'
     return {
@@ -70,7 +70,7 @@ def observables() -> Dict[str, dict]:
 
 def test_observable_access(
     stream: eprem.Stream,
-    observables: Dict[str, dict],
+    observables: typing.Dict[str, dict],
 ) -> None:
     """Access all observables."""
     for name in observables:
@@ -80,7 +80,7 @@ def test_observable_access(
 
 def test_create_observation(
     stream: eprem.Stream,
-    observables: Dict[str, dict],
+    observables: typing.Dict[str, dict],
 ) -> None:
     """Create default observation from each observable."""
     for name, expected in observables.items():

@@ -1,7 +1,7 @@
 import abc
 import collections.abc
 import numbers
-from typing import *
+import typing
 
 from goats.common.numerical import find_nearest
 from goats.common import iterables
@@ -13,10 +13,10 @@ class Indices(collections.abc.Sequence, iterables.ReprStrMixin):
 
     __slots__ = ('indices',)
 
-    def __init__(self, indices: Iterable[int]) -> None:
+    def __init__(self, indices: typing.Iterable[int]) -> None:
         self.indices = tuple(indices)
 
-    def __getitem__(self, __i: SupportsIndex):
+    def __getitem__(self, __i: typing.SupportsIndex):
         """Called for index look-up and iteration."""
         return self.indices[__i]
 
@@ -45,8 +45,8 @@ class OrderedPairs(Indices):
 
     def __init__(
         self,
-        indices: Iterable[int],
-        values: Iterable[Any],
+        indices: typing.Iterable[int],
+        values: typing.Iterable[typing.Any],
     ) -> None:
         super().__init__(indices)
         self.values = tuple(values)
@@ -69,14 +69,14 @@ class Coordinates(OrderedPairs):
 
     def __init__(
         self,
-        indices: Iterable[int],
-        values: Iterable[Any],
-        unit: Union[str, quantities.Unit],
+        indices: typing.Iterable[int],
+        values: typing.Iterable[typing.Any],
+        unit: typing.Union[str, quantities.Unit],
     ) -> None:
         super().__init__(indices, values)
         self.unit = unit
 
-    def with_unit(self, new: Union[str, quantities.Unit]):
+    def with_unit(self, new: typing.Union[str, quantities.Unit]):
         """Convert this object to the new unit, if possible."""
         scale = quantities.Unit(new) // self.unit
         self.values = [value * scale for value in self.values]
@@ -92,7 +92,11 @@ class Coordinates(OrderedPairs):
 class Indexer:
     """A callable object that extracts indices from reference values."""
 
-    def __init__(self, reference: Iterable[Any], size: int=None) -> None:
+    def __init__(
+        self,
+        reference: typing.Iterable[typing.Any],
+        size: int=None,
+    ) -> None:
         self.reference = reference
         self.size = size or len(self.reference)
 
@@ -115,7 +119,11 @@ class Indexer:
 class IndexMapper(Indexer):
     """A callable object that maps values to indices."""
 
-    def __init__(self, reference: Iterable[Any], size: int=None) -> None:
+    def __init__(
+        self,
+        reference: typing.Iterable[typing.Any],
+        size: int=None,
+    ) -> None:
         super().__init__(reference, size=size)
         self.reference = tuple(self.reference)
 
@@ -160,8 +168,8 @@ class IndexComputer(Indexer):
 class Axis(iterables.ReprStrMixin):
     """A single dataset axis."""
 
-    Idx = TypeVar('Idx', bound=Indexer)
-    Idx = Union[Indexer, IndexMapper, IndexComputer]
+    Idx = typing.TypeVar('Idx', bound=Indexer)
+    Idx = typing.Union[Indexer, IndexMapper, IndexComputer]
 
     def __init__(self, indexer: Idx) -> None:
         self.indexer = indexer

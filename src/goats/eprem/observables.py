@@ -1,4 +1,4 @@
-from typing import *
+import typing
 
 import numpy as np
 
@@ -15,44 +15,66 @@ from goats.eprem import parameters
 from goats.eprem import interpolation
 
 
-ObservableType = TypeVar(
-    'ObservableType',
+Observable = typing.TypeVar(
+    'Observable',
     quantities.Variable,
     functions.Function,
 )
-ObservableType = Union[
+Observable = typing.Union[
     quantities.Variable,
     functions.Function,
 ]
 
 
-Implementation = TypeVar(
+Assumption = typing.TypeVar(
+    'Assumption',
+    quantities.Scalar,
+    typing.Iterable[quantities.Scalar],
+)
+Assumption = typing.Union[
+    quantities.Scalar,
+    typing.Iterable[quantities.Scalar],
+]
+
+
+Implementation = typing.TypeVar(
     'Implementation',
-    ObservableType,
+    Observable,
     algebra.Expression,
 )
-Implementation = Union[
-    ObservableType,
+Implementation = typing.Union[
+    Observable,
     algebra.Expression,
 ]
 
 
-Dependency = TypeVar(
+Dependency = typing.TypeVar(
     'Dependency',
-    ObservableType,
+    Observable,
     quantities.Scalar,
 )
-Dependency = Union[
-    ObservableType,
+Dependency = typing.Union[
+    Observable,
     quantities.Scalar,
 ]
 
 
-class Compound(NamedTuple):
+Reference = typing.TypeVar(
+    'Reference',
+    quantities.Variable,
+    typing.Iterable,
+)
+Reference = typing.Union[
+    quantities.Variable,
+    typing.Iterable,
+]
+
+
+class Compound(typing.NamedTuple):
     """An algebraic combination of primary or derived observables."""
 
     expression: algebra.Expression
-    axes: Tuple[str]
+    axes: typing.Tuple[str]
     name: str=None
 
 
@@ -61,10 +83,10 @@ class Application:
 
     def __init__(
         self,
-        indices: Mapping[str, indexing.Indices],
-        assumptions: Mapping[str, quantities.Scalar],
-        observables: Mapping[str, ObservableType],
-        reference: Mapping[str, Union[quantities.Variable, Iterable[Any]]],
+        indices: typing.Mapping[str, indexing.Indices],
+        assumptions: typing.Mapping[str, Assumption],
+        observables: typing.Mapping[str, Observable],
+        reference: typing.Mapping[str, Reference],
         system: quantities.MetricSystem,
     ) -> None:
         self.indices = indices
@@ -102,7 +124,7 @@ class Application:
     def _interpolated(
         self,
         original: quantities.Variable,
-        axes: Iterable[str],
+        axes: typing.Iterable[str],
     ) -> quantities.Variable:
         """Produce a new variable by interpolating the given variable."""
         indexable = list(set(original.axes) - set(axes))
@@ -145,7 +167,7 @@ class Application:
     def _interpolate(
         self,
         variable: quantities.Variable,
-        axes: Iterable[str],
+        axes: typing.Iterable[str],
     ) -> quantities.Variable:
         """Interpolate the variable over certain axes."""
         array = None
@@ -240,7 +262,7 @@ class Interface(base.Interface):
         implementation: Implementation,
         dataset: datasets.Dataset,
         system: quantities.MetricSystem,
-        dependencies: Mapping[str, Dependency]=None,
+        dependencies: typing.Mapping[str, Dependency]=None,
     ) -> None:
         self.implementation = implementation
         self.axes = dataset.axes
@@ -272,7 +294,7 @@ class Interface(base.Interface):
         }
         self.reference = aliased.Mapping({**axes_ref, **rtp_ref})
 
-    def update_indices(self, constraints: Mapping):
+    def update_indices(self, constraints: typing.Mapping):
         """Update the instance indices based on user constraints."""
         current = self.indices.copy()
         new = {k: v for k, v in constraints.items() if k in self.axes}
@@ -292,7 +314,7 @@ class Interface(base.Interface):
             return indices.with_unit(unit)
         return indices
 
-    def update_assumptions(self, constraints: Mapping):
+    def update_assumptions(self, constraints: typing.Mapping):
         """Update the observing assumptions based on user constraints."""
         current = self.assumptions.copy()
         new = {k: v for k, v in constraints.items() if k not in self.axes}
@@ -311,7 +333,7 @@ class Interface(base.Interface):
         assumption = [self._update_assumption(v) for v in measured[:]]
         return assumption[0] if len(assumption) == 1 else assumption
 
-    def apply(self, constraints: Mapping):
+    def apply(self, constraints: typing.Mapping):
         """Construct the target variable within the given constraints."""
         indices = self.update_indices(constraints)
         assumptions = self.update_assumptions(constraints)
@@ -436,8 +458,8 @@ class Observables(iterables.MappingBase):
         name = str(expression)
         return Compound(expression=expression, axes=axes, name=name)
 
-    _RT = TypeVar('_RT', bound=dict)
-    _RT = Dict[aliased.MappingKey, Dependency]
+    _RT = typing.TypeVar('_RT', bound=dict)
+    _RT = typing.Dict[aliased.MappingKey, Dependency]
 
     def get_dependencies(self, key: str) -> _RT:
         """Get the dependencies for the given observable, if possible."""

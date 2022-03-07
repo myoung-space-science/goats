@@ -3,7 +3,7 @@
 import abc
 import collections.abc
 from pathlib import Path
-from typing import *
+import typing
 
 import netCDF4
 
@@ -17,7 +17,7 @@ class DataViewer(collections.abc.Mapping):
     def __init__(self, path: ReadOnlyPath) -> None:
         self.members = self.get_members(path)
 
-    def __iter__(self) -> Iterator:
+    def __iter__(self) -> typing.Iterator:
         return iter(self.members)
 
     def __len__(self) -> int:
@@ -27,7 +27,7 @@ class DataViewer(collections.abc.Mapping):
         return key in self.members
 
     @abc.abstractmethod
-    def get_members(self, path: ReadOnlyPath) -> Mapping:
+    def get_members(self, path: ReadOnlyPath) -> typing.Mapping:
         """Get the appropriate members for this viewer."""
         pass
 
@@ -35,7 +35,7 @@ class DataViewer(collections.abc.Mapping):
 class NetCDFVariables(DataViewer):
     """An object for viewing variables in a NetCDF dataset."""
 
-    def get_members(self, path: ReadOnlyPath) -> Mapping:
+    def get_members(self, path: ReadOnlyPath) -> typing.Mapping:
         dataset = netCDF4.Dataset(path, 'r')
         return dataset.variables
 
@@ -48,11 +48,11 @@ class NetCDFVariables(DataViewer):
 class NetCDFSizes(DataViewer):
     """An object for viewing sizes in a NetCDF dataset."""
 
-    def get_members(self, path: ReadOnlyPath) -> Mapping:
+    def get_members(self, path: ReadOnlyPath) -> typing.Mapping:
         dataset = netCDF4.Dataset(path, 'r')
         return dataset.dimensions
 
-    def __getitem__(self, name: str) -> Optional[int]:
+    def __getitem__(self, name: str) -> typing.Optional[int]:
         if name in self.members:
             data = self.members[name]
             return getattr(data, 'size', None)
@@ -73,7 +73,7 @@ class ViewerFactory(collections.abc.MutableMapping):
         self._viewers = self._get_viewers(path)
         self.path = path
 
-    def __iter__(self) -> Iterator:
+    def __iter__(self) -> typing.Iterator:
         return iter(self._viewers)
 
     def __len__(self) -> int:
@@ -82,7 +82,10 @@ class ViewerFactory(collections.abc.MutableMapping):
     def __contains__(self, key: str) -> bool:
         return key in self._viewers
 
-    def _get_viewers(self, path: ReadOnlyPath) -> Dict[str, Type[DataViewer]]:
+    def _get_viewers(
+        self,
+        path: ReadOnlyPath,
+    ) -> typing.Dict[str, typing.Type[DataViewer]]:
         """Get the viewers for this file format.
 
         This may expand to accomodate additional file formats or alternate
@@ -102,7 +105,7 @@ class ViewerFactory(collections.abc.MutableMapping):
             return viewer(self.path)
         raise KeyError(f"No viewer for group '{group}' in {self.path}")
 
-    def __setitem__(self, group: str, viewer: Type[DataViewer]):
+    def __setitem__(self, group: str, viewer: typing.Type[DataViewer]):
         """Associate a new viewer with this dataset group."""
         self._viewers[group] = viewer
 
@@ -114,7 +117,7 @@ class ViewerFactory(collections.abc.MutableMapping):
 class DatasetView(metaclass=SingleInstance):
     """A format-agnostic view of a dataset."""
 
-    def __init__(self, path: Union[str, Path]) -> None:
+    def __init__(self, path: typing.Union[str, Path]) -> None:
         self.path = ReadOnlyPath(path)
         self.viewers = ViewerFactory(self.path)
 
@@ -124,7 +127,7 @@ class DatasetView(metaclass=SingleInstance):
         return self.viewers['variables']
 
     @property
-    def axes(self) -> Tuple[str]:
+    def axes(self) -> typing.Tuple[str]:
         """The names of axes in this dataset."""
         return tuple(self.sizes)
 

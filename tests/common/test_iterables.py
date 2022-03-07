@@ -1,5 +1,5 @@
 import collections.abc
-from typing import *
+import typing
 
 import pytest
 
@@ -75,14 +75,14 @@ def test_missing():
 def test_collection_mixin():
     """Test the mixin class that provides `Collection` methods."""
     class C0(iterables.CollectionMixin, collections.abc.Collection):
-        def __init__(self, user: Iterable) -> None:
+        def __init__(self, user: typing.Iterable) -> None:
             self.user = user
             self.collect('user')
 
     class C1(iterables.CollectionMixin, collections.abc.Collection):
         def __init__(self) -> None:
             self.collect('user')
-        def update(self, user: Iterable):
+        def update(self, user: typing.Iterable):
             self.user = user
 
     user = ['a', 1, '1']
@@ -103,16 +103,16 @@ def test_collection_mixin():
 def test_mapping_base():
     """Test the object that serves as a basis for concrete mappings."""
     class Incomplete(iterables.MappingBase):
-        def __init__(self, mapping: Mapping) -> None:
+        def __init__(self, mapping: typing.Mapping) -> None:
             __mapping = mapping or {}
             super().__init__(__mapping.keys())
 
     class Implemented(iterables.MappingBase):
-        def __init__(self, mapping: Mapping) -> None:
+        def __init__(self, mapping: typing.Mapping) -> None:
             __mapping = mapping or {}
             super().__init__(__mapping.keys())
             self.__mapping = __mapping
-        def __getitem__(self, k: Any):
+        def __getitem__(self, k: typing.Any):
             if k in self.__mapping:
                 return self.__mapping[k]
             raise KeyError(k)

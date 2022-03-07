@@ -1,6 +1,6 @@
 import collections.abc
 import numbers
-from typing import *
+import typing
 
 import numpy as np
 
@@ -13,7 +13,7 @@ class NumericalSequence(collections.abc.Sequence):
     `numpy` arrays. It defines the required `__len__` method but does not define
     the required `__getitem__` method.
     """
-    def __init__(self, values: Iterable[numbers.Number]) -> None:
+    def __init__(self, values: typing.Iterable[numbers.Number]) -> None:
         self.values = values
 
     def __len__(self) -> int:
@@ -29,8 +29,8 @@ class Array(NumericalSequence, np.lib.mixins.NDArrayOperatorsMixin):
 
     def __init__(
         self,
-        values: Iterable[numbers.Number],
-        axes: Iterable[str],
+        values: typing.Iterable[numbers.Number],
+        axes: typing.Iterable[str],
     ) -> None:
         super().__init__(values)
         self._axes = axes
