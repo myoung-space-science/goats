@@ -2,19 +2,17 @@
 
 import abc
 import collections.abc
-from pathlib import Path
 import typing
 
 import netCDF4
 
-from goats.common.iotools import ReadOnlyPath, SingleInstance
-from goats.common.iterables import CollectionMixin
+from goats.common import iotools
 
 
 class DataViewer(collections.abc.Mapping):
     """An abstract base class for data-viewing objects."""
 
-    def __init__(self, path: ReadOnlyPath) -> None:
+    def __init__(self, path: iotools.ReadOnlyPath) -> None:
         self.members = self.get_members(path)
 
     def __iter__(self) -> typing.Iterator:
@@ -27,7 +25,7 @@ class DataViewer(collections.abc.Mapping):
         return key in self.members
 
     @abc.abstractmethod
-    def get_members(self, path: ReadOnlyPath) -> typing.Mapping:
+    def get_members(self, path: iotools.ReadOnlyPath) -> typing.Mapping:
         """Get the appropriate members for this viewer."""
         pass
 
@@ -35,7 +33,7 @@ class DataViewer(collections.abc.Mapping):
 class NetCDFVariables(DataViewer):
     """An object for viewing variables in a NetCDF dataset."""
 
-    def get_members(self, path: ReadOnlyPath) -> typing.Mapping:
+    def get_members(self, path: iotools.ReadOnlyPath) -> typing.Mapping:
         dataset = netCDF4.Dataset(path, 'r')
         return dataset.variables
 
@@ -48,7 +46,7 @@ class NetCDFVariables(DataViewer):
 class NetCDFSizes(DataViewer):
     """An object for viewing sizes in a NetCDF dataset."""
 
-    def get_members(self, path: ReadOnlyPath) -> typing.Mapping:
+    def get_members(self, path: iotools.ReadOnlyPath) -> typing.Mapping:
         dataset = netCDF4.Dataset(path, 'r')
         return dataset.dimensions
 
@@ -69,7 +67,7 @@ class ViewerFactory(collections.abc.MutableMapping):
         }
     }
 
-    def __init__(self, path: ReadOnlyPath) -> None:
+    def __init__(self, path: iotools.ReadOnlyPath) -> None:
         self._viewers = self._get_viewers(path)
         self.path = path
 
@@ -84,7 +82,7 @@ class ViewerFactory(collections.abc.MutableMapping):
 
     def _get_viewers(
         self,
-        path: ReadOnlyPath,
+        path: iotools.ReadOnlyPath,
     ) -> typing.Dict[str, typing.Type[DataViewer]]:
         """Get the viewers for this file format.
 
@@ -114,11 +112,11 @@ class ViewerFactory(collections.abc.MutableMapping):
         del self._viewers[group]
 
 
-class DatasetView(metaclass=SingleInstance):
+class DatasetView(metaclass=iotools.PathSet):
     """A format-agnostic view of a dataset."""
 
-    def __init__(self, path: typing.Union[str, Path]) -> None:
-        self.path = ReadOnlyPath(path)
+    def __init__(self, path: iotools.PathLike) -> None:
+        self.path = iotools.ReadOnlyPath(path)
         self.viewers = ViewerFactory(self.path)
 
     @property
