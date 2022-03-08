@@ -72,7 +72,7 @@ class MappingKey(iterables.ReprStrMixin, collections.abc.Set):
 
     def __str__(self) -> str:
         """A simplified representation of this instance."""
-        return ' | '.join(repr(alias) for alias in self._aliases)
+        return ' | '.join(str(alias) for alias in self._aliases)
 
 
 _VT = typing.TypeVar('_VT')
