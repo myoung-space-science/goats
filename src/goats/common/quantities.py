@@ -3350,7 +3350,7 @@ class Variable(Measured, np.lib.mixins.NDArrayOperatorsMixin, allowed=allowed):
         """A simplified representation of this object."""
         attrs = [
             f"shape={self.shape_dict}",
-            f"unit={self.unit()}",
+            f"unit='{self.unit()}'",
             f"name='{self.name}'",
         ]
         return ', '.join(attrs)
