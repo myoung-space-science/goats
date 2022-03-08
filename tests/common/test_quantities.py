@@ -120,19 +120,22 @@ def test_singletons():
     cases = {
         quantities.Property: ['units'],
         quantities.NamedUnit: ['m', 'meter'],
-        quantities.Conversion: [('m', 'J'), ('meter', 'joule')],
-        quantities._Converter: [('m', 'length'), ('meter', 'length')],
+        quantities.Conversion: [('G', 'T')],
+        quantities._Converter: [('m', 'length')],
         quantities.Quantity: ['energy', 'Energy'],
-        quantities.Unit: ['m / s', 'm s^-1'],
+        quantities.Unit: ['m s^-1'],
         quantities.MetricSystem: ['mks', 'MKS'],
     }
     for obj, args in cases.items():
-        reference = obj(args[0])
+        reference = build_singleton(obj, args[0])
         for arg in args:
-            if isinstance(arg, tuple):
-                assert obj(*arg) is reference
-            else:
-                assert obj(arg) is reference
+            instance = build_singleton(obj, arg)
+            assert instance is reference
+
+
+def build_singleton(obj, arg):
+    """Helper for test_singletons."""
+    return obj(*arg) if isinstance(arg, tuple) else obj(arg)
 
 
 def test_dimension():

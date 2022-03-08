@@ -816,6 +816,7 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
         self = super().__new__(cls)
         self.key = key
         self._cache = {}
+        cls._instances[key] = self
         return self
 
     def system(self, system: str):
@@ -1217,6 +1218,7 @@ class Conversion(iterables.ReprStrMixin):
             self._convert_expressions,
         )
         self.factor = self._compute(methods)
+        cls._instances[key] = self
         return self
 
     @property
@@ -1421,7 +1423,7 @@ class Conversion(iterables.ReprStrMixin):
 Instance = typing.TypeVar('Instance', bound='_Converter')
 
 
-class _Converter:
+class _Converter(iterables.ReprStrMixin):
     """Unit conversions for a known physical quantity."""
 
     @typing.overload
@@ -1467,13 +1469,16 @@ class _Converter:
         """Concrete implementation."""
         if len(args) == 1 and isinstance(args[0], cls):
             return args[0]
-        unit, quantity = (str(arg) for arg in args)
-        if available := cls._instances.get(unit):
+        key = tuple(str(arg) for arg in args)
+        if available := cls._instances.get(key):
             return available
+        unit, quantity = key
         self = super().__new__(cls)
-        self._substitutions = self._units[quantity]
+        self.quantity = quantity
+        self._substitutions = self._units[self.quantity]
         self.unit = self._substitutions.get(unit) or unit
         self._defined = None
+        cls._instances[key] = self
         return self
 
     @property
@@ -1528,6 +1533,9 @@ class _Converter:
         raise ValueError(
             f"Unknown conversion from {self.unit!r} to {unit!r}."
         ) from None
+
+    def __str__(self) -> str:
+        return f"{self.unit!r} [{self.quantity!r}]"
 
 
 Instance = typing.TypeVar('Instance', bound='Quantity')
@@ -1735,9 +1743,6 @@ class MetricSearchError(KeyError):
     pass
 
 
-# TODO: This class will need significant updates after changes to `Unit`,
-# `Quantity`, and `Metric`. Its main role is exposing `get_unit` for
-# algorithmically updating units on variables (cf. `eprem.datasets`).
 class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
     """Representations of physical quantities within a given metric system."""
 
