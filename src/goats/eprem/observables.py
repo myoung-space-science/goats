@@ -354,7 +354,7 @@ class Interface(base.Interface):
             'assumptions': aliased.Mapping({
                 tuple([k, *assumptions.alias(k, include=True)]): v
                 for k, v in assumptions.items()
-                if k in self.assumptions
+                if k in list(self.assumptions) + ['radius']
             }),
         }
 
