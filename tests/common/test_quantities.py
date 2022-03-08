@@ -115,6 +115,26 @@ def test_quantity_convert():
             assert result == pytest.approx(expected)
 
 
+def test_singletons():
+    """Make sure certain objects have a single reference."""
+    cases = {
+        quantities.Property: ['units'],
+        quantities.NamedUnit: ['m', 'meter'],
+        quantities.Conversion: [('m', 'J'), ('meter', 'joule')],
+        quantities._Converter: [('m', 'length'), ('meter', 'length')],
+        quantities.Quantity: ['energy', 'Energy'],
+        quantities.Unit: ['m / s', 'm s^-1'],
+        quantities.MetricSystem: ['mks', 'MKS'],
+    }
+    for obj, args in cases.items():
+        reference = obj(args[0])
+        for arg in args:
+            if isinstance(arg, tuple):
+                assert obj(*arg) is reference
+            else:
+                assert obj(arg) is reference
+
+
 def test_dimension():
     """Test the Dimension class."""
     cases = [
