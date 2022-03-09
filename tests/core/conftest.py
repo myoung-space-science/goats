@@ -50,7 +50,7 @@ _DATASETS = {
                 'axes': ['lon'],
             },
             'temp': {
-                'axes': ['time', 'level'],
+                'axes': ['time', 'level', 'lat', 'lon'],
                 'unit': 'K',
             },
         }
