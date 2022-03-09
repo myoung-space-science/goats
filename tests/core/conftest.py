@@ -15,3 +15,45 @@ def rootpath() -> pathlib.Path:
     pkgpath = cwd.parent.parent
     return pkgpath / 'data' / 'core'
 
+
+@pytest.fixture
+def testdata(rootpath: pathlib.Path):
+    """The available test datasets."""
+    return {
+        key: {
+            'path': rootpath / dataset['name'],
+            **{k: v for k, v in dataset.items() if k != 'name'}
+        } for key, dataset in _DATASETS.items()
+    }
+
+
+_DATASETS = {
+    'basic': {
+        'name': 'basic_dataset.nc',
+        'axes': {
+            'time': {'size': 0},
+            'level': {'size': 0},
+            'lat': {'size': 73},
+            'lon': {'size': 144},
+        },
+        'variables': {
+            'time': {
+                'axes': ['time'],
+            },
+            'level': {
+                'axes': ['level'],
+            },
+            'lat': {
+                'axes': ['lat'],
+            },
+            'lon': {
+                'axes': ['lon'],
+            },
+            'temp': {
+                'axes': ['time', 'level'],
+                'unit': 'K',
+            },
+        }
+    }
+}
+
