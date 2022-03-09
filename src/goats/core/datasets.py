@@ -27,6 +27,14 @@ class DataViewer(collections.abc.Mapping):
         """Get the appropriate members for this viewer."""
         pass
 
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return '\n\n'.join(f"{k}:\n{v}" for k, v in self.members.items())
+
+    def __repr__(self) -> str:
+        """An unambiguous representation of this object."""
+        return f"\n::{self.__class__.__qualname__}::\n\n{self}"
+
 
 class NetCDFVariables(DataViewer):
     """An object for viewing variables in a NetCDF dataset."""
