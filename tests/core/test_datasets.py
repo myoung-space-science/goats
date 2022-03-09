@@ -13,7 +13,7 @@ def get_reference(
     testdata: typing.Dict[str, dict],
     name: str,
     key: str,
-) -> dict:
+) -> typing.Dict[str, dict]:
     """Get reference values for the named dataset."""
     return testdata[name].get(key, {})
 
@@ -39,6 +39,9 @@ def test_variables(testdata: dict):
     assert isinstance(dataset.variables, datasets.DataViewer)
     assert sorted(dataset.variables) == sorted(reference)
     for name, variable in dataset.variables.items():
-        assert isinstance(variable, quantities.Variable)
+        assert isinstance(variable, datasets.Variable)
         assert variable.name == name
+        ref = reference[name]
+        assert variable.unit == ref.get('unit')
+        assert sorted(variable.axes) == sorted(ref.get('axes', ()))
 

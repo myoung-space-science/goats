@@ -5,10 +5,10 @@ import collections.abc
 import typing
 
 import netCDF4
+import numpy.typing
 
 from goats.core import iotools
 from goats.core import iterables
-from goats.core import quantities
 
 
 class DataViewer(collections.abc.Mapping):
@@ -37,6 +37,15 @@ class DataViewer(collections.abc.Mapping):
         return f"\n::{self.__class__.__qualname__}::\n\n{self}"
 
 
+class Variable(typing.NamedTuple):
+    """A dataset variable."""
+
+    data: numpy.typing.ArrayLike
+    unit: str
+    axes: typing.Tuple[str]
+    name: str
+
+
 class NetCDFVariables(DataViewer):
     """An object for viewing variables in a NetCDF dataset."""
 
@@ -49,7 +58,7 @@ class NetCDFVariables(DataViewer):
             data = self.members[name]
             unit = self._get_unit_from_data(data)
             axes = self._get_axes_from_data(data)
-            return quantities.Variable(data, unit, axes, name=name)
+            return Variable(data, unit, axes, name)
         raise KeyError(f"No variable called '{name}'")
 
     def _get_axes_from_data(self, data):
