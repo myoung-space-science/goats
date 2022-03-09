@@ -74,9 +74,6 @@ class ViewerFactory(collections.abc.MutableMapping):
     def __len__(self) -> int:
         return len(self._viewers)
 
-    def __contains__(self, key: str) -> bool:
-        return key in self._viewers
-
     def _get_viewers(
         self,
         path: iotools.ReadOnlyPath,
