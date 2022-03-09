@@ -65,18 +65,26 @@ class NetCDFVariables(DataViewer):
         return next(available, None)
 
 
-class NetCDFSizes(DataViewer):
-    """An object for viewing sizes in a NetCDF dataset."""
+class Axis(typing.NamedTuple):
+    """A dataset axis."""
+
+    size: int
+    name: str
+
+
+class NetCDFAxes(DataViewer):
+    """An object for viewing axes in a NetCDF dataset."""
 
     def get_members(self, path: iotools.ReadOnlyPath) -> typing.Mapping:
         dataset = netCDF4.Dataset(path, 'r')
         return dataset.dimensions
 
-    def __getitem__(self, name: str) -> typing.Optional[int]:
+    def __getitem__(self, name: str) -> Axis:
         if name in self.members:
             data = self.members[name]
-            return getattr(data, 'size', None)
-        raise KeyError(f"No dimension called '{name}'")
+            size = getattr(data, 'size', None)
+            return Axis(size, name)
+        raise KeyError(f"No axis corresponding to {name!r}")
 
 
 class ViewerFactory(collections.abc.MutableMapping):
@@ -85,7 +93,7 @@ class ViewerFactory(collections.abc.MutableMapping):
     _viewer_map = {
         '.nc': {
             'variables': NetCDFVariables,
-            'sizes': NetCDFSizes,
+            'axes': NetCDFAxes,
         }
     }
 
@@ -144,14 +152,9 @@ class DatasetView(iterables.ReprStrMixin, metaclass=iotools.PathSet):
         return self.viewers['variables']
 
     @property
-    def axes(self) -> typing.Tuple[str]:
-        """The names of axes in this dataset."""
-        return tuple(self.sizes)
-
-    @property
-    def sizes(self) -> DataViewer:
-        """The sizes of axes in this dataset."""
-        return self.viewers['sizes']
+    def axes(self) -> DataViewer:
+        """The axes in this dataset."""
+        return self.viewers['axes']
 
     def use(self, **viewers) -> 'DatasetView':
         """Update the viewers for this instance."""

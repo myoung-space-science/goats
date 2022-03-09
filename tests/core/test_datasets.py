@@ -23,12 +23,12 @@ def test_axes(testdata: dict):
     testname = 'basic'
     dataset = get_dataset(testdata, testname)
     reference = get_reference(testdata, testname, 'axes')
-    assert isinstance(dataset.axes, tuple)
+    assert isinstance(dataset.axes, datasets.DataViewer)
     assert sorted(dataset.axes) == sorted(reference)
-    assert isinstance(dataset.sizes, datasets.DataViewer)
-    sizes = {k: v['size'] for k, v in reference.items()}
-    assert sorted(dataset.sizes) == sorted(sizes)
-    assert sorted(dataset.sizes.values()) == sorted(sizes.values())
+    for name, axis in dataset.axes.items():
+        assert isinstance(axis, datasets.Axis)
+        assert axis.name == name
+        assert axis.size == reference[name]['size']
 
 
 def test_variables(testdata: dict):
