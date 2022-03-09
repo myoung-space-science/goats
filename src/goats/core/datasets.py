@@ -8,6 +8,7 @@ import netCDF4
 
 from goats.core import iotools
 from goats.core import iterables
+from goats.core import quantities
 
 
 class DataViewer(collections.abc.Mapping):
@@ -45,8 +46,23 @@ class NetCDFVariables(DataViewer):
 
     def __getitem__(self, name: str):
         if name in self.members:
-            return self.members[name]
+            data = self.members[name]
+            unit = self._get_unit_from_data(data)
+            axes = self._get_axes_from_data(data)
+            return quantities.Variable(data, unit, axes, name=name)
         raise KeyError(f"No variable called '{name}'")
+
+    def _get_axes_from_data(self, data):
+        """Compute appropriate variable axes from a dataset object."""
+        return tuple(getattr(data, 'dimensions', ()))
+
+    def _get_unit_from_data(self, data):
+        """Compute appropriate variable units from a dataset object."""
+        available = (
+            getattr(data, attr) for attr in ('unit', 'units')
+            if hasattr(data, attr)
+        )
+        return next(available, None)
 
 
 class NetCDFSizes(DataViewer):
