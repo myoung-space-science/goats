@@ -21,9 +21,6 @@ class DataViewer(collections.abc.Mapping):
     def __len__(self) -> int:
         return len(self.members)
 
-    def __contains__(self, key: str) -> bool:
-        return key in self.members
-
     @abc.abstractmethod
     def get_members(self, path: iotools.ReadOnlyPath) -> typing.Mapping:
         """Get the appropriate members for this viewer."""
