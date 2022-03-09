@@ -54,8 +54,8 @@ def test_conversion_class():
         ('J m^-3', 'erg cm^-3'): 1e1,
         ('m^-3 J', 'erg cm^-3'): 1e1,
         ('J m^-3', 'cm^-3 erg'): 1e1,
-        # Mass
-        ('nuc', 'g'): 1.6055e-24, # conversion has non-base unit
+        # Capacitance
+        ('F', 'cm'): 2.99792458e10**2 * 1e-9, # defininition has non-base unit
         # Velocity
         ('km/s', 'm/s'): 1e3,
         ('km/h', 'km/s'): 1/3600, # non-system time unit
@@ -68,9 +68,9 @@ def test_conversion_class():
         ('ms^3 m^-2', 's^3 km^-2'): 1e-3, # above conversion, but in order
         ('s^3 m^-6', 'km^-6 s^3'): 1e18, # different order; `dist` units
         (
-            '# cm^-2 s^-1 sr^-1 (MeV/nuc)^-1',
-            'm^-2 s^-1 sr^-1 (J/kg)^-1',
-        ): 1.036387467232555e-10, # identity term in one unit
+            'm^-2 sr^-1 s^-1 J^-1',
+            'cm^-2 sr^-1 s^-1 (MeV/nuc)^-1',
+        ): 1.6022e-17 # `flux`: includes 'nuc' (dimensionless)
     }
     for (u0, u1), factor in cases.items():
         check_conversion(u0, u1, factor)

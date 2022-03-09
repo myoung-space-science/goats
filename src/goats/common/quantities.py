@@ -62,12 +62,12 @@ _units = [
     {
         'symbol': 'nuc',
         'name': 'nucleon',
-        'quantity': 'mass',
+        'quantity': 'mass number',
     },
     {
         'symbol': 'amu',
         'name': 'atomic mass unit',
-        'quantity': 'mass',
+        'quantity': 'mass number',
     },
     {
         'symbol': 's',
@@ -574,6 +574,7 @@ _QUANTITIES = {
         },
     },
     'mass density': 'mass / volume',
+    'mass number': 'number',
     'momentum': {
         'dimensions': {
             'mks': '(M * L) / T',
@@ -1382,10 +1383,14 @@ class Conversion(iterables.ReprStrMixin):
             if target not in matched:
                 if match := self._match_terms(target, unmatched):
                     value, term = match
+                    if term != target:
+                        for this in (target, term):
+                            matched.append(this)
+                            unmatched.remove(this)
+                    else:
+                        matched.append(target)
+                        unmatched.remove(target)
                     factor *= value
-                    for this in (target, term):
-                        matched.append(this)
-                        unmatched.remove(this)
         if not unmatched:
             return factor
         raise RuntimeError
@@ -1406,6 +1411,8 @@ class Conversion(iterables.ReprStrMixin):
             u1 = term.base
             if conversion := self._convert_strings(u0, u1):
                 return conversion ** exponent, term
+        if self.available(u0) and NamedUnit(u0).dimension == '1':
+            return 1.0, target
 
     def __bool__(self):
         """True if this conversion exists."""
