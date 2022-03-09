@@ -3,13 +3,14 @@ import collections.abc
 import functools
 import math
 import numbers
-import operator
 import typing
 
 import numpy as np
 import numpy.typing
 
-from goats.common import algebra, aliased, iterables
+from goats.common import algebra
+from goats.common import aliased
+from goats.common import iterables
 
 
 _prefixes = [
