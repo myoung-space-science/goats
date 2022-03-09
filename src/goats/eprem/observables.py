@@ -2,13 +2,13 @@ import typing
 
 import numpy as np
 
-from goats.common import base
-from goats.common import aliased
-from goats.common import quantities
-from goats.common import algebra
-from goats.common import iterables
-from goats.common import indexing
-from goats.common import physical
+from goats.core import base
+from goats.core import aliased
+from goats.core import quantities
+from goats.core import algebra
+from goats.core import iterables
+from goats.core import indexing
+from goats.core import physical
 from goats.eprem import functions
 from goats.eprem import datasets
 from goats.eprem import parameters

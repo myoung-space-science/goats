@@ -3,7 +3,7 @@ import configparser
 import json
 import pathlib
 
-from goats.common import iotools
+from goats.core import iotools
 
 
 # read version from installed package

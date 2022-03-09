@@ -1,4 +1,4 @@
-from goats.common import indexing
+from goats.core import indexing
 
 
 def test_equality():

@@ -7,11 +7,11 @@ import typing
 import matplotlib.pyplot as plt
 import numpy as np
 
-from goats.common import aliased
-from goats.common import iterables
-from goats.common import quantities
-from goats.common import indexing
-from goats.common import spelling
+from goats.core import aliased
+from goats.core import iterables
+from goats.core import quantities
+from goats.core import indexing
+from goats.core import spelling
 
 
 @typing.runtime_checkable

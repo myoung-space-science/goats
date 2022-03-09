@@ -3,9 +3,9 @@ import collections.abc
 import numbers
 import typing
 
-from goats.common.numerical import find_nearest
-from goats.common import iterables
-from goats.common import quantities
+from goats.core.numerical import find_nearest
+from goats.core import iterables
+from goats.core import quantities
 
 
 class Indices(collections.abc.Sequence, iterables.ReprStrMixin):

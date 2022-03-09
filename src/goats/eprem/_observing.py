@@ -2,11 +2,11 @@ import pathlib
 import typing
 
 from goats import Environment
-from goats.common import base
-from goats.common import iterables
-from goats.common import iotools
-from goats.common import indexing
-from goats.common import quantities
+from goats.core import base
+from goats.core import iterables
+from goats.core import iotools
+from goats.core import indexing
+from goats.core import quantities
 from goats.eprem import parameters
 from goats.eprem import datasets
 from goats.eprem import observables

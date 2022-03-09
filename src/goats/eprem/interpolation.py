@@ -4,7 +4,7 @@ import numpy as np
 import numpy.typing
 from scipy.interpolate import interp1d
 
-from goats.common import numerical
+from goats.core import numerical
 
 
 def restrict_coordinate(

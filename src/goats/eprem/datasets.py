@@ -5,13 +5,13 @@ import typing
 
 import numpy as np
 
-from goats.common import aliased
-from goats.common import datasets
-from goats.common import quantities
-from goats.common import indexing
-from goats.common import iterables
-from goats.common import physical
-from goats.common import numerical
+from goats.core import aliased
+from goats.core import datasets
+from goats.core import quantities
+from goats.core import indexing
+from goats.core import iterables
+from goats.core import physical
+from goats.core import numerical
 
 
 class Time(indexing.IndexComputer):

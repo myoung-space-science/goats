@@ -2,7 +2,7 @@ import os
 import pathlib
 import typing
 
-from goats.common import iterables
+from goats.core import iterables
 
 
 PathLike = typing.TypeVar('PathLike')

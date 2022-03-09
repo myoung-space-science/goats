@@ -1,6 +1,6 @@
 import numpy as np
 
-from goats.common import arrays
+from goats.core import arrays
 
 
 def test_array():

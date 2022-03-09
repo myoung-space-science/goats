@@ -2,7 +2,7 @@ import collections
 import collections.abc
 import typing
 
-from goats.common import iterables
+from goats.core import iterables
 
 
 Aliases = typing.TypeVar('Aliases')

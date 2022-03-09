@@ -8,7 +8,7 @@ import re
 from operator import attrgetter
 import typing
 
-from goats.common import iterables
+from goats.core import iterables
 
 
 class Part(abc.ABC, iterables.ReprStrMixin):

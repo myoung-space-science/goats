@@ -7,7 +7,7 @@ import functools
 import numbers
 import typing
 
-from goats.common import numerical
+from goats.core import numerical
 
 
 def unique(target: typing.Container, options: typing.Iterable):

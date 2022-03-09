@@ -1,6 +1,6 @@
 import pytest
 
-from goats.common import physical
+from goats.core import physical
 
 
 def test_constants():

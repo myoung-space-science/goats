@@ -1,8 +1,8 @@
 import pytest
 import numpy
 
-from goats.common import indexing
-from goats.common import aliased
+from goats.core import indexing
+from goats.core import aliased
 from goats.eprem import datasets
 
 

@@ -3,7 +3,7 @@ import typing
 
 import pytest
 
-from goats.common import iterables
+from goats.core import iterables
 
 
 def test_separable():

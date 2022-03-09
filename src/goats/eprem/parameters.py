@@ -53,12 +53,12 @@ import re
 import typing
 import json
 
-from goats.common import algebra
-from goats.common import aliased
-from goats.common import iotools
-from goats.common import iterables
-from goats.common import numerical
-from goats.common import quantities
+from goats.core import algebra
+from goats.core import aliased
+from goats.core import iotools
+from goats.core import iterables
+from goats.core import numerical
+from goats.core import quantities
 
 
 class BaseTypeDef:

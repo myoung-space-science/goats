@@ -6,7 +6,7 @@ import typing
 
 import netCDF4
 
-from goats.common import iotools
+from goats.core import iotools
 
 
 class DataViewer(collections.abc.Mapping):

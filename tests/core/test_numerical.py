@@ -2,7 +2,7 @@ import pytest
 
 import numpy
 
-from goats.common import numerical
+from goats.core import numerical
 
 
 def test_get_bounding_indices():

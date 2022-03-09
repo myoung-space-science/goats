@@ -6,7 +6,7 @@ import typing
 import numpy as np
 import pytest
 
-from goats.common import quantities
+from goats.core import quantities
 
 
 def test_defined_conversions():

@@ -2,7 +2,7 @@ import pytest
 import fractions
 import typing
 
-from goats.common import algebra
+from goats.core import algebra
 
 
 @pytest.mark.term

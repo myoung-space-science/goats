@@ -8,9 +8,9 @@ import typing
 import numpy as np
 import numpy.typing
 
-from goats.common import algebra
-from goats.common import aliased
-from goats.common import iterables
+from goats.core import algebra
+from goats.core import aliased
+from goats.core import iterables
 
 
 _prefixes = [

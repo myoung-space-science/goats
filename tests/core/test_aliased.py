@@ -3,7 +3,7 @@ import itertools
 
 import pytest
 
-from goats.common import aliased
+from goats.core import aliased
 
 
 def test_aliased_key():

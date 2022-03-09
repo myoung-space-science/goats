@@ -9,8 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pytest
 
-from goats.common import base
-from goats.common import physical
+from goats.core import base
+from goats.core import physical
 from goats import eprem
 
 

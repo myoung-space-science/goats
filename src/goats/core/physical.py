@@ -3,7 +3,8 @@ import typing
 
 import numpy as np
 
-from goats.common import iterables, quantities
+from goats.core import iterables
+from goats.core import quantities
 
 
 # TODO: Redefine these items to allow constants that aren't tied to a unit

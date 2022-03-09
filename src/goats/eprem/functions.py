@@ -5,11 +5,11 @@ import typing
 import numpy as np
 from scipy import integrate
 
-from goats.common import aliased
-from goats.common import numerical
-from goats.common import quantities
-from goats.common import physical
-from goats.common import iterables
+from goats.core import aliased
+from goats.core import numerical
+from goats.core import quantities
+from goats.core import physical
+from goats.core import iterables
 from goats.eprem import datasets
 from goats.eprem import parameters
 
