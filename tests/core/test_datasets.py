@@ -38,8 +38,7 @@ def test_variables(testdata: dict):
     reference = get_reference(testdata, testname, 'variables')
     assert isinstance(dataset.variables, datasets.DataViewer)
     assert sorted(dataset.variables) == sorted(reference)
-    assert all(
-        isinstance(variable, quantities.Variable)
-        for variable in dataset.variables.values()
-    )
+    for name, variable in dataset.variables.items():
+        assert isinstance(variable, quantities.Variable)
+        assert variable.name == name
 
