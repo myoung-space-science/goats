@@ -1,13 +1,40 @@
-import pathlib
+import typing
 
 from goats.core import datasets
 
 
-def test_basic(rootpath: pathlib.Path):
-    """Test the basic dataset interface."""
-    datapath = rootpath / 'basic_dataset.nc'
-    dataset = datasets.DatasetView(datapath)
-    assert isinstance(dataset.variables, datasets.DataViewer)
-    assert isinstance(dataset.sizes, datasets.DataViewer)
+def get_dataset(testdata: dict, name: str) -> datasets.DatasetView:
+    """Get a named test dataset."""
+    return datasets.DatasetView(testdata[name]['path'])
+
+
+def get_reference(
+    testdata: typing.Dict[str, dict],
+    name: str,
+    key: str,
+) -> dict:
+    """Get reference values for the named dataset."""
+    return testdata[name].get(key, {})
+
+
+def test_axes(testdata: dict):
+    """Test access to dataset axes."""
+    testname = 'basic'
+    dataset = get_dataset(testdata, testname)
+    reference = get_reference(testdata, testname, 'axes')
     assert isinstance(dataset.axes, tuple)
+    assert sorted(dataset.axes) == sorted(reference)
+    assert isinstance(dataset.sizes, datasets.DataViewer)
+    sizes = {k: v['size'] for k, v in reference.items()}
+    assert sorted(dataset.sizes) == sorted(sizes)
+    assert sorted(dataset.sizes.values()) == sorted(sizes.values())
+
+
+def test_variables(testdata: dict):
+    """Test access to dataset variables."""
+    testname = 'basic'
+    dataset = get_dataset(testdata, testname)
+    reference = get_reference(testdata, testname, 'variables')
+    assert isinstance(dataset.variables, datasets.DataViewer)
+    assert sorted(dataset.variables) == sorted(reference)
 
