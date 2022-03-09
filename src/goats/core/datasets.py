@@ -7,6 +7,7 @@ import typing
 import netCDF4
 
 from goats.core import iotools
+from goats.core import iterables
 
 
 class DataViewer(collections.abc.Mapping):
@@ -106,7 +107,7 @@ class ViewerFactory(collections.abc.MutableMapping):
         del self._viewers[group]
 
 
-class DatasetView(metaclass=iotools.PathSet):
+class DatasetView(iterables.ReprStrMixin, metaclass=iotools.PathSet):
     """A format-agnostic view of a dataset."""
 
     def __init__(self, path: iotools.PathLike) -> None:
@@ -133,4 +134,6 @@ class DatasetView(metaclass=iotools.PathSet):
         self.viewers.update(viewers)
         return self
 
+    def __str__(self) -> str:
+        return str(self.path)
 
