@@ -89,7 +89,7 @@ class ViewerFactory(collections.abc.MutableMapping):
     ) -> typing.Dict[str, typing.Type[DataViewer]]:
         """Get the viewers for this file format.
 
-        This may expand to accomodate additional file formats or alternate
+        This may expand to accommodate additional file formats or alternate
         methods.
         """
         try:
