@@ -37,7 +37,7 @@ class DataViewer(collections.abc.Mapping):
         return f"\n::{self.__class__.__qualname__}::\n\n{self}"
 
 
-class Variable(typing.NamedTuple):
+class DatasetVariable(typing.NamedTuple):
     """A dataset variable."""
 
     data: numpy.typing.ArrayLike
@@ -53,12 +53,12 @@ class NetCDFVariables(DataViewer):
         dataset = netCDF4.Dataset(path, 'r')
         return dataset.variables
 
-    def __getitem__(self, name: str):
+    def __getitem__(self, name: str) -> DatasetVariable:
         if name in self.members:
             data = self.members[name]
             unit = self._get_unit_from_data(data)
             axes = self._get_axes_from_data(data)
-            return Variable(data, unit, axes, name)
+            return DatasetVariable(data, unit, axes, name)
         raise KeyError(f"No variable called '{name}'")
 
     def _get_axes_from_data(self, data):
@@ -74,7 +74,7 @@ class NetCDFVariables(DataViewer):
         return next(available, None)
 
 
-class Axis(typing.NamedTuple):
+class DatasetAxis(typing.NamedTuple):
     """A dataset axis."""
 
     size: int
@@ -88,11 +88,11 @@ class NetCDFAxes(DataViewer):
         dataset = netCDF4.Dataset(path, 'r')
         return dataset.dimensions
 
-    def __getitem__(self, name: str) -> Axis:
+    def __getitem__(self, name: str) -> DatasetAxis:
         if name in self.members:
             data = self.members[name]
             size = getattr(data, 'size', None)
-            return Axis(size, name)
+            return DatasetAxis(size, name)
         raise KeyError(f"No axis corresponding to {name!r}")
 
 

@@ -26,7 +26,7 @@ def test_axes(testdata: dict):
     assert isinstance(dataset.axes, datasets.DataViewer)
     assert sorted(dataset.axes) == sorted(reference)
     for name, axis in dataset.axes.items():
-        assert isinstance(axis, datasets.Axis)
+        assert isinstance(axis, datasets.DatasetAxis)
         assert axis.name == name
         assert axis.size == reference[name]['size']
 
@@ -39,7 +39,7 @@ def test_variables(testdata: dict):
     assert isinstance(dataset.variables, datasets.DataViewer)
     assert sorted(dataset.variables) == sorted(reference)
     for name, variable in dataset.variables.items():
-        assert isinstance(variable, datasets.Variable)
+        assert isinstance(variable, datasets.DatasetVariable)
         assert variable.name == name
         ref = reference[name]
         assert variable.unit == ref.get('unit')
