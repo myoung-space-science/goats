@@ -1,6 +1,7 @@
 import typing
 
 from goats.core import datasets
+from goats.core import quantities
 
 
 def get_dataset(testdata: dict, name: str) -> datasets.DatasetView:
@@ -37,4 +38,8 @@ def test_variables(testdata: dict):
     reference = get_reference(testdata, testname, 'variables')
     assert isinstance(dataset.variables, datasets.DataViewer)
     assert sorted(dataset.variables) == sorted(reference)
+    assert all(
+        isinstance(variable, quantities.Variable)
+        for variable in dataset.variables.values()
+    )
 
