@@ -88,7 +88,7 @@ _metadata = {
     'fluence': {
         'aliases': (),
         'removed axes': ['time'],
-        'quantity': 'number / (area * solid_angle * energy / mass)',
+        'quantity': 'number / (area * solid_angle * energy / mass_number)',
     },
     'integral_flux': {
         'aliases': ('integral flux',),

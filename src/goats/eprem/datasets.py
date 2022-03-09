@@ -338,7 +338,9 @@ _VARIABLES = {
     },
     'flux': {
         'aliases': ['J', 'J(E)', 'Flux', 'j', 'j(E)'],
-        'quantity': 'number / (area * solid_angle * time * energy / mass)',
+        'quantity': (
+            'number / (area * solid_angle * time * energy / mass_number)'
+        ),
     },
 }
 
