@@ -1,7 +1,8 @@
 import typing
 
+import pytest
+
 from goats.core import datasets
-from goats.core import quantities
 
 
 def get_dataset(testdata: dict, name: str) -> datasets.DatasetView:
@@ -23,12 +24,13 @@ def test_axes(testdata: dict):
     testname = 'basic'
     dataset = get_dataset(testdata, testname)
     reference = get_reference(testdata, testname, 'axes')
-    assert isinstance(dataset.axes, datasets.DataViewer)
-    assert sorted(dataset.axes) == sorted(reference)
-    for name, axis in dataset.axes.items():
+    assert isinstance(dataset.axes, typing.Mapping)
+    for axis in reference:
+        assert axis in dataset.axes
+    for names, axis in dataset.axes.items(aliased=True):
         assert isinstance(axis, datasets.DatasetAxis)
-        assert axis.name == name
-        assert axis.size == reference[name]['size']
+        assert axis.name in names
+        assert axis.size == reference[axis.name]['size']
 
 
 def test_variables(testdata: dict):
@@ -36,12 +38,20 @@ def test_variables(testdata: dict):
     testname = 'basic'
     dataset = get_dataset(testdata, testname)
     reference = get_reference(testdata, testname, 'variables')
-    assert isinstance(dataset.variables, datasets.DataViewer)
-    assert sorted(dataset.variables) == sorted(reference)
-    for name, variable in dataset.variables.items():
+    assert isinstance(dataset.variables, typing.Mapping)
+    for variable in reference:
+        assert variable in dataset.variables
+    for names, variable in dataset.variables.items(aliased=True):
         assert isinstance(variable, datasets.DatasetVariable)
-        assert variable.name == name
-        ref = reference[name]
+        assert variable.name in names
+        ref = reference[variable.name]
         assert variable.unit == ref.get('unit')
         assert sorted(variable.axes) == sorted(ref.get('axes', ()))
 
+
+def test_dataset(testdata: dict):
+    """Test access to the full dataset."""
+    testname = 'basic'
+    dataset = get_dataset(testdata, testname)
+    variables = dataset.variables
+    assert variables['time'] == variables['t']

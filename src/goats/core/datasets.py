@@ -7,6 +7,7 @@ import typing
 import netCDF4
 import numpy.typing
 
+from goats.core import aliased
 from goats.core import iotools
 from goats.core import iterables
 
@@ -189,17 +190,25 @@ class DatasetView(iterables.ReprStrMixin, metaclass=iotools.PathSet):
         self._axes = None
 
     @property
-    def variables(self) -> DataViewer:
+    def variables(self):
         """The variables in this dataset."""
         if self._variables is None:
-            self._variables = self.viewers['variables']
+            variables = {
+                ALIASES.get(name, name): variable
+                for name, variable in self.viewers['variables'].items()
+            }
+            self._variables = aliased.Mapping(variables)
         return self._variables
 
     @property
-    def axes(self) -> DataViewer:
+    def axes(self):
         """The axes in this dataset."""
         if self._axes is None:
-            self._axes = self.viewers['axes']
+            axes = {
+                ALIASES.get(name, name): axis
+                for name, axis in self.viewers['axes'].items()
+            }
+            self._axes = aliased.Mapping(axes)
         return self._axes
 
     def use(self, **viewers) -> 'DatasetView':
@@ -209,4 +218,75 @@ class DatasetView(iterables.ReprStrMixin, metaclass=iotools.PathSet):
 
     def __str__(self) -> str:
         return str(self.path)
+
+
+_OBSERVABLES = {
+    ('time', 't', 'times'): {
+        'quantity': 'time',
+    },
+    ('shell', 'shells'): {
+        'quantity': 'number',
+    },
+    (
+        'mu', 'mus',
+        'pitch angle', 'pitch-angle cosine',
+        'pitch angles', 'pitch-angle cosines',
+    ): {
+        'quantity': 'ratio',
+    },
+    ('mass', 'm'): {
+        'quantity': 'mass',
+    },
+    ('charge', 'q'): {
+        'quantity': 'charge',
+    },
+    ('egrid', 'energy', 'energies', 'E'): {
+        'quantity': 'energy',
+    },
+    ('vgrid', 'speed', 'v', 'vparticle'): {
+        'quantity': 'velocity',
+    },
+    ('R', 'r', 'radius'): {
+        'quantity': 'length',
+    },
+    ('T', 'theta'): {
+        'quantity': 'plane angle',
+    },
+    ('P', 'phi'): {
+        'quantity': 'plane angle',
+    },
+    ('Br', 'br'): {
+        'quantity': 'magnetic field',
+    },
+    ('Bt', 'bt', 'Btheta', 'btheta'): {
+        'quantity': 'magnetic field',
+    },
+    ('Bp', 'bp', 'Bphi', 'bphi'): {
+        'quantity': 'magnetic field',
+    },
+    ('Vr', 'vr'): {
+        'quantity': 'velocity',
+    },
+    ('Vt', 'vt', 'Vtheta', 'vtheta'): {
+        'quantity': 'velocity',
+    },
+    ('Vp', 'vp', 'Vphi', 'vphi'): {
+        'quantity': 'velocity',
+    },
+    ('Rho', 'rho'): {
+        'quantity': 'number density',
+    },
+    ('Dist', 'dist', 'f'): {
+        'quantity': 'particle distribution',
+    },
+    ('flux', 'Flux', 'J', 'J(E)', 'j', 'j(E)'): {
+        'quantity': (
+            'number / (area * solid_angle * time * energy / mass_number)'
+        ),
+    },
+}
+
+
+ALIASES = aliased.AliasMap(_OBSERVABLES.keys())
+METADATA = aliased.Mapping(_OBSERVABLES)
 
