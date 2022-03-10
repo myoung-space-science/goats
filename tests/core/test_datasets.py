@@ -2,6 +2,7 @@ import typing
 
 import pytest
 
+from goats.core import aliased
 from goats.core import datasets
 
 
@@ -55,3 +56,17 @@ def test_dataset(testdata: dict):
     dataset = get_dataset(testdata, testname)
     variables = dataset.variables
     assert variables['time'] == variables['t']
+    available = dataset.available('variables')
+    full = ['time', 't', 'times', 'level', 'lat', 'lon', 'temp']
+    assert sorted(available.full) == sorted(full)
+    aliases = [
+        aliased.MappingKey(key)
+        for key in ('level', ('time', 't', 'times'), 'lat', 'lon', 'temp')
+    ]
+    assert sorted(available.aliased) == sorted(aliases)
+    canonical = ['level', 'time', 'lat', 'lon', 'temp']
+    assert sorted(available.canonical) == sorted(canonical)
+    axes = ['level', 'time', 'lat', 'lon']
+    assert sorted(dataset.iter_axes('temp')) == sorted(axes)
+    resolved = ('level', 'time', 'lon')
+    assert dataset.resolve_axes(['lon', 'time', 'level']) == resolved

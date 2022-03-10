@@ -181,6 +181,14 @@ class ViewerFactory(collections.abc.MutableMapping):
         del self._viewers[group]
 
 
+class SubsetKeys(typing.NamedTuple):
+    """A subset of names of attributes."""
+
+    full: typing.Tuple[str]
+    aliased: typing.Tuple[aliased.MappingKey]
+    canonical: typing.Tuple[str]
+
+
 class DatasetView(iterables.ReprStrMixin, metaclass=iotools.PathSet):
     """A format-agnostic view of a dataset.
     
@@ -219,6 +227,31 @@ class DatasetView(iterables.ReprStrMixin, metaclass=iotools.PathSet):
             }
             self._axes = aliased.Mapping(axes)
         return self._axes
+
+    def available(self, key: str):
+        """Provide the names of available attributes."""
+        if key in {'variable', 'variables'}:
+            return SubsetKeys(
+                full=tuple(self.variables),
+                aliased=tuple(self.variables.keys(aliased=True)),
+                canonical=tuple(self.viewers['variables'].keys()),
+            )
+        if key in {'axis', 'axes'}:
+            return SubsetKeys(
+                full=tuple(self.axes),
+                aliased=tuple(self.axes.keys(aliased=True)),
+                canonical=tuple(self.viewers['axes'].keys()),
+            )
+
+    def iter_axes(self, name: str):
+        """Iterate over the axes for the named variable."""
+        this = self.variables[name].axes if name in self.variables else ()
+        return iter(this)
+
+    def resolve_axes(self, names: typing.Iterable[str]):
+        """Compute and order the available axes in `names`."""
+        axes = self.available('axes').canonical
+        return tuple(name for name in axes if name in names)
 
     def use(self, **viewers) -> 'DatasetView':
         """Update the viewers for this instance."""
