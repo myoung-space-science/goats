@@ -185,16 +185,22 @@ class DatasetView(iterables.ReprStrMixin, metaclass=iotools.PathSet):
     def __init__(self, path: iotools.PathLike) -> None:
         self.path = iotools.ReadOnlyPath(path)
         self.viewers = ViewerFactory(self.path)
+        self._variables = None
+        self._axes = None
 
     @property
     def variables(self) -> DataViewer:
         """The variables in this dataset."""
-        return self.viewers['variables']
+        if self._variables is None:
+            self._variables = self.viewers['variables']
+        return self._variables
 
     @property
     def axes(self) -> DataViewer:
         """The axes in this dataset."""
-        return self.viewers['axes']
+        if self._axes is None:
+            self._axes = self.viewers['axes']
+        return self._axes
 
     def use(self, **viewers) -> 'DatasetView':
         """Update the viewers for this instance."""
