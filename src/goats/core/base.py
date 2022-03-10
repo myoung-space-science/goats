@@ -175,26 +175,33 @@ class Observable(iterables.ReprStrMixin):
         self._constraints = {}
         self.axes = interface.implementation.axes
 
-    def observe(self, **constraints):
+    def observe(self, reset: bool=False, **constraints):
         """Create an observation within the given constraints.
         
         This method will create an observation of this observable within the
         current collection of observational constraints. Passing additional
         constraints will update the current set; the caller may reset the
-        constraints via `~Observable.reset`. The default collection of
-        observational constraints uses all relevant indices and default values
-        of assumptions.
+        constraints by passing `reset=True` or by first calling
+        `~Observable.reset`. The default collection of observational constraints
+        uses all relevant axis indices and default parameter values.
 
         Parameters
         ----------
+        reset : bool, default=false
+            If true, discard existing constraints before applying the given
+            constraints. This is equivalent to calling `~Observable.reset`
+            before calling this method.
+
         **constraints : dict
-            Key-value pairs of indices or assumptions to update.
+            Key-value pairs of axes or parameters to update.
 
         Returns
         -------
         `~base.Observation`
             An object representing the resultant observation.
         """
+        if reset:
+            self.reset()
         self._constraints.update(constraints)
         self._interface.apply(self._constraints)
         return Observation(
@@ -202,10 +209,14 @@ class Observable(iterables.ReprStrMixin):
             **self._interface.context
         )
 
-    def reset(self) -> S:
-        """Reset the observing constraints."""
+    def reset(self):
+        """Reset the observing constraints in place.
+        
+        This method will discard constraints accumulated from previous calls to
+        `~Observable.observe`. It is equivalent to calling `~Observable.observe`
+        with `reset=True`.
+        """
         self._constraints = {}
-        return self
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
