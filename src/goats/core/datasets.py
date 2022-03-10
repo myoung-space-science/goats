@@ -62,9 +62,10 @@ class DatasetVariable(typing.NamedTuple):
     ) -> str:
         """Helper for `__str__` and `__repr__`."""
         attrs = [
-            f"{type(self.data)}",
+            f"data={type(self.data)}",
             f"unit={self.unit!r}",
             f"axes={self.axes}",
+            f"name={self.name!r}",
         ]
         indent = ' ' * tab
         return sep.join(f"{indent}{attr}" for attr in attrs)
@@ -106,7 +107,7 @@ class DatasetAxis(typing.NamedTuple):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        return f"size={self.size}"
+        return f"size={self.size}, name={self.name!r}"
 
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
