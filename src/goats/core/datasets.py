@@ -30,7 +30,7 @@ class DataViewer(collections.abc.Mapping):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        return '\n\n'.join(f"{k}:\n{v}" for k, v in self.members.items())
+        return '\n\n'.join(f"{k}:\n{v!r}" for k, v in self.items())
 
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
@@ -44,6 +44,29 @@ class DatasetVariable(typing.NamedTuple):
     unit: str
     axes: typing.Tuple[str]
     name: str
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return self._display(sep='\n')
+
+    def __repr__(self) -> str:
+        """An unambiguous representation of this object."""
+        display = self._display(sep='\n', tab=4)
+        return f"{self.__class__.__qualname__}(\n{display}\n)"
+
+    def _display(
+        self,
+        sep: str=', ',
+        tab: int=0,
+    ) -> str:
+        """Helper for `__str__` and `__repr__`."""
+        attrs = [
+            f"{type(self.data)}",
+            f"unit={self.unit!r}",
+            f"axes={self.axes}",
+        ]
+        indent = ' ' * tab
+        return sep.join(f"{indent}{attr}" for attr in attrs)
 
 
 class NetCDFVariables(DataViewer):
@@ -79,6 +102,14 @@ class DatasetAxis(typing.NamedTuple):
 
     size: int
     name: str
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return f"size={self.size}"
+
+    def __repr__(self) -> str:
+        """An unambiguous representation of this object."""
+        return f"{self.__class__.__qualname__}({self})"
 
 
 class NetCDFAxes(DataViewer):
