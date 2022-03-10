@@ -182,7 +182,15 @@ class ViewerFactory(collections.abc.MutableMapping):
 
 
 class DatasetView(iterables.ReprStrMixin, metaclass=iotools.PathSet):
-    """A format-agnostic view of a dataset."""
+    """A format-agnostic view of a dataset.
+    
+    An instance of this class provides aliased access to variables and axes
+    defined in a specific dataset, given a path to that dataset. It is designed
+    to provide a single interface, regardless of file type, with as little
+    overhead as possible. Therefore, it does not attempt to modify attributes
+    (e.g., converting variable units), since doing so could result in reading a
+    potentially large array from disk.
+    """
 
     def __init__(self, path: iotools.PathLike) -> None:
         self.path = iotools.ReadOnlyPath(path)
