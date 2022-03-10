@@ -780,8 +780,8 @@ class AliasMap(iterables.MappingBase):
         """Look up aliases for key."""
         try:
             found = next(entry for entry in self._aliased if key in entry)
-        except StopIteration:
-            raise KeyError(f"{key!r} not found")
+        except StopIteration as err:
+            raise KeyError(f"{key!r} not found") from err
         else:
             return found
 
