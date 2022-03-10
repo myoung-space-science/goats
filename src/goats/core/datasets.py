@@ -10,6 +10,7 @@ import numpy.typing
 from goats.core import aliased
 from goats.core import iotools
 from goats.core import iterables
+from goats.core import quantities
 
 
 class DataViewer(collections.abc.Mapping):
@@ -205,6 +206,7 @@ class DatasetView(iterables.ReprStrMixin, metaclass=iotools.PathSet):
         self.viewers = ViewerFactory(self.path)
         self._variables = None
         self._axes = None
+        self._units = None
 
     @property
     def variables(self):
@@ -216,6 +218,17 @@ class DatasetView(iterables.ReprStrMixin, metaclass=iotools.PathSet):
             }
             self._variables = aliased.Mapping(variables)
         return self._variables
+
+    @property
+    def units(self):
+        """The unit of each variable, if available."""
+        if self._units is None:
+            units = {
+                name: variable.unit
+                for name, variable in self.variables.items(aliased=True)
+            }
+            self._units = aliased.Mapping(units)
+        return self._units
 
     @property
     def axes(self):
@@ -260,6 +273,117 @@ class DatasetView(iterables.ReprStrMixin, metaclass=iotools.PathSet):
 
     def __str__(self) -> str:
         return str(self.path)
+
+
+S = typing.TypeVar('S', bound='Variables')
+
+
+class Variables(aliased.Mapping):
+    """An interface to dataset variables with an optional metric system."""
+
+    def __init__(
+        self,
+        path: iotools.PathLike,
+        system: str=None,
+    ) -> None:
+        self.dataset = DatasetView(path)
+        variables = self.dataset.variables
+        super().__init__(variables)
+        self._system = system
+        self._units = None
+
+    @typing.overload
+    def system(self: S) -> quantities.MetricSystem:
+        """Get the metric system in use for unit conversions.
+        
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        `~quantities.MetricSystem`
+            This instance's current metric system.
+        """
+
+    @typing.overload
+    def system(self: S, new: str) -> S:
+        """Set the metric system for unit conversions.
+        
+        Parameters
+        ----------
+        new : string or `~quantities.MetricSystem`
+            A new metric system to use for unit conversions.
+
+        Returns
+        -------
+        `~datasets.Variables`
+            The updated instance.
+        """
+
+    def system(self, new=None):
+        """Concrete implementation."""
+        if new:
+            self._system = new
+            self._units = None
+            return self
+        if isinstance(self._system, str):
+            return quantities.MetricSystem(self._system)
+        if isinstance(self._system, quantities.MetricSystem):
+            return self._system
+
+    @property
+    def units(self):
+        """The current unit of each variable."""
+        if self._units is None:
+            units = {
+                name: self._get_unit(unit)
+                for name, unit in self.dataset.units.items(aliased=True)
+            }
+            self._units = aliased.Mapping(units)
+        return self._units
+
+    def _get_unit(self, key: str):
+        """Get a valid unit based on `key`."""
+        unit = standardize(key)
+        return (
+            self.system().get_unit(unit=unit) if self.system()
+            else quantities.Unit(unit)
+        )
+
+    def __getitem__(self, key: str):
+        """Create the named variable, if possible."""
+        variable = super().__getitem__(key)
+        unit = self.units[key]
+        axes = variable.axes
+        name = ALIASES[key]
+        data = (unit // variable.unit) * variable.data[:]
+        return quantities.Variable(data, unit, axes, name=name)
+
+
+substitutions = {
+    'julian date': 'day',
+    'shell': '1',
+    'cos(mu)': '1',
+    'e-': 'e',
+    '# / cm^2 s sr MeV': '# / cm^2 s sr MeV/nuc',
+}
+"""Conversions from non-standard units."""
+
+T = typing.TypeVar('T')
+
+def standardize(unit: T):
+    """Replace this unit string with a standard unit string, if possible.
+
+    This function looks for `unit` in the known conversions and returns the
+    standard unit string if it exists. If this doesn't find a standard unit
+    string, it just returns the input.
+    """
+    unit = substitutions.get(str(unit), unit)
+    if '/' in unit:
+        num, den = str(unit).split('/', maxsplit=1)
+        unit = ' / '.join((num.strip(), f"({den.strip()})"))
+    return unit
 
 
 _OBSERVABLES = {
