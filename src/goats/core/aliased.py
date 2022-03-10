@@ -760,8 +760,7 @@ class NameMap(iterables.MappingBase):
         return type(self)(**self._init)
 
 
-# NOTE: Possible alternative or extension to NameMap.
-class AliasMap(iterables.MappingBase):
+class KeyMap(iterables.MappingBase):
     """A collection that associates common aliases."""
 
     def __init__(self, __keys: typing.Iterable[Aliases]) -> None:

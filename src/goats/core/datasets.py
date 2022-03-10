@@ -287,6 +287,6 @@ _OBSERVABLES = {
 }
 
 
-ALIASES = aliased.AliasMap(_OBSERVABLES.keys())
+ALIASES = aliased.KeyMap(_OBSERVABLES.keys())
 METADATA = aliased.Mapping(_OBSERVABLES)
 
