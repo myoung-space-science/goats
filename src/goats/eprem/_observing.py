@@ -46,13 +46,12 @@ class Observer(base.Observer):
         self.system = quantities.MetricSystem(system)
         self._dataset = None
         self._arguments = None
-        super().__init__(
-            observables.Observables(
-                self.dataset,
-                self.system,
-                self.arguments,
-            )
+        interface = observables.Observables(
+            self.dataset,
+            self.system,
+            self.arguments,
         )
+        super().__init__(interface)
 
     @property
     def path(self) -> iotools.ReadOnlyPath:
