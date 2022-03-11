@@ -70,3 +70,17 @@ def test_full_dataset(testdata: dict):
     assert sorted(dataset.iter_axes('temp')) == sorted(axes)
     resolved = ('level', 'time', 'lon')
     assert dataset.resolve_axes(['lon', 'time', 'level']) == resolved
+
+
+@pytest.mark.xfail
+def test_variables(testdata: dict):
+    """Test the higher-level variables interface."""
+    for name in ('eprem-obs', 'eprem-flux'):
+        variables = datasets.Variables(testdata[name]['path'])
+        time = variables['time']
+        assert time.unit() == 's'
+        assert time.axes == ['time']
+        vr = variables['Vr']
+        assert vr.unit() == 'm / s'
+        assert sorted(vr.axes) == sorted(['time', 'shell'])
+        # TODO: Check flux/Dist depending on dataset.
