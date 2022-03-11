@@ -298,11 +298,16 @@ class Variables(aliased.Mapping):
         """The MKS unit of each variable."""
         if self._units is None:
             units = {
-                name: self._system.get_unit(quantity=METADATA[name]['quantity'])
+                name: self._get_unit(name)
                 for name in self.keys(aliased=True)
             }
             self._units = aliased.Mapping(units)
         return self._units
+
+    def _get_unit(self, name: str):
+        """Get a standard unit for the named variable."""
+        metric = self._system[METADATA[name]['quantity']]
+        return quantities.Unit(metric.unit)
 
     def __getitem__(self, key: str):
         """Create the named variable, if possible."""
