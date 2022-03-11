@@ -279,77 +279,30 @@ S = typing.TypeVar('S', bound='Variables')
 
 
 class Variables(aliased.Mapping):
-    """An interface to dataset variables with an optional metric system."""
+    """An interface to dataset variables.
+    
+    This class provides aliased key-based access to all variables in a dataset.
+    It converts each requested dataset variable into a `~quantities.Variable`
+    instance with the appropriate MKS unit.
+    """
 
-    def __init__(
-        self,
-        path: iotools.PathLike,
-        system: str=None,
-    ) -> None:
+    def __init__(self, path: iotools.PathLike) -> None:
         self.dataset = DatasetView(path)
         variables = self.dataset.variables
         super().__init__(variables)
-        self._system = system
+        self._system = quantities.MetricSystem('mks')
         self._units = None
-
-    @typing.overload
-    def system(self: S) -> quantities.MetricSystem:
-        """Get the metric system in use for unit conversions.
-        
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        `~quantities.MetricSystem`
-            This instance's current metric system.
-        """
-
-    @typing.overload
-    def system(self: S, new: str) -> S:
-        """Set the metric system for unit conversions.
-        
-        Parameters
-        ----------
-        new : string or `~quantities.MetricSystem`
-            A new metric system to use for unit conversions.
-
-        Returns
-        -------
-        `~datasets.Variables`
-            The updated instance.
-        """
-
-    def system(self, new=None):
-        """Concrete implementation."""
-        if new:
-            self._system = new
-            self._units = None
-            return self
-        if isinstance(self._system, str):
-            return quantities.MetricSystem(self._system)
-        if isinstance(self._system, quantities.MetricSystem):
-            return self._system
 
     @property
     def units(self):
-        """The current unit of each variable."""
+        """The MKS unit of each variable."""
         if self._units is None:
             units = {
-                name: self._get_unit(unit)
-                for name, unit in self.dataset.units.items(aliased=True)
+                name: self._system.get_unit(quantity=METADATA[name]['quantity'])
+                for name in self.keys(aliased=True)
             }
             self._units = aliased.Mapping(units)
         return self._units
-
-    def _get_unit(self, key: str):
-        """Get a valid unit based on `key`."""
-        unit = standardize(key)
-        return (
-            self.system().get_unit(unit=unit) if self.system()
-            else quantities.Unit(unit)
-        )
 
     def __getitem__(self, key: str):
         """Create the named variable, if possible."""
@@ -357,7 +310,8 @@ class Variables(aliased.Mapping):
         unit = self.units[key]
         axes = variable.axes
         name = ALIASES[key]
-        data = (unit // variable.unit) * variable.data[:]
+        scale = (unit // standardize(variable.unit))
+        data = scale * variable.data[:]
         return quantities.Variable(data, unit, axes, name=name)
 
 
