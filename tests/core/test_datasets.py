@@ -20,7 +20,7 @@ def get_reference(
     return testdata[name].get(key, {})
 
 
-def test_axes(testdata: dict):
+def test_dataset_axes(testdata: dict):
     """Test access to dataset axes."""
     testname = 'basic'
     dataset = get_dataset(testdata, testname)
@@ -34,7 +34,7 @@ def test_axes(testdata: dict):
         assert axis.size == reference[axis.name]['size']
 
 
-def test_variables(testdata: dict):
+def test_dataset_variables(testdata: dict):
     """Test access to dataset variables."""
     testname = 'basic'
     dataset = get_dataset(testdata, testname)
@@ -50,7 +50,7 @@ def test_variables(testdata: dict):
         assert sorted(variable.axes) == sorted(ref.get('axes', ()))
 
 
-def test_dataset(testdata: dict):
+def test_full_dataset(testdata: dict):
     """Test access to the full dataset."""
     testname = 'basic'
     dataset = get_dataset(testdata, testname)
