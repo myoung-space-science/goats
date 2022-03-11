@@ -21,15 +21,60 @@ def testdata(rootpath: pathlib.Path):
     """The available test datasets."""
     return {
         key: {
-            'path': rootpath / dataset['name'],
-            **{k: v for k, v in dataset.items() if k != 'name'}
+            'path': rootpath / f'{key}.nc',
+            **dataset,
         } for key, dataset in _DATASETS.items()
     }
 
 
 _DATASETS = {
+    'eprem-obs': {
+        'axes': {
+            'time': {'size': 20},
+            'shell': {'size': 100},
+            'species': {'size': 2},
+            'energy': {'size': 10},
+            'mu': {'size': 5},
+        },
+        'variables': {
+            'time': {
+                'axes': ['time'],
+                'unit': 's',
+            },
+            'Vr': {
+                'axes': ['time', 'shell'],
+                'unit': 'km / s',
+            },
+            'Dist': {
+                'axes': ['time', 'shell', 'species', 'energy', 'mu'],
+                'unit': 's^3 / km^6',
+            },
+        },
+    },
+    'eprem-flux': {
+        'axes': {
+            'time': {'size': 20},
+            'shell': {'size': 100},
+            'species': {'size': 2},
+            'energy': {'size': 10},
+            'mu': {'size': 5},
+        },
+        'variables': {
+            'time': {
+                'axes': ['time'],
+                'unit': 's',
+            },
+            'Vr': {
+                'axes': ['time', 'shell'],
+                'unit': 'km / s',
+            },
+            'flux': {
+                'axes': ['time', 'shell', 'species', 'energy'],
+                'unit': '# / cm^2 s sr MeV',
+            },
+        },
+    },
     'basic': {
-        'name': 'basic_dataset.nc',
         'axes': {
             'time': {'size': 0},
             'level': {'size': 0},
