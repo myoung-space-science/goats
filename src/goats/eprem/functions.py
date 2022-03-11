@@ -6,6 +6,7 @@ import numpy as np
 from scipy import integrate
 
 from goats.core import aliased
+from goats.core.datasets import Variable
 from goats.core import numerical
 from goats.core import quantities
 from goats.core import physical
@@ -524,12 +525,12 @@ class Function(iterables.ReprStrMixin):
 
     Argument = typing.TypeVar(
         'Argument',
-        quantities.Variable,
+        Variable,
         quantities.Scalar,
         typing.Iterable[quantities.Scalar],
     )
     Argument = typing.Union[
-        quantities.Variable,
+        Variable,
         quantities.Scalar,
         typing.Iterable[quantities.Scalar],
     ]
@@ -538,7 +539,7 @@ class Function(iterables.ReprStrMixin):
         self,
         arguments: typing.Mapping[str, Argument],
         unit: typing.Union[str, quantities.Unit],
-    ) -> quantities.Variable:
+    ) -> Variable:
         """Build a variable by calling the instance method."""
         arrays = []
         floats = []
@@ -547,7 +548,7 @@ class Function(iterables.ReprStrMixin):
             if key in self.parameters
         ]
         for arg in known:
-            if isinstance(arg, quantities.Variable):
+            if isinstance(arg, Variable):
                 arrays.append(np.array(arg))
             elif isinstance(arg, quantities.Scalar):
                 floats.append(float(arg))
@@ -556,7 +557,7 @@ class Function(iterables.ReprStrMixin):
                 and all(isinstance(a, quantities.Scalar) for a in arg)
             ): floats.extend([float(a) for a in arg])
         data = self.method(*arrays, *floats)
-        return quantities.Variable(
+        return Variable(
             data,
             quantities.Unit(unit),
             self.axes,
