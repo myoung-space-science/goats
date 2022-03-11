@@ -72,15 +72,33 @@ def test_full_dataset(testdata: dict):
     assert dataset.resolve_axes(['lon', 'time', 'level']) == resolved
 
 
-@pytest.mark.xfail
 def test_variables(testdata: dict):
     """Test the higher-level variables interface."""
+    reference = {
+        'time': {
+            'unit': 's',
+            'axes': ['time'],
+        },
+        'Vr': {
+            'unit': 'm / s',
+            'axes': ['time', 'shell'],
+        },
+        'flux': {
+            'unit': 'm^-2 s^-1 sr^-1 J^-1',
+            'axes': ['time', 'shell', 'species', 'energy'],
+        },
+        'dist': {
+            'unit': 's^3 m^-6',
+            'axes': ['time', 'shell', 'species', 'energy', 'mu'],
+        },
+    }
     for name in ('eprem-obs', 'eprem-flux'):
         variables = datasets.Variables(testdata[name]['path'])
-        time = variables['time']
-        assert time.unit() == 's'
-        assert time.axes == ['time']
-        vr = variables['Vr']
-        assert vr.unit() == 'm / s'
-        assert sorted(vr.axes) == sorted(['time', 'shell'])
-        # TODO: Check flux/Dist depending on dataset.
+        for observable, expected in reference.items():
+            if observable in variables:
+                variable = variables[observable]
+                assert variable.unit() == expected['unit']
+                assert sorted(variable.axes) == sorted(expected['axes'])
+            else:
+                with pytest.raises(KeyError):
+                    variables[observable]
