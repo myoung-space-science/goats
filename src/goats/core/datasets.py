@@ -11,7 +11,9 @@ import numpy.typing
 
 from goats.core import aliased
 from goats.core import iotools
+from goats.core import indexing
 from goats.core import iterables
+from goats.core import numerical
 from goats.core import quantities
 
 
@@ -930,6 +932,104 @@ class Variables(aliased.Mapping):
         scale = (unit // standardize(variable.unit))
         data = scale * variable.data[:]
         return Variable(data, unit, axes, name=name)
+
+
+class Axis(iterables.ReprStrMixin):
+    """A single dataset axis."""
+
+    def __init__(
+        self,
+        reference: numpy.typing.ArrayLike,
+        size: int,
+        # indexer: typing.Callable[..., indexing.IndexLike],
+        index: typing.Type[indexing.IndexLike],
+    ) -> None:
+        self.reference = reference
+        """The index reference values."""
+        self.size = size
+        """The full length of this axis."""
+        # self.indexer = indexer
+        """A callable object that creates indices from user input."""
+        self.index = index
+        """The type of indices to create."""
+
+    # NOTE: There isn't much difference among `Indices`, `OrderedPairs`, and
+    # `Coordinates`. `OrderedPairs` checks for equal numbers of indices and
+    # values in `__init__`, and `Coordinates` supports a mutable `unit`
+    # attribute. The only other differences are in `__str__`.
+    #
+    # It may be better to use instances attributes and `kwargs` to determine how
+    # to process `user`.
+    def __call__(self, *user, **kwargs):
+        """Convert user values into an index object."""
+        targets = self._normalize(*user)
+        if all(isinstance(value, numbers.Integral) for value in targets):
+            return indexing.Indices(targets)
+        # ~Indexer:
+        if self.index == indexing.Indices:
+            return self.index(targets)
+        # ~IndexMapper:
+        if self.index == indexing.OrderedPairs:
+            indices = [self.reference.index(target) for target in targets]
+            return self.index(indices)
+        # ~IndexComputer:
+        if self.index == indexing.Coordinates:
+            targets = self._update(targets, **kwargs)
+            # <EPREM energy> s = self.map(species)[0]
+            # <EPREM energy> if targets == self.reference:
+            # <EPREM energy>     targets = targets[s, :]
+            measured = quantities.measure(*targets)
+            vector = quantities.Vector(measured.values, measured.unit)
+            # Could get unit from kwargs.
+            values = (
+                vector.unit(self.unit)
+                if vector.unit().dimension == self.unit.dimension
+                else vector
+            )
+            # <EPREM energy> reference = self.reference[s, :]
+            indices = [
+                numerical.find_nearest(self.reference, float(value)).index
+                for value in values
+            ]
+            return indexing.Coordinates(indices, values, self.unit)
+
+        # return self.indexer(*user, **kwargs)
+
+    def _normalize(self, *user):
+        """Helper for computing target values from user input."""
+        if not user:
+            return self.reference
+        if isinstance(user[0], slice):
+            return iterables.slice_to_range(user[0], stop=self.size)
+        if isinstance(user[0], range):
+            return user[0]
+        return user
+
+    def __len__(self) -> int:
+        """The full length of this axis. Called for len(self)."""
+        return self.size
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        string = f"size={self.size}"
+        unit = (
+            str(self.reference.unit())
+            if isinstance(self.reference, quantities.Measured)
+            else None
+        )
+        return f"{string} unit={unit!r}"
+
+
+class Axes(aliased.Mapping):
+    """An interface to dataset axes."""
+
+    def __init__(
+        self,
+        path: iotools.PathLike,
+        builders: typing.Iterable,
+    ) -> None:
+        self.dataset = DatasetView(path)
+        variables = self.dataset.variables
 
 
 substitutions = {
