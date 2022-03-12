@@ -900,10 +900,8 @@ class Variables(aliased.Mapping):
     instance with the appropriate MKS unit.
     """
 
-    def __init__(self, path: iotools.PathLike) -> None:
-        self.dataset = DatasetView(path)
-        variables = self.dataset.variables
-        super().__init__(variables)
+    def __init__(self, dataset: DatasetView) -> None:
+        super().__init__(dataset.variables)
         self._system = quantities.MetricSystem('mks')
         self._units = None
 

@@ -96,7 +96,8 @@ def test_variables(testdata: dict):
         },
     }
     for name in ('eprem-obs', 'eprem-flux'):
-        variables = datasets.Variables(testdata[name]['path'])
+        dataset = get_dataset(testdata, name)
+        variables = datasets.Variables(dataset)
         for observable, expected in reference.items():
             if observable in variables:
                 variable = variables[observable]
