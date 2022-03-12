@@ -89,6 +89,10 @@ class Coordinates(OrderedPairs):
         return f"{values} [{self.unit}]"
 
 
+IndexLike = typing.TypeVar('IndexLike', bound=Indices)
+IndexLike = typing.Union[Indices, OrderedPairs, Coordinates]
+
+
 class Indexer:
     """A callable object that extracts indices from reference values."""
 
