@@ -11,9 +11,7 @@ import numpy.typing
 
 from goats.core import aliased
 from goats.core import iotools
-from goats.core import indexing
 from goats.core import iterables
-from goats.core import numerical
 from goats.core import quantities
 
 
@@ -936,66 +934,131 @@ class Variables(aliased.Mapping):
         return Variable(data, unit, axes, name=name)
 
 
+class Indices(collections.abc.Sequence, iterables.ReprStrMixin):
+    """A sequence of indices into data arrays."""
+
+    __slots__ = ('indices',)
+
+    def __init__(self, indices: typing.Iterable[int]) -> None:
+        self.indices = tuple(indices)
+
+    def __getitem__(self, __i: typing.SupportsIndex):
+        """Called for index look-up and iteration."""
+        return self.indices[__i]
+
+    def __len__(self):
+        """Called for len(self) and iteration."""
+        return len(self.indices)
+
+    def __eq__(self, other):
+        """True if two instances have the same indices."""
+        if not isinstance(other, Indices):
+            return NotImplemented
+        return all(
+            getattr(self, attr) == getattr(other, attr)
+            for attr in self.__slots__
+        )
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return iterables.show_at_most(3, self.indices, separator=', ')
+
+
+class IndexMap(Indices):
+    """A sequence of indices in correspondence with values of any type."""
+
+    __slots__ = ('values',)
+
+    def __init__(
+        self,
+        indices: typing.Iterable[int],
+        values: typing.Iterable[typing.Any],
+    ) -> None:
+        super().__init__(indices)
+        self.values = tuple(values)
+        nv = len(self.values)
+        ni = len(self.indices)
+        if nv != ni:
+            errmsg = f"number of values ({nv}) != number of indices ({ni})"
+            raise TypeError(errmsg)
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        pairs = [f"{i} | {v!r}" for i, v in zip(self.indices, self.values)]
+        return iterables.show_at_most(3, pairs, separator=', ')
+
+
+class Coordinates(IndexMap):
+    """A sequence of indices in correspondence with scalar values."""
+
+    __slots__ = ('unit',)
+
+    def __init__(
+        self,
+        indices: typing.Iterable[int],
+        values: typing.Iterable[typing.Any],
+        unit: typing.Union[str, quantities.Unit],
+    ) -> None:
+        super().__init__(indices, values)
+        self.unit = unit
+
+    def with_unit(self, new: typing.Union[str, quantities.Unit]):
+        """Convert this object to the new unit, if possible."""
+        scale = quantities.Unit(new) // self.unit
+        self.values = [value * scale for value in self.values]
+        self.unit = new
+        return self
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        values = iterables.show_at_most(3, self.values, separator=', ')
+        return f"{values} [{self.unit}]"
+
+
+IndexLike = typing.TypeVar('IndexLike', bound=Indices)
+IndexLike = typing.Union[Indices, IndexMap, Coordinates]
+
+
+class Indexer:
+    """A callable object that generates array indices from user arguments."""
+
+    def __init__(
+        self,
+        method: typing.Callable[..., IndexLike],
+        reference: numpy.typing.ArrayLike,
+    ) -> None:
+        self.method = method
+        self.reference = reference
+
+    def __call__(self, *args, **kwargs):
+        """Call the array-indexing method."""
+        return self.method(*args, **kwargs)
+
+
 class Axis(iterables.ReprStrMixin):
     """A single dataset axis."""
 
     def __init__(
         self,
-        reference: numpy.typing.ArrayLike,
         size: int,
-        # indexer: typing.Callable[..., indexing.IndexLike],
-        index: typing.Type[indexing.IndexLike],
+        indexer: Indexer,
+        name: str='<anonymous>',
     ) -> None:
-        self.reference = reference
-        """The index reference values."""
         self.size = size
         """The full length of this axis."""
-        # self.indexer = indexer
+        self.indexer = indexer
         """A callable object that creates indices from user input."""
-        self.index = index
-        """The type of indices to create."""
+        self.reference = indexer.reference
+        """The index reference values."""
+        self.name = name
+        """The name of this axis."""
 
-    # NOTE: There isn't much difference among `Indices`, `OrderedPairs`, and
-    # `Coordinates`. `OrderedPairs` checks for equal numbers of indices and
-    # values in `__init__`, and `Coordinates` supports a mutable `unit`
-    # attribute. The only other differences are in `__str__`.
-    #
-    # It may be better to use instances attributes and `kwargs` to determine how
-    # to process `user`.
-    def __call__(self, *user, **kwargs):
-        """Convert user values into an index object."""
-        targets = self._normalize(*user)
+    def __call__(self, *args, **kwargs):
+        """Convert user arguments into an index object."""
+        targets = self._normalize(*args)
         if all(isinstance(value, numbers.Integral) for value in targets):
-            return indexing.Indices(targets)
-        # ~Indexer:
-        if self.index == indexing.Indices:
-            return self.index(targets)
-        # ~IndexMapper:
-        if self.index == indexing.OrderedPairs:
-            indices = [self.reference.index(target) for target in targets]
-            return self.index(indices)
-        # ~IndexComputer:
-        if self.index == indexing.Coordinates:
-            targets = self._update(targets, **kwargs)
-            # <EPREM energy> s = self.map(species)[0]
-            # <EPREM energy> if targets == self.reference:
-            # <EPREM energy>     targets = targets[s, :]
-            measured = quantities.measure(*targets)
-            vector = quantities.Vector(measured.values, measured.unit)
-            # Could get unit from kwargs.
-            values = (
-                vector.unit(self.unit)
-                if vector.unit().dimension == self.unit.dimension
-                else vector
-            )
-            # <EPREM energy> reference = self.reference[s, :]
-            indices = [
-                numerical.find_nearest(self.reference, float(value)).index
-                for value in values
-            ]
-            return indexing.Coordinates(indices, values, self.unit)
-
-        # return self.indexer(*user, **kwargs)
+            return Indices(targets)
+        return self.indexer(*args, **kwargs)
 
     def _normalize(self, *user):
         """Helper for computing target values from user input."""
@@ -1013,13 +1076,15 @@ class Axis(iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        string = f"size={self.size}"
+        string = f"{self.name}, size={self.size}"
         unit = (
             str(self.reference.unit())
             if isinstance(self.reference, quantities.Measured)
             else None
         )
-        return f"{string} unit={unit!r}"
+        if unit:
+            string += f", unit={unit!r}"
+        return string
 
 
 class Axes(aliased.Mapping):
@@ -1027,11 +1092,18 @@ class Axes(aliased.Mapping):
 
     def __init__(
         self,
-        path: iotools.PathLike,
-        builders: typing.Iterable,
+        dataset: DatasetView,
+        factory: typing.Type[typing.Mapping],
     ) -> None:
-        self.dataset = DatasetView(path)
-        variables = self.dataset.variables
+        indexers = factory(dataset)
+        super().__init__(indexers)
+        self.dataset = dataset
+
+    def __getitem__(self, key: str) -> Axis:
+        indexer = super().__getitem__(key)
+        size = self.dataset.axes[key].size
+        name = f"'{ALIASES.get(key, key)}'"
+        return Axis(size, indexer, name=name)
 
 
 substitutions = {
