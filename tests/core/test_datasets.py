@@ -108,6 +108,19 @@ def test_variables(testdata: dict):
                     variables[observable]
 
 
+def test_standardize():
+    """Test the helper function that standardizes unit strings."""
+    cases = {
+        'julian date': 'day',
+        'shell': '1',
+        'cos(mu)': '1',
+        'e-': 'e',
+        '# / cm^2 s sr MeV': '# / (cm^2 s sr MeV/nuc)',
+    }
+    for old, new in cases.items():
+        assert datasets.standardize(old) == new
+
+
 @pytest.mark.variable
 def test_variable():
     """Test the object that represents a variable."""
