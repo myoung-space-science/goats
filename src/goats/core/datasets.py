@@ -901,7 +901,11 @@ class Variables(aliased.Mapping):
     """
 
     def __init__(self, dataset: DatasetView) -> None:
-        super().__init__(dataset.variables)
+        known = {
+            k: v for k, v in dataset.variables.items(aliased=True)
+            if k in METADATA
+        }
+        super().__init__(known)
         self._system = quantities.MetricSystem('mks')
         self._units = None
 
