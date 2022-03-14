@@ -1,7 +1,7 @@
 import argparse
 import typing
 
-import numpy as np
+import numpy
 
 from goats.core import iterables
 from goats.core import quantities
@@ -59,7 +59,7 @@ _CONSTANTS = {
     },
     'mu0': {
         'info': "Permeability of free space.",
-        'mks': {'unit': 'H / m', 'value': 4*np.pi * 1e-7},
+        'mks': {'unit': 'H / m', 'value': 4*numpy.pi * 1e-7},
         'cgs': {'unit': '1', 'value': 1.0},
     },
     'Rinfinity': {
@@ -277,8 +277,8 @@ def elements(
     charge: typing.Iterable,
 ) -> typing.List[str]:
     """The elemental species symbols, based on masses and charges."""
-    _mass = np.array(mass)
-    _charge = np.array(charge)
+    _mass = numpy.array(mass)
+    _charge = numpy.array(charge)
     if len(_mass) != len(_charge):
         message = (
             f"Length of mass ({len(_mass)})"
