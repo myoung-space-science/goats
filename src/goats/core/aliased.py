@@ -454,7 +454,9 @@ class Mapping(collections.abc.Mapping):
 
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
-        return f"aliased.{self.__class__.__qualname__}({self})"
+        module = f"{self.__module__.replace('goats.', '')}."
+        name = self.__class__.__qualname__
+        return f"{module}{name}({self})"
 
     def keys(self, aliased: bool=False):
         """A view on this instance's keys."""
