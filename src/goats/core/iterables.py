@@ -193,7 +193,9 @@ class ReprStrMixin:
 
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
-        return f"{self.__class__.__qualname__}({self})"
+        module = f"{self.__module__.replace('goats.', '')}."
+        name = self.__class__.__qualname__
+        return f"{module}{name}({self})"
 
 
 class RequiredAttrMeta(abc.ABCMeta):
