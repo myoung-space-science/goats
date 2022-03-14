@@ -277,8 +277,8 @@ def elements(
     charge: typing.Iterable,
 ) -> typing.List[str]:
     """The elemental species symbols, based on masses and charges."""
-    _mass = list(iterables.whole(mass))
-    _charge = list(iterables.whole(charge))
+    _mass = np.array(mass)
+    _charge = np.array(charge)
     if len(_mass) != len(_charge):
         message = (
             f"Length of mass ({len(_mass)})"
