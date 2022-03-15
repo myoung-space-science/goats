@@ -12,6 +12,7 @@ import numpy.typing
 from goats.core import aliased
 from goats.core import iotools
 from goats.core import iterables
+from goats.core import observables
 from goats.core import quantities
 
 
@@ -215,7 +216,7 @@ class DatasetView(iterables.ReprStrMixin, metaclass=iotools.PathSet):
         """The variables in this dataset."""
         if self._variables is None:
             variables = {
-                ALIASES.get(name, name): variable
+                observables.ALIASES.get(name, name): variable
                 for name, variable in self.viewers['variables'].items()
             }
             self._variables = aliased.Mapping(variables)
@@ -237,7 +238,7 @@ class DatasetView(iterables.ReprStrMixin, metaclass=iotools.PathSet):
         """The axes in this dataset."""
         if self._axes is None:
             axes = {
-                ALIASES.get(name, name): axis
+                observables.ALIASES.get(name, name): axis
                 for name, axis in self.viewers['axes'].items()
             }
             self._axes = aliased.Mapping(axes)
@@ -901,7 +902,7 @@ class Variables(aliased.Mapping):
     def __init__(self, dataset: DatasetView) -> None:
         known = {
             k: v for k, v in dataset.variables.items(aliased=True)
-            if k in METADATA
+            if k in observables.METADATA
         }
         super().__init__(known)
         self._system = quantities.MetricSystem('mks')
@@ -920,7 +921,7 @@ class Variables(aliased.Mapping):
 
     def _get_unit(self, name: str):
         """Get a standard unit for the named variable."""
-        metric = self._system[METADATA[name]['quantity']]
+        metric = self._system[observables.METADATA[name]['quantity']]
         return quantities.Unit(metric.unit)
 
     def __getitem__(self, key: str):
@@ -928,7 +929,7 @@ class Variables(aliased.Mapping):
         variable = super().__getitem__(key)
         unit = self.units[key]
         axes = variable.axes
-        name = ALIASES[key]
+        name = observables.ALIASES[key]
         scale = (unit // standardize(variable.unit))
         data = scale * variable.data[:]
         return Variable(data, unit, axes, name=name)
@@ -1102,7 +1103,7 @@ class Axes(aliased.Mapping):
     def __getitem__(self, key: str) -> Axis:
         indexer = super().__getitem__(key)
         size = self.dataset.axes[key].size
-        name = f"'{ALIASES.get(key, key)}'"
+        name = f"'{observables.ALIASES.get(key, key)}'"
         return Axis(size, indexer, name=name)
 
 
@@ -1130,134 +1131,4 @@ def standardize(unit: T):
         unit = ' / '.join((num.strip(), f"({den.strip()})"))
     return unit
 
-
-_OBSERVABLES = {
-    ('time', 't', 'times'): {
-        'quantity': 'time',
-    },
-    ('shell', 'shells'): {
-        'quantity': 'number',
-    },
-    (
-        'mu', 'mus',
-        'pitch angle', 'pitch-angle cosine',
-        'pitch angles', 'pitch-angle cosines',
-    ): {
-        'quantity': 'ratio',
-    },
-    ('mass', 'm'): {
-        'quantity': 'mass',
-    },
-    ('charge', 'q'): {
-        'quantity': 'charge',
-    },
-    ('egrid', 'energy', 'energies', 'E'): {
-        'quantity': 'energy',
-    },
-    ('vgrid', 'speed', 'v', 'vparticle'): {
-        'quantity': 'velocity',
-    },
-    ('R', 'r', 'radius'): {
-        'quantity': 'length',
-    },
-    ('T', 'theta'): {
-        'quantity': 'plane angle',
-    },
-    ('P', 'phi'): {
-        'quantity': 'plane angle',
-    },
-    ('Br', 'br'): {
-        'quantity': 'magnetic field',
-    },
-    ('Bt', 'bt', 'Btheta', 'btheta'): {
-        'quantity': 'magnetic field',
-    },
-    ('Bp', 'bp', 'Bphi', 'bphi'): {
-        'quantity': 'magnetic field',
-    },
-    ('Vr', 'vr'): {
-        'quantity': 'velocity',
-    },
-    ('Vt', 'vt', 'Vtheta', 'vtheta'): {
-        'quantity': 'velocity',
-    },
-    ('Vp', 'vp', 'Vphi', 'vphi'): {
-        'quantity': 'velocity',
-    },
-    ('Rho', 'rho'): {
-        'quantity': 'number density',
-    },
-    ('Dist', 'dist', 'f'): {
-        'quantity': 'particle distribution',
-    },
-    ('flux', 'Flux', 'J', 'J(E)', 'j', 'j(E)'): {
-        'quantity': (
-            'number / (area * solid_angle * time * energy / mass_number)'
-        ),
-    },
-    ('x', 'X'): {
-        'quantity': 'length',
-    },
-    ('y', 'Y'): {
-        'quantity': 'length',
-    },
-    ('z', 'Z'): {
-        'quantity': 'length',
-    },
-    ('b_mag', '|B|', 'B', 'bmag', 'b mag'): {
-        'quantity': 'magnetic field',
-    },
-    ('v_mag', '|V|', 'V', 'vmag', 'v mag'): {
-        'quantity': 'velocity',
-    },
-    ('bv_mag', 'bv', '|bv|', 'BV', '|BV|'): {
-        'quantity': 'velocity * magnetic field',
-    },
-    ('v_para', 'vpara', 'Vpara'): {
-        'quantity': 'velocity',
-    },
-    ('v_perp', 'vperp', 'Vperp'): {
-        'quantity': 'velocity',
-    },
-    ('flow_angle', 'flow angle', 'angle'): {
-        'quantity': 'plane angle',
-    },
-    ('div_v', 'divV', 'divv', 'div V', 'div v', 'div(V)', 'div(v)'): {
-        'quantity': '1 / time',
-    },
-    ('density_ratio', 'density ratio' ,'n2/n1', 'n_2/n_1'): {
-        'quantity': 'number',
-    },
-    ('rigidity', 'Rg', 'R_g'): {
-        'quantity': 'momentum / charge',
-    },
-    ('mean_free_path', 'mean free path', 'mfp'): {
-        'quantity': 'length',
-    },
-    ('acceleration_rate', 'acceleration rate'): {
-        'quantity': '1 / time',
-    },
-    ('energy_density', 'energy density'): {
-        'quantity': 'energy / volume',
-    },
-    ('average_energy', 'average energy'): {
-        'quantity': 'energy',
-    },
-    ('isotropic_distribution', 'isotropic distribution', 'isodist', 'f'): {
-        'removed axes': ['mu'],
-        'quantity': 'particle distribution',
-    },
-    'fluence': {
-        'removed axes': ['time'],
-        'quantity': 'number / (area * solid_angle * energy / mass_number)',
-    },
-    ('integral_flux', 'integral flux'): {
-        'removed axes': ['energy'],
-        'quantity': 'number / (area * solid_angle * time)',
-    },
-}
-
-
-ALIASES = aliased.KeyMap(_OBSERVABLES.keys())
-METADATA = aliased.Mapping(_OBSERVABLES)
 
