@@ -567,13 +567,15 @@ class ObjectRegistry(collections.abc.Mapping):
     def __contains__(self, key: str) -> bool:
         return key in self._items
 
+    _OT = typing.TypeVar('_OT')
+
     def register(
         self,
-        _obj=None,
+        _obj: _OT=None,
         name: str=None,
         overwrite: bool=False,
         **metadata
-    ) -> typing.Any:
+    ) -> _OT:
         """Register an object and any associated metadata.
 
         This function exists to decorate objects. Without any arguments, it will
@@ -588,10 +590,10 @@ class ObjectRegistry(collections.abc.Mapping):
             default is `None`, which causes this class to create a unique key
             based on the defined name of the object.
 
-        overwrite : bool
+        overwrite : bool, default=false
             If true and there is already an object with the key given by `name`,
-            overwrite that object. Default is false. This keyword has no effect
-            if `name` is `None`.
+            overwrite that object. This keyword has no effect if `name` is
+            `None`.
 
         **metadata
             Arbitrary metadata to associate with the decorated object.
