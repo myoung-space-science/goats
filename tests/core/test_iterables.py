@@ -1,6 +1,7 @@
 import collections.abc
 import typing
 
+import numpy
 import pytest
 
 from goats.core import iterables
@@ -69,7 +70,9 @@ def test_missing():
     assert iterables.missing(None)
     assert iterables.missing([])
     assert iterables.missing(())
+    assert iterables.missing(numpy.array([]))
     assert not iterables.missing(0)
+    assert not iterables.missing(numpy.zeros((2, 2)))
 
 
 def test_collection_mixin():

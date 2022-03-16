@@ -108,7 +108,16 @@ def missing(this: typing.Any) -> bool:
     This function allows the user to programmatically test for objects that are
     logically ``False`` except for numbers equivalent to 0.
     """
-    return False if isinstance(this, numbers.Number) else not bool(this)
+    if isinstance(this, numbers.Number):
+        return False
+    size = getattr(this, 'size', None)
+    if size is not None:
+        return size == 0
+    try:
+        result = not bool(this)
+    except ValueError:
+        result = all((missing(i) for i in this))
+    return result
 
 
 def transpose_list(list_in: typing.List[list]) -> typing.List[list]:
