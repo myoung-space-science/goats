@@ -456,6 +456,10 @@ class Variable(Parent, Mixin, allowed=allowed):
             scale=scale,
         )
 
+    def __measure__(self):
+        """Called for `~quantities.measure(self)`."""
+        return quantities.Measurement(self._amount, self.unit())
+
     def __len__(self):
         """Called for len(self)."""
         return self._get_data('size')

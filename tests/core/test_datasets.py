@@ -157,6 +157,15 @@ def test_variable():
     assert r.unit() == quantities.Unit('m^2')
 
 
+@pytest.mark.variable
+def test_variable_measure():
+    """Test the use of `~quantities.measure` on a variable."""
+    v0 = datasets.Variable([3.0, 4.5], 'm', ['x'])
+    measured = quantities.measure(v0)
+    assert measured.values == [3.0, 4.5]
+    assert measured.unit == 'm'
+
+
 @pytest.fixture
 def arr() -> typing.Dict[str, list]:
     """Arrays (lists of lists) for creating variables."""
