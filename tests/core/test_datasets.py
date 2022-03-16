@@ -1,4 +1,5 @@
 import operator
+import random
 import typing
 
 import numpy
@@ -9,9 +10,14 @@ from goats.core import datasets
 from goats.core import quantities
 
 
-def get_dataset(testdata: dict, name: str) -> datasets.DatasetView:
-    """Get a named test dataset."""
+def get_dataset_view(testdata: dict, name: str) -> datasets.DatasetView:
+    """Get a dataset view by name."""
     return datasets.DatasetView(testdata[name]['path'])
+
+
+def get_dataset(testdata: dict, name: str) -> datasets.Dataset:
+    """Get a dataset interface (without axis indexers) by name."""
+    return datasets.Dataset(testdata[name]['path'])
 
 
 def get_reference(
@@ -26,7 +32,7 @@ def get_reference(
 def test_dataset_axes(testdata: dict):
     """Test access to dataset axes."""
     testname = 'basic'
-    dataset = get_dataset(testdata, testname)
+    dataset = get_dataset_view(testdata, testname)
     reference = get_reference(testdata, testname, 'axes')
     assert isinstance(dataset.axes, typing.Mapping)
     for axis in reference:
@@ -40,7 +46,7 @@ def test_dataset_axes(testdata: dict):
 def test_dataset_variables(testdata: dict):
     """Test access to dataset variables."""
     testname = 'basic'
-    dataset = get_dataset(testdata, testname)
+    dataset = get_dataset_view(testdata, testname)
     reference = get_reference(testdata, testname, 'variables')
     assert isinstance(dataset.variables, typing.Mapping)
     for variable in reference:
@@ -53,10 +59,10 @@ def test_dataset_variables(testdata: dict):
         assert sorted(variable.axes) == sorted(ref.get('axes', ()))
 
 
-def test_full_dataset(testdata: dict):
-    """Test access to the full dataset."""
+def test_dataset_view(testdata: dict):
+    """Test access to the lower-level dataset view."""
     testname = 'basic'
-    dataset = get_dataset(testdata, testname)
+    dataset = get_dataset_view(testdata, testname)
     variables = dataset.variables
     assert variables['time'] == variables['t']
     available = dataset.available('variables')
@@ -69,10 +75,6 @@ def test_full_dataset(testdata: dict):
     assert sorted(available.aliased) == sorted(aliases)
     canonical = ['level', 'time', 'lat', 'lon', 'temp']
     assert sorted(available.canonical) == sorted(canonical)
-    axes = ['level', 'time', 'lat', 'lon']
-    assert sorted(dataset.iter_axes('temp')) == sorted(axes)
-    resolved = ('level', 'time', 'lon')
-    assert dataset.resolve_axes(['lon', 'time', 'level']) == resolved
 
 
 def test_variables(testdata: dict):
@@ -96,7 +98,7 @@ def test_variables(testdata: dict):
         },
     }
     for name in ('eprem-obs', 'eprem-flux'):
-        dataset = get_dataset(testdata, name)
+        dataset = get_dataset_view(testdata, name)
         variables = datasets.Variables(dataset)
         for observable, expected in reference.items():
             if observable in variables:
@@ -106,6 +108,40 @@ def test_variables(testdata: dict):
             else:
                 with pytest.raises(KeyError):
                     variables[observable]
+
+
+def test_dataset(testdata: dict):
+    """Test the full higher-level dataset interface."""
+    reference = {
+        'time': {
+            'axes': ['time'],
+        },
+        'Vr': {
+            'axes': ['time', 'shell'],
+        },
+        'flux': {
+            'axes': ['time', 'shell', 'species', 'energy'],
+        },
+        'dist': {
+            'axes': ['time', 'shell', 'species', 'energy', 'mu'],
+        },
+    }
+    axes = ('time', 'shell', 'species', 'energy', 'mu')
+    for name in ('eprem-obs', 'eprem-flux'):
+        dataset = get_dataset(testdata, name)
+        assert isinstance(dataset, datasets.Dataset)
+        assert isinstance(dataset.variables, typing.Mapping)
+        assert isinstance(dataset.axes, typing.Mapping)
+        for observable, expected in reference.items():
+            if observable in dataset.variables:
+                iter_axes = dataset.iter_axes(observable)
+                assert sorted(iter_axes) == sorted(expected['axes'])
+                unordered = random.sample(axes, len(axes))
+                assert dataset.resolve_axes(unordered) == axes
+            else: # Test both options when variable is not in dataset.
+                assert not list(dataset.iter_axes(observable, default=()))
+                with pytest.raises(ValueError):
+                    dataset.iter_axes(observable)
 
 
 def test_standardize():

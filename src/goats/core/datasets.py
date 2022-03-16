@@ -261,16 +261,6 @@ class DatasetView(iterables.ReprStrMixin, metaclass=iotools.PathSet):
                 canonical=tuple(self.viewers['axes'].keys()),
             )
 
-    def iter_axes(self, name: str):
-        """Iterate over the axes for the named variable."""
-        this = self.variables[name].axes if name in self.variables else ()
-        return iter(this)
-
-    def resolve_axes(self, names: typing.Iterable[str]):
-        """Compute and order the available axes in `names`."""
-        axes = self.available('axes').canonical
-        return tuple(name for name in axes if name in names)
-
     def use(self, **viewers) -> 'DatasetView':
         """Update the viewers for this instance."""
         self.viewers.update(viewers)
@@ -1120,6 +1110,55 @@ class Axes(aliased.Mapping):
         size = self.dataset.axes[key].size
         name = f"'{observables.ALIASES.get(key, key)}'"
         return Axis(size, indexer, name=name)
+
+
+class Dataset:
+    """The user interface to a dataset."""
+
+    def __init__(
+        self,
+        path: iotools.PathLike,
+        indexers: typing.Type[Indexers]=None,
+    ) -> None:
+        self.path = path
+        self.view = DatasetView(path)
+        self.indexers = indexers
+        self._variables = None
+        self._axes = None
+
+    @property
+    def variables(self):
+        """Objects representing the variables in this dataset."""
+        if self._variables is None:
+            self._variables = Variables(self.view)
+        return self._variables
+
+    @property
+    def axes(self):
+        """Objects representing the axes in this dataset."""
+        if self._axes is None:
+            self._axes = (
+                self.view.axes.copy() if self.indexers is None
+                else Axes(self.view, self.indexers)
+            )
+        return self._axes
+
+    Default = typing.TypeVar('Default')
+
+    def iter_axes(self, name: str, default: Default=None):
+        """Iterate over the axes for the named variable."""
+        if name in self.variables:
+            return iter(self.variables[name].axes)
+        if default is not None:
+            return default
+        raise ValueError(
+            f"Can't iterate over axes of missing variable {name!r}"
+        ) from None
+
+    def resolve_axes(self, names: typing.Iterable[str]):
+        """Compute and order the available axes in `names`."""
+        axes = self.view.available('axes').canonical
+        return tuple(name for name in axes if name in names)
 
 
 substitutions = {
