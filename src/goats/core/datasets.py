@@ -1042,9 +1042,9 @@ class Indexer:
         self.method = method
         self.reference = reference
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, targets, **kwargs):
         """Call the array-indexing method."""
-        return self.method(*args, **kwargs)
+        return self.method(targets, **kwargs)
 
 
 class Axis(iterables.ReprStrMixin):
@@ -1070,7 +1070,7 @@ class Axis(iterables.ReprStrMixin):
         targets = self._normalize(*args)
         if all(isinstance(value, numbers.Integral) for value in targets):
             return Indices(targets)
-        return self.indexer(*args, **kwargs)
+        return self.indexer(targets, **kwargs)
 
     def _normalize(self, *user):
         """Helper for computing target values from user input."""
