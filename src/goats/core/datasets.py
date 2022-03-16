@@ -460,6 +460,11 @@ class Variable(Parent, Mixin, allowed=allowed):
         """Called for `~quantities.measure(self)`."""
         return quantities.Measurement(self._amount, self.unit())
 
+    @property
+    def ndim(self) -> int:
+        """The number of dimensions in this variable's array."""
+        return self.naxes
+
     def __len__(self):
         """Called for len(self)."""
         return self._get_data('size')
