@@ -448,7 +448,7 @@ class Variable(Parent, Mixin, allowed=allowed):
 
     def __measure__(self):
         """Called for `~quantities.measure(self)`."""
-        return quantities.Measurement(self._amount, self.unit())
+        return quantities.Measurement(self._get_data(), self.unit())
 
     @property
     def ndim(self) -> int:
