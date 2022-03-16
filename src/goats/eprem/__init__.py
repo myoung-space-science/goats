@@ -6,8 +6,6 @@ import numpy
 import numpy.typing
 
 from goats import Environment
-from goats.eprem import parameters
-from goats.eprem import observables
 from ..core import (
     aliased,
     base,
@@ -18,6 +16,7 @@ from ..core import (
     physical,
     quantities,
 )
+from . import observables
 from .parameters import BaseTypesH
 
 
