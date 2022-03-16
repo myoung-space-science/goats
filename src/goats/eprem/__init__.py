@@ -3,6 +3,7 @@ import typing
 import numbers
 
 import numpy
+import numpy.typing
 
 from goats import Environment
 from goats.eprem import parameters
@@ -88,19 +89,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
 
     def _build_time(self, targets):
         """Build the time-axis indexer."""
-        measured = quantities.measure(targets)
-        vector = quantities.Vector(measured.values, measured.unit)
-        reference = self.variables['time']
-        values = (
-            vector.unit(reference.unit())
-            if vector.unit().dimension == reference.unit().dimension
-            else vector
-        )
-        indices = [
-            numerical.find_nearest(reference, float(value)).index
-            for value in values
-        ]
-        return datasets.Coordinates(indices, values, reference.unit())
+        return self._build_coordinates(targets, self.variables['time'])
 
     def _build_shell(self, targets):
         """Build the shell-axis indexer."""
@@ -122,30 +111,25 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
     def _build_energy(self, targets, species: typing.Union[str, int]=0):
         """Build the energy-axis indexer."""
         s = self._build_species([species])
-        reference = self.variables['energy']
-        measured = (
-            quantities.measure(numpy.squeeze(targets[s, :]))
-            if getattr(targets, 'ndim', None) == 2
-            else quantities.measure(targets)
+        _targets = (
+            numpy.squeeze(targets[s, :]) if getattr(targets, 'ndim', None) == 2
+            else targets
         )
-        vector = quantities.Vector(measured.values, measured.unit)
-        values = (
-            vector.unit(reference.unit())
-            if vector.unit().dimension == reference.unit().dimension
-            else vector
-        )
-        squeezed = numpy.squeeze(reference[s, :])
-        indices = [
-            numerical.find_nearest(squeezed, float(value)).index
-            for value in values
-        ]
-        return datasets.Coordinates(indices, values, reference.unit())
+        _reference = numpy.squeeze(self.variables['energy'][s, :])
+        return self._build_coordinates(_targets, _reference)
 
     def _build_mu(self, targets):
         """Build the mu-axis indexer."""
+        return self._build_coordinates(targets, self.variables['mu'])
+
+    def _build_coordinates(
+        self,
+        targets: numpy.typing.ArrayLike,
+        reference: datasets.Variable,
+    ) -> datasets.Coordinates:
+        """Build an arbitrary coordinate object."""
         measured = quantities.measure(targets)
         vector = quantities.Vector(measured.values, measured.unit)
-        reference = self.variables['mu']
         values = (
             vector.unit(reference.unit())
             if vector.unit().dimension == reference.unit().dimension
@@ -156,6 +140,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
             for value in values
         ]
         return datasets.Coordinates(indices, values, reference.unit())
+
 
     def __str__(self) -> str:
         return ', '.join(str(key) for key in self.keys(aliased=True))
