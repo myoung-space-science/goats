@@ -1088,13 +1088,17 @@ class Axis(iterables.ReprStrMixin):
         return string
 
 
+Indexers = typing.TypeVar('Indexers', bound=typing.Mapping)
+Indexers = typing.Mapping[str, Indexer]
+
+
 class Axes(aliased.Mapping):
     """An interface to dataset axes."""
 
     def __init__(
         self,
         dataset: DatasetView,
-        factory: typing.Type[typing.Mapping],
+        factory: typing.Type[Indexers],
     ) -> None:
         indexers = factory(dataset)
         super().__init__(indexers)
