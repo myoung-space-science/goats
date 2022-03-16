@@ -7,7 +7,6 @@ from goats.core import aliased
 from goats.core import quantities
 from goats.core import algebra
 from goats.core import iterables
-from goats.core import indexing
 from goats.core import physical
 from goats.core import datasets
 from goats.eprem import functions
@@ -83,7 +82,7 @@ class Application:
 
     def __init__(
         self,
-        indices: typing.Mapping[str, indexing.Indices],
+        indices: typing.Mapping[str, datasets.Indices],
         assumptions: typing.Mapping[str, Assumption],
         observables: typing.Mapping[str, Observable],
         reference: typing.Mapping[str, Reference],
@@ -150,7 +149,7 @@ class Application:
     def _need_interp(self, axis: str):
         """True if we need to interpolate over this axis."""
         index = self.indices[axis]
-        if not isinstance(index, indexing.Coordinates):
+        if not isinstance(index, datasets.Coordinates):
             return False
         reference = self.reference[axis]
         targets = np.array(index.values)
@@ -177,7 +176,7 @@ class Application:
                 'reference': self.reference[axis],
             }
             for axis, indices in self.indices.items()
-            if axis in axes and isinstance(indices, indexing.Coordinates)
+            if axis in axes and isinstance(indices, datasets.Coordinates)
         }
         if 'radius' in self.assumptions:
             radii = iterables.whole(self.assumptions['radius'])
@@ -306,10 +305,10 @@ class Interface(base.Interface):
 
     def _update_index(self, key: str, indices):
         """Update a single indexing object based on user input."""
-        if not isinstance(indices, indexing.Indices):
+        if not isinstance(indices, datasets.Indices):
             axis = self.axes[key]
             indices = axis(*iterables.whole(indices))
-        if isinstance(indices, indexing.Coordinates):
+        if isinstance(indices, datasets.Coordinates):
             unit = self.system.get_unit(unit=indices.unit)
             return indices.with_unit(unit)
         return indices
