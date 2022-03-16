@@ -908,6 +908,7 @@ class Variables(aliased.Mapping):
         super().__init__(known)
         self._system = quantities.MetricSystem('mks')
         self._units = None
+        self._cache = {}
 
     @property
     def units(self):
@@ -927,14 +928,18 @@ class Variables(aliased.Mapping):
 
     def __getitem__(self, key: str):
         """Create the named variable, if possible."""
-        variable = super().__getitem__(key)
-        tmp = Variable(
-            variable.data,
-            standardize(variable.unit),
-            variable.axes,
+        if key in self._cache:
+            return self._cache[key]
+        datavar = super().__getitem__(key)
+        variable = Variable(
+            datavar.data,
+            standardize(datavar.unit),
+            datavar.axes,
             name=observables.ALIASES[key],
         )
-        return tmp.unit(self.units[key])
+        result = variable.unit(self.units[key])
+        self._cache[key] = result
+        return result
 
 
 class Indices(collections.abc.Sequence, iterables.ReprStrMixin):
