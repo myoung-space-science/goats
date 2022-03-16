@@ -928,12 +928,13 @@ class Variables(aliased.Mapping):
     def __getitem__(self, key: str):
         """Create the named variable, if possible."""
         variable = super().__getitem__(key)
-        unit = self.units[key]
-        axes = variable.axes
-        name = observables.ALIASES[key]
-        scale = (unit // standardize(variable.unit))
-        data = scale * variable.data[:]
-        return Variable(data, unit, axes, name=name)
+        tmp = Variable(
+            variable.data,
+            standardize(variable.unit),
+            variable.axes,
+            name=observables.ALIASES[key],
+        )
+        return tmp.unit(self.units[key])
 
 
 class Indices(collections.abc.Sequence, iterables.ReprStrMixin):
