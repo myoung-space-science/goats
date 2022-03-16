@@ -1,9 +1,9 @@
 import pytest
 import numpy
 
-from goats.core import indexing
 from goats.core import aliased
-from goats.eprem import datasets
+from goats.core import datasets
+from goats import eprem
 
 
 @pytest.fixture
@@ -14,11 +14,11 @@ def datapath(datadirs: dict):
 
 def test_axes(datapath):
     """Test the axis-indexing objects."""
-    dataset = datasets.Dataset(datapath, 'mks')
+    dataset = datasets.Dataset(datapath, eprem.IndexerFactory)
     axes = dataset.axes
     cases = {
         'time': {
-            'type': indexing.Coordinates,
+            'type': datasets.Coordinates,
             'length': 50,
             'test': {
                 'user': (0.1, 0.3, 'day'),
@@ -27,7 +27,7 @@ def test_axes(datapath):
             },
         },
         'shell': {
-            'type': indexing.Indices,
+            'type': datasets.Indices,
             'length': 2000,
             'test': {
                 'user': (0, 2),
@@ -35,7 +35,7 @@ def test_axes(datapath):
             },
         },
         'species': {
-            'type': indexing.OrderedPairs,
+            'type': datasets.IndexMap,
             'length': 1,
             'test': {
                 'user': ['H+'],
@@ -44,7 +44,7 @@ def test_axes(datapath):
             },
         },
         'energy': {
-            'type': indexing.Coordinates,
+            'type': datasets.Coordinates,
             'length': 20,
             'test': {
                 'user': (1e-1, 1e2, 'MeV'),
@@ -53,7 +53,7 @@ def test_axes(datapath):
             },
         },
         'mu': {
-            'type': indexing.Coordinates,
+            'type': datasets.Coordinates,
             'length': 8,
             'test': {
                 'user': (-1.0, +1.0),
@@ -63,17 +63,18 @@ def test_axes(datapath):
         },
     }
     for name, expected in cases.items():
-        axis = axes[name]
-        full = axis()
-        assert isinstance(full, expected['type'])
-        assert len(full) == expected['length']
-        test = expected['test']
-        user = axis(*test['user'])
-        assert list(user) == test['indices']
-        if isinstance(user, indexing.OrderedPairs):
-            assert list(user.values) == test['values']
-        if isinstance(user, indexing.Coordinates):
-            assert numpy.allclose(user.values, test['values'])
+        if name != 'energy':
+            axis = axes[name]
+            full = axis()
+            assert isinstance(full, expected['type'])
+            assert len(full) == expected['length']
+            test = expected['test']
+            user = axis(*test['user'])
+            assert list(user) == test['indices']
+            if isinstance(user, datasets.IndexMap):
+                assert list(user.values) == test['values']
+            if isinstance(user, datasets.Coordinates):
+                assert numpy.allclose(user.values, test['values'])
     name = 'energy'
     expected = cases['energy']
     species = axes['species']
@@ -90,7 +91,7 @@ def test_axes(datapath):
 
 def test_single_index(datapath):
     """Users should be able to provide a single numerical value."""
-    dataset = datasets.Dataset(datapath, 'mks')
+    dataset = datasets.Dataset(datapath, eprem.IndexerFactory)
     axes = dataset.axes
     cases = {
         'time': {
@@ -137,17 +138,17 @@ def test_variables(datapath):
     cases = {
         'time': {
             'axes': (T,),
-            'unit': {'mks': 's', 'cgs': 's'},
+            'unit': 's',
             'aliases': ['t', 'times'],
         },
         'shell': {
             'axes': (S,),
-            'unit': {'mks': '1', 'cgs': '1'},
+            'unit': '1',
             'aliases': ['shells'],
         },
         'mu': {
             'axes': (M,),
-            'unit': {'mks': '1', 'cgs': '1'},
+            'unit': '1',
             'aliases': [
                 'mus',
                 'pitch angle', 'pitch-angle cosine',
@@ -156,102 +157,87 @@ def test_variables(datapath):
         },
         'mass': {
             'axes': (P,),
-            'unit': {'mks': 'kg', 'cgs': 'g'},
+            'unit': 'kg',
             'aliases': ['m'],
         },
         'charge': {
             'axes': (P,),
-            'unit': {'mks': 'C', 'cgs': 'statC'},
+            'unit': 'C',
             'aliases': ['q'],
         },
         'egrid': {
             'axes': (P, E),
-            'unit': {'mks': 'J', 'cgs': 'erg'},
+            'unit': 'J',
             'aliases': ['energy', 'energies', 'E'],
         },
         'vgrid': {
             'axes': (P, E),
-            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'unit': 'm/s',
             'aliases': ['speed', 'v', 'vparticle'],
         },
         'R': {
             'axes': (T, S),
-            'unit': {'mks': 'm', 'cgs': 'cm'},
+            'unit': 'm',
             'aliases': ['r', 'radius'],
         },
         'T': {
             'axes': (T, S),
-            'unit': {'mks': 'rad', 'cgs': 'rad'},
+            'unit': 'rad',
             'aliases': ['theta'],
         },
         'P': {
             'axes': (T, S),
-            'unit': {'mks': 'rad', 'cgs': 'rad'},
+            'unit': 'rad',
             'aliases': ['phi'],
         },
         'Br': {
             'axes': (T, S),
-            'unit': {'mks': 'T', 'cgs': 'G'},
+            'unit': 'T',
             'aliases': ['br'],
         },
         'Bt': {
             'axes': (T, S),
-            'unit': {'mks': 'T', 'cgs': 'G'},
+            'unit': 'T',
             'aliases': ['bt', 'Btheta', 'btheta'],
         },
         'Bp': {
             'axes': (T, S),
-            'unit': {'mks': 'T', 'cgs': 'G'},
+            'unit': 'T',
             'aliases': ['bp', 'Bphi', 'bphi'],
         },
         'Vr': {
             'axes': (T, S),
-            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'unit': 'm/s',
             'aliases': ['vr'],
         },
         'Vt': {
             'axes': (T, S),
-            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'unit': 'm/s',
             'aliases': ['vt', 'Vtheta', 'vtheta'],
         },
         'Vp': {
             'axes': (T, S),
-            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'unit': 'm/s',
             'aliases': ['vp', 'Vphi', 'vphi'],
         },
         'Rho': {
             'axes': (T, S),
-            'unit': {'mks': 'm^-3', 'cgs': 'cm^-3'},
+            'unit': 'm^-3',
             'aliases': ['rho'],
         },
         'Dist': {
             'axes': (T, S, P, E, M),
-            'unit': {'mks': 's^3/m^6', 'cgs': 's^3/cm^6'},
+            'unit': 's^3/m^6',
             'aliases': ['dist', 'f'],
         },
     }
-    for system in {'mks', 'cgs'}:
-        dataset = datasets.Dataset(datapath, system)
-        variables = dataset.variables
-        for name, expected in cases.items():
-            variable = variables[name]
-            assert variable.axes == expected['axes']
-            assert variable.unit() == expected['unit'][system]
-            key = aliased.MappingKey(name, *expected['aliases'])
-            assert variable.name == key
-
-
-cases = {
-    'julian date': 'day',
-    'shell': '1',
-    'cos(mu)': '1',
-    'e-': 'e',
-    '# / cm^2 s sr MeV': '# / (cm^2 s sr MeV/nuc)',
-}
-
-def test_standardize():
-    """Test the helper function that standardizes unit strings."""
-    for old, new in cases.items():
-        assert datasets.standardize(old) == new
+    dataset = datasets.Dataset(datapath, eprem.IndexerFactory)
+    variables = dataset.variables
+    for name, expected in cases.items():
+        variable = variables[name]
+        assert variable.axes == expected['axes']
+        assert variable.unit() == expected['unit']
+        key = aliased.MappingKey(name, *expected['aliases'])
+        assert variable.name == key
 
 

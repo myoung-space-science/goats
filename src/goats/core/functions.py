@@ -16,7 +16,7 @@ from goats.core import physical
 registry = iterables.ObjectRegistry(object_key='method')
 
 
-C = physical.Constants('mks')
+MKS = physical.Constants('mks')
 
 
 @registry.register
@@ -92,8 +92,8 @@ def flow_angle(
 ) -> numpy.ndarray:
     """The angle between the magnetic- and velocity-field vectors."""
     b_dot_v = v_para(br, bt, bp, vr, vt, vp)
-    bv_mag = bv_mag(br, bt, bp, vr, vt, vp)
-    arg = numpy.array(b_dot_v / bv_mag)
+    bv = bv_mag(br, bt, bp, vr, vt, vp)
+    arg = numpy.array(b_dot_v / bv)
     arg[arg < -1.0] = -1.0
     arg[arg > +1.0] = +1.0
     return numpy.arccos(arg)
@@ -173,7 +173,7 @@ def rigidity(
     relativistic relation E² = (`energy` + mc²)² = p²c² + (mc²)². Finally,
     it divides the momentum by the particle charge to get rigidity.
     """
-    c = C('c')
+    c = float(MKS['c'])
     total_energy = numpy.array(energy, ndmin=1) + mass*c**2
     rest_energy = mass*c**2
     p = numpy.sqrt(total_energy**2 - rest_energy**2) / c
@@ -192,9 +192,9 @@ def mean_free_path(
 ) -> numpy.ndarray:
     """The scattering mean free path."""
     rg = rigidity(energy, mass, charge)
-    rg0 = rigidity(1e6 * C('eV'), mass, charge)
+    rg0 = rigidity(1e6 * float(MKS['eV']), mass, charge)
     mfp = numpy.tensordot(
-        pow(r / float(C('au')), float(mfp_radial_power)),
+        pow(r / float(MKS['au']), float(mfp_radial_power)),
         pow(rg / rg0, float(rigidity_power)),
         axes=0,
     )
@@ -230,13 +230,13 @@ def acceleration_rate(
     tmp = delta_v / delta_x.transpose(forward)
     return tmp.transpose(inverse)
 
-def _ahead(self, arr: numpy.ndarray) -> numpy.ndarray:
+def _ahead(arr: numpy.ndarray) -> numpy.ndarray:
     """Extract array values at the shell immediately ahead."""
     nshells = arr.shape[1]
     idx = [*list(range(1, nshells)), nshells-1]
     return arr[:, idx, ...]
 
-def _behind(self, arr: numpy.ndarray) -> numpy.ndarray:
+def _behind(arr: numpy.ndarray) -> numpy.ndarray:
     """Extract array values at the shell immediately behind."""
     nshells = arr.shape[1]
     idx = [0, *list(range(nshells-1))]
@@ -260,7 +260,7 @@ def energy_density(
     """
     v = numpy.array(speed, ndmin=1)
     dv = numpy.gradient(v, axis=-1)
-    return C('mp') * numpy.sum(v**4 * isodist * dv, axis=-1)
+    return float(MKS['mp']) * numpy.sum(v**4 * isodist * dv, axis=-1)
 
 
 @registry.register
@@ -306,7 +306,7 @@ def flux(
     isodist: numpy.ndarray,
 ) -> numpy.ndarray:
     """Compute the differential energy flux of a distribution."""
-    dist_to_flux = 2 * numpy.array(energy, ndmin=1) / C('mp')**2
+    dist_to_flux = 2 * numpy.array(energy, ndmin=1) / float(MKS['mp'])**2
     return dist_to_flux * isodist
 
 
@@ -419,7 +419,10 @@ class Method(iterables.ReprStrMixin):
 
 
 _METHODS = {
-    observables.ALIASES[name]: registered['method']
+    observables.ALIASES[name]: Method(
+        registered['method'],
+        {k: v for k, v in registered.items() if k != 'method'},
+    )
     for name, registered in registry.items()
 }
 METHODS = aliased.Mapping(_METHODS)
