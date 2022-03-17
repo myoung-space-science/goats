@@ -1155,10 +1155,7 @@ class Dataset:
     def axes(self):
         """Objects representing the axes in this dataset."""
         if self._axes is None:
-            self._axes = (
-                self.view.axes.copy() if self.indexers is None
-                else Axes(self.view, self.indexers)
-            )
+            self._axes = Axes(self.view, self.indexers)
         return self._axes
 
     Default = typing.TypeVar('Default')
