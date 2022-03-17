@@ -385,7 +385,6 @@ class Observables(iterables.MappingBase):
         arguments: parameters.Arguments,
     ) -> None:
         self.variables = dataset.variables
-        constants = physical.Constants(system)
         self.functions = functions.Functions(dataset, arguments)
         vkeys = self.variables.keys
         fkeys = self.functions.keys
@@ -398,7 +397,6 @@ class Observables(iterables.MappingBase):
         self.dataset = dataset
         self.system = system
         self.arguments = arguments
-        self.constants = constants
         self._cache = {}
 
     def __getitem__(self, key: str):
@@ -493,10 +491,6 @@ class Observables(iterables.MappingBase):
         if name in self.functions:
             k = self.functions.alias(name, include=True)
             v = self.functions[name]
-            return k, v
-        if name in self.constants:
-            k = name
-            v = self.constants[name]
             return k, v
         if name in self.arguments:
             k = self.arguments.alias(name, include=True)
