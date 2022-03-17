@@ -260,12 +260,11 @@ class Interface(base.Interface):
         self,
         implementation: Implementation,
         dataset: datasets.Dataset,
-        system: quantities.MetricSystem,
         dependencies: typing.Mapping[str, Dependency]=None,
     ) -> None:
         self.implementation = implementation
         self.axes = dataset.axes
-        self.system = system
+        self.system = quantities.MetricSystem('mks')
         self.dependencies = aliased.Mapping(dependencies or {})
         self._result = None
         self._context = None
@@ -309,8 +308,7 @@ class Interface(base.Interface):
             axis = self.axes[key]
             indices = axis(*iterables.whole(indices))
         if isinstance(indices, datasets.Coordinates):
-            unit = self.system.get_unit(unit=indices.unit)
-            return indices.with_unit(unit)
+            return indices
         return indices
 
     def update_assumptions(self, constraints: typing.Mapping):
@@ -370,7 +368,6 @@ class Interface(base.Interface):
         pairs = [
             f"implementation={self.implementation}",
             f"axes={self.axes}",
-            f"system={self.system}",
         ]
         return ', '.join(pairs)
 
@@ -413,7 +410,6 @@ class Observables(iterables.MappingBase):
             return Interface(
                 cached['implementation'],
                 self.dataset,
-                self.system,
                 dependencies=cached['dependencies'],
             )
         implementation = self.get_implementation(key)
@@ -426,7 +422,6 @@ class Observables(iterables.MappingBase):
             return Interface(
                 implementation,
                 self.dataset,
-                self.system,
                 dependencies=dependencies,
             )
 
