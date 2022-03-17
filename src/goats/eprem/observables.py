@@ -14,6 +14,9 @@ from goats.eprem import parameters
 from goats.eprem import interpolation
 
 
+MKS = quantities.MetricSystem('mks')
+
+
 Observable = typing.TypeVar(
     'Observable',
     datasets.Variable,
@@ -91,7 +94,6 @@ class Application:
         self.assumptions = assumptions
         self.observables = observables
         self.reference = reference
-        self.system = quantities.MetricSystem('mks')
 
     def evaluate(self, implementation: Implementation):
         """Create a variable from the given implementation."""
@@ -224,7 +226,7 @@ class Application:
     def _evaluate_function(self, function: functions.Function):
         """Gather dependencies and call this function."""
         deps = {p: self._get_observable(p) for p in function.parameters}
-        unit = self.system.get_unit(quantity=function.quantity)
+        unit = MKS.get_unit(quantity=function.quantity)
         return function(deps, unit)
 
     def _evaluate_compound(self, implementation: Compound):
@@ -263,7 +265,6 @@ class Interface(base.Interface):
     ) -> None:
         self.implementation = implementation
         self.axes = dataset.axes
-        self.system = quantities.MetricSystem('mks')
         self.dependencies = aliased.Mapping(dependencies or {})
         self._result = None
         self._context = None
@@ -323,7 +324,7 @@ class Interface(base.Interface):
     def _update_assumption(self, scalar):
         """Update a single assumption from user input."""
         if isinstance(scalar, quantities.Scalar):
-            unit = self.system.get_unit(unit=scalar.unit())
+            unit = MKS.get_unit(unit=scalar.unit())
             return scalar.unit(unit)
         measured = quantities.measure(scalar)
         assumption = [self._update_assumption(v) for v in measured[:]]
@@ -376,7 +377,6 @@ class Observables(iterables.MappingBase):
     def __init__(
         self,
         dataset: datasets.Dataset,
-        system: quantities.MetricSystem,
         arguments: parameters.Arguments,
     ) -> None:
         self.variables = dataset.variables
@@ -390,7 +390,6 @@ class Observables(iterables.MappingBase):
         akeys = tuple(vkeys(aliased=True)) + tuple(fkeys(aliased=True))
         self.aliases = aliased.KeyMap(akeys)
         self.dataset = dataset
-        self.system = system
         self.arguments = arguments
         self._cache = {}
 

@@ -160,7 +160,6 @@ class Observer(base.Observer):
         self._arguments = None
         interface = observables.Observables(
             self.dataset,
-            self.system,
             self.arguments,
         )
         super().__init__(interface)
