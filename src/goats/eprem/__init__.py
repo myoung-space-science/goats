@@ -81,11 +81,6 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
         this = super().__getitem__(key)
         return datasets.Indexer(this['method'], this['reference'])
 
-    # TODO: Extract common method(s) for time, energy, and mu. Note that
-    # although time and mu require identical algorithms for a given variable
-    # name, energy requires a slightly different algorithm that accounts for
-    # species.
-
     def _build_time(self, targets):
         """Build the time-axis indexer."""
         return self._build_coordinates(targets, self.variables['time'])
