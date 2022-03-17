@@ -86,13 +86,12 @@ class Application:
         assumptions: typing.Mapping[str, Assumption],
         observables: typing.Mapping[str, Observable],
         reference: typing.Mapping[str, Reference],
-        system: quantities.MetricSystem,
     ) -> None:
         self.indices = indices
         self.assumptions = assumptions
         self.observables = observables
         self.reference = reference
-        self.system = system
+        self.system = quantities.MetricSystem('mks')
 
     def evaluate(self, implementation: Implementation):
         """Create a variable from the given implementation."""
@@ -339,7 +338,6 @@ class Interface(base.Interface):
             assumptions,
             self.observables,
             self.reference,
-            self.system,
         )
         self._result = application.evaluate(self.implementation)
         self._context = {
