@@ -88,14 +88,12 @@ class Functions(aliased.Mapping):
         self,
         dataset: datasets.Dataset,
         arguments: parameters.Arguments,
-        constants: physical.Constants,
     ) -> None:
         super().__init__(mapping=functions.METHODS)
         self.dataset = dataset
         self._primary = (
             *tuple(self.dataset.variables.keys()),
             *tuple(arguments.keys()),
-            *tuple(constants.keys()),
         )
         self._axes_cache = {}
         self._dependencies_cache = {}

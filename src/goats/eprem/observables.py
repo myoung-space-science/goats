@@ -386,7 +386,7 @@ class Observables(iterables.MappingBase):
     ) -> None:
         self.variables = dataset.variables
         constants = physical.Constants(system)
-        self.functions = functions.Functions(dataset, arguments, constants)
+        self.functions = functions.Functions(dataset, arguments)
         vkeys = self.variables.keys
         fkeys = self.functions.keys
         self.primary = tuple(vkeys())
