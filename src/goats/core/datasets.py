@@ -1095,8 +1095,20 @@ class Axis(iterables.ReprStrMixin):
         return string
 
 
-Indexers = typing.TypeVar('Indexers', bound=typing.Mapping)
-Indexers = typing.Mapping[str, Indexer]
+class Indexers(aliased.Mapping):
+    """The default collection of axis indexers."""
+
+    def __init__(self, dataset: DatasetView) -> None:
+        self.dataset = dataset
+        self.references = {}
+        super().__init__(dataset.axes)
+
+    def __getitem__(self, key: str) -> Indexer:
+        """Get the default indexer for `key`."""
+        axis = super().__getitem__(key)
+        reference = range(axis.size)
+        method = lambda _: Indices(reference)
+        return Indexer(method, reference)
 
 
 class Axes(aliased.Mapping):
@@ -1128,7 +1140,7 @@ class Dataset:
     ) -> None:
         self.path = path
         self.view = DatasetView(path)
-        self.indexers = indexers
+        self.indexers = indexers or Indexers
         self._variables = None
         self._axes = None
 

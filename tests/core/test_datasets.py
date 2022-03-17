@@ -126,18 +126,28 @@ def test_dataset(testdata: dict):
             'axes': ['time', 'shell', 'species', 'energy', 'mu'],
         },
     }
-    axes = ('time', 'shell', 'species', 'energy', 'mu')
+    axes = {
+        'time': 20,
+        'shell': 100,
+        'species': 2,
+        'energy': 10,
+        'mu': 5,
+    }
     for name in ('eprem-obs', 'eprem-flux'):
         dataset = get_dataset(testdata, name)
         assert isinstance(dataset, datasets.Dataset)
         assert isinstance(dataset.variables, typing.Mapping)
         assert isinstance(dataset.axes, typing.Mapping)
+        for key, length in axes.items():
+            axis = dataset.axes[key]
+            assert key in axis.name
+            assert list(axis()) == list(range(length))
         for observable, expected in reference.items():
             if observable in dataset.variables:
                 iter_axes = dataset.iter_axes(observable)
                 assert sorted(iter_axes) == sorted(expected['axes'])
-                unordered = random.sample(axes, len(axes))
-                assert dataset.resolve_axes(unordered) == axes
+                unordered = random.sample(axes.keys(), len(axes))
+                assert dataset.resolve_axes(unordered) == tuple(axes)
             else: # Test both options when variable is not in dataset.
                 assert not list(dataset.iter_axes(observable, default=()))
                 with pytest.raises(ValueError):
