@@ -292,21 +292,21 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
 
 def _add(a: Variable, b):
     """Called for a + b."""
-    if isinstance(b, numbers.Real):
+    if isinstance(b, quantities.RealValued):
         return {'unit': a.unit, 'axes': a.axes, 'name': a.name}
     if isinstance(b, Variable) and a.axes == b.axes and a.unit == b.unit:
         return {'unit': a.unit, 'axes': a.axes, 'name': f"{a.name} + {b.name}"}
 
 def _subtract(a: Variable, b):
     """Called for a - b."""
-    if isinstance(b, numbers.Real):
+    if isinstance(b, quantities.RealValued):
         return {'unit': a.unit, 'axes': a.axes, 'name': a.name}
     if isinstance(b, Variable) and a.axes == b.axes and a.unit == b.unit:
         return {'unit': a.unit, 'axes': a.axes, 'name': f"{a.name} - {b.name}"}
 
 def _multiply(a: Variable, b):
     """Called for a * b."""
-    if isinstance(b, numbers.Real):
+    if isinstance(b, quantities.RealValued):
         return {'unit': a.unit, 'axes': a.axes, 'name': a.name}
     if isinstance(b, Variable):
         axes = tuple(set(a.axes + b.axes))
@@ -320,7 +320,7 @@ def _multiply(a: Variable, b):
 
 def _true_divide(a: Variable, b):
     """Called for a / b."""
-    if isinstance(b, numbers.Real):
+    if isinstance(b, quantities.RealValued):
         return {'unit': a.unit, 'axes': a.axes, 'name': a.name}
     if isinstance(b, Variable):
         axes = tuple(set(a.axes + b.axes))
