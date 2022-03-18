@@ -309,7 +309,7 @@ def _multiply(a: Variable, b):
     if isinstance(b, quantities.RealValued):
         return {'unit': a.unit, 'axes': a.axes, 'name': a.name}
     if isinstance(b, Variable):
-        axes = tuple(set(a.axes + b.axes))
+        axes = _get_unique_axes(a.axes + b.axes)
         a_arr, b_arr = _extend_arrays(a, b, axes)
         return {
             'data': a_arr * b_arr,
@@ -323,7 +323,7 @@ def _true_divide(a: Variable, b):
     if isinstance(b, quantities.RealValued):
         return {'unit': a.unit, 'axes': a.axes, 'name': a.name}
     if isinstance(b, Variable):
-        axes = tuple(set(a.axes + b.axes))
+        axes = _get_unique_axes(a.axes + b.axes)
         a_arr, b_arr = _extend_arrays(a, b, axes)
         return {
             'data': a_arr / b_arr,
@@ -331,6 +331,14 @@ def _true_divide(a: Variable, b):
             'axes': axes,
             'name': f"{a.name} / {b.name}",
         }
+
+def _get_unique_axes(axes: typing.Iterable[str]):
+    """Extract unique axes while preserving input order."""
+    a = []
+    for axis in axes:
+        if axis not in a:
+            a.append(axis)
+    return a
 
 def _extend_arrays(
     a: Variable,
