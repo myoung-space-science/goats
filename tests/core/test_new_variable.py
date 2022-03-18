@@ -103,6 +103,7 @@ def test_div(components):
     expected = ref[0]['data'] / ref[1]['data']
     assert numpy.array_equal(result, expected)
 
+
 def test_div_diff_shape(components):
     ref = [components[i] for i in (0, 2)]
     var = [Variable(**component) for component in ref]
@@ -117,6 +118,27 @@ def test_div_diff_shape(components):
     with pytest.raises(ValueError):
         expected = ref[0]['data'] / ref[1]['data']
         assert numpy.array_equal(result, expected)
+
+
+def test_pow_number(components):
+    ref = components[0]
+    var = Variable(**ref)
+    result = var ** 2
+    assert isinstance(result, Variable)
+    assert result.unit == f"{ref['unit']}^2"
+    assert result.axes == ref['axes']
+    assert result.name == f"{ref['name']}^2"
+    expected = ref['data'] ** 2
+    assert numpy.array_equal(result, expected)
+
+
+def test_pow_array(components):
+    ref = components[0]
+    var = Variable(**ref)
+    result = var ** ref['data']
+    assert isinstance(result, numpy.ndarray)
+    expected = ref['data'] ** ref['data']
+    assert numpy.array_equal(result, expected)
 
 
 def test_sqrt(components):
