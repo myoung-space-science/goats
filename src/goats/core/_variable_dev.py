@@ -124,6 +124,8 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
             return _multiply
         if name == 'true_divide':
             return _true_divide
+        if name == 'sqrt':
+            return _sqrt
 
     _HANDLED_FUNCTIONS = {}
 
@@ -359,4 +361,8 @@ def _extend_arrays(
     b_idx = tuple(idx[axes.index(d)] for d in b.shape_dict)
     b_arr = b._get_data(b_idx)
     return a_arr, b_arr
+
+def _sqrt(a: Variable):
+    """Called for `numpy.sqrt(a)`."""
+    return {'unit': f"sqrt({a.unit})", 'name': f"sqrt({a.name})"}
 
