@@ -165,9 +165,8 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         
         Notes
         -----
-        This will first cast `self._amount` (inherited from
-        `~quantities.Measured`) on its own to a `numpy.ndarray`, before applying
-        `*args` and `**kwargs`, in order to avoid a `TypeError` when using
+        This will retrieve the underlying array before applying `*args` and
+        `**kwargs`, in order to avoid a `TypeError` when using
         `netCDF4.Dataset`. See
         https://github.com/mcgibbon/python-examples/blob/master/scripts/file-io/load_netCDF4_full.py
         """
