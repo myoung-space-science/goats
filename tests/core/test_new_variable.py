@@ -115,7 +115,7 @@ def test_sqrt(components):
     assert result.unit == f"sqrt({ref['unit']})"
     assert result.axes == ref['axes']
     assert result.name == f"sqrt({ref['name']})"
-    expected = numpy.sqrt(ref[0]['data'])
+    expected = numpy.sqrt(ref['data'])
     assert numpy.array_equal(result, expected)
 
 
@@ -124,7 +124,7 @@ def test_squeeze(components):
     var = Variable(**ref)
     result = numpy.squeeze(var)
     assert isinstance(result, numpy.ndarray)
-    expected = numpy.squeeze(ref[0]['data'])
+    expected = numpy.squeeze(ref['data'])
     assert numpy.array_equal(result, expected)
 
 
