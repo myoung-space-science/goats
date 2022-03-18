@@ -31,6 +31,12 @@ def components():
             'axes': ('x', 'y', 'z'),
             'name': 'v3',
         },
+        {
+            'data': 1 + numpy.arange(3 * 4 * 5).reshape(3, 4, 5),
+            'unit': 'J',
+            'axes': ('x', 'y', 'z'),
+            'name': 'v4',
+        },
     ]
 
 
@@ -137,4 +143,39 @@ def test_squeeze(components):
     assert numpy.array_equal(result, expected)
 
 
+def test_axis_mean(components):
+    ref = components[4]
+    var = Variable(**ref)
+
+    result = numpy.mean(var, axis=0)
+    assert isinstance(result, Variable)
+    assert result.unit == ref['unit']
+    assert result.axes == ('y', 'z')
+    assert result.name == f"mean({ref['name']})"
+    expected = numpy.mean(ref['data'], axis=0)
+    assert numpy.array_equal(result, expected)
+
+    result = numpy.mean(var, axis=1)
+    assert isinstance(result, Variable)
+    assert result.unit == ref['unit']
+    assert result.axes == ('x', 'z')
+    assert result.name == f"mean({ref['name']})"
+    expected = numpy.mean(ref['data'], axis=1)
+    assert numpy.array_equal(result, expected)
+
+    result = numpy.mean(var, axis=2)
+    assert isinstance(result, Variable)
+    assert result.unit == ref['unit']
+    assert result.axes == ('x', 'y')
+    assert result.name == f"mean({ref['name']})"
+    expected = numpy.mean(ref['data'], axis=2)
+    assert numpy.array_equal(result, expected)
+
+
+def test_full_mean(components):
+    ref = components[4]
+    var = Variable(**ref)
+    result = numpy.mean(var)
+    assert isinstance(result, float)
+    assert result == numpy.mean(ref['data'])
 

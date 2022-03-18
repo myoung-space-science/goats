@@ -332,6 +332,17 @@ def _squeeze(v: Variable, **kwargs):
     return Variable(data, unit=v.unit, axes=axes, name=v.name)
 
 
+@Variable.implements(numpy.mean)
+def _mean(v: Variable, **kwargs):
+    """Compute the mean of the underlying array."""
+    data = v._get_data().mean(**kwargs)
+    axis = kwargs.get('axis')
+    if axis is None:
+        return data
+    axes = tuple(a for a in v.axes if v.axes.index(a) != axis)
+    name = f"mean({v.name})"
+    return Variable(data, unit=v.unit, axes=axes, name=name)
+
 
 # TODO: Refactor functions to reduce overlap.
 
