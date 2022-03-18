@@ -88,7 +88,6 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         This method first ensures that the input types (as well as the type of
         `out`, if given) are supported types.
         """
-        print(f"You called __array_ufunc__ for {ufunc=}")
         out = kwargs.get('out', ())
         for x in inputs + out:
             if not isinstance(x, self._HANDLED_TYPES + (type(self),)):
@@ -141,7 +140,6 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         The initial `issubclass` check allows subclasses that don't override
         `__array_function__` to handle objects of this type.
         """
-        print(f"You called __array_function__ for {func=}")
         accepted = (type(self), numpy.ndarray, numpy.ScalarType)
         if not all(issubclass(ti, accepted) for ti in types):
             return NotImplemented
