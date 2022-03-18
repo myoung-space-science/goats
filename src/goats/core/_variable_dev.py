@@ -186,7 +186,7 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         If `arg` is not a string, this method will assume it is an index and
         will attempt to return the relevant portion of the dataset array (after
         loading from disk, if necessary). If `arg` is a string, this method will
-        first search `_amount` for the named attribute, to take advantage of
+        first search `_data` for the named attribute, to take advantage of
         viewers that provide metadata without loading the full dataset. If that
         search fails, this method will attempt to retrieve the named attribute
         from the full array.
@@ -203,7 +203,7 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         Notes
         -----
         If `index` is not `None`, this method will create the requested subarray
-        from `self._amount` and directly return it. If `index` is `None`, this
+        from `self._data` and directly return it. If `index` is `None`, this
         method will load the entire array and let execution proceed to the
         following block, which will immediately return the array. It will then
         subscript the pre-loaded array on subsequent calls. The reasoning behind
@@ -233,11 +233,11 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         
         If `index` is "missing" in the sense defined by `~iterables.missing`
         this method will load and return the full array. If `index` is not
-        missing, this method will first attempt to subscript `self._amount`
-        before converting it to an array and returning it. If it catches either
-        a `TypeError` or an `IndexError`, it will create the full array before
-        subscripting and returning it. The former may occur if `self._amount` is
-        a sequence type like `list`, `tuple`, or `range`; the latter may occur
+        missing, this method will first attempt to subscript `self._data` before
+        converting it to an array and returning it. If it catches either a
+        `TypeError` or an `IndexError`, it will create the full array before
+        subscripting and returning it. The former may occur if `self._data` is a
+        sequence type like `list`, `tuple`, or `range`; the latter may occur
         when attempting to subscript certain array-like objects (e.g.,
         `netCDF4._netCDF4.Variable`) with valid `numpy` index expressions.
         """
