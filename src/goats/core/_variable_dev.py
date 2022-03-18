@@ -92,10 +92,12 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         for x in inputs + out:
             if not isinstance(x, self._HANDLED_TYPES + (type(self),)):
                 return NotImplemented
-        updater = self._dispatch_updater(ufunc)
-        updates = updater(*inputs, **kwargs) if updater else {}
-        if 'data' in updates:
-            return self._new_from_func(updates.pop('data'), **updates)
+        if updater := self._dispatch_updater(ufunc):
+            updates = updater(*inputs, **kwargs) or {}
+            if 'data' in updates:
+                return self._new_from_func(updates.pop('data'), **updates)
+        else:
+            updates = {}
         args = tuple(
             x._get_data() if isinstance(x, type(self))
             else x for x in inputs
