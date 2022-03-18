@@ -144,8 +144,8 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         if not all(issubclass(ti, accepted) for ti in types):
             return NotImplemented
         if func in self._HANDLED_FUNCTIONS:
-            arr = self._HANDLED_FUNCTIONS[func](*args, **kwargs)
-            return self._new_from_func(arr)
+            result = self._HANDLED_FUNCTIONS[func](*args, **kwargs)
+            return self._new_from_func(result)
         args = tuple(
             arg._get_data() if isinstance(arg, type(self))
             else arg for arg in args
@@ -285,6 +285,52 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
         return f"{self.__class__.__qualname__}({self})"
+
+    @classmethod
+    def implements(cls, numpy_function):
+        """Register an `__array_function__` implementation for this class.
+
+        See https://numpy.org/doc/stable/reference/arrays.classes.html for the
+        suggestion on which this method is based.
+
+        EXAMPLE
+        -------
+        Overload `numpy.mean` for an existing class called ``Array`` with a
+        version that accepts no keyword arguments::
+
+            @Array.implements(numpy.mean)
+            def mean(a: Array, **kwargs) -> Array:
+                if kwargs:
+                    msg = "Cannot pass keywords to numpy.mean with Array"
+                    raise TypeError(msg)
+                return numpy.sum(a) / len(a)
+
+        This will compute the mean of the underlying data when called with no
+        arguments, but will raise an exception when called with arguments:
+
+            >>> v = Array([[1, 2], [3, 4]])
+            >>> numpy.mean(v)
+            5.0
+            >>> numpy.mean(v, axis=0)
+            ...
+            TypeError: Cannot pass keywords to numpy.mean with Array
+        """
+        def decorator(func):
+            cls._HANDLED_FUNCTIONS[numpy_function] = func
+            return func
+        return decorator
+
+
+@Variable.implements(numpy.squeeze)
+def _squeeze(v: Variable, **kwargs):
+    """Remove singular axes."""
+    data = v._get_data().squeeze(**kwargs)
+    axes = tuple(
+        a for a, d in zip(v.axes, v._get_data('shape'))
+        if d != 1
+    )
+    return Variable(data, unit=v.unit, axes=axes, name=v.name)
+
 
 
 # TODO: Refactor functions to reduce overlap.

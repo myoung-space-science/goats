@@ -25,6 +25,12 @@ def components():
             'axes': ('x', 'z'),
             'name': 'v2',
         },
+        {
+            'data': 1 + numpy.arange(3 * 4).reshape(3, 1, 4),
+            'unit': 'J',
+            'axes': ('x', 'y', 'z'),
+            'name': 'v3',
+        },
     ]
 
 
@@ -120,10 +126,13 @@ def test_sqrt(components):
 
 
 def test_squeeze(components):
-    ref = components[0]
+    ref = components[3]
     var = Variable(**ref)
     result = numpy.squeeze(var)
-    assert isinstance(result, numpy.ndarray)
+    assert isinstance(result, Variable)
+    assert result.unit == ref['unit']
+    assert result.axes == ('x', 'z')
+    assert result.name == ref['name']
     expected = numpy.squeeze(ref['data'])
     assert numpy.array_equal(result, expected)
 
