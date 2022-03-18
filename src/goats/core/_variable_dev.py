@@ -127,6 +127,8 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
             return _true_divide
         if name == 'sqrt':
             return _sqrt
+        if name == 'power':
+            return _power
 
     _HANDLED_FUNCTIONS = {}
 
@@ -421,4 +423,11 @@ def _extend_arrays(
 def _sqrt(a: Variable):
     """Called for `numpy.sqrt(a)`."""
     return {'unit': f"sqrt({a.unit})", 'name': f"sqrt({a.name})"}
+
+def _power(a: Variable, b):
+    """Called for a ** b or pow(a, b)."""
+    if isinstance(b, numbers.Real):
+        unit = a.unit.__pow__(b)
+        name = f"{a.name}^{b}"
+        return {'unit': unit, 'axes': a.axes, 'name': name}
 
