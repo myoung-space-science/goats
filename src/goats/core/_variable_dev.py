@@ -63,6 +63,16 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         self._array = None
         return self
 
+    def __eq__(self, other: typing.Any):
+        """True if two instances have the same data and attributes."""
+        if not isinstance(other, Variable):
+            return NotImplemented
+        if not self.axes == other.axes:
+            return False
+        if not self.unit == other.unit:
+            return False
+        return numpy.array_equal(other, self)
+
     _HANDLED_TYPES = (numpy.ndarray, numbers.Number, list)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
