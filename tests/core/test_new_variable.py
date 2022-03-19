@@ -92,7 +92,7 @@ def test_mul_diff_shape(components):
         assert numpy.array_equal(result, expected)
 
 
-def test_div(components):
+def test_div_same_shape(components):
     ref = [components[i] for i in (0, 1)]
     var = [Variable(**component) for component in ref]
     result = var[0] / var[1]
