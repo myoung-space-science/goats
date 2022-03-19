@@ -40,7 +40,33 @@ def components():
     ]
 
 
-def test_add(components):
+def test_add_number(components):
+    ref = [components[i] for i in (0, 1)]
+    var = [Variable(**component) for component in ref]
+    num = 2.3
+    result = var[0] + num
+    assert isinstance(result, Variable)
+    assert result.unit == ref[0]['unit']
+    assert result.axes == ref[0]['axes']
+    assert result.name == ref[0]['name']
+    expected = ref[0]['data'] + num
+    assert numpy.array_equal(result, expected)
+
+
+def test_sub_number(components):
+    ref = [components[i] for i in (0, 1)]
+    var = [Variable(**component) for component in ref]
+    num = 2.3
+    result = var[0] - num
+    assert isinstance(result, Variable)
+    assert result.unit == ref[0]['unit']
+    assert result.axes == ref[0]['axes']
+    assert result.name == ref[0]['name']
+    expected = ref[0]['data'] - num
+    assert numpy.array_equal(result, expected)
+
+
+def test_add_variable(components):
     ref = [components[i] for i in (0, 1)]
     var = [Variable(**component) for component in ref]
     result = var[0] + var[1]
@@ -52,7 +78,7 @@ def test_add(components):
     assert numpy.array_equal(result, expected)
 
 
-def test_sub(components):
+def test_sub_variable(components):
     ref = [components[i] for i in (0, 1)]
     var = [Variable(**component) for component in ref]
     result = var[0] - var[1]
