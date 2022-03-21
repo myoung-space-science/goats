@@ -73,6 +73,81 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
             return False
         return numpy.array_equal(other, self)
 
+    def __len__(self):
+        """Called for len(self)."""
+        return self._get_data('size')
+
+    def __iter__(self):
+        """Called for iter(self)."""
+        if method := self._get_data('__iter__'):
+            return method()
+        return iter(self._get_data())
+
+    def __contains__(self, item):
+        """Called for `item` in self."""
+        return item in self._data or item in self._get_data()
+
+    _builtin = (int, slice, type(...))
+
+    def __getitem__(self, *args: IndexLike):
+        """Create a new instance from a subset of data."""
+        unwrapped = iterables.unwrap(args)
+        if self._types_match(unwrapped, self._builtin):
+            return self._subscript_standard(unwrapped)
+        return self._subscript_custom(unwrapped)
+
+    def _types_match(self, args, types):
+        """True if `args` is one `types` or a collection of `types`."""
+        return (
+            isinstance(args, types)
+            or all(isinstance(arg, types) for arg in args)
+        )
+
+    def _subscript_standard(self, indices):
+        """Perform standard array subscription.
+
+        This method handles cases involving slices, an ellipsis, or integers,
+        including v[:], v[...], v[i, :], v[:, j], and v[i, j], where i and j are
+        integers.
+        """
+        result = self._get_data(indices)
+        if isinstance(result, numbers.Number):
+            return quantities.Scalar(result, unit=self.unit)
+        return self.copy_with(data=result)
+
+    def _subscript_custom(self, args):
+        """Perform array subscription specific to this object.
+
+        This method handles all cases that don't meet the criteria for
+        `_subscript_standard`.
+        """
+        if not isinstance(args, (tuple, list)):
+            args = [args]
+        expanded = self._expand_ellipsis(args)
+        shape = self._get_data('shape')
+        idx = [
+            range(shape[i])
+            if isinstance(arg, slice) else arg
+            for i, arg in enumerate(expanded)
+        ]
+        indices = numpy.ix_(*list(idx))
+        return self.copy_with(data=self._get_data(indices))
+
+    def _expand_ellipsis(
+        self,
+        user: typing.Sequence,
+    ) -> typing.Tuple[slice, ...]:
+        """Expand an ``Ellipsis`` into one or more ``slice`` objects."""
+        if Ellipsis not in user:
+            return user
+        length = self.naxes - len(user) + 1
+        start = user.index(Ellipsis)
+        return tuple([
+            *user[slice(start)],
+            *([slice(None)] * length),
+            *user[slice(start+length, self.naxes)],
+        ])
+
     _HANDLED_TYPES = (numpy.ndarray, numbers.Number, list)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
