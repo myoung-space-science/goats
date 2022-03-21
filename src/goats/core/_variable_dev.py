@@ -85,50 +85,61 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         https://numpy.org/doc/stable/reference/generated/numpy.lib.mixins.NDArrayOperatorsMixin.html#numpy.lib.mixins.NDArrayOperatorsMixin
         for the specific implementation example that this class follows.
 
+        Notes
+        -----
         This method first ensures that the input types (as well as the type of
-        `out`, if given) are supported types.
+        `out`, if passed via keyword) are supported types. It then extracts
+        arrays from any inputs that are an instance of this class or a subclass
+        and applies `ufunc`. If `ufunc` is one of a pre-defined set of methods
+        that would cause an attribute of this class to become ambiguous or
+        undefined, this method will immediately return the result of applying
+        `ufunc`. Otherwise, this method will return a new instance with zero or
+        more attributes that have been modified in a `ufunc`-specific way (e.g.,
+        multiplying two instances' units when `ufunc` is 'multiply'). The
+        default behavior is therefore to return a new instance with unmodified
+        attributes.
         """
         out = kwargs.get('out', ())
         for x in inputs + out:
             if not isinstance(x, self._HANDLED_TYPES + (type(self),)):
                 return NotImplemented
-        if updater := self._dispatch_updater(ufunc):
-            updates = updater(*inputs, **kwargs) or {}
-            if 'data' in updates:
-                return self._new_from_func(updates.pop('data'), **updates)
-        else:
-            updates = {}
-        args = tuple(
-            x._get_data() if isinstance(x, type(self))
-            else x for x in inputs
-        )
         if out:
             kwargs['out'] = tuple(
                 x._get_data() if isinstance(x, type(self))
                 else x for x in out
             )
+        args = self._convert_inputs(ufunc, *inputs)
         result = getattr(ufunc, method)(*args, **kwargs)
+        if ufunc.__name__ in _native_rtype:
+            return result
+        updates = self._update_attrs(ufunc, *inputs)
         if type(result) is tuple:
-            return tuple(self._new_from_func(x, **updates) for x in result)
+            return tuple(
+                self._new_from_func(x, updates=updates)
+                for x in result
+            )
         if method == 'at':
             return None
-        return self._new_from_func(result, **updates)
+        return self._new_from_func(result, updates=updates)
 
-    def _dispatch_updater(self, ufunc: numpy.ufunc):
-        """Get the method that will update variable attributes for `ufunc`."""
-        name = ufunc.__name__
-        if name == 'add':
-            return _add
-        if name == 'subtract':
-            return _subtract
-        if name == 'multiply':
-            return _multiply
-        if name == 'true_divide':
-            return _true_divide
-        if name == 'sqrt':
-            return _sqrt
-        if name == 'power':
-            return _power
+    def _convert_inputs(self, ufunc, *inputs):
+        """Convert input arrays into arrays appropriate to `ufunc`."""
+        multiplicative = ufunc.__name__ in {'multiply', 'divide', 'true_divide'}
+        correct_type = all(isinstance(v, type(self)) for v in inputs)
+        if multiplicative and correct_type:
+            axes = unique_axes(*inputs)
+            return _extend_arrays(*inputs, axes)
+        return tuple(
+            x._get_data() if isinstance(x, type(self))
+            else x for x in inputs
+        )
+
+    def _update_attrs(self, ufunc, *inputs):
+        """Compute attribute updates based on `ufunc` and `inputs`."""
+        return (
+            updater(*inputs) if (updater := _updaters.get(ufunc.__name__))
+            else {}
+        )
 
     _HANDLED_FUNCTIONS = {}
 
@@ -249,11 +260,16 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
                 return numpy.asarray(self._data)[idx]
         return numpy.asarray(self._data)
 
-    def _new_from_func(self, result, **updates):
-        """Create a new instance from the result of a `numpy` function."""
-        if not isinstance(result, numpy.ndarray):
-            return result
-        return self.copy_with(data=result, **updates)
+    def _new_from_func(self, result, updates: dict=None):
+        """Create a new instance from the result of a `numpy` function.
+        
+        If `result` is a `numpy.ndarray` and `updates` is a (possibly empty)
+        `dict`, this method will create a new instance. Otherwise, it will
+        return `result` as-is.
+        """
+        if isinstance(result, numpy.ndarray) and isinstance(updates, dict):
+            return self.copy_with(data=result, **updates)
+        return result
 
     def convert_to(self, unit: str):
         """Change this variable's unit and update the numerical scale factor."""
@@ -369,12 +385,9 @@ def _multiply(a: Variable, b):
     if isinstance(b, quantities.RealValued):
         return {'unit': a.unit, 'axes': a.axes, 'name': a.name}
     if isinstance(b, Variable):
-        axes = _get_unique_axes(a.axes + b.axes)
-        a_arr, b_arr = _extend_arrays(a, b, axes)
         return {
-            'data': a_arr * b_arr,
             'unit': a.unit * b.unit,
-            'axes': axes,
+            'axes': unique_axes(a, b),
             'name': f"{a.name} * {b.name}",
         }
 
@@ -383,22 +396,26 @@ def _true_divide(a: Variable, b):
     if isinstance(b, quantities.RealValued):
         return {'unit': a.unit, 'axes': a.axes, 'name': a.name}
     if isinstance(b, Variable):
-        axes = _get_unique_axes(a.axes + b.axes)
-        a_arr, b_arr = _extend_arrays(a, b, axes)
         return {
-            'data': a_arr / b_arr,
             'unit': a.unit / b.unit,
-            'axes': axes,
+            'axes': unique_axes(a, b),
             'name': f"{a.name} / {b.name}",
         }
 
-def _get_unique_axes(axes: typing.Iterable[str]):
-    """Extract unique axes while preserving input order."""
-    a = []
+
+def unique_axes(*variables: Variable):
+    """Compute unique axes while preserving order."""
+    axes = (
+        axis
+        for variable in variables
+        for axis in variable.axes
+    )
+    unique = []
     for axis in axes:
-        if axis not in a:
-            a.append(axis)
-    return a
+        if axis not in unique:
+            unique.append(axis)
+    return unique
+
 
 def _extend_arrays(
     a: Variable,
@@ -431,3 +448,43 @@ def _power(a: Variable, b):
         name = f"{a.name}^{b}"
         return {'unit': unit, 'axes': a.axes, 'name': name}
 
+_updaters = {
+    'add': _add,
+    'subtract': _subtract,
+    'multiply': _multiply,
+    'true_divide': _true_divide,
+    'power': _power,
+    'sqrt': _sqrt,
+}
+
+_native_rtype = {
+    'arccos',
+    'arccosh',
+    'arcsin',
+    'arcsinh',
+    'arctan',
+    'arctan2',
+    'arctanh',
+    'cos',
+    'cosh',
+    'sin',
+    'sinh',
+    'tan',
+    'tanh',
+    'log',
+    'log10',
+    'log1p',
+    'log2',
+    'exp',
+    'exp2',
+    'expm1',
+    'floor_divide',
+}
+"""Universal functions that result in a `numpy` or built-in return type.
+
+When any of the universal functions in this set act on an instance of
+`Variable`, the result will be the same as if it had acted on the underlying
+data array. The reason for this behavior may vary from function to function, but
+will typically be related to causing an attribute to become ambiguous or
+undefined.
+"""
