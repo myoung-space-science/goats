@@ -369,21 +369,21 @@ def _mean(v: Variable, **kwargs):
 def _add(a: Variable, b):
     """Called for a + b."""
     if isinstance(b, quantities.RealValued):
-        return {'unit': a.unit, 'axes': a.axes, 'name': a.name}
+        return {}
     if isinstance(b, Variable) and a.axes == b.axes and a.unit == b.unit:
-        return {'unit': a.unit, 'axes': a.axes, 'name': f"{a.name} + {b.name}"}
+        return {'name': f"{a.name} + {b.name}"}
 
 def _subtract(a: Variable, b):
     """Called for a - b."""
     if isinstance(b, quantities.RealValued):
-        return {'unit': a.unit, 'axes': a.axes, 'name': a.name}
+        return {}
     if isinstance(b, Variable) and a.axes == b.axes and a.unit == b.unit:
-        return {'unit': a.unit, 'axes': a.axes, 'name': f"{a.name} - {b.name}"}
+        return {'name': f"{a.name} - {b.name}"}
 
 def _multiply(a: Variable, b):
     """Called for a * b."""
     if isinstance(b, quantities.RealValued):
-        return {'unit': a.unit, 'axes': a.axes, 'name': a.name}
+        return {}
     if isinstance(b, Variable):
         return {
             'unit': a.unit * b.unit,
@@ -394,7 +394,7 @@ def _multiply(a: Variable, b):
 def _true_divide(a: Variable, b):
     """Called for a / b."""
     if isinstance(b, quantities.RealValued):
-        return {'unit': a.unit, 'axes': a.axes, 'name': a.name}
+        return {}
     if isinstance(b, Variable):
         return {
             'unit': a.unit / b.unit,
@@ -446,7 +446,7 @@ def _power(a: Variable, b):
     if isinstance(b, numbers.Real):
         unit = a.unit.__pow__(b)
         name = f"{a.name}^{b}"
-        return {'unit': unit, 'axes': a.axes, 'name': name}
+        return {'unit': unit, 'name': name}
 
 _updaters = {
     'add': _add,
