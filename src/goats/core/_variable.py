@@ -142,11 +142,11 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
             return user
         length = self.naxes - len(user) + 1
         start = user.index(Ellipsis)
-        return tuple([
+        return (
             *user[slice(start)],
             *([slice(None)] * length),
             *user[slice(start+length, self.naxes)],
-        ])
+        )
 
     def __measure__(self):
         """Called for `~quantities.measure(self)`."""
