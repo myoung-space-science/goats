@@ -1,3 +1,4 @@
+import itertools
 import operator
 import typing
 
@@ -193,20 +194,20 @@ def test_variable_mul_div(
     }
     v0 = var['reference']
     a0 = arr['reference']
-    for sym, opr in groups.items():
-        for name, case in cases.items():
-            msg = f"Failed for {name} with {opr}"
-            v1 = var[case['key']]
-            a1 = arr[case['key']]
-            new = opr(v0, v1)
-            assert isinstance(new, datatypes.Variable), msg
-            expected = reduce(a0, a1, opr)
-            assert numpy.array_equal(new, expected), msg
-            assert sorted(new.axes) == case['axes'], msg
-            algebraic = opr(v0.unit, v1.unit)
-            formatted = f'({v0.unit}){sym}({v1.unit})'
-            for unit in (algebraic, formatted):
-                assert new.unit == unit, msg
+    tests = itertools.product(groups.items(), cases.items())
+    for (sym, opr), (name, case) in tests:
+        msg = f"Failed for {name} with {opr}"
+        v1 = var[case['key']]
+        a1 = arr[case['key']]
+        new = opr(v0, v1)
+        assert isinstance(new, datatypes.Variable), msg
+        expected = reduce(a0, a1, opr)
+        assert numpy.array_equal(new, expected), msg
+        assert sorted(new.axes) == case['axes'], msg
+        algebraic = opr(v0.unit, v1.unit)
+        formatted = f'({v0.unit}){sym}({v1.unit})'
+        for unit in (algebraic, formatted):
+            assert new.unit == unit, msg
 
 
 @pytest.mark.variable
