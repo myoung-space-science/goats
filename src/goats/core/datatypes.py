@@ -22,7 +22,7 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
     """A class representing a dataset variable."""
 
     _data: numpy.typing.ArrayLike
-    unit: str=None
+    unit: quantities.Unit=None
     """The unit of this variable's array values."""
     axes: typing.Tuple[str]=None
     """The names of indexable axes in this variable's array."""
