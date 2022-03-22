@@ -103,7 +103,7 @@ def test_variables(testdata: dict):
         for observable, expected in reference.items():
             if observable in variables:
                 variable = variables[observable]
-                assert variable.unit() == expected['unit']
+                assert variable.unit == expected['unit']
                 assert sorted(variable.axes) == sorted(expected['axes'])
             else:
                 with pytest.raises(KeyError):
@@ -173,34 +173,34 @@ def test_variable():
     v0 = datasets.Variable([3.0, 4.5], 'm', ['x'])
     v1 = datasets.Variable([[1.0], [2.0]], 'J', ['x', 'y'])
     assert numpy.array_equal(v0, [3.0, 4.5])
-    assert v0.unit() == quantities.Unit('m')
+    assert v0.unit == quantities.Unit('m')
     assert list(v0.axes) == ['x']
     assert v0.naxes == 1
     assert numpy.array_equal(v1, [[1.0], [2.0]])
-    assert v1.unit() == quantities.Unit('J')
+    assert v1.unit == quantities.Unit('J')
     assert list(v1.axes) == ['x', 'y']
     assert v1.naxes == 2
-    v0_cm = v0.unit('cm')
+    v0_cm = v0.convert_to('cm')
     assert v0_cm is not v0
     assert numpy.array_equal(v0_cm, 100 * v0)
-    assert v0_cm.unit() == quantities.Unit('cm')
+    assert v0_cm.unit == quantities.Unit('cm')
     assert v0_cm.axes == v0.axes
     r = v0 + v0
     expected = [6.0, 9.0]
     assert numpy.array_equal(r, expected)
-    assert r.unit() == v0.unit()
+    assert r.unit == v0.unit
     r = v0 * v1
     expected = [[3.0 * 1.0], [4.5 * 2.0]]
     assert numpy.array_equal(r, expected)
-    assert r.unit() == quantities.Unit('m * J')
+    assert r.unit == quantities.Unit('m * J')
     r = v0 / v1
     expected = [[3.0 / 1.0], [4.5 / 2.0]]
     assert numpy.array_equal(r, expected)
-    assert r.unit() == quantities.Unit('m / J')
+    assert r.unit == quantities.Unit('m / J')
     r = v0 ** 2
     expected = [3.0 ** 2, 4.5 ** 2]
     assert numpy.array_equal(r, expected)
-    assert r.unit() == quantities.Unit('m^2')
+    assert r.unit == quantities.Unit('m^2')
 
 
 @pytest.mark.variable
@@ -362,10 +362,10 @@ def test_variable_mul_div(
             expected = reduce(a0, a1, opr)
             assert numpy.array_equal(new, expected), msg
             assert sorted(new.axes) == case['axes'], msg
-            algebraic = opr(v0.unit(), v1.unit())
-            formatted = f'({v0.unit()}){sym}({v1.unit()})'
+            algebraic = opr(v0.unit, v1.unit)
+            formatted = f'({v0.unit}){sym}({v1.unit})'
             for unit in (algebraic, formatted):
-                assert new.unit() == unit, msg
+                assert new.unit == unit, msg
 
 
 @pytest.mark.variable
@@ -380,10 +380,10 @@ def test_variable_pow(var: typing.Dict[str, datasets.Variable]) -> None:
     expected = reduce(numpy.array(v0), ex, operator.pow)
     assert numpy.array_equal(new, expected), msg
     assert new.axes == var['reference'].axes, msg
-    algebraic = opr(v0.unit(), 3)
-    formatted = f'({v0.unit()})^{ex}'
+    algebraic = opr(v0.unit, 3)
+    formatted = f'({v0.unit})^{ex}'
     for unit in (algebraic, formatted):
-        assert new.unit() == unit, msg
+        assert new.unit == unit, msg
 
 
 @pytest.mark.variable
@@ -395,27 +395,27 @@ def test_variable_add_sub(
     v0 = var['reference']
     a0 = arr['reference']
     a1 = arr['samedims']
-    v1 = datasets.Variable(a1, v0.unit(), v0.axes)
-    v2 = datasets.Variable(arr['different'], v0.unit(), var['different'].axes)
+    v1 = datasets.Variable(a1, v0.unit, v0.axes)
+    v2 = datasets.Variable(arr['different'], v0.unit, var['different'].axes)
     for opr in (operator.add, operator.sub):
         msg = f"Failed for {opr}"
         new = opr(v0, v1)
         expected = reduce(a0, a1, opr)
         assert isinstance(new, datasets.Variable), msg
         assert numpy.array_equal(new, expected), msg
-        assert new.unit() == v0.unit(), msg
+        assert new.unit == v0.unit, msg
         assert new.axes == v0.axes, msg
-        with pytest.raises(TypeError):
+        with pytest.raises(ValueError): # numpy broadcasting error
             opr(v0, v2)
 
 
 @pytest.mark.variable
 def test_variable_units(var: typing.Dict[str, datasets.Variable]):
     """Test the ability to update unit via bracket syntax."""
-    v0_km = var['reference'].unit('km')
+    v0_km = var['reference'].convert_to('km')
     assert isinstance(v0_km, datasets.Variable)
     assert v0_km is not var['reference']
-    assert v0_km.unit() == 'km'
+    assert v0_km.unit == 'km'
     assert v0_km.axes == var['reference'].axes
     assert numpy.array_equal(v0_km[:], 1e-3 * var['reference'][:])
 
@@ -438,7 +438,7 @@ def test_numerical_operations(var: typing.Dict[str, datasets.Variable]):
     assert isinstance(new, datasets.Variable)
     assert numpy.array_equal(new, expected)
 
-    # division is right-sided
+    # right-sided division, addition, and subtraction create a new instance
     new = var['reference'] / 10.0
     assert isinstance(new, datasets.Variable)
     expected = [
@@ -448,10 +448,6 @@ def test_numerical_operations(var: typing.Dict[str, datasets.Variable]):
         [-(4.0/10.0), +(6.0/10.0)],
     ]
     assert numpy.array_equal(new, expected)
-    with pytest.raises(TypeError):
-        10.0 / var['reference']
-
-    # addition is right-sided
     new = var['reference'] + 10.0
     assert isinstance(new, datasets.Variable)
     expected = [
@@ -461,10 +457,6 @@ def test_numerical_operations(var: typing.Dict[str, datasets.Variable]):
         [-4.0+10.0, +6.0+10.0],
     ]
     assert numpy.array_equal(new, expected)
-    with pytest.raises(TypeError):
-        10.0 + var['reference']
-
-    # subtraction is right-sided
     new = var['reference'] - 10.0
     assert isinstance(new, datasets.Variable)
     expected = [
@@ -474,8 +466,34 @@ def test_numerical_operations(var: typing.Dict[str, datasets.Variable]):
         [-4.0-10.0, +6.0-10.0],
     ]
     assert numpy.array_equal(new, expected)
-    with pytest.raises(TypeError):
-        10.0 - var['reference']
+
+    # left-sided division, addition, and subtraction create a new instance
+    new = 10.0 / var['reference']
+    assert isinstance(new, numpy.ndarray)
+    expected = [
+        # 3 x 2
+        [+(10.0/1.0), +(10.0/2.0)],
+        [+(10.0/2.0), -(10.0/3.0)],
+        [-(10.0/4.0), +(10.0/6.0)],
+    ]
+    new = 10.0 + var['reference']
+    assert isinstance(new, datasets.Variable)
+    expected = [
+        # 3 x 2
+        [10.0+1.0, 10.0+2.0],
+        [10.0+2.0, 10.0-3.0],
+        [10.0-4.0, 10.0+6.0],
+    ]
+    assert numpy.array_equal(new, expected)
+    new = 10.0 - var['reference']
+    assert isinstance(new, datasets.Variable)
+    expected = [
+        # 3 x 2
+        [10.0-1.0, 10.0-2.0],
+        [10.0-2.0, 10.0+3.0],
+        [10.0+4.0, 10.0-6.0],
+    ]
+    assert numpy.array_equal(new, expected)
 
 
 @pytest.mark.variable
@@ -502,7 +520,7 @@ def test_variable_getitem(var: typing.Dict[str, datasets.Variable]):
         assert sliced is not v
         expected = numpy.array([[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
         assert numpy.array_equal(sliced, expected)
-    assert v[0, 0] == quantities.Scalar(+1.0, v.unit())
+    assert v[0, 0] == quantities.Scalar(+1.0, v.unit)
     assert numpy.array_equal(v[0, :], [+1.0, +2.0])
     assert numpy.array_equal(v[:, 0], [+1.0, +2.0, -4.0])
     assert numpy.array_equal(v[:, 0:1], [[+1.0], [+2.0], [-4.0]])
