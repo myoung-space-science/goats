@@ -3,6 +3,7 @@ import numpy
 
 from goats.core import aliased
 from goats.core import datasets
+from goats.core import datatypes
 from goats import eprem
 
 
@@ -18,7 +19,7 @@ def test_axes(datapath):
     axes = dataset.axes
     cases = {
         'time': {
-            'type': datasets.Coordinates,
+            'type': datatypes.Coordinates,
             'length': 50,
             'test': {
                 'user': (0.1, 0.3, 'day'),
@@ -27,7 +28,7 @@ def test_axes(datapath):
             },
         },
         'shell': {
-            'type': datasets.Indices,
+            'type': datatypes.Indices,
             'length': 2000,
             'test': {
                 'user': (0, 2),
@@ -35,7 +36,7 @@ def test_axes(datapath):
             },
         },
         'species': {
-            'type': datasets.IndexMap,
+            'type': datatypes.IndexMap,
             'length': 1,
             'test': {
                 'user': ['H+'],
@@ -44,7 +45,7 @@ def test_axes(datapath):
             },
         },
         'energy': {
-            'type': datasets.Coordinates,
+            'type': datatypes.Coordinates,
             'length': 20,
             'test': {
                 'user': (1e-1, 1e2, 'MeV'),
@@ -53,7 +54,7 @@ def test_axes(datapath):
             },
         },
         'mu': {
-            'type': datasets.Coordinates,
+            'type': datatypes.Coordinates,
             'length': 8,
             'test': {
                 'user': (-1.0, +1.0),
@@ -71,9 +72,9 @@ def test_axes(datapath):
             test = expected['test']
             user = axis(*test['user'])
             assert list(user) == test['indices']
-            if isinstance(user, datasets.IndexMap):
+            if isinstance(user, datatypes.IndexMap):
                 assert list(user.values) == test['values']
-            if isinstance(user, datasets.Coordinates):
+            if isinstance(user, datatypes.Coordinates):
                 assert numpy.allclose(user.values, test['values'])
     name = 'energy'
     expected = cases['energy']
@@ -236,7 +237,7 @@ def test_variables(datapath):
     for name, expected in cases.items():
         variable = variables[name]
         assert variable.axes == expected['axes']
-        assert variable.unit() == expected['unit']
+        assert variable.unit == expected['unit']
         key = aliased.MappingKey(name, *expected['aliases'])
         assert variable.name == key
 

@@ -9,6 +9,7 @@ from goats.core import algebra
 from goats.core import iterables
 from goats.core import physical
 from goats.core import datasets
+from goats.core import datatypes
 from goats.eprem import functions
 from goats.eprem import parameters
 from goats.eprem import interpolation
@@ -19,11 +20,11 @@ MKS = quantities.MetricSystem('mks')
 
 Observable = typing.TypeVar(
     'Observable',
-    datasets.Variable,
+    datatypes.Variable,
     functions.Function,
 )
 Observable = typing.Union[
-    datasets.Variable,
+    datatypes.Variable,
     functions.Function,
 ]
 
@@ -63,11 +64,11 @@ Dependency = typing.Union[
 
 Reference = typing.TypeVar(
     'Reference',
-    datasets.Variable,
+    datatypes.Variable,
     typing.Iterable,
 )
 Reference = typing.Union[
-    datasets.Variable,
+    datatypes.Variable,
     typing.Iterable,
 ]
 
@@ -85,7 +86,7 @@ class Application:
 
     def __init__(
         self,
-        indices: typing.Mapping[str, datasets.Indices],
+        indices: typing.Mapping[str, datatypes.Indices],
         assumptions: typing.Mapping[str, Assumption],
         observables: typing.Mapping[str, Observable],
         reference: typing.Mapping[str, Reference],
@@ -97,7 +98,7 @@ class Application:
 
     def evaluate(self, implementation: Implementation):
         """Create a variable from the given implementation."""
-        if isinstance(implementation, datasets.Variable):
+        if isinstance(implementation, datatypes.Variable):
             return self._evaluate_variable(implementation)
         if isinstance(implementation, functions.Function):
             return self._evaluate_function(implementation)
@@ -105,7 +106,7 @@ class Application:
             return self._evaluate_compound(implementation)
         raise TypeError(f"Unknown implementation: {type(implementation)}")
 
-    def _evaluate_variable(self, variable: datasets.Variable):
+    def _evaluate_variable(self, variable: datatypes.Variable):
         """Apply relevant updates (e.g., indices) to this variable."""
         target_axes = [
             axis for axis in variable.axes if self._need_interp(axis)
@@ -116,16 +117,16 @@ class Application:
             return self._standard(variable)
         return self._interpolated(variable, target_axes)
 
-    def _standard(self, variable: datasets.Variable):
+    def _standard(self, variable: datatypes.Variable):
         """Produce a new variable by subscripting the given variable."""
         indices = tuple(self.indices[axis] for axis in variable.axes)
         return variable[indices]
 
     def _interpolated(
         self,
-        original: datasets.Variable,
+        original: datatypes.Variable,
         axes: typing.Iterable[str],
-    ) -> datasets.Variable:
+    ) -> datatypes.Variable:
         """Produce a new variable by interpolating the given variable."""
         indexable = list(set(original.axes) - set(axes))
         variable = self._interpolate(original, axes)
@@ -136,7 +137,7 @@ class Application:
         )
         return variable[indices]
 
-    def _is_reference(self, variable: datasets.Variable):
+    def _is_reference(self, variable: datatypes.Variable):
         """True if this is an axis reference variable.
 
         This method attempts to determine if the given variable is one of the
@@ -150,7 +151,7 @@ class Application:
     def _need_interp(self, axis: str):
         """True if we need to interpolate over this axis."""
         index = self.indices[axis]
-        if not isinstance(index, datasets.Coordinates):
+        if not isinstance(index, datatypes.Coordinates):
             return False
         reference = self.reference[axis]
         targets = np.array(index.values)
@@ -166,9 +167,9 @@ class Application:
 
     def _interpolate(
         self,
-        variable: datasets.Variable,
+        variable: datatypes.Variable,
         axes: typing.Iterable[str],
-    ) -> datasets.Variable:
+    ) -> datatypes.Variable:
         """Interpolate the variable over certain axes."""
         array = None
         coordinates = {
@@ -177,7 +178,7 @@ class Application:
                 'reference': self.reference[axis],
             }
             for axis, indices in self.indices.items()
-            if axis in axes and isinstance(indices, datasets.Coordinates)
+            if axis in axes and isinstance(indices, datatypes.Coordinates)
         }
         if 'radius' in self.assumptions:
             radii = iterables.whole(self.assumptions['radius'])
@@ -195,18 +196,18 @@ class Application:
                 coordinate=coordinate,
                 workspace=array,
             )
-        return datasets.Variable(
+        return datatypes.Variable(
             array,
-            variable.unit(),
+            variable.unit,
             variable.axes,
             name=variable.name,
         )
 
     def _interpolate_coordinate(
         self,
-        variable: datasets.Variable,
+        variable: datatypes.Variable,
         targets: np.ndarray,
-        reference: datasets.Variable,
+        reference: datatypes.Variable,
         coordinate: str=None,
         workspace: np.ndarray=None,
     ) -> np.ndarray:
@@ -247,7 +248,7 @@ class Application:
             return self.assumptions[key]
         if key in self.observables:
             observable = self.observables[key]
-            if isinstance(observable, datasets.Variable):
+            if isinstance(observable, datatypes.Variable):
                 return self._evaluate_variable(observable)
             if isinstance(observable, functions.Function):
                 return self._evaluate_function(observable)
@@ -281,7 +282,7 @@ class Interface(base.Interface):
         self.observables = aliased.MutableMapping(
             {
                 k: v for k, v in self.dependencies.items(aliased=True)
-                if isinstance(v, (datasets.Variable, functions.Function))
+                if isinstance(v, (datatypes.Variable, functions.Function))
             }
         )
         axes_ref = {k: v.reference for k, v in self.axes.items(aliased=True)}
@@ -304,11 +305,12 @@ class Interface(base.Interface):
 
     def _update_index(self, key: str, indices):
         """Update a single indexing object based on user input."""
-        if not isinstance(indices, datasets.Indices):
+        if not isinstance(indices, datatypes.Indices):
             axis = self.axes[key]
             indices = axis(*iterables.whole(indices))
-        if isinstance(indices, datasets.Coordinates):
-            return indices
+        if isinstance(indices, datatypes.Coordinates):
+            unit = self.system.get_unit(unit=indices.unit)
+            return indices.with_unit(unit)
         return indices
 
     def update_assumptions(self, constraints: typing.Mapping):

@@ -10,6 +10,7 @@ from ..core import (
     aliased,
     base,
     datasets,
+    datatypes,
     iterables,
     iotools,
     numerical,
@@ -44,8 +45,8 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
 
     def __init__(self, dataset: datasets.DatasetView) -> None:
         self.variables = datasets.Variables(dataset)
-        mass = self.variables['mass'].unit('nuc')
-        charge = self.variables['charge'].unit('e')
+        mass = self.variables['mass'].convert_to('nuc')
+        charge = self.variables['charge'].convert_to('e')
         self.symbols = physical.elements(mass, charge)
         # TODO: Consider using reference arrays in methods, with the possible
         # exception of `_build_shell`.
@@ -77,9 +78,9 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
         }
         super().__init__(mapping)
 
-    def __getitem__(self, key: str) -> datasets.Indexer:
+    def __getitem__(self, key: str) -> datatypes.Indexer:
         this = super().__getitem__(key)
-        return datasets.Indexer(this['method'], this['reference'])
+        return datatypes.Indexer(this['method'], this['reference'])
 
     def _build_time(self, targets):
         """Build the time-axis indexer."""
@@ -87,7 +88,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
 
     def _build_shell(self, targets):
         """Build the shell-axis indexer."""
-        return datasets.Indices(targets)
+        return datatypes.Indices(targets)
 
     def _build_species(self, targets):
         """Build the species-axis indexer."""
@@ -100,7 +101,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
             elif isinstance(target, numbers.Integral):
                 indices.append(target)
                 symbols.append(self.symbols[target])
-        return datasets.IndexMap(indices, targets)
+        return datatypes.IndexMap(indices, targets)
 
     def _build_energy(self, targets, species: typing.Union[str, int]=0):
         """Build the energy-axis indexer."""
@@ -119,21 +120,21 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
     def _build_coordinates(
         self,
         targets: numpy.typing.ArrayLike,
-        reference: datasets.Variable,
-    ) -> datasets.Coordinates:
+        reference: datatypes.Variable,
+    ) -> datatypes.Coordinates:
         """Build an arbitrary coordinate object."""
         measured = quantities.measure(targets)
         vector = quantities.Vector(measured.values, measured.unit)
         values = (
-            vector.unit(reference.unit())
-            if vector.unit().dimension == reference.unit().dimension
+            vector.unit(reference.unit)
+            if vector.unit().dimension == reference.unit.dimension
             else vector
         )
         indices = [
             numerical.find_nearest(reference, float(value)).index
             for value in values
         ]
-        return datasets.Coordinates(indices, values, reference.unit())
+        return datatypes.Coordinates(indices, values, reference.unit)
 
 
     def __str__(self) -> str:
@@ -253,7 +254,7 @@ class Observer(base.Observer):
         """Get the index-like object for this axis."""
         axis = self.dataset.axes[name]
         values = axis(**kwargs)
-        if unit and isinstance(values, datasets.Coordinates):
+        if unit and isinstance(values, datatypes.Coordinates):
             return values.with_unit(unit)
         return values
 

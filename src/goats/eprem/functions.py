@@ -4,6 +4,7 @@ import numpy as np
 
 from goats.core import aliased
 from goats.core import datasets
+from goats.core import datatypes
 from goats.core import functions
 from goats.core import iterables
 from goats.core import observables
@@ -32,12 +33,12 @@ class Function(iterables.ReprStrMixin):
 
     Argument = typing.TypeVar(
         'Argument',
-        datasets.Variable,
+        datatypes.Variable,
         quantities.Scalar,
         typing.Iterable[quantities.Scalar],
     )
     Argument = typing.Union[
-        datasets.Variable,
+        datatypes.Variable,
         quantities.Scalar,
         typing.Iterable[quantities.Scalar],
     ]
@@ -46,7 +47,7 @@ class Function(iterables.ReprStrMixin):
         self,
         arguments: typing.Mapping[str, Argument],
         unit: typing.Union[str, quantities.Unit],
-    ) -> datasets.Variable:
+    ) -> datatypes.Variable:
         """Build a variable by calling the instance method."""
         arrays = []
         floats = []
@@ -55,7 +56,7 @@ class Function(iterables.ReprStrMixin):
             if key in self.parameters
         ]
         for arg in known:
-            if isinstance(arg, datasets.Variable):
+            if isinstance(arg, datatypes.Variable):
                 arrays.append(np.array(arg))
             elif isinstance(arg, quantities.Scalar):
                 floats.append(float(arg))
@@ -64,7 +65,7 @@ class Function(iterables.ReprStrMixin):
                 and all(isinstance(a, quantities.Scalar) for a in arg)
             ): floats.extend([float(a) for a in arg])
         data = self.method(*arrays, *floats)
-        return datasets.Variable(
+        return datatypes.Variable(
             data,
             quantities.Unit(unit),
             self.axes,

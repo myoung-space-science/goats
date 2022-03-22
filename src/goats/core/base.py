@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from goats.core import aliased
-from goats.core import datasets
+from goats.core import datatypes
 from goats.core import iterables
 from goats.core import quantities
 from goats.core import indexing
@@ -32,7 +32,7 @@ class Observation(iterables.ReprStrMixin):
 
     def __init__(
         self,
-        data: datasets.Variable,
+        data: datatypes.Variable,
         indices: typing.Mapping[str, indexing.Indices],
         assumptions: typing.Mapping[str, quantities.Scalar]=None,
     ) -> None:
@@ -80,8 +80,8 @@ class Observation(iterables.ReprStrMixin):
     def unit(self, new: typing.Union[str, quantities.Unit]=None):
         """Get or set the unit of this observation's data values."""
         if not new:
-            return self._data.unit()
-        self._data = self._data.unit(new)
+            return self._data.unit
+        self._data = self._data.convert_to(new)
         return self
 
     def __eq__(self, other) -> bool:
