@@ -588,12 +588,10 @@ class Indices(collections.abc.Sequence, iterables.ReprStrMixin):
         return len(self.indices)
 
     def __eq__(self, other):
-        """True if two instances have the same indices."""
-        if not isinstance(other, Indices):
-            return NotImplemented
-        return all(
-            getattr(self, attr) == getattr(other, attr)
-            for attr in self.__slots__
+        """True if two instances have the same attributes."""
+        return (
+            self.indices == other.indices if isinstance(other, Indices)
+            else NotImplemented
         )
 
     def __str__(self) -> str:
@@ -618,6 +616,13 @@ class IndexMap(Indices):
         if nv != ni:
             errmsg = f"number of values ({nv}) != number of indices ({ni})"
             raise TypeError(errmsg)
+
+    def __eq__(self, other):
+        return (
+            super().__eq__(other) and self.values == other.values
+            if isinstance(other, IndexMap)
+            else NotImplemented
+        )
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
@@ -645,6 +650,13 @@ class Coordinates(IndexMap):
         self.values = [value * scale for value in self.values]
         self.unit = new
         return self
+
+    def __eq__(self, other):
+        return (
+            super().__eq__(other) and self.unit == other.unit
+            if isinstance(other, Coordinates)
+            else NotImplemented
+        )
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
