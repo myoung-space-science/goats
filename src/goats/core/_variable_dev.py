@@ -148,6 +148,10 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
             *user[slice(start+length, self.naxes)],
         ])
 
+    def __measure__(self):
+        """Called for `~quantities.measure(self)`."""
+        return quantities.Measurement(self._get_data(), self.unit)
+
     _HANDLED_TYPES = (numpy.ndarray, numbers.Number, list)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
