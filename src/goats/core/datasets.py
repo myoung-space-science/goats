@@ -319,7 +319,7 @@ class Variables(aliased.Mapping):
             datavar.axes,
             name=observables.ALIASES[key],
         )
-        result = variable.unit(self.units[key])
+        result = variable.convert_to(self.units[key])
         self._cache[key] = result
         return result
 

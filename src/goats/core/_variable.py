@@ -4,11 +4,8 @@ import typing
 import numpy
 import numpy.typing
 
-from goats.core import iterables
 from goats.core import quantities
-
-
-Instance = typing.TypeVar('Instance', bound='Variable')
+from goats.core import iterables
 
 
 IndexLike = typing.TypeVar(
@@ -19,104 +16,32 @@ IndexLike = typing.TypeVar(
 )
 IndexLike = typing.Union[typing.Iterable[int], slice, type(Ellipsis)]
 
-UnitLike = typing.TypeVar('UnitLike', str, quantities.Unit)
-UnitLike = typing.Union[str, quantities.Unit]
 
+class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
+    """A class representing a dataset variable."""
 
-Parent = quantities.Measured
-Mixin = numpy.lib.mixins.NDArrayOperatorsMixin
-allowed = {'__add__': float, '__sub__': float}
-class Variable(Parent, Mixin, allowed=allowed):
-    """A measured object with data stored in a numerical array.
-
-    The result of binary arithmetic operations on instances of this class are
-    similar to those of `Vector`, but differ in the following ways:
-    1. Multiplication (`*`) and division (`/`) accept operands with different
-       axes, as long as any repeated axes have the same length in both operands.
-       The result will contain all unique axes from its operands.
-    2. Addition (`+`) and subtraction (`-`) accept real numbers as right-sided
-       operands. The result is a new instance with the operation applied to the
-       underlying array.
-    """
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        data: typing.Iterable[numbers.Number],
-        unit: typing.Union[str, quantities.Unit],
-        axes: typing.Iterable[str],
-    ) -> Instance:
-        """Create a new variable object.
-        
-        Parameters
-        ----------
-        data : array-like
-            The numerical data of this variable.
-
-        unit : string or `~quantities.Unit`
-            The metric unit of `data`.
-
-        axes : iterable of strings
-            The names of this variable's indexable axes.
-        """
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        data: typing.Iterable[numbers.Number],
-        unit: typing.Union[str, quantities.Unit],
-        axes: typing.Iterable[str],
-        name: str='<anonymous>',
-    ) -> Instance:
-        """Create a new variable object.
-        
-        Parameters
-        ----------
-        data : array-like
-            The numerical data of this variable.
-
-        unit : string or `~quantities.Unit`
-            The metric unit of `data`.
-
-        axes : iterable of strings
-            The names of this variable's indexable axes.
-
-        name : string, default='<anonymous>'
-            The optional name of this variable.
-        """
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        instance: Instance,
-    ) -> Instance:
-        """Create a new variable object.
-        
-        Parameters
-        ----------
-        instance : `~quantities.Variable`
-            An existing instance of this class.
-        """
-
-    _amount: numpy.typing.ArrayLike
+    _data: numpy.typing.ArrayLike
+    unit: str=None
+    """The unit of this variable's array values."""
     axes: typing.Tuple[str]=None
+    """The names of indexable axes in this variable's array."""
     naxes: int=None
+    """The number of indexable axes in this variable's array."""
     name: str=None
+    """The name of this variable, if available."""
     _scale: float=None
     _array: numpy.ndarray=None
 
     def __new__(cls, *args, **kwargs):
-        """The concrete implementation of `~quantities.Variable.__new__`."""
+        """Create a new variable."""
         if not kwargs and len(args) == 1 and isinstance(args[0], cls):
             instance = args[0]
-            data = instance._amount
-            unit = instance.unit()
+            data = instance._data
+            unit = instance.unit
             axes = instance.axes
             name = instance.name
             scale = instance._scale
         else:
-            if 'amount' in kwargs:
-                kwargs['data'] = kwargs.pop('amount')
             attrs = list(args)
             attr_dict = {
                 k: attrs.pop(0) if attrs
@@ -124,74 +49,29 @@ class Variable(Parent, Mixin, allowed=allowed):
                 for k in ('data', 'unit', 'axes', 'name')
             }
             data = attr_dict['data']
-            unit = attr_dict['unit']
+            unit = attr_dict['unit'] or '1'
             axes = attr_dict['axes'] or ()
             name = attr_dict['name'] or '<anonymous>'
             scale = kwargs.get('scale') or 1.0
-        self = super().__new__(cls, data, unit=unit)
+        self = super().__new__(cls)
+        self._data = data
+        self.unit = quantities.Unit(unit)
         self.axes = tuple(axes)
-        """The names of indexable axes in this variable's array."""
         self.naxes = len(axes)
-        """The number of indexable axes in this variable's array."""
         self.name = name
-        """The name of this variable, if available."""
         self._scale = scale
         self._array = None
         return self
 
-    @typing.overload
-    def unit(self: Instance) -> quantities.Unit:
-        """Get this object's unit of measurement.
-        
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        `~quantities.Unit`
-            The current unit of `amount`.
-        """
-
-    @typing.overload
-    def unit(
-        self: Instance,
-        new: typing.Union[str, quantities.Unit],
-    ) -> Instance:
-        """Update this object's unit of measurement.
-
-        Parameters
-        ----------
-        new : string or `~quantities.Unit`
-            The new unit in which to measure `amount`.
-
-        Returns
-        -------
-        Subclass of `~quantities.Measured`
-            A new instance of this class.
-        """
-
-    def unit(self, new=None):
-        """Concrete implementation."""
-        if not new:
-            return self._unit
-        scale = (quantities.Unit(new) // self._unit) * self._scale
-        return self._new(
-            data=self._amount,
-            unit=new,
-            axes=self.axes,
-            name=self.name,
-            scale=scale,
-        )
-
-    def __measure__(self):
-        """Called for `~quantities.measure(self)`."""
-        return quantities.Measurement(self._get_data(), self.unit())
-
-    @property
-    def ndim(self) -> int:
-        """The number of dimensions in this variable's array."""
-        return self.naxes
+    def __eq__(self, other: typing.Any):
+        """True if two instances have the same data and attributes."""
+        if not isinstance(other, Variable):
+            return NotImplemented
+        if not self.axes == other.axes:
+            return False
+        if not self.unit == other.unit:
+            return False
+        return numpy.array_equal(other, self)
 
     def __len__(self):
         """Called for len(self)."""
@@ -205,7 +85,7 @@ class Variable(Parent, Mixin, allowed=allowed):
 
     def __contains__(self, item):
         """Called for `item` in self."""
-        return item in self._amount or item in self._get_data()
+        return item in self._data or item in self._get_data()
 
     _builtin = (int, slice, type(...))
 
@@ -232,13 +112,8 @@ class Variable(Parent, Mixin, allowed=allowed):
         """
         result = self._get_data(indices)
         if isinstance(result, numbers.Number):
-            return quantities.Scalar(result, unit=self.unit())
-        return self._new(
-            data=result,
-            unit=self.unit(),
-            axes=self.axes,
-            name=self.name,
-        )
+            return quantities.Scalar(result, unit=self.unit)
+        return self.copy_with(data=result)
 
     def _subscript_custom(self, args):
         """Perform array subscription specific to this object.
@@ -256,12 +131,7 @@ class Variable(Parent, Mixin, allowed=allowed):
             for i, arg in enumerate(expanded)
         ]
         indices = numpy.ix_(*list(idx))
-        return self._new(
-            data=self._get_data(indices),
-            unit=self.unit(),
-            axes=self.axes,
-            name=self.name,
-        )
+        return self.copy_with(data=self._get_data(indices))
 
     def _expand_ellipsis(
         self,
@@ -278,6 +148,10 @@ class Variable(Parent, Mixin, allowed=allowed):
             *user[slice(start+length, self.naxes)],
         ])
 
+    def __measure__(self):
+        """Called for `~quantities.measure(self)`."""
+        return quantities.Measurement(self._get_data(), self.unit)
+
     _HANDLED_TYPES = (numpy.ndarray, numbers.Number, list)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
@@ -290,28 +164,61 @@ class Variable(Parent, Mixin, allowed=allowed):
         https://numpy.org/doc/stable/reference/generated/numpy.lib.mixins.NDArrayOperatorsMixin.html#numpy.lib.mixins.NDArrayOperatorsMixin
         for the specific implementation example that this class follows.
 
+        Notes
+        -----
         This method first ensures that the input types (as well as the type of
-        `out`, if given) are supported types.
+        `out`, if passed via keyword) are supported types. It then extracts
+        arrays from any inputs that are an instance of this class or a subclass
+        and applies `ufunc`. If `ufunc` is one of a pre-defined set of methods
+        that would cause an attribute of this class to become ambiguous or
+        undefined, this method will immediately return the result of applying
+        `ufunc`. Otherwise, this method will return a new instance with zero or
+        more attributes that have been modified in a `ufunc`-specific way (e.g.,
+        multiplying two instances' units when `ufunc` is 'multiply'). The
+        default behavior is therefore to return a new instance with unmodified
+        attributes.
         """
         out = kwargs.get('out', ())
         for x in inputs + out:
             if not isinstance(x, self._HANDLED_TYPES + (type(self),)):
                 return NotImplemented
-        inputs = tuple(
-            x._get_data() if isinstance(x, type(self))
-            else x for x in inputs
-        )
         if out:
             kwargs['out'] = tuple(
                 x._get_data() if isinstance(x, type(self))
                 else x for x in out
             )
-        result = getattr(ufunc, method)(*inputs, **kwargs)
+        args = self._convert_inputs(ufunc, *inputs)
+        result = getattr(ufunc, method)(*args, **kwargs)
+        if ufunc.__name__ in _native_rtype:
+            return result
+        updates = self._update_attrs(ufunc, *inputs)
         if type(result) is tuple:
-            return tuple(self._new_from_func(x) for x in result)
+            return tuple(
+                self._new_from_func(x, updates=updates)
+                for x in result
+            )
         if method == 'at':
             return None
-        return self._new_from_func(result)
+        return self._new_from_func(result, updates=updates)
+
+    def _convert_inputs(self, ufunc, *inputs):
+        """Convert input arrays into arrays appropriate to `ufunc`."""
+        multiplicative = ufunc.__name__ in {'multiply', 'divide', 'true_divide'}
+        correct_type = all(isinstance(v, type(self)) for v in inputs)
+        if multiplicative and correct_type:
+            axes = unique_axes(*inputs)
+            return _extend_arrays(*inputs, axes)
+        return tuple(
+            x._get_data() if isinstance(x, type(self))
+            else x for x in inputs
+        )
+
+    def _update_attrs(self, ufunc, *inputs):
+        """Compute attribute updates based on `ufunc` and `inputs`."""
+        return (
+            updater(*inputs) if (updater := _updaters.get(ufunc.__name__))
+            else {}
+        )
 
     _HANDLED_FUNCTIONS = {}
 
@@ -331,8 +238,8 @@ class Variable(Parent, Mixin, allowed=allowed):
         if not all(issubclass(ti, accepted) for ti in types):
             return NotImplemented
         if func in self._HANDLED_FUNCTIONS:
-            arr = self._HANDLED_FUNCTIONS[func](*args, **kwargs)
-            return self._new_from_func(arr)
+            result = self._HANDLED_FUNCTIONS[func](*args, **kwargs)
+            return self._new_from_func(result)
         args = tuple(
             arg._get_data() if isinstance(arg, type(self))
             else arg for arg in args
@@ -345,162 +252,23 @@ class Variable(Parent, Mixin, allowed=allowed):
         arr = data.__array_function__(func, types, args, kwargs)
         return self._new_from_func(arr)
 
-    def _new_from_func(self, result):
-        """Create a new instance from the result of a `numpy` function."""
-        if not isinstance(result, numpy.ndarray):
-            return result
-        return self._new(
-            data=result,
-            unit=self.unit(),
-            axes=self.axes,
-            name=self.name,
-        )
-
-    def __eq__(self, other: typing.Any):
-        """True if two instances have the same data and attributes."""
-        if not isinstance(other, Variable):
-            return NotImplemented
-        if not self._equal_attrs(other):
-            return False
-        return numpy.array_equal(other, self)
-
-    def _equal_attrs(self, other: 'Variable'):
-        """True if two instances have the same attributes."""
-        return all(
-            getattr(other, attr) == getattr(self, attr)
-            for attr in {'unit', 'axes'}
-        )
-
-    def __add__(self, other: typing.Any):
-        if self._add_sub_okay(other):
-            data = self._get_data().__add__(other)
-            return self._new(
-                data=data,
-                unit=self.unit(),
-                axes=self.axes,
-                name=self.name,
-            )
-        return NotImplemented
-
-    def __sub__(self, other: typing.Any):
-        if self._add_sub_okay(other):
-            data = self._get_data().__sub__(other)
-            return self._new(
-                data=data,
-                unit=self.unit(),
-                axes=self.axes,
-                name=self.name,
-            )
-        return NotImplemented
-
-    def _add_sub_okay(self, other):
-        if isinstance(other, numbers.Real):
-            return True
-        if isinstance(other, Variable) and self.axes == other.axes:
-            return True
-        return False
-
-    def __mul__(self, other: typing.Any):
-        if isinstance(other, Variable):
-            axes = sorted(tuple(set(self.axes + other.axes)))
-            sarr, oarr = self._extend_arrays(other, axes)
-            data = sarr * oarr
-            unit = self.unit() * other.unit()
-            name = f"{self.name} * {other.name}"
-            return self._new(
-                data=data,
-                unit=unit,
-                axes=axes,
-                name=name,
-            )
-        data = self._get_data().__mul__(other)
-        return self._new(
-            data=data,
-            unit=self.unit(),
-            axes=self.axes,
-            name=self.name,
-        )
-
-    def __rmul__(self, other: typing.Any):
-        data = self._get_data().__rmul__(other)
-        return self._new(
-            data=data,
-            unit=self.unit(),
-            axes=self.axes,
-            name=self.name,
-        )
-
-    def __truediv__(self, other: typing.Any):
-        if isinstance(other, Variable):
-            axes = sorted(tuple(set(self.axes + other.axes)))
-            sarr, oarr = self._extend_arrays(other, axes)
-            data = sarr / oarr
-            unit = self.unit() / other.unit()
-            name = f"{self.name} / {other.name}"
-            return self._new(
-                data=data,
-                unit=unit,
-                axes=axes,
-                name=name,
-            )
-        data = self._get_data().__truediv__(other)
-        return self._new(
-            data=data,
-            unit=self.unit(),
-            axes=self.axes,
-            name=self.name,
-        )
-
-    def __pow__(self, other: typing.Any):
-        if isinstance(other, numbers.Real):
-            data = self._get_data().__pow__(other)
-            unit = self.unit().__pow__(other)
-            return self._new(
-                data=data,
-                unit=unit,
-                axes=self.axes,
-                name=self.name,
-            )
-        return NotImplemented
-
-    @property
-    def shape_dict(self) -> typing.Dict[str, int]:
-        """Label and size for each axis."""
-        return dict(zip(self.axes, self._get_data('shape')))
-
-    def _extend_arrays(
-        self,
-        other: 'Variable',
-        axes: typing.Tuple[str],
-    ) -> typing.Tuple[numpy.ndarray]:
-        """Extract arrays with extended axes.
-
-        This method determines the set of unique axes shared by this
-        instance and `other`, then extracts arrays suitable for computing a
-        product or ratio that has the full set of axes.
-        """
-        tmp = {**other.shape_dict, **self.shape_dict}
-        full_shape = tuple(tmp[d] for d in axes)
-        idx = numpy.ix_(*[range(i) for i in full_shape])
-        self_idx = tuple(idx[axes.index(d)] for d in self.shape_dict)
-        self_arr = self._get_data(self_idx)
-        other_idx = tuple(idx[axes.index(d)] for d in other.shape_dict)
-        other_arr = other._get_data(other_idx)
-        return self_arr, other_arr
-
     def __array__(self, *args, **kwargs) -> numpy.ndarray:
         """Support casting to `numpy` array types.
         
         Notes
         -----
-        This will first cast `self._amount` (inherited from
-        `~quantities.Measured`) on its own to a `numpy.ndarray`, before applying
-        `*args` and `**kwargs`, in order to avoid a `TypeError` when using
+        This will retrieve the underlying array before applying `*args` and
+        `**kwargs`, in order to avoid a `TypeError` when using
         `netCDF4.Dataset`. See
         https://github.com/mcgibbon/python-examples/blob/master/scripts/file-io/load_netCDF4_full.py
         """
         data = self._get_array()
         return numpy.asanyarray(data, *args, **kwargs)
+
+    @property
+    def shape_dict(self) -> typing.Dict[str, int]:
+        """Label and size for each axis."""
+        return dict(zip(self.axes, self._get_data('shape')))
 
     def _get_data(self, arg: typing.Union[str, IndexLike]=None):
         """Access the data array or a dataset attribute.
@@ -508,14 +276,14 @@ class Variable(Parent, Mixin, allowed=allowed):
         If `arg` is not a string, this method will assume it is an index and
         will attempt to return the relevant portion of the dataset array (after
         loading from disk, if necessary). If `arg` is a string, this method will
-        first search `_amount` for the named attribute, to take advantage of
+        first search `_data` for the named attribute, to take advantage of
         viewers that provide metadata without loading the full dataset. If that
         search fails, this method will attempt to retrieve the named attribute
         from the full array.
         """
         if not isinstance(arg, str):
             return self._get_array(index=arg)
-        if attr := getattr(self._amount, arg, None):
+        if attr := getattr(self._data, arg, None):
             return attr
         return getattr(self._get_array(), arg)
 
@@ -525,7 +293,7 @@ class Variable(Parent, Mixin, allowed=allowed):
         Notes
         -----
         If `index` is not `None`, this method will create the requested subarray
-        from `self._amount` and directly return it. If `index` is `None`, this
+        from `self._data` and directly return it. If `index` is `None`, this
         method will load the entire array and let execution proceed to the
         following block, which will immediately return the array. It will then
         subscript the pre-loaded array on subsequent calls. The reasoning behind
@@ -555,30 +323,67 @@ class Variable(Parent, Mixin, allowed=allowed):
         
         If `index` is "missing" in the sense defined by `~iterables.missing`
         this method will load and return the full array. If `index` is not
-        missing, this method will first attempt to subscript `self._amount`
-        before converting it to an array and returning it. If it catches either
-        a `TypeError` or an `IndexError`, it will create the full array before
-        subscripting and returning it. The former may occur if `self._amount` is
-        a sequence type like `list`, `tuple`, or `range`; the latter may occur
+        missing, this method will first attempt to subscript `self._data` before
+        converting it to an array and returning it. If it catches either a
+        `TypeError` or an `IndexError`, it will create the full array before
+        subscripting and returning it. The former may occur if `self._data` is a
+        sequence type like `list`, `tuple`, or `range`; the latter may occur
         when attempting to subscript certain array-like objects (e.g.,
         `netCDF4._netCDF4.Variable`) with valid `numpy` index expressions.
         """
         if not iterables.missing(index):
             idx = numpy.index_exp[index]
             try:
-                return numpy.asarray(self._amount[idx])
+                return numpy.asarray(self._data[idx])
             except (TypeError, IndexError):
-                return numpy.asarray(self._amount)[idx]
-        return numpy.asarray(self._amount)
+                return numpy.asarray(self._data)[idx]
+        return numpy.asarray(self._data)
+
+    def _new_from_func(self, result, updates: dict=None):
+        """Create a new instance from the result of a `numpy` function.
+        
+        If `result` is a `numpy.ndarray` and `updates` is a (possibly empty)
+        `dict`, this method will create a new instance. Otherwise, it will
+        return `result` as-is.
+        """
+        if isinstance(result, numpy.ndarray) and isinstance(updates, dict):
+            return self.copy_with(data=result, **updates)
+        return result
+
+    def convert_to(self, unit: str):
+        """Change this variable's unit and update the numerical scale factor."""
+        scale = (quantities.Unit(unit) // self.unit) * self._scale
+        return self.copy_with(unit=unit, scale=scale)
+
+    def copy_with(self, **updates):
+        """Create a new instance with optional parameter updates."""
+        if 'data' in updates:
+            return type(self)(
+                data=updates['data'],
+                unit=updates.get('unit', self.unit),
+                axes=updates.get('axes', self.axes),
+                name=updates.get('name', self.name),
+            )
+        return type(self)(
+            data=self._data,
+            unit=updates.get('unit', self.unit),
+            axes=updates.get('axes', self.axes),
+            name=updates.get('name', self.name),
+            scale=updates.get('scale', self._scale),
+        )
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
         attrs = [
-            f"shape={self.shape_dict}",
-            f"unit='{self.unit()}'",
-            f"name='{self.name}'",
+            f"{self.name!r}",
+            f"unit='{self.unit}'",
+            f"axes={self.axes}",
         ]
         return ', '.join(attrs)
+
+    def __repr__(self) -> str:
+        """An unambiguous representation of this object."""
+        return f"{self.__class__.__qualname__}({self})"
 
     @classmethod
     def implements(cls, numpy_function):
@@ -615,15 +420,152 @@ class Variable(Parent, Mixin, allowed=allowed):
         return decorator
 
 
+@Variable.implements(numpy.squeeze)
+def _squeeze(v: Variable, **kwargs):
+    """Remove singular axes."""
+    data = v._get_data().squeeze(**kwargs)
+    axes = tuple(
+        a for a, d in zip(v.axes, v._get_data('shape'))
+        if d != 1
+    )
+    return Variable(data, unit=v.unit, axes=axes, name=v.name)
+
+
 @Variable.implements(numpy.mean)
-def _array_mean(a: Variable, **kwargs):
-    """Compute the mean and update array dimensions, if necessary."""
-    data = a._get_data().mean(**kwargs)
-    if (axis := kwargs.get('axis')) is not None:
-        a.axes = tuple(
-            d for d in a.axes
-            if a.axes.index(d) != axis
-        )
-    return data
+def _mean(v: Variable, **kwargs):
+    """Compute the mean of the underlying array."""
+    data = v._get_data().mean(**kwargs)
+    axis = kwargs.get('axis')
+    if axis is None:
+        return data
+    axes = tuple(a for a in v.axes if v.axes.index(a) != axis)
+    name = f"mean({v.name})"
+    return Variable(data, unit=v.unit, axes=axes, name=name)
 
 
+# TODO: Refactor functions to reduce overlap.
+
+def _add(a, b):
+    """Called for a + b."""
+    if any(isinstance(v, quantities.RealValued) for v in (a, b)):
+        return {}
+    if all(isinstance(v, Variable) for v in (a, b)):
+        if a.axes == b.axes and a.unit == b.unit:
+            return {'name': f"{a.name} + {b.name}"}
+
+def _subtract(a, b):
+    """Called for a - b."""
+    if any(isinstance(v, quantities.RealValued) for v in (a, b)):
+        return {}
+    if all(isinstance(v, Variable) for v in (a, b)):
+        if a.axes == b.axes and a.unit == b.unit:
+            return {'name': f"{a.name} - {b.name}"}
+
+def _multiply(a, b):
+    """Called for a * b."""
+    if any(isinstance(v, quantities.RealValued) for v in (a, b)):
+        return {}
+    if all(isinstance(v, Variable) for v in (a, b)):
+        return {
+            'unit': a.unit * b.unit,
+            'axes': unique_axes(a, b),
+            'name': f"{a.name} * {b.name}",
+        }
+
+def _true_divide(a, b):
+    """Called for a / b."""
+    if isinstance(b, quantities.RealValued):
+        return {}
+    if all(isinstance(v, Variable) for v in (a, b)):
+        return {
+            'unit': a.unit / b.unit,
+            'axes': unique_axes(a, b),
+            'name': f"{a.name} / {b.name}",
+        }
+
+
+def unique_axes(*variables: Variable):
+    """Compute unique axes while preserving order."""
+    axes = (
+        axis
+        for variable in variables
+        for axis in variable.axes
+    )
+    unique = []
+    for axis in axes:
+        if axis not in unique:
+            unique.append(axis)
+    return unique
+
+
+def _extend_arrays(
+    a: Variable,
+    b: Variable,
+    axes: typing.Tuple[str],
+) -> typing.Tuple[numpy.ndarray]:
+    """Extract arrays with extended axes.
+
+    This method determines the set of unique axes shared by variables `a` and
+    `b`, then extracts arrays suitable for computing a product or ratio that has
+    the full set of axes.
+    """
+    tmp = {**b.shape_dict, **a.shape_dict}
+    full_shape = tuple(tmp[d] for d in axes)
+    idx = numpy.ix_(*[range(i) for i in full_shape])
+    a_idx = tuple(idx[axes.index(d)] for d in a.shape_dict)
+    a_arr = a._get_data(a_idx)
+    b_idx = tuple(idx[axes.index(d)] for d in b.shape_dict)
+    b_arr = b._get_data(b_idx)
+    return a_arr, b_arr
+
+def _sqrt(a: Variable):
+    """Called for `numpy.sqrt(a)`."""
+    return {'unit': f"sqrt({a.unit})", 'name': f"sqrt({a.name})"}
+
+def _power(a: Variable, b):
+    """Called for a ** b or pow(a, b)."""
+    if isinstance(b, numbers.Real):
+        unit = a.unit.__pow__(b)
+        name = f"{a.name}^{b}"
+        return {'unit': unit, 'name': name}
+
+_updaters = {
+    'add': _add,
+    'subtract': _subtract,
+    'multiply': _multiply,
+    'true_divide': _true_divide,
+    'power': _power,
+    'sqrt': _sqrt,
+}
+
+_native_rtype = {
+    'arccos',
+    'arccosh',
+    'arcsin',
+    'arcsinh',
+    'arctan',
+    'arctan2',
+    'arctanh',
+    'cos',
+    'cosh',
+    'sin',
+    'sinh',
+    'tan',
+    'tanh',
+    'log',
+    'log10',
+    'log1p',
+    'log2',
+    'exp',
+    'exp2',
+    'expm1',
+    'floor_divide',
+}
+"""Universal functions that result in a `numpy` or built-in return type.
+
+When any of the universal functions in this set act on an instance of
+`Variable`, the result will be the same as if it had acted on the underlying
+data array. The reason for this behavior may vary from function to function, but
+will typically be related to causing an attribute to become ambiguous or
+undefined.
+"""
