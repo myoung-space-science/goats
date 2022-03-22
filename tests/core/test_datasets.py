@@ -7,6 +7,7 @@ import pytest
 
 from goats.core import aliased
 from goats.core import datasets
+from goats.core import datatypes
 from goats.core import quantities
 
 
@@ -170,8 +171,8 @@ def test_standardize():
 @pytest.mark.variable
 def test_variable():
     """Test the object that represents a variable."""
-    v0 = datasets.Variable([3.0, 4.5], 'm', ['x'])
-    v1 = datasets.Variable([[1.0], [2.0]], 'J', ['x', 'y'])
+    v0 = datatypes.Variable([3.0, 4.5], 'm', ['x'])
+    v1 = datatypes.Variable([[1.0], [2.0]], 'J', ['x', 'y'])
     assert numpy.array_equal(v0, [3.0, 4.5])
     assert v0.unit == quantities.Unit('m')
     assert list(v0.axes) == ['x']
@@ -206,7 +207,7 @@ def test_variable():
 @pytest.mark.variable
 def test_variable_measure():
     """Test the use of `~quantities.measure` on a variable."""
-    v0 = datasets.Variable([3.0, 4.5], 'm', ['x'])
+    v0 = datatypes.Variable([3.0, 4.5], 'm', ['x'])
     measured = quantities.measure(v0)
     assert measured.values == [3.0, 4.5]
     assert measured.unit == 'm'
@@ -243,24 +244,24 @@ def arr() -> typing.Dict[str, list]:
     }
 
 @pytest.fixture
-def var(arr: typing.Dict[str, list]) -> typing.Dict[str, datasets.Variable]:
+def var(arr: typing.Dict[str, list]) -> typing.Dict[str, datatypes.Variable]:
     """A tuple of test variables."""
-    reference = datasets.Variable(
+    reference = datatypes.Variable(
         arr['reference'].copy(),
         axes=('d0', 'd1'),
         unit='m',
     )
-    samedims = datasets.Variable(
+    samedims = datatypes.Variable(
         arr['samedims'].copy(),
         axes=('d0', 'd1'),
         unit='kJ',
     )
-    sharedim = datasets.Variable(
+    sharedim = datatypes.Variable(
         arr['sharedim'].copy(),
         axes=('d1', 'd2'),
         unit='s',
     )
-    different = datasets.Variable(
+    different = datatypes.Variable(
         arr['different'].copy(),
         axes=('d2', 'd3'),
         unit='km/s',
@@ -328,10 +329,10 @@ def reduce(a, b, opr):
 
 @pytest.mark.variable
 def test_variable_mul_div(
-    var: typing.Dict[str, datasets.Variable],
+    var: typing.Dict[str, datatypes.Variable],
     arr: typing.Dict[str, list],
 ) -> None:
-    """Test the ability to multiply two datasets.Variable instances."""
+    """Test the ability to multiply two datatypes.Variable instances."""
     groups = {
         '*': operator.mul,
         '/': operator.truediv,
@@ -358,7 +359,7 @@ def test_variable_mul_div(
             v1 = var[case['key']]
             a1 = arr[case['key']]
             new = opr(v0, v1)
-            assert isinstance(new, datasets.Variable), msg
+            assert isinstance(new, datatypes.Variable), msg
             expected = reduce(a0, a1, opr)
             assert numpy.array_equal(new, expected), msg
             assert sorted(new.axes) == case['axes'], msg
@@ -369,39 +370,64 @@ def test_variable_mul_div(
 
 
 @pytest.mark.variable
-def test_variable_pow(var: typing.Dict[str, datasets.Variable]) -> None:
-    """Test the ability to exponentiate a datasets.Variable instance."""
+def test_variable_pow(
+    var: typing.Dict[str, datatypes.Variable],
+    arr: typing.Dict[str, list],
+) -> None:
+    """Test the ability to exponentiate a datatypes.Variable instance."""
     opr = operator.pow
     v0 = var['reference']
-    ex = 3
+    a0 = arr['reference']
+    cases = [
+        {
+            'p': 3,
+            'rtype': datatypes.Variable,
+        },
+        {
+            'p': a0,
+            'rtype': numpy.ndarray,
+        },
+    ]
     msg = f"Failed for {opr}"
-    new = opr(v0, ex)
-    assert isinstance(new, datasets.Variable)
-    expected = reduce(numpy.array(v0), ex, operator.pow)
-    assert numpy.array_equal(new, expected), msg
-    assert new.axes == var['reference'].axes, msg
-    algebraic = opr(v0.unit, 3)
-    formatted = f'({v0.unit})^{ex}'
-    for unit in (algebraic, formatted):
-        assert new.unit == unit, msg
+    for case in cases:
+        p = case['p']
+        rtype = case['rtype']
+        new = opr(v0, p)
+        assert isinstance(new, rtype)
+        if rtype == datatypes.Variable:
+            expected = reduce(numpy.array(v0), p, operator.pow)
+            assert numpy.array_equal(new, expected), msg
+            assert new.axes == var['reference'].axes, msg
+            algebraic = opr(v0.unit, 3)
+            formatted = f'({v0.unit})^{p}'
+            for unit in (algebraic, formatted):
+                assert new.unit == unit, msg
+        elif rtype == numpy.ndarray:
+            expected = opr(numpy.array(a0), numpy.array(a0))
+            assert numpy.array_equal(new, expected), msg
+        else:
+            raise TypeError(
+                f"Unexpected return type {type(new)}"
+                f" for operand types {type(v0)} and {type(p)}"
+            ) from None
 
 
 @pytest.mark.variable
 def test_variable_add_sub(
-    var: typing.Dict[str, datasets.Variable],
+    var: typing.Dict[str, datatypes.Variable],
     arr: typing.Dict[str, list],
 ) -> None:
-    """Test the ability to add two datasets.Variable instances."""
+    """Test the ability to add two datatypes.Variable instances."""
     v0 = var['reference']
     a0 = arr['reference']
     a1 = arr['samedims']
-    v1 = datasets.Variable(a1, v0.unit, v0.axes)
-    v2 = datasets.Variable(arr['different'], v0.unit, var['different'].axes)
+    v1 = datatypes.Variable(a1, v0.unit, v0.axes)
+    v2 = datatypes.Variable(arr['different'], v0.unit, var['different'].axes)
     for opr in (operator.add, operator.sub):
         msg = f"Failed for {opr}"
         new = opr(v0, v1)
         expected = reduce(a0, a1, opr)
-        assert isinstance(new, datasets.Variable), msg
+        assert isinstance(new, datatypes.Variable), msg
         assert numpy.array_equal(new, expected), msg
         assert new.unit == v0.unit, msg
         assert new.axes == v0.axes, msg
@@ -410,10 +436,10 @@ def test_variable_add_sub(
 
 
 @pytest.mark.variable
-def test_variable_units(var: typing.Dict[str, datasets.Variable]):
+def test_variable_units(var: typing.Dict[str, datatypes.Variable]):
     """Test the ability to update unit via bracket syntax."""
     v0_km = var['reference'].convert_to('km')
-    assert isinstance(v0_km, datasets.Variable)
+    assert isinstance(v0_km, datatypes.Variable)
     assert v0_km is not var['reference']
     assert v0_km.unit == 'km'
     assert v0_km.axes == var['reference'].axes
@@ -421,12 +447,12 @@ def test_variable_units(var: typing.Dict[str, datasets.Variable]):
 
 
 @pytest.mark.variable
-def test_numerical_operations(var: typing.Dict[str, datasets.Variable]):
-    """Test operations between a datasets.Variable and a number."""
+def test_numerical_operations(var: typing.Dict[str, datatypes.Variable]):
+    """Test operations between a datatypes.Variable and a number."""
 
     # multiplication is symmetric
     new = var['reference'] * 10.0
-    assert isinstance(new, datasets.Variable)
+    assert isinstance(new, datatypes.Variable)
     expected = [
         # 3 x 2
         [+(1.0*10.0), +(2.0*10.0)],
@@ -435,12 +461,12 @@ def test_numerical_operations(var: typing.Dict[str, datasets.Variable]):
     ]
     assert numpy.array_equal(new, expected)
     new = 10.0 * var['reference']
-    assert isinstance(new, datasets.Variable)
+    assert isinstance(new, datatypes.Variable)
     assert numpy.array_equal(new, expected)
 
     # right-sided division, addition, and subtraction create a new instance
     new = var['reference'] / 10.0
-    assert isinstance(new, datasets.Variable)
+    assert isinstance(new, datatypes.Variable)
     expected = [
         # 3 x 2
         [+(1.0/10.0), +(2.0/10.0)],
@@ -449,7 +475,7 @@ def test_numerical_operations(var: typing.Dict[str, datasets.Variable]):
     ]
     assert numpy.array_equal(new, expected)
     new = var['reference'] + 10.0
-    assert isinstance(new, datasets.Variable)
+    assert isinstance(new, datatypes.Variable)
     expected = [
         # 3 x 2
         [+1.0+10.0, +2.0+10.0],
@@ -458,7 +484,7 @@ def test_numerical_operations(var: typing.Dict[str, datasets.Variable]):
     ]
     assert numpy.array_equal(new, expected)
     new = var['reference'] - 10.0
-    assert isinstance(new, datasets.Variable)
+    assert isinstance(new, datatypes.Variable)
     expected = [
         # 3 x 2
         [+1.0-10.0, +2.0-10.0],
@@ -477,7 +503,7 @@ def test_numerical_operations(var: typing.Dict[str, datasets.Variable]):
         [-(10.0/4.0), +(10.0/6.0)],
     ]
     new = 10.0 + var['reference']
-    assert isinstance(new, datasets.Variable)
+    assert isinstance(new, datatypes.Variable)
     expected = [
         # 3 x 2
         [10.0+1.0, 10.0+2.0],
@@ -486,7 +512,7 @@ def test_numerical_operations(var: typing.Dict[str, datasets.Variable]):
     ]
     assert numpy.array_equal(new, expected)
     new = 10.0 - var['reference']
-    assert isinstance(new, datasets.Variable)
+    assert isinstance(new, datatypes.Variable)
     expected = [
         # 3 x 2
         [10.0-1.0, 10.0-2.0],
@@ -497,17 +523,17 @@ def test_numerical_operations(var: typing.Dict[str, datasets.Variable]):
 
 
 @pytest.mark.variable
-def test_variable_array(var: typing.Dict[str, datasets.Variable]):
+def test_variable_array(var: typing.Dict[str, datatypes.Variable]):
     """Natively convert a Variable into a NumPy array."""
     v = var['reference']
-    assert isinstance(v, datasets.Variable)
+    assert isinstance(v, datatypes.Variable)
     a = numpy.array(v)
     assert isinstance(a, numpy.ndarray)
     assert numpy.array_equal(v, a)
 
 
 @pytest.mark.variable
-def test_variable_getitem(var: typing.Dict[str, datasets.Variable]):
+def test_variable_getitem(var: typing.Dict[str, datatypes.Variable]):
     """Subscript a Variable."""
     # reference = [
     #     [+1.0, +2.0],
@@ -516,7 +542,7 @@ def test_variable_getitem(var: typing.Dict[str, datasets.Variable]):
     # ]
     v = var['reference']
     for sliced in (v[:], v[...]):
-        assert isinstance(sliced, datasets.Variable)
+        assert isinstance(sliced, datatypes.Variable)
         assert sliced is not v
         expected = numpy.array([[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
         assert numpy.array_equal(sliced, expected)
@@ -532,19 +558,19 @@ def test_variable_getitem(var: typing.Dict[str, datasets.Variable]):
 @pytest.mark.variable
 def test_variable_name():
     """A variable may have a given name or be anonymous."""
-    default = datasets.Variable([1], 'm', ['d0'])
+    default = datatypes.Variable([1], 'm', ['d0'])
     assert default.name == '<anonymous>'
     cases = {
         'test': 'test',
         None: '<anonymous>',
     }
     for name, expected in cases.items():
-        variable = datasets.Variable([1], 'm', ['d0'], name=name)
+        variable = datatypes.Variable([1], 'm', ['d0'], name=name)
         assert variable.name == expected
 
 
 @pytest.mark.variable
-def test_variable_get_array(var: typing.Dict[str, datasets.Variable]):
+def test_variable_get_array(var: typing.Dict[str, datatypes.Variable]):
     """Test the internal `_get_array` method to prevent regression."""
     v = var['reference']
     a = v._get_array((0, 0))
