@@ -444,23 +444,42 @@ def _mean(v: Variable, **kwargs):
     return Variable(data, unit=v.unit, axes=axes, name=name)
 
 
-# TODO: Refactor functions to reduce overlap.
+def allinstances(__type: type, *args):
+    """True if all args are instances of `__type`."""
+    return all(isinstance(arg, __type) for arg in args)
+
+
+def anyinstance(__type: type, *args):
+    """True if any arg is an instance of `__type`."""
+    return any(isinstance(arg, __type) for arg in args)
+
+
+def same(a, b, attrs: typing.Iterable[str]):
+    """True if `a` and `b` have all `attrs` with equal values."""
+    try:
+        return all(
+            getattr(a, attr) == getattr(b, attr)
+            for attr in attrs
+        )
+    except AttributeError:
+        return False
+
 
 def _add(a, b):
     """Called for a + b."""
-    if any(isinstance(v, quantities.RealValued) for v in (a, b)):
+    if anyinstance(quantities.RealValued, a, b):
         return {}
-    if all(isinstance(v, Variable) for v in (a, b)):
-        if a.axes == b.axes and a.unit == b.unit:
-            return {'name': f"{a.name} + {b.name}"}
+    if allinstances(Variable, a, b) and same(a, b, ['axes', 'unit']):
+        return {'name': f"{a.name} + {b.name}"}
+
 
 def _subtract(a, b):
     """Called for a - b."""
-    if any(isinstance(v, quantities.RealValued) for v in (a, b)):
+    if anyinstance(quantities.RealValued, a, b):
         return {}
-    if all(isinstance(v, Variable) for v in (a, b)):
-        if a.axes == b.axes and a.unit == b.unit:
-            return {'name': f"{a.name} - {b.name}"}
+    if allinstances(Variable, a, b) and same(a, b, ['axes', 'unit']):
+        return {'name': f"{a.name} - {b.name}"}
+
 
 def _multiply(a, b):
     """Called for a * b."""
@@ -472,6 +491,7 @@ def _multiply(a, b):
             'axes': unique_axes(a, b),
             'name': f"{a.name} * {b.name}",
         }
+
 
 def _true_divide(a, b):
     """Called for a / b."""
