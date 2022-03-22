@@ -64,6 +64,11 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         self._array = None
         return self
 
+    @property
+    def ndim(self):
+        """Alias for `naxes`."""
+        return self.naxes
+
     def __eq__(self, other: typing.Any):
         """True if two instances have the same data and attributes."""
         if not isinstance(other, Variable):
