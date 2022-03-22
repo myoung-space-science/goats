@@ -9,7 +9,7 @@ import netCDF4
 import numpy
 import numpy.typing
 
-from ._variable import Variable
+from goats.core import datatypes
 from goats.core import aliased
 from goats.core import iotools
 from goats.core import iterables
@@ -313,7 +313,7 @@ class Variables(aliased.Mapping):
         if key in self._cache:
             return self._cache[key]
         datavar = super().__getitem__(key)
-        variable = Variable(
+        variable = datatypes.Variable(
             datavar.data,
             standardize(datavar.unit),
             datavar.axes,
@@ -324,173 +324,8 @@ class Variables(aliased.Mapping):
         return result
 
 
-class Indices(collections.abc.Sequence, iterables.ReprStrMixin):
-    """A sequence of indices into data arrays."""
-
-    __slots__ = ('indices',)
-
-    def __init__(self, indices: typing.Iterable[int]) -> None:
-        self.indices = tuple(indices)
-
-    def __getitem__(self, __i: typing.SupportsIndex):
-        """Called for index look-up and iteration."""
-        return self.indices[__i]
-
-    def __len__(self):
-        """Called for len(self) and iteration."""
-        return len(self.indices)
-
-    def __eq__(self, other):
-        """True if two instances have the same indices."""
-        if not isinstance(other, Indices):
-            return NotImplemented
-        return all(
-            getattr(self, attr) == getattr(other, attr)
-            for attr in self.__slots__
-        )
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        return iterables.show_at_most(3, self.indices, separator=', ')
-
-
-class IndexMap(Indices):
-    """A sequence of indices in correspondence with values of any type."""
-
-    __slots__ = ('values',)
-
-    def __init__(
-        self,
-        indices: typing.Iterable[int],
-        values: typing.Iterable[typing.Any],
-    ) -> None:
-        super().__init__(indices)
-        self.values = tuple(values)
-        nv = len(self.values)
-        ni = len(self.indices)
-        if nv != ni:
-            errmsg = f"number of values ({nv}) != number of indices ({ni})"
-            raise TypeError(errmsg)
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        pairs = [f"{i} | {v!r}" for i, v in zip(self.indices, self.values)]
-        return iterables.show_at_most(3, pairs, separator=', ')
-
-
-class Coordinates(IndexMap):
-    """A sequence of indices in correspondence with scalar values."""
-
-    __slots__ = ('unit',)
-
-    def __init__(
-        self,
-        indices: typing.Iterable[int],
-        values: typing.Iterable[typing.Any],
-        unit: typing.Union[str, quantities.Unit],
-    ) -> None:
-        super().__init__(indices, values)
-        self.unit = unit
-
-    def with_unit(self, new: typing.Union[str, quantities.Unit]):
-        """Convert this object to the new unit, if possible."""
-        scale = quantities.Unit(new) // self.unit
-        self.values = [value * scale for value in self.values]
-        self.unit = new
-        return self
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        values = iterables.show_at_most(3, self.values, separator=', ')
-        return f"{values} [{self.unit}]"
-
-
-IndexLike = typing.TypeVar('IndexLike', bound=Indices)
-IndexLike = typing.Union[Indices, IndexMap, Coordinates]
-
-
-class Indexer:
-    """A callable object that generates array indices from user arguments."""
-
-    def __init__(
-        self,
-        method: typing.Callable[..., IndexLike],
-        reference: numpy.typing.ArrayLike,
-    ) -> None:
-        self.method = method
-        self.reference = reference
-
-    def __call__(self, targets, **kwargs):
-        """Call the array-indexing method."""
-        return self.method(targets, **kwargs)
-
-
-class Axis(iterables.ReprStrMixin):
-    """A single dataset axis."""
-
-    def __init__(
-        self,
-        size: int,
-        indexer: Indexer,
-        name: str='<anonymous>',
-    ) -> None:
-        self.size = size
-        """The full length of this axis."""
-        self.indexer = indexer
-        """A callable object that creates indices from user input."""
-        self.reference = indexer.reference
-        """The index reference values."""
-        self.name = name
-        """The name of this axis."""
-
-    def __call__(self, *args, **kwargs):
-        """Convert user arguments into an index object."""
-        targets = self._normalize(*args)
-        if all(isinstance(value, numbers.Integral) for value in targets):
-            return Indices(targets)
-        return self.indexer(targets, **kwargs)
-
-    def _normalize(self, *user):
-        """Helper for computing target values from user input."""
-        if not user:
-            return self.reference
-        if isinstance(user[0], slice):
-            return iterables.slice_to_range(user[0], stop=self.size)
-        if isinstance(user[0], range):
-            return user[0]
-        return user
-
-    def __len__(self) -> int:
-        """The full length of this axis. Called for len(self)."""
-        return self.size
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        string = f"{self.name}, size={self.size}"
-        unit = (
-            str(self.reference.unit())
-            if isinstance(self.reference, quantities.Measured)
-            else None
-        )
-        if unit:
-            string += f", unit={unit!r}"
-        return string
-
-
-class Indexers(aliased.Mapping):
-    """The default collection of axis indexers."""
-
-    def __init__(self, dataset: DatasetView) -> None:
-        self.dataset = dataset
-        self.references = {}
-        super().__init__(dataset.axes)
-
-    def __getitem__(self, key: str) -> Indexer:
-        """Get the default indexer for `key`."""
-        axis = super().__getitem__(key)
-        reference = range(axis.size)
-        method = lambda _: Indices(reference)
-        return Indexer(method, reference)
+Indexers = typing.TypeVar('Indexers', bound=typing.Mapping)
+Indexers = typing.Mapping[str, datatypes.Indexer]
 
 
 class Axes(aliased.Mapping):
@@ -505,11 +340,11 @@ class Axes(aliased.Mapping):
         super().__init__(indexers)
         self.dataset = dataset
 
-    def __getitem__(self, key: str) -> Axis:
+    def __getitem__(self, key: str) -> datatypes.Axis:
         indexer = super().__getitem__(key)
         size = self.dataset.axes[key].size
         name = f"'{observables.ALIASES.get(key, key)}'"
-        return Axis(size, indexer, name=name)
+        return datatypes.Axis(size, indexer, name=name)
 
 
 class Dataset:
