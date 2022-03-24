@@ -10,6 +10,86 @@ from goats.core import quantities
 from goats.core import iterables
 
 
+class Constraint(abc.ABC):
+    """Base class for enforceable operator constraints."""
+
+    def __call__(self, *args, **kwargs):
+        """Enforce this constraint."""
+        if not self.consistent(*args, **kwargs):
+            raise ValueError
+
+    @abc.abstractmethod
+    def consistent(self, *args, **kwargs) -> bool:
+        """Apply this constraint."""
+        return False
+
+
+class SameAttrs(iterables.ReprStrMixin, Constraint):
+    """A class that checks attribute consistency."""
+
+    def __init__(self, *names: str) -> None:
+        self.names = names
+
+    def consistent(self, a, b) -> bool:
+        """True if the named attributes of `a` and `b` are equal."""
+        return all(getattr(a, name) == getattr(b, name) for name in self.names)
+
+    def __str__(self) -> str:
+        return ', '.join(self.names)
+
+
+XT = typing.TypeVar('XT', typing.Callable, str)
+def attr_updater(x: XT):
+    """Update a `Variable` attribute via `x`."""
+    def inner(*v: Variable):
+        if callable(x):
+            return x(*v)
+        if isinstance(x, str):
+            return x.format(*v)
+    return inner
+
+
+class Ufunc(iterables.ReprStrMixin):
+    """An object that manages use of a `numpy` universal function."""
+
+    def __init__(self, ufunc: numpy.ufunc) -> None:
+        self.ufunc = ufunc
+        self.name = ufunc.__name__
+        self._recipes = None
+
+    @property
+    def recipes(self) -> typing.Optional[dict]:
+        """The updaters for supported argument types."""
+        if self._recipes is None:
+            self._recipes = _opr_rules.get(self.name)
+        return self._recipes
+
+    def attr_updates(self, *args):
+        """Updated attributes for `args`, based on this function."""
+        if self.recipes:
+            # If we get here, there is an entry for `name`.
+            recipe = self._get_recipe(*args)
+            if recipe is None:
+                return NotImplemented
+            # If we get here, there is a recipe for the argument type(s).
+            for constraint in recipe.get('constraints', ()):
+                constraint(*args)
+            updaters = recipe.get('updaters', {})
+            return {k: updater(*args) for k, updater in updaters.items()}
+
+    def _get_recipe(self, *args) -> dict:
+        """Attempt to find an appropriate recipe for the given args."""
+        types = tuple(type(arg) for arg in args)
+        if types in self.recipes:
+            return self.recipes[types]
+        for key, recipe in self.recipes.items():
+            if all(issubclass(t, k) for t, k in zip(types, key)):
+                return recipe
+
+    def __str__(self) -> str:
+        return self.name
+
+
 IndexLike = typing.TypeVar(
     'IndexLike',
     typing.Iterable[int],
@@ -194,11 +274,12 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
                 x._get_data() if isinstance(x, type(self))
                 else x for x in out
             )
+        handler = Ufunc(ufunc)
         args = self._convert_inputs(ufunc, *inputs)
         result = getattr(ufunc, method)(*args, **kwargs)
         if ufunc.__name__ in _native_rtype:
             return result
-        updates = _update_attrs(ufunc.__name__, *inputs)
+        updates = handler.attr_updates(*inputs)
         if type(result) is tuple:
             return tuple(
                 self._new_from_func(x, updates=updates)
@@ -478,69 +559,6 @@ def _extend_arrays(
     return a_arr, b_arr
 
 
-class Constraint(abc.ABC):
-    """Base class for enforceable operator constraints."""
-
-    def __call__(self, *args, **kwargs):
-        """Enforce this constraint."""
-        if not self.consistent(*args, **kwargs):
-            raise ValueError
-
-    @abc.abstractmethod
-    def consistent(self, *args, **kwargs) -> bool:
-        """Apply this constraint."""
-        return False
-
-
-class SameAttrs(iterables.ReprStrMixin, Constraint):
-    """A class that checks attribute consistency."""
-
-    def __init__(self, *names: str) -> None:
-        self.names = names
-
-    def consistent(self, a: Variable, b: Variable) -> bool:
-        """True if the named attributes of `a` and `b` are equal."""
-        return all(getattr(a, name) == getattr(b, name) for name in self.names)
-
-    def __str__(self) -> str:
-        return ', '.join(self.names)
-
-
-XT = typing.TypeVar('XT', typing.Callable, str)
-def attr_updater(x: XT):
-    """Update a `Variable` attribute via `x`."""
-    def inner(*v: Variable):
-        if callable(x):
-            return x(*v)
-        if isinstance(x, str):
-            return x.format(*v)
-    return inner
-
-
-def _update_attrs(name: str, *args):
-    """Update attributes of `args` based on function name."""
-    if rules := _opr_rules.get(name):
-        # If we get here, there is an entry for `name`.
-        types = tuple(type(arg) for arg in args)
-        rule = _get_rule(rules, *types)
-        if rule is None:
-            return NotImplemented
-        # If we get here, there is a rule for the argument type(s).
-        for constraint in rule.get('constraints', ()):
-            constraint(*args)
-        updaters = rule.get('updaters', {})
-        return {k: updater(*args) for k, updater in updaters.items()}
-
-
-def _get_rule(rules: dict, *types: type) -> dict:
-    """Attempt to find an appropriate rule for the given types."""
-    if types in rules:
-        return rules[types]
-    for key, rule in rules.items():
-        if all(issubclass(t, k) for t, k in zip(types, key)):
-            return rule
-
-
 _opr_rules = {
     'add': {
         (Variable, quantities.RealValued): {},
@@ -633,6 +651,7 @@ data array. The reason for this behavior may vary from function to function, but
 will typically be related to causing an attribute to become ambiguous or
 undefined.
 """
+
 
 class Indices(collections.abc.Sequence, iterables.ReprStrMixin):
     """A sequence of indices into data arrays."""
