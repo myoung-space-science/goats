@@ -60,6 +60,16 @@ class HasAxes(typing.Protocol):
         pass
 
 
+def unique_axes(*args: HasAxes):
+    """Compute unique axes while preserving order."""
+    axes = (axis for arg in args for axis in arg.axes)
+    unique = []
+    for axis in axes:
+        if axis not in unique:
+            unique.append(axis)
+    return unique
+
+
 class Ufunc(iterables.ReprStrMixin):
     """An object that manages use of a `numpy` universal function."""
 
@@ -533,16 +543,6 @@ def _mean(v: Variable, **kwargs):
     axes = tuple(a for a in v.axes if v.axes.index(a) != axis)
     name = f"mean({v.name})"
     return Variable(data, unit=v.unit, axes=axes, name=name)
-
-
-def unique_axes(*args: HasAxes):
-    """Compute unique axes while preserving order."""
-    axes = (axis for arg in args for axis in arg.axes)
-    unique = []
-    for axis in axes:
-        if axis not in unique:
-            unique.append(axis)
-    return unique
 
 
 def _extend_arrays(
