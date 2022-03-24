@@ -49,6 +49,17 @@ def attr_updater(x: XT):
     return inner
 
 
+@typing.runtime_checkable
+class HasAxes(typing.Protocol):
+    """Abstract protocol for objects with `axes`."""
+
+    @property
+    @abc.abstractmethod
+    def axes(self) -> typing.Iterable[str]:
+        """The names of indexable axes in this object's array."""
+        pass
+
+
 class Ufunc(iterables.ReprStrMixin):
     """An object that manages use of a `numpy` universal function."""
 
@@ -524,13 +535,9 @@ def _mean(v: Variable, **kwargs):
     return Variable(data, unit=v.unit, axes=axes, name=name)
 
 
-def unique_axes(*variables: Variable):
+def unique_axes(*args: HasAxes):
     """Compute unique axes while preserving order."""
-    axes = (
-        axis
-        for variable in variables
-        for axis in variable.axes
-    )
+    axes = (axis for arg in args for axis in arg.axes)
     unique = []
     for axis in axes:
         if axis not in unique:
