@@ -610,7 +610,7 @@ _opr_rules = {
     'power': {
         (Variable, numbers.Real): {
             'updaters': {
-                'unit': attr_updater('{0.unit}^{1}'),
+                'unit': attr_updater('({0.unit})^{1}'),
                 'name': attr_updater('{0.name}^{1}'),
             },
         },
