@@ -315,8 +315,7 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         multiplicative = ufunc.__name__ in {'multiply', 'divide', 'true_divide'}
         correct_type = all(isinstance(v, type(self)) for v in inputs)
         if multiplicative and correct_type:
-            axes = unique_axes(*inputs)
-            return _extend_arrays(*inputs, axes)
+            return _extend_arrays(*inputs)
         return tuple(
             x._get_data() if isinstance(x, type(self))
             else x for x in inputs
@@ -548,7 +547,6 @@ def _mean(v: Variable, **kwargs):
 def _extend_arrays(
     a: Variable,
     b: Variable,
-    axes: typing.Tuple[str],
 ) -> typing.Tuple[numpy.ndarray]:
     """Extract arrays with extended axes.
 
@@ -556,6 +554,7 @@ def _extend_arrays(
     `b`, then extracts arrays suitable for computing a product or ratio that has
     the full set of axes.
     """
+    axes = unique_axes(a, b)
     tmp = {**b.shape_dict, **a.shape_dict}
     full_shape = tuple(tmp[d] for d in axes)
     idx = numpy.ix_(*[range(i) for i in full_shape])
