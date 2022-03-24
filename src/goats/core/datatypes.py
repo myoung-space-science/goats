@@ -1,3 +1,4 @@
+import abc
 import collections.abc
 import numbers
 import typing
@@ -197,7 +198,7 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         result = getattr(ufunc, method)(*args, **kwargs)
         if ufunc.__name__ in _native_rtype:
             return result
-        updates = self._update_attrs(ufunc, *inputs)
+        updates = _update_attrs(ufunc.__name__, *inputs)
         if type(result) is tuple:
             return tuple(
                 self._new_from_func(x, updates=updates)
@@ -217,13 +218,6 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         return tuple(
             x._get_data() if isinstance(x, type(self))
             else x for x in inputs
-        )
-
-    def _update_attrs(self, ufunc, *inputs):
-        """Compute attribute updates based on `ufunc` and `inputs`."""
-        return (
-            updater(*inputs) if (updater := _updaters.get(ufunc.__name__))
-            else {}
         )
 
     _HANDLED_FUNCTIONS = {}
@@ -363,7 +357,7 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
 
     def copy_with(self, **updates):
         """Create a new instance with optional parameter updates."""
-        if 'data' in updates:
+        if 'data' in updates: # User shouldn't be able to do this.
             return type(self)(
                 data=updates['data'],
                 unit=updates.get('unit', self.unit),
@@ -449,67 +443,6 @@ def _mean(v: Variable, **kwargs):
     return Variable(data, unit=v.unit, axes=axes, name=name)
 
 
-def allinstances(__type: type, *args):
-    """True if all args are instances of `__type`."""
-    return all(isinstance(arg, __type) for arg in args)
-
-
-def anyinstance(__type: type, *args):
-    """True if any arg is an instance of `__type`."""
-    return any(isinstance(arg, __type) for arg in args)
-
-
-def same(a, b, attrs: typing.Iterable[str]):
-    """True if `a` and `b` have all `attrs` with equal values."""
-    try:
-        return all(
-            getattr(a, attr) == getattr(b, attr)
-            for attr in attrs
-        )
-    except AttributeError:
-        return False
-
-
-def _add(a, b):
-    """Called for a + b."""
-    if anyinstance(quantities.RealValued, a, b):
-        return {}
-    if allinstances(Variable, a, b) and same(a, b, ['axes', 'unit']):
-        return {'name': f"{a.name} + {b.name}"}
-
-
-def _subtract(a, b):
-    """Called for a - b."""
-    if anyinstance(quantities.RealValued, a, b):
-        return {}
-    if allinstances(Variable, a, b) and same(a, b, ['axes', 'unit']):
-        return {'name': f"{a.name} - {b.name}"}
-
-
-def _multiply(a, b):
-    """Called for a * b."""
-    if any(isinstance(v, quantities.RealValued) for v in (a, b)):
-        return {}
-    if all(isinstance(v, Variable) for v in (a, b)):
-        return {
-            'unit': a.unit * b.unit,
-            'axes': unique_axes(a, b),
-            'name': f"{a.name} * {b.name}",
-        }
-
-
-def _true_divide(a, b):
-    """Called for a / b."""
-    if isinstance(b, quantities.RealValued):
-        return {}
-    if all(isinstance(v, Variable) for v in (a, b)):
-        return {
-            'unit': a.unit / b.unit,
-            'axes': unique_axes(a, b),
-            'name': f"{a.name} / {b.name}",
-        }
-
-
 def unique_axes(*variables: Variable):
     """Compute unique axes while preserving order."""
     axes = (
@@ -544,25 +477,130 @@ def _extend_arrays(
     b_arr = b._get_data(b_idx)
     return a_arr, b_arr
 
-def _sqrt(a: Variable):
-    """Called for `numpy.sqrt(a)`."""
-    return {'unit': f"sqrt({a.unit})", 'name': f"sqrt({a.name})"}
 
-def _power(a: Variable, b):
-    """Called for a ** b or pow(a, b)."""
-    if isinstance(b, numbers.Real):
-        unit = a.unit.__pow__(b)
-        name = f"{a.name}^{b}"
-        return {'unit': unit, 'name': name}
+class Constraint(abc.ABC):
+    """Base class for enforceable operator constraints."""
 
-_updaters = {
-    'add': _add,
-    'subtract': _subtract,
-    'multiply': _multiply,
-    'true_divide': _true_divide,
-    'power': _power,
-    'sqrt': _sqrt,
+    def __call__(self, *args, **kwargs):
+        """Enforce this constraint."""
+        if not self.consistent(*args, **kwargs):
+            raise ValueError
+
+    @abc.abstractmethod
+    def consistent(self, *args, **kwargs) -> bool:
+        """Apply this constraint."""
+        return False
+
+
+class SameAttrs(iterables.ReprStrMixin, Constraint):
+    """A class that checks attribute consistency."""
+
+    def __init__(self, *names: str) -> None:
+        self.names = names
+
+    def consistent(self, a: Variable, b: Variable) -> bool:
+        """True if the named attributes of `a` and `b` are equal."""
+        return all(getattr(a, name) == getattr(b, name) for name in self.names)
+
+    def __str__(self) -> str:
+        return ', '.join(self.names)
+
+
+XT = typing.TypeVar('XT', typing.Callable, str)
+def attr_updater(x: XT):
+    """Update a `Variable` attribute via `x`."""
+    def inner(*v: Variable):
+        if callable(x):
+            return x(*v)
+        if isinstance(x, str):
+            return x.format(*v)
+    return inner
+
+
+def _update_attrs(name: str, *args):
+    """Update attributes of `args` based on function name."""
+    if rules := _opr_rules.get(name):
+        # If we get here, there is an entry for `name`.
+        types = tuple(type(arg) for arg in args)
+        rule = _get_rule(rules, *types)
+        if rule is None:
+            return NotImplemented
+        # If we get here, there is a rule for the argument type(s).
+        for constraint in rule.get('constraints', ()):
+            constraint(*args)
+        updaters = rule.get('updaters', {})
+        return {k: updater(*args) for k, updater in updaters.items()}
+
+
+def _get_rule(rules: dict, *types: type) -> dict:
+    """Attempt to find an appropriate rule for the given types."""
+    if types in rules:
+        return rules[types]
+    for key, rule in rules.items():
+        if all(issubclass(t, k) for t, k in zip(types, key)):
+            return rule
+
+
+_opr_rules = {
+    'add': {
+        (Variable, quantities.RealValued): {},
+        (Variable, Variable): {
+            'constraints': [SameAttrs('axes', 'unit')],
+            'updaters': {
+                'name': attr_updater('{0.name} + {1.name}'),
+            }
+        },
+        (quantities.RealValued, Variable): {},
+    },
+    'subtract': {
+        (Variable, quantities.RealValued): {},
+        (Variable, Variable): {
+            'constraints': [SameAttrs('axes', 'unit')],
+            'updaters': {
+                'name': attr_updater('{0.name} - {1.name}'),
+            }
+        },
+        (quantities.RealValued, Variable): {},
+    },
+    'multiply': {
+        (Variable, quantities.RealValued): {},
+        (Variable, Variable): {
+            'updaters': {
+                'unit': attr_updater('{0.unit} * {1.unit}'),
+                'axes': unique_axes,
+                'name': attr_updater('{0.name} * {1.name}'),
+            }
+        },
+        (quantities.RealValued, Variable): {},
+    },
+    'true_divide': {
+        (Variable, quantities.RealValued): {},
+        (Variable, Variable): {
+            'updaters': {
+                'unit': attr_updater('{0.unit} / ({1.unit})'),
+                'axes': unique_axes,
+                'name': attr_updater('{0.name} / {1.name}'),
+            }
+        },
+    },
+    'power': {
+        (Variable, numbers.Real): {
+            'updaters': {
+                'unit': attr_updater('{0.unit}^{1}'),
+                'name': attr_updater('{0.name}^{1}'),
+            },
+        },
+    },
+    'sqrt': {
+        (Variable,): {
+            'updaters': {
+                'unit': attr_updater('sqrt({0.unit})'),
+                'name': attr_updater('sqrt({0.name})'),
+            },
+        },
+    },
 }
+
 
 _native_rtype = {
     'arccos',
