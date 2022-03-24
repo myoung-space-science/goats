@@ -53,7 +53,7 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
             data = attr_dict['data']
             unit = attr_dict['unit'] or '1'
             axes = attr_dict['axes'] or ()
-            name = attr_dict['name'] or '<anonymous>'
+            name = attr_dict['name'] or ''
             scale = kwargs.get('scale') or 1.0
         self = super().__new__(cls)
         self._data = data

@@ -400,10 +400,10 @@ def test_variable_getitem(var: typing.Dict[str, datatypes.Variable]):
 def test_variable_name():
     """A variable may have a given name or be anonymous."""
     default = datatypes.Variable([1], 'm', ['d0'])
-    assert default.name == '<anonymous>'
+    assert default.name == ''
     cases = {
         'test': 'test',
-        None: '<anonymous>',
+        None: '',
     }
     for name, expected in cases.items():
         variable = datatypes.Variable([1], 'm', ['d0'], name=name)
