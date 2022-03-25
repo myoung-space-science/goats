@@ -3,6 +3,7 @@ import operator
 import typing
 
 import numpy
+import numpy.typing
 import pytest
 
 from goats.core import datatypes
@@ -465,17 +466,35 @@ def components():
     ]
 
 
+def call_binary_func(
+    func: typing.Callable[..., datatypes.Variable],
+    data: typing.Iterable,
+    rtype: type,
+    expected: numpy.typing.ArrayLike=None,
+    **attrs
+) -> None:
+    """Call a function of two variables for testing."""
+    result = func(*data)
+    assert isinstance(result, rtype)
+    for name, value in attrs.items():
+        assert getattr(result, name, False) == value
+    if expected is not None:
+        assert numpy.array_equal(result, expected)
+
+
 def test_add_number(components):
     ref = [components[i] for i in (0, 1)]
     var = [datatypes.Variable(**component) for component in ref]
     num = 2.3
-    result = var[0] + num
-    assert isinstance(result, datatypes.Variable)
-    assert result.unit == ref[0]['unit']
-    assert result.axes == ref[0]['axes']
-    assert result.name == ref[0]['name']
     expected = ref[0]['data'] + num
-    assert numpy.array_equal(result, expected)
+    attrs = {k: ref[0][k] for k in ('unit', 'axes', 'name')}
+    call_binary_func(
+        operator.add,
+        [var[0], num],
+        datatypes.Variable,
+        expected=expected,
+        **attrs
+    )
 
 
 def test_sub_number(components):
