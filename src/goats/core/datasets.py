@@ -324,8 +324,20 @@ class Variables(aliased.Mapping):
         return result
 
 
-Indexers = typing.TypeVar('Indexers', bound=typing.Mapping)
-Indexers = typing.Mapping[str, datatypes.Indexer]
+class Indexers(aliased.Mapping):
+    """The default collection of axis indexers."""
+
+    def __init__(self, dataset: DatasetView) -> None:
+        self.dataset = dataset
+        self.references = {}
+        super().__init__(dataset.axes)
+
+    def __getitem__(self, key: str) -> datatypes.Indexer:
+        """Get the default indexer for `key`."""
+        axis = super().__getitem__(key)
+        reference = range(axis.size)
+        method = lambda _: datatypes.Indices(reference)
+        return datatypes.Indexer(method, reference)
 
 
 class Axes(aliased.Mapping):
