@@ -520,15 +520,17 @@ def call_func(
     rtype: RType,
     *operands: OType,
     expected: numpy.typing.ArrayLike=None,
-    **attrs
+    attrs: dict=None,
+    **kwargs
 ) -> None:
     """Call a function of one or more variables for testing."""
     types = tuple(type(operand) for operand in operands)
     msg = f"Failed for {func!r} with {types}"
-    result = func(*operands)
+    result = func(*operands, **kwargs)
     assert isinstance(result, rtype), msg
-    for name, value in attrs.items():
-        assert getattr(result, name, False) == value, msg
+    if attrs is not None:
+        for name, value in attrs.items():
+            assert getattr(result, name, False) == value, msg
     if expected is not None:
         assert numpy.array_equal(result, expected), msg
 
@@ -545,7 +547,7 @@ def test_add_number(components):
         datatypes.Variable,
         *operands,
         expected=expected,
-        **attrs
+        attrs=attrs,
     )
 
 
@@ -561,7 +563,7 @@ def test_sub_number(components):
         datatypes.Variable,
         *operands,
         expected=expected,
-        **attrs
+        attrs=attrs,
     )
 
 
@@ -577,7 +579,7 @@ def test_add_variable(components):
         datatypes.Variable,
         *operands,
         expected=expected,
-        **attrs
+        attrs=attrs,
     )
 
 
@@ -593,7 +595,7 @@ def test_sub_variable(components):
         datatypes.Variable,
         *operands,
         expected=expected,
-        **attrs
+        attrs=attrs,
     )
 
 
@@ -612,7 +614,7 @@ def test_mul_same_shape(components):
         datatypes.Variable,
         *operands,
         expected=expected,
-        **attrs
+        attrs=attrs,
     )
 
 
@@ -635,7 +637,7 @@ def test_mul_diff_shape(components):
         datatypes.Variable,
         *operands,
         expected=expected,
-        **attrs
+        attrs=attrs,
     )
 
 
@@ -654,7 +656,7 @@ def test_div_same_shape(components):
         datatypes.Variable,
         *operands,
         expected=expected,
-        **attrs
+        attrs=attrs,
     )
 
 
@@ -677,7 +679,7 @@ def test_div_diff_shape(components):
         datatypes.Variable,
         *operands,
         expected=expected,
-        **attrs
+        attrs=attrs,
     )
 
 
@@ -697,7 +699,7 @@ def test_pow_number(components):
         datatypes.Variable,
         *operands,
         expected=expected,
-        **attrs
+        attrs=attrs,
     )
 
 
@@ -729,7 +731,7 @@ def test_sqrt(components):
         datatypes.Variable,
         datatypes.Variable(**ref),
         expected=expected,
-        **attrs,
+        attrs=attrs,
     )
 
 
@@ -746,37 +748,32 @@ def test_squeeze(components):
         datatypes.Variable,
         datatypes.Variable(**ref),
         expected=expected,
-        **attrs
+        attrs=attrs,
     )
 
 
 def test_axis_mean(components):
     ref = components[4]
-    var = datatypes.Variable(**ref)
-
-    result = numpy.mean(var, axis=0)
-    assert isinstance(result, datatypes.Variable)
-    assert result.unit == ref['unit']
-    assert result.axes == ('y', 'z')
-    assert result.name == f"mean({ref['name']})"
-    expected = numpy.mean(ref['data'], axis=0)
-    assert numpy.array_equal(result, expected)
-
-    result = numpy.mean(var, axis=1)
-    assert isinstance(result, datatypes.Variable)
-    assert result.unit == ref['unit']
-    assert result.axes == ('x', 'z')
-    assert result.name == f"mean({ref['name']})"
-    expected = numpy.mean(ref['data'], axis=1)
-    assert numpy.array_equal(result, expected)
-
-    result = numpy.mean(var, axis=2)
-    assert isinstance(result, datatypes.Variable)
-    assert result.unit == ref['unit']
-    assert result.axes == ('x', 'y')
-    assert result.name == f"mean({ref['name']})"
-    expected = numpy.mean(ref['data'], axis=2)
-    assert numpy.array_equal(result, expected)
+    cases = [
+        ('y', 'z'),
+        ('x', 'z'),
+        ('x', 'y'),
+    ]
+    for axis, axes in enumerate(cases):
+        expected = numpy.mean(ref['data'], axis=axis)
+        attrs = {
+            'unit': ref['unit'],
+            'axes': axes,
+            'name': f"mean({ref['name']})",
+        }
+        call_func(
+            numpy.mean,
+            datatypes.Variable,
+            datatypes.Variable(**ref),
+            expected=expected,
+            attrs=attrs,
+            axis=axis,
+        )
 
 
 def test_full_mean(components):
