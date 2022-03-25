@@ -1,6 +1,6 @@
 # Changelog
 
-<!--next-version-placeholder-->
+## v0.0.20 (25Mar2022)
 
 - Define `eprem.observables.MKS`; use only MKS throughout.
 - Create `core.datatypes` module for `Variable`, `Axes`, etc.
