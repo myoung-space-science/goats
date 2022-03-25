@@ -267,6 +267,7 @@ class Interface(base.Interface):
         self.implementation = implementation
         self.axes = dataset.axes
         self.dependencies = aliased.Mapping(dependencies or {})
+        self.system = quantities.MetricSystem('mks')
         self._result = None
         self._context = None
         self.indices = aliased.MutableMapping.fromkeys(
