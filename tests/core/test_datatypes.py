@@ -468,18 +468,20 @@ def components():
 
 def call_binary_func(
     func: typing.Callable[..., datatypes.Variable],
-    data: typing.Iterable,
+    parts: typing.Iterable,
     rtype: type,
     expected: numpy.typing.ArrayLike=None,
     **attrs
 ) -> None:
     """Call a function of two variables for testing."""
-    result = func(*data)
-    assert isinstance(result, rtype)
+    types = tuple(type(part) for part in parts)
+    msg = f"Failed for {func!r} with {types}"
+    result = func(*parts)
+    assert isinstance(result, rtype), msg
     for name, value in attrs.items():
-        assert getattr(result, name, False) == value
+        assert getattr(result, name, False) == value, msg
     if expected is not None:
-        assert numpy.array_equal(result, expected)
+        assert numpy.array_equal(result, expected), msg
 
 
 def test_add_number(components):
