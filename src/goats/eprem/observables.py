@@ -267,7 +267,6 @@ class Interface(base.Interface):
         self.implementation = implementation
         self.axes = dataset.axes
         self.dependencies = aliased.Mapping(dependencies or {})
-        self.system = quantities.MetricSystem('mks')
         self._result = None
         self._context = None
         self.indices = aliased.MutableMapping.fromkeys(
@@ -310,7 +309,7 @@ class Interface(base.Interface):
             axis = self.axes[key]
             indices = axis(*iterables.whole(indices))
         if isinstance(indices, datatypes.Coordinates):
-            unit = self.system.get_unit(unit=indices.unit)
+            unit = MKS.get_unit(unit=indices.unit)
             return indices.with_unit(unit)
         return indices
 
