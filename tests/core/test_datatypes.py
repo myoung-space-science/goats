@@ -508,34 +508,24 @@ def components():
     ]
 
 
-def call_unary_func(
-    func: typing.Callable[..., datatypes.Variable],
-    operand: typing.Iterable,
-    rtype: type,
+OType = typing.TypeVar('OType', datatypes.Variable, quantities.RealValued)
+OType = typing.Union[
+    datatypes.Variable,
+    quantities.RealValued,
+]
+RType = typing.TypeVar('RType', bound=type)
+
+def call_func(
+    func: typing.Callable[[OType], RType],
+    rtype: RType,
+    *operands: OType,
     expected: numpy.typing.ArrayLike=None,
     **attrs
 ) -> None:
-    """Call a function of one variable for testing."""
-    msg = f"Failed for {func!r} with {type(operand)}"
-    result = func(operand)
-    assert isinstance(result, rtype), msg
-    for name, value in attrs.items():
-        assert getattr(result, name, False) == value, msg
-    if expected is not None:
-        assert numpy.array_equal(result, expected), msg
-
-
-def call_binary_func(
-    func: typing.Callable[..., datatypes.Variable],
-    parts: typing.Iterable,
-    rtype: type,
-    expected: numpy.typing.ArrayLike=None,
-    **attrs
-) -> None:
-    """Call a function of two variables for testing."""
-    types = tuple(type(part) for part in parts)
+    """Call a function of one or more variables for testing."""
+    types = tuple(type(operand) for operand in operands)
     msg = f"Failed for {func!r} with {types}"
-    result = func(*parts)
+    result = func(*operands)
     assert isinstance(result, rtype), msg
     for name, value in attrs.items():
         assert getattr(result, name, False) == value, msg
@@ -547,12 +537,13 @@ def test_add_number(components):
     ref = [components[i] for i in (0, 1)]
     var = [datatypes.Variable(**component) for component in ref]
     num = 2.3
+    operands = [var[0], num]
     expected = ref[0]['data'] + num
     attrs = {k: ref[0][k] for k in ('unit', 'axes', 'name')}
-    call_binary_func(
+    call_func(
         operator.add,
-        [var[0], num],
         datatypes.Variable,
+        *operands,
         expected=expected,
         **attrs
     )
@@ -562,12 +553,13 @@ def test_sub_number(components):
     ref = [components[i] for i in (0, 1)]
     var = [datatypes.Variable(**component) for component in ref]
     num = 2.3
+    operands = [var[0], num]
     expected = ref[0]['data'] - num
     attrs = {k: ref[0][k] for k in ('unit', 'axes', 'name')}
-    call_binary_func(
+    call_func(
         operator.sub,
-        [var[0], num],
         datatypes.Variable,
+        *operands,
         expected=expected,
         **attrs
     )
@@ -576,13 +568,14 @@ def test_sub_number(components):
 def test_add_variable(components):
     ref = [components[i] for i in (0, 1)]
     var = [datatypes.Variable(**component) for component in ref]
+    operands = [var[0], var[1]]
     expected = ref[0]['data'] + ref[1]['data']
     attrs = {k: ref[0][k] for k in ('unit', 'axes')}
     attrs['name'] = f"{ref[0]['name']} + {ref[1]['name']}"
-    call_binary_func(
+    call_func(
         operator.add,
-        [var[0], var[1]],
         datatypes.Variable,
+        *operands,
         expected=expected,
         **attrs
     )
@@ -591,13 +584,14 @@ def test_add_variable(components):
 def test_sub_variable(components):
     ref = [components[i] for i in (0, 1)]
     var = [datatypes.Variable(**component) for component in ref]
+    operands = [var[0], var[1]]
     expected = ref[0]['data'] - ref[1]['data']
     attrs = {k: ref[0][k] for k in ('unit', 'axes')}
     attrs['name'] = f"{ref[0]['name']} - {ref[1]['name']}"
-    call_binary_func(
+    call_func(
         operator.sub,
-        [var[0], var[1]],
         datatypes.Variable,
+        *operands,
         expected=expected,
         **attrs
     )
@@ -606,16 +600,17 @@ def test_sub_variable(components):
 def test_mul_same_shape(components):
     ref = [components[i] for i in (0, 1)]
     var = [datatypes.Variable(**component) for component in ref]
+    operands = [var[0], var[1]]
     expected = ref[0]['data'] * ref[1]['data']
     attrs = {
         'unit': f"{ref[0]['unit']} * {ref[1]['unit']}",
         'axes': ('x', 'y'),
         'name': f"{ref[0]['name']} * {ref[1]['name']}",
     }
-    call_binary_func(
+    call_func(
         operator.mul,
-        [var[0], var[1]],
         datatypes.Variable,
+        *operands,
         expected=expected,
         **attrs
     )
@@ -624,6 +619,7 @@ def test_mul_same_shape(components):
 def test_mul_diff_shape(components):
     ref = [components[i] for i in (0, 2)]
     var = [datatypes.Variable(**component) for component in ref]
+    operands = [var[0], var[1]]
     opr = operator.mul
     arrays = [r['data'] for r in ref]
     axes = [v.axes for v in var]
@@ -634,10 +630,10 @@ def test_mul_diff_shape(components):
         'name': f"{ref[0]['name']} * {ref[1]['name']}",
         'shape': (3, 4, 5),
     }
-    call_binary_func(
+    call_func(
         opr,
-        [var[0], var[1]],
         datatypes.Variable,
+        *operands,
         expected=expected,
         **attrs
     )
@@ -646,16 +642,17 @@ def test_mul_diff_shape(components):
 def test_div_same_shape(components):
     ref = [components[i] for i in (0, 1)]
     var = [datatypes.Variable(**component) for component in ref]
+    operands = [var[0], var[1]]
     expected = ref[0]['data'] / ref[1]['data']
     attrs = {
         'unit': f"{ref[0]['unit']} / {ref[1]['unit']}",
         'axes': ('x', 'y'),
         'name': f"{ref[0]['name']} / {ref[1]['name']}",
     }
-    call_binary_func(
+    call_func(
         operator.truediv,
-        [var[0], var[1]],
         datatypes.Variable,
+        *operands,
         expected=expected,
         **attrs
     )
@@ -664,6 +661,7 @@ def test_div_same_shape(components):
 def test_div_diff_shape(components):
     ref = [components[i] for i in (0, 2)]
     var = [datatypes.Variable(**component) for component in ref]
+    operands = [var[0], var[1]]
     opr = operator.truediv
     arrays = [r['data'] for r in ref]
     axes = [v.axes for v in var]
@@ -674,10 +672,10 @@ def test_div_diff_shape(components):
         'name': f"{ref[0]['name']} / {ref[1]['name']}",
         'shape': (3, 4, 5),
     }
-    call_binary_func(
+    call_func(
         opr,
-        [var[0], var[1]],
         datatypes.Variable,
+        *operands,
         expected=expected,
         **attrs
     )
@@ -687,16 +685,17 @@ def test_pow_number(components):
     ref = components[0]
     var = datatypes.Variable(**ref)
     num = 2
+    operands = [var, num]
     expected = ref['data'] ** num
     attrs = {
         'unit': f"{ref['unit']}^{num}",
         'axes': ref['axes'],
         'name': f"{ref['name']}^{num}",
     }
-    call_binary_func(
+    call_func(
         operator.pow,
-        [var, num],
         datatypes.Variable,
+        *operands,
         expected=expected,
         **attrs
     )
@@ -705,13 +704,14 @@ def test_pow_number(components):
 def test_pow_array(components):
     ref = components[0]
     var = datatypes.Variable(**ref)
+    operands = [var, ref['data']]
     result = var ** ref['data']
     assert isinstance(result, numpy.ndarray)
     expected = ref['data'] ** ref['data']
-    call_binary_func(
+    call_func(
         operator.pow,
-        [var, ref['data']],
         numpy.ndarray,
+        *operands,
         expected=expected,
     )
 
@@ -724,10 +724,10 @@ def test_sqrt(components):
         'axes': ref['axes'],
         'name': f"sqrt({ref['name']})",
     }
-    call_unary_func(
+    call_func(
         numpy.sqrt,
-        datatypes.Variable(**ref),
         datatypes.Variable,
+        datatypes.Variable(**ref),
         expected=expected,
         **attrs,
     )
