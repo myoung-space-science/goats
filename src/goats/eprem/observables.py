@@ -289,7 +289,7 @@ class Interface(base.Interface):
         axes_ref = {k: v.reference for k, v in self.axes.items(aliased=True)}
         variables = dataset.variables
         rtp_ref = {
-            tuple([k, *variables.alias(k, include=True)]): variables[k]
+            (k, *variables.alias(k, include=True)): variables[k]
             for k in {'radius', 'theta', 'phi'}
         }
         self.reference = aliased.Mapping({**axes_ref, **rtp_ref})
@@ -345,16 +345,20 @@ class Interface(base.Interface):
         )
         self._result = application.evaluate(self.implementation)
         self._context = {
-            'indices': aliased.Mapping({
-                tuple([k, *indices.alias(k, include=True)]): v
-                for k, v in indices.items()
-                if k in self._result.axes
-            }),
-            'assumptions': aliased.Mapping({
-                tuple([k, *assumptions.alias(k, include=True)]): v
-                for k, v in assumptions.items()
-                if k in list(self.assumptions) + ['radius']
-            }),
+            'indices': aliased.Mapping(
+                {
+                    (k, *indices.alias(k, include=True)): v
+                    for k, v in indices.items()
+                    if k in self._result.axes
+                }
+            ),
+            'assumptions': aliased.Mapping(
+                {
+                    (k, *assumptions.alias(k, include=True)): v
+                    for k, v in assumptions.items()
+                    if k in list(self.assumptions) + ['radius']
+                }
+            ),
         }
 
     @property
