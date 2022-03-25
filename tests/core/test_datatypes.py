@@ -735,14 +735,19 @@ def test_sqrt(components):
 
 def test_squeeze(components):
     ref = components[3]
-    var = datatypes.Variable(**ref)
-    result = numpy.squeeze(var)
-    assert isinstance(result, datatypes.Variable)
-    assert result.unit == ref['unit']
-    assert result.axes == ('x', 'z')
-    assert result.name == ref['name']
     expected = numpy.squeeze(ref['data'])
-    assert numpy.array_equal(result, expected)
+    attrs = {
+        'unit': ref['unit'],
+        'axes': ('x', 'z'),
+        'name': ref['name'],
+    }
+    call_func(
+        numpy.squeeze,
+        datatypes.Variable,
+        datatypes.Variable(**ref),
+        expected=expected,
+        **attrs
+    )
 
 
 def test_axis_mean(components):
@@ -776,8 +781,10 @@ def test_axis_mean(components):
 
 def test_full_mean(components):
     ref = components[4]
-    var = datatypes.Variable(**ref)
-    result = numpy.mean(var)
-    assert isinstance(result, float)
-    assert result == numpy.mean(ref['data'])
+    call_func(
+        numpy.mean,
+        float,
+        datatypes.Variable(**ref),
+        expected=numpy.mean(ref['data']),
+    )
 
