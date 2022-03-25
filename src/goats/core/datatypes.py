@@ -171,6 +171,11 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         """Alias for `naxes`."""
         return self.naxes
 
+    @property
+    def shape(self):
+        """The shape of this instance's array."""
+        return self._get_data('shape')
+
     def __eq__(self, other: typing.Any):
         """True if two instances have the same data and attributes."""
         if not isinstance(other, Variable):

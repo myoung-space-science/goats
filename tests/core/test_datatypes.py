@@ -535,9 +535,7 @@ def test_mul_diff_shape(components):
     assert result.unit == f"{ref[0]['unit']} * {ref[1]['unit']}"
     assert result.axes == ('x', 'y', 'z')
     assert result.name == f"{ref[0]['name']} * {ref[1]['name']}"
-    assert numpy.array(result).shape == (3, 4, 5)
-    # TODO: This is here because numpy can't broadcast the arrays together. The
-    # solution is to create the arrays by hand, as in `test_datasets.reduce`.
+    assert result.shape == (3, 4, 5)
     with pytest.raises(ValueError):
         expected = ref[0]['data'] * ref[1]['data']
         assert numpy.array_equal(result, expected)
@@ -563,9 +561,7 @@ def test_div_diff_shape(components):
     assert result.unit == f"{ref[0]['unit']} / {ref[1]['unit']}"
     assert result.axes == ('x', 'y', 'z')
     assert result.name == f"{ref[0]['name']} / {ref[1]['name']}"
-    assert numpy.array(result).shape == (3, 4, 5)
-    # TODO: This is here because numpy can't broadcast the arrays together. The
-    # solution is to create the arrays by hand, as in `test_datasets.reduce`.
+    assert result.shape == (3, 4, 5)
     with pytest.raises(ValueError):
         expected = ref[0]['data'] / ref[1]['data']
         assert numpy.array_equal(result, expected)
