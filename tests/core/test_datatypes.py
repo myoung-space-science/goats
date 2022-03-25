@@ -116,9 +116,39 @@ def var(arr: typing.Dict[str, list]) -> typing.Dict[str, datatypes.Variable]:
     }
 
 
-def reduce(a, b, opr):
+def reduce(
+    a: numpy.typing.ArrayLike,
+    b: numpy.typing.ArrayLike,
+    opr: typing.Callable,
+    axes: typing.Iterable[typing.Iterable[str]]=None,
+) -> list:
     """Create an array from `a` and `b` by applying `opr`.
 
+    Parameters
+    ----------
+    a : array-like
+        An array-like object with shape (I, J).
+
+    b : array-like or real
+        An array-like object with shape (P, Q) or a real number.
+
+    opr : callable
+        An operator that accepts arguments of the types of elements in `a` and
+        `b` and returns a single value of any type.
+
+    axes : iterable of iterables of strings, optional
+        An two-element iterable containing the axes of `a` followed by the axes
+        of `b`. The unique axes determine how this function reduces arrays `a`
+        and `b`. This function will simply ignore `axes` if `b` is a number.
+
+    Returns
+    -------
+    list
+        A possibly nested list containing the element-wise result of `opr`. The
+        shape of the equivalent array will be the 
+
+    Notes
+    -----
     This was created to help generalize tests of `Variable` binary arithmetic
     operators. The way in which it builds arrays is not especially Pythonic;
     instead, the goal is to indicate how the structure of the resultant array
@@ -135,7 +165,8 @@ def reduce(a, b, opr):
         ]
     P = range(len(b))
     Q = range(len(b[0]))
-    if I == P and J == Q:
+    a_axes, b_axes = axes
+    if a_axes[0] == b_axes[0] and a_axes[1] == b_axes[1]:
         return [
             # I x J
             [
@@ -143,7 +174,18 @@ def reduce(a, b, opr):
                 opr(a[i][j], b[i][j]) for j in J
             ] for i in I
         ]
-    if J == P:
+    if a_axes[0] == b_axes[0]:
+        return [
+            # I x J x Q
+            [
+                # J x Q
+                [
+                    # Q
+                    opr(a[i][j], b[i][q]) for q in Q
+                ] for j in J
+            ] for i in I
+        ]
+    if a_axes[1] == b_axes[0]:
         return [
             # I x J x Q
             [
@@ -202,7 +244,7 @@ def test_variable_mul_div(
         a1 = arr[case['key']]
         new = opr(v0, v1)
         assert isinstance(new, datatypes.Variable), msg
-        expected = reduce(a0, a1, opr)
+        expected = reduce(a0, a1, opr, axes=(v0.axes, v1.axes))
         assert numpy.array_equal(new, expected), msg
         assert sorted(new.axes) == case['axes'], msg
         algebraic = opr(v0.unit, v1.unit)
@@ -268,7 +310,7 @@ def test_variable_add_sub(
     for opr in (operator.add, operator.sub):
         msg = f"Failed for {opr}"
         new = opr(v0, v1)
-        expected = reduce(a0, a1, opr)
+        expected = reduce(a0, a1, opr, axes=(v0.axes, v1.axes))
         assert isinstance(new, datatypes.Variable), msg
         assert numpy.array_equal(new, expected), msg
         assert new.unit == v0.unit, msg
@@ -503,101 +545,144 @@ def test_sub_number(components):
     ref = [components[i] for i in (0, 1)]
     var = [datatypes.Variable(**component) for component in ref]
     num = 2.3
-    result = var[0] - num
-    assert isinstance(result, datatypes.Variable)
-    assert result.unit == ref[0]['unit']
-    assert result.axes == ref[0]['axes']
-    assert result.name == ref[0]['name']
     expected = ref[0]['data'] - num
-    assert numpy.array_equal(result, expected)
+    attrs = {k: ref[0][k] for k in ('unit', 'axes', 'name')}
+    call_binary_func(
+        operator.sub,
+        [var[0], num],
+        datatypes.Variable,
+        expected=expected,
+        **attrs
+    )
 
 
 def test_add_variable(components):
     ref = [components[i] for i in (0, 1)]
     var = [datatypes.Variable(**component) for component in ref]
-    result = var[0] + var[1]
-    assert isinstance(result, datatypes.Variable)
-    assert result.unit == ref[0]['unit']
-    assert result.axes == ref[0]['axes']
-    assert result.name == f"{ref[0]['name']} + {ref[1]['name']}"
     expected = ref[0]['data'] + ref[1]['data']
-    assert numpy.array_equal(result, expected)
+    attrs = {k: ref[0][k] for k in ('unit', 'axes')}
+    attrs['name'] = f"{ref[0]['name']} + {ref[1]['name']}"
+    call_binary_func(
+        operator.add,
+        [var[0], var[1]],
+        datatypes.Variable,
+        expected=expected,
+        **attrs
+    )
 
 
 def test_sub_variable(components):
     ref = [components[i] for i in (0, 1)]
     var = [datatypes.Variable(**component) for component in ref]
-    result = var[0] - var[1]
-    assert isinstance(result, datatypes.Variable)
-    assert result.unit == ref[0]['unit']
-    assert result.axes == ref[0]['axes']
-    assert result.name == f"{ref[0]['name']} - {ref[1]['name']}"
     expected = ref[0]['data'] - ref[1]['data']
-    assert numpy.array_equal(result, expected)
+    attrs = {k: ref[0][k] for k in ('unit', 'axes')}
+    attrs['name'] = f"{ref[0]['name']} - {ref[1]['name']}"
+    call_binary_func(
+        operator.sub,
+        [var[0], var[1]],
+        datatypes.Variable,
+        expected=expected,
+        **attrs
+    )
 
 
 def test_mul_same_shape(components):
     ref = [components[i] for i in (0, 1)]
     var = [datatypes.Variable(**component) for component in ref]
-    result = var[0] * var[1]
-    assert isinstance(result, datatypes.Variable)
-    assert result.unit == f"{ref[0]['unit']} * {ref[1]['unit']}"
-    assert result.axes == ('x', 'y')
-    assert result.name == f"{ref[0]['name']} * {ref[1]['name']}"
     expected = ref[0]['data'] * ref[1]['data']
-    assert numpy.array_equal(result, expected)
+    attrs = {
+        'unit': f"{ref[0]['unit']} * {ref[1]['unit']}",
+        'axes': ('x', 'y'),
+        'name': f"{ref[0]['name']} * {ref[1]['name']}",
+    }
+    call_binary_func(
+        operator.mul,
+        [var[0], var[1]],
+        datatypes.Variable,
+        expected=expected,
+        **attrs
+    )
 
 
 def test_mul_diff_shape(components):
     ref = [components[i] for i in (0, 2)]
     var = [datatypes.Variable(**component) for component in ref]
-    result = var[0] * var[1]
-    assert isinstance(result, datatypes.Variable)
-    assert result.unit == f"{ref[0]['unit']} * {ref[1]['unit']}"
-    assert result.axes == ('x', 'y', 'z')
-    assert result.name == f"{ref[0]['name']} * {ref[1]['name']}"
-    assert result.shape == (3, 4, 5)
-    with pytest.raises(ValueError):
-        expected = ref[0]['data'] * ref[1]['data']
-        assert numpy.array_equal(result, expected)
+    opr = operator.mul
+    arrays = [r['data'] for r in ref]
+    axes = [v.axes for v in var]
+    expected = reduce(*arrays, opr, axes=axes)
+    attrs = {
+        'unit': f"{ref[0]['unit']} * {ref[1]['unit']}",
+        'axes': ('x', 'y', 'z'),
+        'name': f"{ref[0]['name']} * {ref[1]['name']}",
+        'shape': (3, 4, 5),
+    }
+    call_binary_func(
+        opr,
+        [var[0], var[1]],
+        datatypes.Variable,
+        expected=expected,
+        **attrs
+    )
 
 
 def test_div_same_shape(components):
     ref = [components[i] for i in (0, 1)]
     var = [datatypes.Variable(**component) for component in ref]
-    result = var[0] / var[1]
-    assert isinstance(result, datatypes.Variable)
-    assert result.unit == f"{ref[0]['unit']} / {ref[1]['unit']}"
-    assert result.axes == ('x', 'y')
-    assert result.name == f"{ref[0]['name']} / {ref[1]['name']}"
     expected = ref[0]['data'] / ref[1]['data']
-    assert numpy.array_equal(result, expected)
+    attrs = {
+        'unit': f"{ref[0]['unit']} / {ref[1]['unit']}",
+        'axes': ('x', 'y'),
+        'name': f"{ref[0]['name']} / {ref[1]['name']}",
+    }
+    call_binary_func(
+        operator.truediv,
+        [var[0], var[1]],
+        datatypes.Variable,
+        expected=expected,
+        **attrs
+    )
 
 
 def test_div_diff_shape(components):
     ref = [components[i] for i in (0, 2)]
     var = [datatypes.Variable(**component) for component in ref]
-    result = var[0] / var[1]
-    assert isinstance(result, datatypes.Variable)
-    assert result.unit == f"{ref[0]['unit']} / {ref[1]['unit']}"
-    assert result.axes == ('x', 'y', 'z')
-    assert result.name == f"{ref[0]['name']} / {ref[1]['name']}"
-    assert result.shape == (3, 4, 5)
-    with pytest.raises(ValueError):
-        expected = ref[0]['data'] / ref[1]['data']
-        assert numpy.array_equal(result, expected)
+    opr = operator.truediv
+    arrays = [r['data'] for r in ref]
+    axes = [v.axes for v in var]
+    expected = reduce(*arrays, opr, axes=axes)
+    attrs = {
+        'unit': f"{ref[0]['unit']} / {ref[1]['unit']}",
+        'axes': ('x', 'y', 'z'),
+        'name': f"{ref[0]['name']} / {ref[1]['name']}",
+        'shape': (3, 4, 5),
+    }
+    call_binary_func(
+        opr,
+        [var[0], var[1]],
+        datatypes.Variable,
+        expected=expected,
+        **attrs
+    )
 
 
 def test_pow_number(components):
     ref = components[0]
     var = datatypes.Variable(**ref)
-    result = var ** 2
-    assert isinstance(result, datatypes.Variable)
-    assert result.unit == f"{ref['unit']}^2"
-    assert result.axes == ref['axes']
-    assert result.name == f"{ref['name']}^2"
-    expected = ref['data'] ** 2
-    assert numpy.array_equal(result, expected)
+    num = 2
+    expected = ref['data'] ** num
+    attrs = {
+        'unit': f"{ref['unit']}^{num}",
+        'axes': ref['axes'],
+        'name': f"{ref['name']}^{num}",
+    }
+    call_binary_func(
+        operator.pow,
+        [var, num],
+        datatypes.Variable,
+        expected=expected,
+        **attrs
+    )
 
 
 def test_pow_array(components):
@@ -606,7 +691,12 @@ def test_pow_array(components):
     result = var ** ref['data']
     assert isinstance(result, numpy.ndarray)
     expected = ref['data'] ** ref['data']
-    assert numpy.array_equal(result, expected)
+    call_binary_func(
+        operator.pow,
+        [var, ref['data']],
+        numpy.ndarray,
+        expected=expected,
+    )
 
 
 def test_sqrt(components):
