@@ -508,6 +508,23 @@ def components():
     ]
 
 
+def call_unary_func(
+    func: typing.Callable[..., datatypes.Variable],
+    operand: typing.Iterable,
+    rtype: type,
+    expected: numpy.typing.ArrayLike=None,
+    **attrs
+) -> None:
+    """Call a function of one variable for testing."""
+    msg = f"Failed for {func!r} with {type(operand)}"
+    result = func(operand)
+    assert isinstance(result, rtype), msg
+    for name, value in attrs.items():
+        assert getattr(result, name, False) == value, msg
+    if expected is not None:
+        assert numpy.array_equal(result, expected), msg
+
+
 def call_binary_func(
     func: typing.Callable[..., datatypes.Variable],
     parts: typing.Iterable,
@@ -701,14 +718,19 @@ def test_pow_array(components):
 
 def test_sqrt(components):
     ref = components[0]
-    var = datatypes.Variable(**ref)
-    result = numpy.sqrt(var)
-    assert isinstance(result, datatypes.Variable)
-    assert result.unit == f"sqrt({ref['unit']})"
-    assert result.axes == ref['axes']
-    assert result.name == f"sqrt({ref['name']})"
     expected = numpy.sqrt(ref['data'])
-    assert numpy.array_equal(result, expected)
+    attrs = {
+        'unit': f"sqrt({ref['unit']})",
+        'axes': ref['axes'],
+        'name': f"sqrt({ref['name']})",
+    }
+    call_unary_func(
+        numpy.sqrt,
+        datatypes.Variable(**ref),
+        datatypes.Variable,
+        expected=expected,
+        **attrs,
+    )
 
 
 def test_squeeze(components):
