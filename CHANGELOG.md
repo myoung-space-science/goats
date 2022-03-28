@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.21 (28Mar2022)
+
+- Define `iotools.search`.
+- Bug fix: Implement search for `goats.ini`.
+- Add default `goats.ini`.
+
 ## v0.0.20 (25Mar2022)
 
 - Define `eprem.observables.MKS`; use only MKS throughout.
