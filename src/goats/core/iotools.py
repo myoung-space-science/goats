@@ -173,3 +173,27 @@ def strip_inline_comments(string: str, comments: typing.List[str]) -> str:
         string = parts[0]
     return string.strip()
 
+
+def search(paths: typing.Iterable[PathLike], file: PathLike):
+    """Search `paths` for `file`.
+    
+    Parameters
+    ----------
+    paths : iterable of path-like
+        The paths to search, in the order given. Each member must be an object
+        that can represent a path on the current file system.
+
+    file : path-like
+        The file to locate.
+
+    Returns
+    -------
+    path or `None`
+        The full path to the file, if found.
+    """
+    for p in paths:
+        path = ReadOnlyPath(p)
+        if path.is_dir():
+            test = path / file
+            if test.exists():
+                return test
