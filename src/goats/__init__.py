@@ -1,6 +1,7 @@
 import collections.abc
 import configparser
 import json
+import os
 import pathlib
 
 from goats.core import iotools
@@ -14,17 +15,23 @@ __version__ = version("goats")
 class Environment(collections.abc.Mapping):
     """A collection of environmental settings."""
 
-    _default = {
-        'path': pathlib.Path(__file__).parent / 'goats.ini',
-    }
-    """Internal class-wide default attribute values."""
-
     def __init__(self, name: str) -> None:
         self.name = name
         """The name of the observing package to select."""
         self._package = f"{__package__}.{self.name}"
-        path = self._default['path']
-        self._config = self._get_package_config(path)
+        home = pathlib.Path('~').expanduser()
+        paths = [
+            pathlib.Path.cwd(), # The current working directory
+            home, # The user's home directory
+            home / '.config', # Linux standard (local)
+            '/etc/goats', # Linux standard (global)
+            os.environ.get('GOATS_INI'), # A known environment variable
+            pathlib.Path(__file__).parent, # The package top
+        ]
+        config = configparser.ConfigParser()
+        path = iotools.search(paths, 'goats.ini')
+        config.read(iotools.ReadOnlyPath(path))
+        self._config = config[self.name]
 
     def __len__(self) -> int:
         """The number of available parameter values."""
@@ -41,12 +48,6 @@ class Environment(collections.abc.Mapping):
         raise KeyError(
             f"{self._package} has no value for {key!r}"
         ) from None
-
-    def _get_package_config(self, path: iotools.PathLike):
-        """Get the package-specific configuration parameters."""
-        config = configparser.ConfigParser()
-        config.read(iotools.ReadOnlyPath(path))
-        return config[self.name]
 
     def __str__(self) -> str:
         return json.dumps(
