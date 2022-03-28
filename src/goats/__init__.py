@@ -34,10 +34,6 @@ class Environment(collections.abc.Mapping):
         """Iterate over available parameter values."""
         yield from self._config
 
-    def __contains__(self, key):
-        """True if `key` names an available parameter."""
-        return key in self._config
-
     def __getitem__(self, key: str):
         """Access parameter values by mapping key."""
         if key in self._config:
