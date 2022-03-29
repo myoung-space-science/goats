@@ -153,7 +153,6 @@ def test_interpolation(stream: eprem.Stream):
         observation = intflux.observe(
             **{name: value},
             species='H+',
-            reset=True,
         )
         result = np.array(observation)
         assert result.shape == (50, 1, 1, 1)
@@ -172,17 +171,6 @@ def test_interpolation(stream: eprem.Stream):
 def test_reset_constraints(stream: eprem.Stream):
     """Test the ability to reset observing constraints."""
     observable = stream['dist']
-    observe_for_reset(observable)
-    observable.reset()
-    observation = observable.observe()
-    assert np.array(observation).shape == (50, 2000, 1, 20, 8)
-    observe_for_reset(observable)
-    observation = observable.observe(reset=True)
-    assert np.array(observation).shape == (50, 2000, 1, 20, 8)
-
-
-def observe_for_reset(observable: base.Observable):
-    """Helper function for testing observable reset options."""
     observation = observable.observe(
         time=[0.1, 0.3, 'day'],
         shell=[10, 11, 12, 13, 14],
@@ -190,10 +178,12 @@ def observe_for_reset(observable: base.Observable):
         mu=(-1.0, -0.5, 0.5, 1.0),
     )
     assert np.array(observation).shape == (2, 5, 1, 3, 4)
-    observation = observable.observe()
+    observation = observable.update()
     assert np.array(observation).shape == (2, 5, 1, 3, 4)
-    observation = observable.observe(time=[0.2, 0.4, 0.5, 'day'])
+    observation = observable.update(time=[0.2, 0.4, 0.5, 'day'])
     assert np.array(observation).shape == (3, 5, 1, 3, 4)
+    observation = observable.observe()
+    assert np.array(observation).shape == (50, 2000, 1, 20, 8)
 
 
 def test_observable_aliases(stream: eprem.Stream):

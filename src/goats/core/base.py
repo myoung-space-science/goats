@@ -173,26 +173,17 @@ class Observable(iterables.ReprStrMixin):
     def __init__(self: S, interface: Interface, name: str) -> None:
         self._interface = interface
         self.name = name
-        self._constraints = {}
+        self._constraints = None
         self.axes = interface.implementation.axes
 
-    def observe(self, reset: bool=False, **constraints):
-        """Create an observation within the given constraints.
+    def update(self, **constraints):
+        """Create an observation with updated constraints.
         
-        This method will create an observation of this observable within the
-        current collection of observational constraints. Passing additional
-        constraints will update the current set; the caller may reset the
-        constraints by passing `reset=True` or by first calling
-        `~Observable.reset`. The default collection of observational constraints
-        uses all relevant axis indices and default parameter values.
+        This method will create a new observation of this observable after
+        updating the current set of constraints with the given constraints.
 
         Parameters
         ----------
-        reset : bool, default=false
-            If true, discard existing constraints before applying the given
-            constraints. This is equivalent to calling `~Observable.reset`
-            before calling this method.
-
         **constraints : dict
             Key-value pairs of axes or parameters to update.
 
@@ -200,9 +191,12 @@ class Observable(iterables.ReprStrMixin):
         -------
         `~base.Observation`
             An object representing the resultant observation.
+
+        See Also
+        --------
+        `observe`: Create a new observation after reseting (rather than
+        updating) the current set of constraints.
         """
-        if reset:
-            self.reset()
         self._constraints.update(constraints)
         self._interface.apply(self._constraints)
         return Observation(
@@ -210,14 +204,36 @@ class Observable(iterables.ReprStrMixin):
             **self._interface.context
         )
 
-    def reset(self):
-        """Reset the observing constraints in place.
+    def observe(self, **constraints):
+        """Create an observation within the given constraints.
         
-        This method will discard constraints accumulated from previous calls to
-        `~Observable.observe`. It is equivalent to calling `~Observable.observe`
-        with `reset=True`.
+        This method will create a new observation of this observable after
+        applying user constraints, if given, or the default constraints. The
+        default collection of observational constraints uses all relevant axis
+        indices and default parameter values. Each call to this method resets
+        the collection of constraints.
+
+        Parameters
+        ----------
+        **constraints : dict
+            Key-value pairs of axes or parameters to update.
+
+        Returns
+        -------
+        `~base.Observation`
+            An object representing the resultant observation.
+
+        See Also
+        --------
+        `update`: Create a new observation after updating (rather than reseting)
+        the current set of constraints.
         """
-        self._constraints = {}
+        self._constraints = constraints or {}
+        self._interface.apply(self._constraints)
+        return Observation(
+            self._interface.result,
+            **self._interface.context
+        )
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
