@@ -762,7 +762,7 @@ class Arguments(aliased.Mapping):
         }
         keys = tuple(set(tuple(_LOCAL) + tuple(runtime)))
         base = {
-            tuple([key, *_ALIASES.get(key, [])]): {
+            (key, *_ALIASES.get(key, [])): {
                 'unit': _UNITS.get(key),
                 'value': values.get(key),
             }
