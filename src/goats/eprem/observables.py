@@ -276,7 +276,7 @@ class Interface(base.Interface):
         self.assumptions = aliased.MutableMapping(
             {
                 k: v for k, v in self.dependencies.items(aliased=True)
-                if isinstance(v, quantities.Scalar)
+                if isinstance(v, parameters.Assumption)
             }
         )
         self.observables = aliased.MutableMapping(

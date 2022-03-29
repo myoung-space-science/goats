@@ -11,8 +11,8 @@ import pytest
 
 from goats.core import base
 from goats.core import physical
-from goats.core import quantities
 from goats import eprem
+from goats.eprem import parameters
 
 
 def get_stream(rootpath: Path):
@@ -93,12 +93,18 @@ def test_create_observation(
 def test_parameter_access(stream: eprem.Stream) -> None:
     """Access runtime parameter arguments."""
     cases = {
-        ('lamo', 'lam0', 'lambda0'): [0.1, 'au'],
+        ('lamo', 'lam0', 'lambda0'): {
+            'value': 0.1,
+            'unit': 'au',
+        },
     }
-    for aliases, argument in cases.items():
-        result = quantities.Scalar(*argument)
+    for aliases, expected in cases.items():
         for alias in aliases:
-            assert stream[alias] == result
+            argument = stream[alias]
+            assert isinstance(argument, parameters.Assumption)
+            assert alias in argument.aliases
+            assert float(argument) == expected['value']
+            assert argument.unit == expected['unit']
 
 
 def test_observation_unit(stream: eprem.Stream):

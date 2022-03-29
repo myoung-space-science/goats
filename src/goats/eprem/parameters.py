@@ -710,6 +710,50 @@ class Runtime(iterables.MappingBase):
         return arg
 
 
+class Assumption(quantities.Measurement):
+    """A measurable parameter argument."""
+
+    aliases: typing.Tuple[str, ...] = None
+    """The known aliases for this assumption."""
+
+    def __new__(
+        cls,
+        values,
+        unit: str,
+        *aliases: str,
+    ) -> None:
+        self = super().__new__(cls, values, unit)
+        self.aliases = aliased.MappingKey(aliases)
+        return self
+
+    def __str__(self) -> str:
+        values = self.values[0] if len(self) == 1 else self.values
+        return (
+            f"'{self.aliases}': {values} '{self.unit}'" if self.aliases
+            else f"{values} '{self.unit}'"
+        )
+
+
+class Option(iterables.ReprStrMixin):
+    """An unmeasurable parameter argument."""
+
+    def __init__(self, value, *aliases: str) -> None:
+        self._value = value
+        self.aliases = aliased.MappingKey(aliases)
+
+    def __eq__(self, other):
+        """True if `other` is equivalent to this option's value."""
+        if isinstance(other, Option):
+            return other._value == self._value
+        return other == self._value
+
+    def __str__(self) -> str:
+        return (
+            f"'{self.aliases}': {self._value}" if self.aliases
+            else str(self._value)
+        )
+
+
 class Arguments(aliased.Mapping):
     """Aliased access to EPREM parameter arguments."""
 
@@ -745,11 +789,10 @@ class Arguments(aliased.Mapping):
         except KeyError:
             raise KeyError(f"No parameter corresponding to '{key}'") from None
         value = parameter['value']
+        aliases = self.alias(key, include=True)
         if unit := parameter['unit']:
-            if isinstance(value, list):
-                return [quantities.Scalar(v, unit) for v in value]
-            return quantities.Scalar(value, unit)
-        return value
+            return Assumption(value, unit, *aliases)
+        return Option(value, *aliases)
 
     def _build_mapping(self, runtime: Runtime):
         """Build the mapping of available parameters."""

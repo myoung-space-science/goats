@@ -63,14 +63,42 @@ def test_argument(source_path, config_path):
     args = parameters.Arguments(cfg)
     for alias in 'lam0', 'lambda0':
         assert args[alias] == args['lamo']
-    check_scalar(args['lamo'], 0.1, 'au')
-    check_builtin(args['dumpFreq'], 1)
-    check_builtin(args['idealShock'], 1)
-    check_scalars(args['obsR'], [1.0, 1.0], ['au', 'au'])
-    check_builtin(args['warningsFile'], 'warningsXXX.txt')
-    check_scalar(args['idealShockInitTime'], 0.5, 'day')
-    check_scalar(args['omegaSun'], 0.001429813, '(rad/s)*(cm/au)')
-    check_scalar(args['simStopTime'], 5.0, 'day')
+    assumptions = {
+        'lamo': {
+            'values': [0.1],
+            'unit': 'au',
+        },
+        'obsR': {
+            'values': [1.0, 1.0],
+            'unit': 'au',
+        },
+        'idealShockInitTime': {
+            'values': [0.5],
+            'unit': 'day',
+        },
+        'omegaSun': {
+            'values': [0.001429813],
+            'unit': '(rad/s)*(cm/au)',
+        },
+        'simStopTime': {
+            'values': [5.0],
+            'unit': 'day',
+        },
+    }
+    for name, expected in assumptions.items():
+        assumption = args[name]
+        assert isinstance(assumption, parameters.Assumption)
+        assert [float(v) for v in assumption[:]] == expected['values']
+        assert assumption.unit == expected['unit']
+    options = {
+        'dumpFreq': 1,
+        'idealShock': 1,
+        'warningsFile': 'warningsXXX.txt',
+    }
+    for name, expected in options.items():
+        option = args[name]
+        assert isinstance(option, parameters.Option)
+        assert option == expected
 
 
 def check_builtin(arg, value):
@@ -81,13 +109,13 @@ def check_builtin(arg, value):
 def check_scalar(arg, value, unit):
     """Test the value and unit of a `quantities.Scalar`."""
     assert float(arg) == value
-    assert arg.unit() == unit
+    assert arg.unit == unit
 
 
 def check_scalars(args, values, units):
     """Test the values and units of an iterable of `quantities.Scalar`."""
     assert [float(arg) for arg in args] == values
-    assert [arg.unit() for arg in args] == units
+    assert [arg.unit for arg in args] == units
 
 
 _BASETYPES_H = {
