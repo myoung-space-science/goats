@@ -1,6 +1,6 @@
 # Changelog
 
-## Next
+## v0.0.22 (29Mar2022)
 
 - Add `goats.__init__.Environment.path`.
 - Add `pytest` and `pytest-cov` to development dependencies.
