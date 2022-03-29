@@ -560,7 +560,7 @@ class ObjectRegistry(collections.abc.Mapping):
     ) -> None:
         mapping = base or {}
         self._items = {
-            k: {object_key: v} if not isinstance(v, typing.Mapping) else v
+            k: v if isinstance(v, typing.Mapping) else {object_key: v}
             for k, v in mapping.items()
         }
         self._object_key = object_key
