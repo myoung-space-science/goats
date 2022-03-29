@@ -221,7 +221,7 @@ class Observable(iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        return f"'{self.name}', axes={list(self.axes)}"
+        return f"'{self.name}': axes={list(self.axes)}"
 
     def __eq__(self, other):
         """True if two observables have the same name and constraints."""
