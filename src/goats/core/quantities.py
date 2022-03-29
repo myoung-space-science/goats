@@ -2422,7 +2422,12 @@ class Measured(Ordered):
         return self._new(amount=amount, unit=new)
 
     def __bool__(self) -> bool:
-        return bool(self._amount)
+        """Called for bool(self).
+        
+        A measured object is always `True` because every instance has a valid
+        amount and unit, even though the amount may be 0.
+        """
+        return True
 
     def __abs__(self):
         return self._new(
@@ -2794,6 +2799,8 @@ class Vector(Measured):
             return self._new(amount=values, unit=unit)
         return NotImplemented
 
+    def __bool__(self) -> bool:
+        return super().__bool__()
 
 class Measurement(Vector):
     """The result of measuring an object.

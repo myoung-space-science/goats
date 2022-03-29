@@ -542,6 +542,18 @@ def test_measured_operators():
     assert q0.unit('cm') == quantities.Measured(400, 'cm')
 
 
+def test_measured_bool():
+    """Test the truthiness of a measured object."""
+    cases = [
+        quantities.Measured(1),
+        quantities.Measured(1, 'm'),
+        quantities.Measured(0),
+        quantities.Measured(0, 'm'),
+    ]
+    for case in cases:
+        assert bool(case)
+
+
 @pytest.mark.scalar
 def test_scalar_operators():
     """Test comparison and arithmetic on scalar objects."""
