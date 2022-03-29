@@ -1,5 +1,14 @@
 # Changelog
 
+## Next
+
+- Add `goats.__init__.Environment.path`.
+- Add `pytest` and `pytest-cov` to development dependencies.
+- Accept multiple mappings of observables in `base.Observer`.
+- Implement EPREM observer parameter access via `__getitem__`.
+- Instances of `quantities.Measured` are always `True`.
+- Create `Assumption` and `Option` in `eprem.parameters`.
+
 ## v0.0.21 (28Mar2022)
 
 - Define `iotools.search`.
