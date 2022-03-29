@@ -32,6 +32,7 @@ class Environment(collections.abc.Mapping):
         path = iotools.search(paths, 'goats.ini')
         config.read(iotools.ReadOnlyPath(path))
         self._config = config[self.name]
+        self.path = path
 
     def __len__(self) -> int:
         """The number of available parameter values."""
@@ -57,4 +58,4 @@ class Environment(collections.abc.Mapping):
         )
 
     def __repr__(self) -> str:
-        return f"{self._package}:\n{self}"
+        return f"{self._package}({self.path}):\n{self}"
