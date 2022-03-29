@@ -235,14 +235,16 @@ class Observable(iterables.ReprStrMixin):
 class Observer:
     """Base class for all observer objects."""
 
-    def __init__(self, observables: typing.Mapping[str, Observable]) -> None:
+    def __init__(self, *observables: typing.Mapping[str, Observable]) -> None:
         self.observables = observables
-        self._spellcheck = spelling.SpellChecker(observables.keys())
+        keys = [key for mapping in observables for key in mapping.keys()]
+        self._spellcheck = spelling.SpellChecker(keys)
 
     def __getitem__(self, key: str):
         """Access an observable object by keyword, if possible."""
-        if key in self.observables:
-            return self.observables[key]
+        for mapping in self.observables:
+            if key in mapping:
+                return mapping[key]
         if self._spellcheck.misspelled(key):
             raise spelling.SpellingError(key, self._spellcheck.suggestions)
         raise KeyError(f"No observable for {key!r}") from None

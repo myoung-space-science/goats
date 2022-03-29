@@ -163,7 +163,7 @@ class Observer(base.Observer):
             self.dataset,
             self.arguments,
         )
-        super().__init__(interface)
+        super().__init__(interface, self.arguments)
 
     @property
     def path(self) -> iotools.ReadOnlyPath:
