@@ -444,6 +444,8 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
 
     def convert_to(self, unit: str):
         """Change this variable's unit and update the numerical scale factor."""
+        if unit == self.unit:
+            return self
         scale = (quantities.Unit(unit) // self.unit) * self._scale
         return self._copy_with(unit=unit, scale=scale)
 
