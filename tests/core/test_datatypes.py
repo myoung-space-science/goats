@@ -454,6 +454,14 @@ def test_variable_name():
 
 
 @pytest.mark.variable
+def test_variable_rename():
+    """A user may rename a variable."""
+    v = datatypes.Variable([1], 'm', ['d0'], name='My Name')
+    assert v.name == 'My Name'
+    assert v.rename('New Name').name == 'New Name'
+
+
+@pytest.mark.variable
 def test_variable_get_array(var: typing.Dict[str, datatypes.Variable]):
     """Test the internal `_get_array` method to prevent regression."""
     v = var['reference']

@@ -212,7 +212,7 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         result = self._get_data(indices)
         if isinstance(result, numbers.Number):
             return quantities.Scalar(result, unit=self.unit)
-        return self.copy_with(data=result)
+        return self._copy_with(data=result)
 
     def _subscript_custom(self, args):
         """Perform array subscription specific to this object.
@@ -230,7 +230,7 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
             for i, arg in enumerate(expanded)
         ]
         indices = numpy.ix_(*list(idx))
-        return self.copy_with(data=self._get_data(indices))
+        return self._copy_with(data=self._get_data(indices))
 
     def _expand_ellipsis(
         self,
@@ -439,29 +439,30 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         return `result` as-is.
         """
         if isinstance(result, numpy.ndarray) and isinstance(updates, dict):
-            return self.copy_with(data=result, **updates)
+            return self._copy_with(data=result, **updates)
         return result
 
     def convert_to(self, unit: str):
         """Change this variable's unit and update the numerical scale factor."""
         scale = (quantities.Unit(unit) // self.unit) * self._scale
-        return self.copy_with(unit=unit, scale=scale)
+        return self._copy_with(unit=unit, scale=scale)
 
-    def copy_with(self, **updates):
-        """Create a new instance with optional parameter updates."""
-        if 'data' in updates: # User shouldn't be able to do this.
-            return type(self)(
-                data=updates['data'],
-                unit=updates.get('unit', self.unit),
-                axes=updates.get('axes', self.axes),
-                name=updates.get('name', self.name),
-            )
+    def rename(self, name: str):
+        """Rename this variable."""
+        return self._copy_with(name=name)
+
+    def _copy_with(self, **updates):
+        """Create a new instance from the current attributes."""
+        attrs = {
+            name: updates.get(name, getattr(self, name))
+            for name in ('unit', 'axes', 'name')
+        }
+        if 'data' in updates:
+            return type(self)(data=updates['data'], **attrs)
         return type(self)(
             data=self._data,
-            unit=updates.get('unit', self.unit),
-            axes=updates.get('axes', self.axes),
-            name=updates.get('name', self.name),
             scale=updates.get('scale', self._scale),
+            **attrs
         )
 
     def __str__(self) -> str:
