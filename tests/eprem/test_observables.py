@@ -10,9 +10,9 @@ import matplotlib.pyplot as plt
 import pytest
 
 from goats.core import base
+from goats.core import datatypes
 from goats.core import physical
 from goats import eprem
-from goats.eprem import parameters
 
 
 def get_stream(rootpath: Path):
@@ -101,7 +101,7 @@ def test_parameter_access(stream: eprem.Stream) -> None:
     for aliases, expected in cases.items():
         for alias in aliases:
             argument = stream[alias]
-            assert isinstance(argument, parameters.Assumption)
+            assert isinstance(argument, datatypes.Assumption)
             assert alias in argument.aliases
             assert float(argument) == expected['value']
             assert argument.unit == expected['unit']

@@ -2,6 +2,7 @@ import typing
 
 import pytest
 
+from goats.core import datatypes
 from goats.eprem import parameters
 
 
@@ -87,7 +88,7 @@ def test_argument(source_path, config_path):
     }
     for name, expected in assumptions.items():
         assumption = args[name]
-        assert isinstance(assumption, parameters.Assumption)
+        assert isinstance(assumption, datatypes.Assumption)
         assert [float(v) for v in assumption[:]] == expected['values']
         assert assumption.unit == expected['unit']
     options = {
@@ -97,7 +98,7 @@ def test_argument(source_path, config_path):
     }
     for name, expected in options.items():
         option = args[name]
-        assert isinstance(option, parameters.Option)
+        assert isinstance(option, datatypes.Option)
         assert option == expected
 
 
