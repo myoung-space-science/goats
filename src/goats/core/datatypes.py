@@ -10,32 +10,18 @@ from goats.core import quantities
 from goats.core import iterables
 
 
-class Constraint(abc.ABC):
-    """Base class for enforceable operator constraints."""
-
-    def __call__(self, *args, **kwargs):
-        """Enforce this constraint."""
-        if not self.consistent(*args, **kwargs):
-            raise ValueError
-
-    @abc.abstractmethod
-    def consistent(self, *args, **kwargs) -> bool:
-        """Apply this constraint."""
-        return False
-
-
-class SameAttrs(iterables.ReprStrMixin, Constraint):
-    """A class that checks attribute consistency."""
-
-    def __init__(self, *names: str) -> None:
-        self.names = names
-
-    def consistent(self, a, b) -> bool:
-        """True if the named attributes of `a` and `b` are equal."""
-        return all(getattr(a, name) == getattr(b, name) for name in self.names)
-
-    def __str__(self) -> str:
-        return ', '.join(self.names)
+def same_attrs(*names: str):
+    """Enforce attribute equality."""
+    def constrain(*v: Variable):
+        v0 = v[0]
+        if len(v) == 1:
+            return True
+        vi = v[1:]
+        return all(
+            getattr(i, name) == getattr(v0, name)
+            for name in names for i in vi
+        )
+    return constrain
 
 
 XT = typing.TypeVar('XT', typing.Callable, str)
@@ -574,7 +560,7 @@ _opr_rules = {
     'add': {
         (Variable, quantities.RealValued): {},
         (Variable, Variable): {
-            'constraints': [SameAttrs('axes', 'unit')],
+            'constraints': [same_attrs('axes', 'unit')],
             'updaters': {
                 'name': attr_updater('{0.name} + {1.name}'),
             }
@@ -584,7 +570,7 @@ _opr_rules = {
     'subtract': {
         (Variable, quantities.RealValued): {},
         (Variable, Variable): {
-            'constraints': [SameAttrs('axes', 'unit')],
+            'constraints': [same_attrs('axes', 'unit')],
             'updaters': {
                 'name': attr_updater('{0.name} - {1.name}'),
             }
