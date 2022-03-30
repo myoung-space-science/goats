@@ -24,8 +24,7 @@ def same_attrs(*names: str):
     return constrain
 
 
-XT = typing.TypeVar('XT', typing.Callable, str)
-def attr_updater(x: XT):
+def attr_updater(x: typing.Union[typing.Callable, str]):
     """Update a `Variable` attribute via `x`."""
     def inner(*v: Variable):
         if callable(x):
