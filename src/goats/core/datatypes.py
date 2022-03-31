@@ -823,7 +823,7 @@ class Axis(iterables.ReprStrMixin):
     Attrs = typing.Tuple[
         int,
         Indexer,
-        typing.Tuple[str],
+        aliased.MappingKey,
     ]
 
     def _parse(self, *args, **kwargs) -> Attrs:
