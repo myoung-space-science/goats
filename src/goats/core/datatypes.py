@@ -106,51 +106,76 @@ IndexLike = typing.TypeVar(
 IndexLike = typing.Union[typing.Iterable[int], slice, type(Ellipsis)]
 
 
+Instance = typing.TypeVar('Instance', bound='Variable')
+
+
 class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
     """A class representing a dataset variable."""
 
-    _data: numpy.typing.ArrayLike
-    unit: quantities.Unit=None
-    """The unit of this variable's array values."""
-    axes: typing.Tuple[str]=None
-    """The names of indexable axes in this variable's array."""
-    naxes: int=None
-    """The number of indexable axes in this variable's array."""
-    name: str=None
-    """The name of this variable, if available."""
-    _scale: float=None
-    _array: numpy.ndarray=None
-
-    def __new__(cls, *args, **kwargs):
+    @typing.overload
+    def __init__(
+        self: Instance,
+        data: numpy.typing.ArrayLike,
+        unit: typing.Union[str, quantities.Unit]=None,
+        axes: typing.Iterable[str]=None,
+        name: str=None,
+    ) -> None:
         """Create a new variable."""
-        if not kwargs and len(args) == 1 and isinstance(args[0], cls):
-            instance = args[0]
-            data = instance._data
-            unit = instance.unit
-            axes = instance.axes
-            name = instance.name
-            scale = instance._scale
-        else:
-            attrs = list(args)
-            attr_dict = {
-                k: attrs.pop(0) if attrs
-                else kwargs.pop(k, None)
-                for k in ('data', 'unit', 'axes', 'name')
-            }
-            data = attr_dict['data']
-            unit = attr_dict['unit'] or '1'
-            axes = attr_dict['axes'] or ()
-            name = attr_dict['name'] or ''
-            scale = kwargs.get('scale') or 1.0
-        self = super().__new__(cls)
-        self._data = data
-        self.unit = quantities.Unit(unit)
-        self.axes = tuple(axes)
-        self.naxes = len(axes)
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        instance: Instance,
+    ) -> None:
+        """Create a new variable."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        parsed = self._parse(*args, **kwargs)
+        self._data, unit, axes, name = parsed
+        self.unit = unit
+        """The unit of this variable's array values."""
+        self.axes = axes
+        """The names of indexable axes in this variable's array."""
         self.name = name
-        self._scale = scale
+        """The name of this variable."""
+        self.naxes = len(self.axes)
+        """The number of indexable axes in this variable's array."""
+        self._scale = 1.0
+        self._rescale = True
         self._array = None
-        return self
+
+    _attr_defaults = {
+        'unit': '1',
+        'axes': (),
+        'name': '',
+    }
+
+    def _parse(self, *args, **kwargs):
+        """Parse input arguments to initialize this instance."""
+        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
+            instance = args[0]
+            return tuple(
+                getattr(instance, name)
+                for name in ['_data'] + list(self._attr_defaults)
+            )
+        attrs = self._get_attrs(list(args), kwargs)
+        return (
+            attrs['data'],
+            quantities.Unit(attrs['unit']),
+            tuple(attrs['axes']),
+            attrs['name'] or '',
+        )
+
+    def _get_attrs(self, args: list, kwargs: dict):
+        """Extract attribute values from arguments or defaults."""
+        attrs = {'data': args.pop(0) if args else kwargs['data']}
+        updates = {
+            k: args.pop(0) if args
+            else kwargs.get(k, v)
+            for k, v in self._attr_defaults.items()
+        }
+        attrs.update(updates)
+        return attrs
 
     @property
     def ndim(self):
@@ -166,12 +191,15 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         """Change this variable's unit and update the numerical scale factor."""
         if unit == self.unit:
             return self
-        scale = (quantities.Unit(unit) // self.unit) * self._scale
-        return self._copy_with(unit=unit, scale=scale)
+        self._scale *= (quantities.Unit(unit) // self.unit)
+        self._rescale = True
+        self.unit = unit
+        return self
 
     def rename(self, name: str):
         """Rename this variable."""
-        return self._copy_with(name=name)
+        self.name = name
+        return self
 
     def __eq__(self, other: typing.Any):
         """True if two instances have the same data and attributes."""
@@ -411,8 +439,9 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         tries to access a large portion of the full array; this is a possible
         area for optimization.
         """
-        if self._array is None:
+        if self._array is None or self._rescale:
             array = self._load_array(index) * self._scale
+            self._rescale = False
             if index is not None:
                 return array
             self._array = array
@@ -452,17 +481,6 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         if isinstance(result, numpy.ndarray) and isinstance(updates, dict):
             return self._copy_with(data=result, **updates)
         return result
-
-    def convert_to(self, unit: str):
-        """Change this variable's unit and update the numerical scale factor."""
-        if unit == self.unit:
-            return self
-        scale = (quantities.Unit(unit) // self.unit) * self._scale
-        return self._copy_with(unit=unit, scale=scale)
-
-    def rename(self, name: str):
-        """Rename this variable."""
-        return self._copy_with(name=name)
 
     def _copy_with(self, **updates):
         """Create a new instance from the current attributes."""

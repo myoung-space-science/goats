@@ -23,11 +23,6 @@ def test_variable():
     assert v1.unit == quantities.Unit('J')
     assert list(v1.axes) == ['x', 'y']
     assert v1.naxes == 2
-    v0_cm = v0.convert_to('cm')
-    assert v0_cm is not v0
-    assert numpy.array_equal(v0_cm, 100 * v0)
-    assert v0_cm.unit == quantities.Unit('cm')
-    assert v0_cm.axes == v0.axes
     r = v0 + v0
     expected = [6.0, 9.0]
     assert numpy.array_equal(r, expected)
@@ -44,6 +39,14 @@ def test_variable():
     expected = [3.0 ** 2, 4.5 ** 2]
     assert numpy.array_equal(r, expected)
     assert r.unit == quantities.Unit('m^2')
+    reference = datatypes.Variable(v0)
+    assert reference is not v0
+    v0_cm = v0.convert_to('cm')
+    assert v0_cm is v0
+    expected = 100 * reference
+    assert numpy.array_equal(v0_cm, expected)
+    assert v0_cm.unit == quantities.Unit('cm')
+    assert v0_cm.axes == reference.axes
 
 
 @pytest.mark.variable
@@ -321,13 +324,16 @@ def test_variable_add_sub(
 
 @pytest.mark.variable
 def test_variable_units(var: typing.Dict[str, datatypes.Variable]):
-    """Test the ability to update unit via bracket syntax."""
-    v0_km = var['reference'].convert_to('km')
+    """Test the ability to update a variable's unit."""
+    v0 = var['reference']
+    reference = datatypes.Variable(v0)
+    v0_km = v0.convert_to('km')
     assert isinstance(v0_km, datatypes.Variable)
-    assert v0_km is not var['reference']
+    assert v0_km is v0
+    assert v0_km is not reference
     assert v0_km.unit == 'km'
-    assert v0_km.axes == var['reference'].axes
-    assert numpy.array_equal(v0_km[:], 1e-3 * var['reference'][:])
+    assert v0_km.axes == reference.axes
+    assert numpy.array_equal(v0_km[:], 1e-3 * reference[:])
 
 
 @pytest.mark.variable
