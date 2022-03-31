@@ -938,6 +938,16 @@ def test_parse_measurable():
         quantities.parse_measurable([(1.1, 'm'), (2.3, 5.8, 'cm')])
 
 
+def test_measurable():
+    """Test the function that determines if we can measure and object."""
+    cases = [case['test'] for case in builtin_cases]
+    for case in cases:
+        assert quantities.measurable(case)
+    class Test:
+        def __measure__(): ...
+    assert quantities.measurable(Test())
+
+
 def test_measure():
     """Test the function that creates a measurement object."""
     for case in builtin_cases:
