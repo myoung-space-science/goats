@@ -162,6 +162,17 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         """The shape of this instance's array."""
         return self._get_data('shape')
 
+    def convert_to(self, unit: str):
+        """Change this variable's unit and update the numerical scale factor."""
+        if unit == self.unit:
+            return self
+        scale = (quantities.Unit(unit) // self.unit) * self._scale
+        return self._copy_with(unit=unit, scale=scale)
+
+    def rename(self, name: str):
+        """Rename this variable."""
+        return self._copy_with(name=name)
+
     def __eq__(self, other: typing.Any):
         """True if two instances have the same data and attributes."""
         if not isinstance(other, Variable):
