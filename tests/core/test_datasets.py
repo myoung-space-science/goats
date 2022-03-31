@@ -137,7 +137,7 @@ def test_dataset(testdata: dict):
         assert isinstance(dataset.axes, typing.Mapping)
         for key, length in axes.items():
             axis = dataset.axes[key]
-            assert key in axis.name
+            assert key in axis.names
             assert list(axis()) == list(range(length))
         for observable, expected in reference.items():
             if observable in dataset.variables:
