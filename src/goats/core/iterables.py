@@ -1283,3 +1283,9 @@ def apply(
     if result := next((match for match in gen if match), None):
         return result
 
+
+def allinstance(args, __type):
+    """True if all arguments are instances of `__type`."""
+    return all(isinstance(arg, __type) for arg in args)
+
+

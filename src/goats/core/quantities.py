@@ -2868,35 +2868,49 @@ class Measurable(typing.Protocol):
         pass
 
 
-# A measurable object may be:
-# - one that is `Measurable` as defined above
-# - number
-# - iterable[number]
-# - iterable[number, string | Unit]
-# - iterable[iterable[number], string | Unit]
-# - iterable[measurable]
+def unitlike(this):
+    """True if `this` can act like a `~quantities.Unit`."""
+    return isinstance(this, (str, Unit))
 
-def measurable(obj):
-    """True if we can measure this object."""
-    unwrapped = iterables.unwrap(obj)
-    if hasattr(unwrapped, '__measure__'):
+
+def measurable(this):
+    """True if we can measure `this`.
+    
+    A measurable object may be:
+    
+    - an object that defines `__measure__`
+    - a number
+    - an iterable of numbers
+    - an iterable of numbers followed by a unit-like object
+    - an two-element iterable whose first element is an iterable of numbers and
+      whose second element is a unit-like object
+    - an iterable of measurable objects.
+
+    Parameters
+    ----------
+    this
+        The candidate measurable object.
+
+    Returns
+    -------
+    bool
+        True if `this` is measurable; false otherwise.
+    """
+    args = iterables.unwrap(this)
+    if hasattr(args, '__measure__'):
         return True
-    if isinstance(unwrapped, numbers.Number):
+    if isinstance(args, numbers.Number):
         return True
-    if not isinstance(unwrapped, iterables.whole):
+    if not isinstance(args, iterables.whole):
         return False
-    if all(isinstance(i, numbers.Number) for i in unwrapped):
+    if iterables.allinstance(args, numbers.Number):
         return True
-    if (
-        all(isinstance(i, numbers.Number) for i in unwrapped[:-1])
-        and isinstance(unwrapped[-1], (str, Unit))
-    ): return True
-    if (
-        isinstance(unwrapped[0], typing.Iterable)
-        and measurable(unwrapped[0])
-        and isinstance(unwrapped[-1], (str, Unit))
-    ): return True
-    if all(measurable(i) for i in unwrapped):
+    if unitlike(args[-1]):
+        arg0 = args[0]
+        values = arg0 if isinstance(arg0, typing.Iterable) else args[:-1]
+        if iterables.allinstance(values, numbers.Number):
+            return True
+    if all(measurable(i) for i in args):
         return True
     return False
 
