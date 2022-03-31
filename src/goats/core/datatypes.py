@@ -785,23 +785,58 @@ class Indexer:
         return self.method(targets, **kwargs)
 
 
+Instance = typing.TypeVar('Instance', bound='Axis')
+
+
 class Axis(iterables.ReprStrMixin):
     """A single dataset axis."""
 
+    @typing.overload
     def __init__(
-        self,
+        self: Instance,
         size: int,
         indexer: Indexer,
-        name: str='<anonymous>',
+        *names: str,
     ) -> None:
+        """Create a new axis."""
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        instance: Instance,
+    ) -> None:
+        """Create a new axis."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        parsed = self._parse(*args, **kwargs)
+        size, indexer, names = parsed
         self.size = size
         """The full length of this axis."""
         self.indexer = indexer
         """A callable object that creates indices from user input."""
+        self.names = names
+        """The valid names for this axis."""
         self.reference = indexer.reference
         """The index reference values."""
-        self.name = name
-        """The name of this axis."""
+
+    Attrs = typing.TypeVar('Attrs', bound=tuple)
+    Attrs = typing.Tuple[
+        int,
+        Indexer,
+        typing.Tuple[str],
+    ]
+
+    def _parse(self, *args, **kwargs) -> Attrs:
+        """Parse input arguments to initialize this instance."""
+        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
+            instance = args[0]
+            return tuple(
+                getattr(instance, name)
+                for name in ('size', 'indexer', 'names')
+            )
+        size, indexer, *args = args
+        names = aliased.MappingKey(args or ())
+        return size, indexer, names
 
     def __call__(self, *args, **kwargs):
         """Convert user arguments into an index object."""
@@ -826,7 +861,7 @@ class Axis(iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        string = f"{self.name}, size={self.size}"
+        string = f"'{self.names}': size={self.size}"
         unit = (
             str(self.reference.unit())
             if isinstance(self.reference, quantities.Measured)

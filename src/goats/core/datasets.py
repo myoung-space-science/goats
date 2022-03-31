@@ -355,8 +355,8 @@ class Axes(aliased.Mapping):
     def __getitem__(self, key: str) -> datatypes.Axis:
         indexer = super().__getitem__(key)
         size = self.dataset.axes[key].size
-        name = f"'{observables.ALIASES.get(key, key)}'"
-        return datatypes.Axis(size, indexer, name=name)
+        names = observables.ALIASES.get(key, [key])
+        return datatypes.Axis(size, indexer, *names)
 
 
 class Dataset:
