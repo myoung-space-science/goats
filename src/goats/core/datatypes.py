@@ -116,9 +116,9 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
     def __init__(
         self: Instance,
         data: numpy.typing.ArrayLike,
+        *names: str,
         unit: typing.Union[str, quantities.Unit]=None,
         axes: typing.Iterable[str]=None,
-        name: str=None,
     ) -> None:
         """Create a new variable."""
 
@@ -131,51 +131,40 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
 
     def __init__(self, *args, **kwargs) -> None:
         parsed = self._parse(*args, **kwargs)
-        self._data, unit, axes, name = parsed
+        self._data, names, unit, axes = parsed
+        self.names = names
+        """The valid names for this variable."""
         self.unit = unit
         """The unit of this variable's array values."""
         self.axes = axes
         """The names of indexable axes in this variable's array."""
-        self.name = name
-        """The name of this variable."""
         self.naxes = len(self.axes)
         """The number of indexable axes in this variable's array."""
         self._scale = 1.0
         self._rescale = True
         self._array = None
 
-    _attr_defaults = {
-        'unit': '1',
-        'axes': (),
-        'name': '',
-    }
+    Attrs = typing.TypeVar('Attrs', bound=tuple)
+    Attrs = typing.Tuple[
+        numpy.typing.ArrayLike,
+        aliased.MappingKey,
+        quantities.Unit,
+        typing.Tuple[str],
+    ]
 
-    def _parse(self, *args, **kwargs):
+    def _parse(self, *args, **kwargs) -> Attrs:
         """Parse input arguments to initialize this instance."""
         if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
             instance = args[0]
             return tuple(
                 getattr(instance, name)
-                for name in ['_data'] + list(self._attr_defaults)
+                for name in ('_data', 'names', 'unit', 'axes')
             )
-        attrs = self._get_attrs(list(args), kwargs)
-        return (
-            attrs['data'],
-            quantities.Unit(attrs['unit']),
-            tuple(attrs['axes']),
-            attrs['name'] or '',
-        )
-
-    def _get_attrs(self, args: list, kwargs: dict):
-        """Extract attribute values from arguments or defaults."""
-        attrs = {'data': args.pop(0) if args else kwargs['data']}
-        updates = {
-            k: args.pop(0) if args
-            else kwargs.get(k, v)
-            for k, v in self._attr_defaults.items()
-        }
-        attrs.update(updates)
-        return attrs
+        data, *args = args
+        names = aliased.MappingKey(args or ())
+        unit = quantities.Unit(kwargs.get('unit', '1'))
+        axes = tuple(kwargs.get('axes', ()))
+        return data, names, unit, axes
 
     @property
     def ndim(self):
@@ -196,9 +185,10 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         self.unit = unit
         return self
 
-    def rename(self, name: str):
-        """Rename this variable."""
-        self.name = name
+    def rename(self, *new: str, update: bool=False):
+        """Change or update this variable's name(s)."""
+        names = self.names | new if update else new
+        self.names = aliased.MappingKey(names)
         return self
 
     def __eq__(self, other: typing.Any):
@@ -484,26 +474,23 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
 
     def _copy_with(self, **updates):
         """Create a new instance from the current attributes."""
+        data = updates.get('data', self._data)
+        names = updates.get('names', self.names)
         attrs = {
             name: updates.get(name, getattr(self, name))
-            for name in ('unit', 'axes', 'name')
+            for name in ('unit', 'axes')
         }
-        if 'data' in updates:
-            return type(self)(data=updates['data'], **attrs)
-        return type(self)(
-            data=self._data,
-            scale=updates.get('scale', self._scale),
-            **attrs
-        )
+        if isinstance(names, str):
+            return type(self)(data, names, **attrs)
+        return type(self)(data, *names, **attrs)
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
         attrs = [
-            f"{self.name!r}",
             f"unit='{self.unit}'",
             f"axes={self.axes}",
         ]
-        return ', '.join(attrs)
+        return f"{self.names}: {', '.join(attrs)}"
 
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
@@ -552,7 +539,7 @@ def _squeeze(v: Variable, **kwargs):
         a for a, d in zip(v.axes, v._get_data('shape'))
         if d != 1
     )
-    return Variable(data, unit=v.unit, axes=axes, name=v.name)
+    return Variable(data, *v.names, unit=v.unit, axes=axes)
 
 
 @Variable.implements(numpy.mean)
@@ -563,8 +550,8 @@ def _mean(v: Variable, **kwargs):
     if axis is None:
         return data
     axes = tuple(a for a in v.axes if v.axes.index(a) != axis)
-    name = f"mean({v.name})"
-    return Variable(data, unit=v.unit, axes=axes, name=name)
+    names = [f"mean({name})" for name in v.names]
+    return Variable(data, *names, unit=v.unit, axes=axes)
 
 
 quantities.Measured.register(Variable)
@@ -597,7 +584,7 @@ _opr_rules = {
         (Variable, Variable): {
             'constraints': [same_attrs('axes', 'unit')],
             'updaters': {
-                'name': attr_updater('{0.name} + {1.name}'),
+                'names': attr_updater('{0.names} + {1.names}'),
             }
         },
         (quantities.RealValued, Variable): {},
@@ -607,7 +594,7 @@ _opr_rules = {
         (Variable, Variable): {
             'constraints': [same_attrs('axes', 'unit')],
             'updaters': {
-                'name': attr_updater('{0.name} - {1.name}'),
+                'names': attr_updater('{0.names} - {1.names}'),
             }
         },
         (quantities.RealValued, Variable): {},
@@ -618,7 +605,7 @@ _opr_rules = {
             'updaters': {
                 'unit': attr_updater('{0.unit} * {1.unit}'),
                 'axes': unique_axes,
-                'name': attr_updater('{0.name} * {1.name}'),
+                'names': attr_updater('{0.names} * {1.names}'),
             }
         },
         (quantities.RealValued, Variable): {},
@@ -629,7 +616,7 @@ _opr_rules = {
             'updaters': {
                 'unit': attr_updater('{0.unit} / ({1.unit})'),
                 'axes': unique_axes,
-                'name': attr_updater('{0.name} / {1.name}'),
+                'names': attr_updater('{0.names} / {1.names}'),
             }
         },
     },
@@ -637,7 +624,7 @@ _opr_rules = {
         (Variable, numbers.Real): {
             'updaters': {
                 'unit': attr_updater('({0.unit})^{1}'),
-                'name': attr_updater('{0.name}^{1}'),
+                'names': attr_updater('{0.names}^{1}'),
             },
         },
     },
@@ -645,7 +632,7 @@ _opr_rules = {
         (Variable,): {
             'updaters': {
                 'unit': attr_updater('sqrt({0.unit})'),
-                'name': attr_updater('sqrt({0.name})'),
+                'names': attr_updater('sqrt({0.names})'),
             },
         },
     },

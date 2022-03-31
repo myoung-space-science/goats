@@ -13,8 +13,8 @@ from goats.core import quantities
 @pytest.mark.variable
 def test_variable():
     """Test the object that represents a variable."""
-    v0 = datatypes.Variable([3.0, 4.5], 'm', ['x'])
-    v1 = datatypes.Variable([[1.0], [2.0]], 'J', ['x', 'y'])
+    v0 = datatypes.Variable([3.0, 4.5], unit='m', axes=['x'])
+    v1 = datatypes.Variable([[1.0], [2.0]], unit='J', axes=['x', 'y'])
     assert numpy.array_equal(v0, [3.0, 4.5])
     assert v0.unit == quantities.Unit('m')
     assert list(v0.axes) == ['x']
@@ -52,7 +52,7 @@ def test_variable():
 @pytest.mark.variable
 def test_variable_measure():
     """Test the use of `~quantities.measure` on a variable."""
-    v0 = datatypes.Variable([3.0, 4.5], 'm', ['x'])
+    v0 = datatypes.Variable([3.0, 4.5], unit='m', axes=['x'])
     measured = quantities.measure(v0)
     assert measured.values == [3.0, 4.5]
     assert measured.unit == 'm'
@@ -308,8 +308,12 @@ def test_variable_add_sub(
     v0 = var['reference']
     a0 = arr['reference']
     a1 = arr['samedims']
-    v1 = datatypes.Variable(a1, v0.unit, v0.axes)
-    v2 = datatypes.Variable(arr['different'], v0.unit, var['different'].axes)
+    v1 = datatypes.Variable(a1, unit=v0.unit, axes=v0.axes)
+    v2 = datatypes.Variable(
+        arr['different'],
+        unit=v0.unit,
+        axes=var['different'].axes,
+    )
     for opr in (operator.add, operator.sub):
         msg = f"Failed for {opr}"
         new = opr(v0, v1)
@@ -446,25 +450,23 @@ def test_variable_getitem(var: typing.Dict[str, datatypes.Variable]):
 
 
 @pytest.mark.variable
-def test_variable_name():
-    """A variable may have a given name or be anonymous."""
-    default = datatypes.Variable([1], 'm', ['d0'])
-    assert default.name == ''
-    cases = {
-        'test': 'test',
-        None: '',
-    }
-    for name, expected in cases.items():
-        variable = datatypes.Variable([1], 'm', ['d0'], name=name)
-        assert variable.name == expected
+def test_variable_names():
+    """A variable may have zero or more names."""
+    default = datatypes.Variable([1], unit='m', axes=['d0'])
+    assert not default.names
+    names = ('v0', 'var')
+    variable = datatypes.Variable([1], *names, unit='m', axes=['d0'])
+    assert all(name in variable.names for name in names)
 
 
 @pytest.mark.variable
 def test_variable_rename():
     """A user may rename a variable."""
-    v = datatypes.Variable([1], 'm', ['d0'], name='My Name')
-    assert v.name == 'My Name'
-    assert v.rename('New Name').name == 'New Name'
+    v = datatypes.Variable([1], 'Name', unit='m', axes=['d0'])
+    assert list(v.names) == ['Name']
+    v.rename('var', update=True)
+    assert all(name in v.names for name in ('Name', 'var'))
+    assert list(v.rename('v0').names) == ['v0']
 
 
 @pytest.mark.variable
@@ -483,6 +485,22 @@ def test_variable_get_array(var: typing.Dict[str, datatypes.Variable]):
     assert a.shape == (3, 2)
     assert numpy.array_equal(a, [[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
     assert v._array is a
+
+
+@pytest.mark.skip
+def test_assumption():
+    """Test the object that represents a physical assumption."""
+    values = [1.0, 2.0]
+    unit = 'm'
+    aliases = 'this', 'a0'
+    assumption = datatypes.Assumption(values, unit, *aliases)
+    assert assumption.unit == unit
+    assert all(alias in assumption.aliases for alias in aliases)
+    scalars = [quantities.Scalar(value, unit) for value in values]
+    assert assumption[:] == scalars
+    converted = assumption.convert_to('cm')
+    assert converted.unit == 'cm'
+    assert converted[:] == [100.0 * scalar for scalar in scalars]
 
 
 # Copied from old test module. There is overlap with existing tests.
@@ -522,6 +540,16 @@ def components():
     ]
 
 
+def make_variable(**attrs):
+    """Helper for making a variable from components."""
+    return datatypes.Variable(
+        attrs['data'],
+        attrs['name'],
+        unit=attrs.get('unit'),
+        axes=attrs.get('axes'),
+    )
+
+
 OType = typing.TypeVar('OType', datatypes.Variable, quantities.RealValued)
 OType = typing.Union[
     datatypes.Variable,
@@ -551,11 +579,12 @@ def call_func(
 
 def test_add_number(components):
     ref = [components[i] for i in (0, 1)]
-    var = [datatypes.Variable(**component) for component in ref]
+    var = [make_variable(**component) for component in ref]
     num = 2.3
     operands = [var[0], num]
     expected = ref[0]['data'] + num
-    attrs = {k: ref[0][k] for k in ('unit', 'axes', 'name')}
+    attrs = {k: ref[0][k] for k in ('unit', 'axes')}
+    attrs['names'] = {ref[0]['name']}
     call_func(
         operator.add,
         datatypes.Variable,
@@ -567,11 +596,12 @@ def test_add_number(components):
 
 def test_sub_number(components):
     ref = [components[i] for i in (0, 1)]
-    var = [datatypes.Variable(**component) for component in ref]
+    var = [make_variable(**component) for component in ref]
     num = 2.3
     operands = [var[0], num]
     expected = ref[0]['data'] - num
-    attrs = {k: ref[0][k] for k in ('unit', 'axes', 'name')}
+    attrs = {k: ref[0][k] for k in ('unit', 'axes')}
+    attrs['names'] = {ref[0]['name']}
     call_func(
         operator.sub,
         datatypes.Variable,
@@ -583,11 +613,11 @@ def test_sub_number(components):
 
 def test_add_variable(components):
     ref = [components[i] for i in (0, 1)]
-    var = [datatypes.Variable(**component) for component in ref]
+    var = [make_variable(**component) for component in ref]
     operands = [var[0], var[1]]
     expected = ref[0]['data'] + ref[1]['data']
     attrs = {k: ref[0][k] for k in ('unit', 'axes')}
-    attrs['name'] = f"{ref[0]['name']} + {ref[1]['name']}"
+    attrs['names'] = {f"{ref[0]['name']} + {ref[1]['name']}"}
     call_func(
         operator.add,
         datatypes.Variable,
@@ -599,11 +629,11 @@ def test_add_variable(components):
 
 def test_sub_variable(components):
     ref = [components[i] for i in (0, 1)]
-    var = [datatypes.Variable(**component) for component in ref]
+    var = [make_variable(**component) for component in ref]
     operands = [var[0], var[1]]
     expected = ref[0]['data'] - ref[1]['data']
     attrs = {k: ref[0][k] for k in ('unit', 'axes')}
-    attrs['name'] = f"{ref[0]['name']} - {ref[1]['name']}"
+    attrs['names'] = {f"{ref[0]['name']} - {ref[1]['name']}"}
     call_func(
         operator.sub,
         datatypes.Variable,
@@ -615,13 +645,13 @@ def test_sub_variable(components):
 
 def test_mul_same_shape(components):
     ref = [components[i] for i in (0, 1)]
-    var = [datatypes.Variable(**component) for component in ref]
+    var = [make_variable(**component) for component in ref]
     operands = [var[0], var[1]]
     expected = ref[0]['data'] * ref[1]['data']
     attrs = {
         'unit': f"{ref[0]['unit']} * {ref[1]['unit']}",
         'axes': ('x', 'y'),
-        'name': f"{ref[0]['name']} * {ref[1]['name']}",
+        'names': {f"{ref[0]['name']} * {ref[1]['name']}"},
     }
     call_func(
         operator.mul,
@@ -634,7 +664,7 @@ def test_mul_same_shape(components):
 
 def test_mul_diff_shape(components):
     ref = [components[i] for i in (0, 2)]
-    var = [datatypes.Variable(**component) for component in ref]
+    var = [make_variable(**component) for component in ref]
     operands = [var[0], var[1]]
     opr = operator.mul
     arrays = [r['data'] for r in ref]
@@ -643,7 +673,7 @@ def test_mul_diff_shape(components):
     attrs = {
         'unit': f"{ref[0]['unit']} * {ref[1]['unit']}",
         'axes': ('x', 'y', 'z'),
-        'name': f"{ref[0]['name']} * {ref[1]['name']}",
+        'names': {f"{ref[0]['name']} * {ref[1]['name']}"},
         'shape': (3, 4, 5),
     }
     call_func(
@@ -657,13 +687,13 @@ def test_mul_diff_shape(components):
 
 def test_div_same_shape(components):
     ref = [components[i] for i in (0, 1)]
-    var = [datatypes.Variable(**component) for component in ref]
+    var = [make_variable(**component) for component in ref]
     operands = [var[0], var[1]]
     expected = ref[0]['data'] / ref[1]['data']
     attrs = {
         'unit': f"{ref[0]['unit']} / {ref[1]['unit']}",
         'axes': ('x', 'y'),
-        'name': f"{ref[0]['name']} / {ref[1]['name']}",
+        'names': {f"{ref[0]['name']} / {ref[1]['name']}"},
     }
     call_func(
         operator.truediv,
@@ -676,7 +706,7 @@ def test_div_same_shape(components):
 
 def test_div_diff_shape(components):
     ref = [components[i] for i in (0, 2)]
-    var = [datatypes.Variable(**component) for component in ref]
+    var = [make_variable(**component) for component in ref]
     operands = [var[0], var[1]]
     opr = operator.truediv
     arrays = [r['data'] for r in ref]
@@ -685,7 +715,7 @@ def test_div_diff_shape(components):
     attrs = {
         'unit': f"{ref[0]['unit']} / {ref[1]['unit']}",
         'axes': ('x', 'y', 'z'),
-        'name': f"{ref[0]['name']} / {ref[1]['name']}",
+        'names': {f"{ref[0]['name']} / {ref[1]['name']}"},
         'shape': (3, 4, 5),
     }
     call_func(
@@ -699,14 +729,14 @@ def test_div_diff_shape(components):
 
 def test_pow_number(components):
     ref = components[0]
-    var = datatypes.Variable(**ref)
+    var = make_variable(**ref)
     num = 2
     operands = [var, num]
     expected = ref['data'] ** num
     attrs = {
         'unit': f"{ref['unit']}^{num}",
         'axes': ref['axes'],
-        'name': f"{ref['name']}^{num}",
+        'names': {f"{ref['name']}^{num}"},
     }
     call_func(
         operator.pow,
@@ -719,7 +749,7 @@ def test_pow_number(components):
 
 def test_pow_array(components):
     ref = components[0]
-    var = datatypes.Variable(**ref)
+    var = make_variable(**ref)
     operands = [var, ref['data']]
     result = var ** ref['data']
     assert isinstance(result, numpy.ndarray)
@@ -738,12 +768,12 @@ def test_sqrt(components):
     attrs = {
         'unit': f"sqrt({ref['unit']})",
         'axes': ref['axes'],
-        'name': f"sqrt({ref['name']})",
+        'names': {f"sqrt({ref['name']})"},
     }
     call_func(
         numpy.sqrt,
         datatypes.Variable,
-        datatypes.Variable(**ref),
+        make_variable(**ref),
         expected=expected,
         attrs=attrs,
     )
@@ -755,12 +785,12 @@ def test_squeeze(components):
     attrs = {
         'unit': ref['unit'],
         'axes': ('x', 'z'),
-        'name': ref['name'],
+        'names': {ref['name']},
     }
     call_func(
         numpy.squeeze,
         datatypes.Variable,
-        datatypes.Variable(**ref),
+        make_variable(**ref),
         expected=expected,
         attrs=attrs,
     )
@@ -778,12 +808,12 @@ def test_axis_mean(components):
         attrs = {
             'unit': ref['unit'],
             'axes': axes,
-            'name': f"mean({ref['name']})",
+            'names': {f"mean({ref['name']})"},
         }
         call_func(
             numpy.mean,
             datatypes.Variable,
-            datatypes.Variable(**ref),
+            make_variable(**ref),
             expected=expected,
             attrs=attrs,
             axis=axis,
@@ -795,7 +825,7 @@ def test_full_mean(components):
     call_func(
         numpy.mean,
         float,
-        datatypes.Variable(**ref),
+        make_variable(**ref),
         expected=numpy.mean(ref['data']),
     )
 

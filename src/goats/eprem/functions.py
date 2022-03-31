@@ -67,9 +67,9 @@ class Function(iterables.ReprStrMixin):
         data = self.method(*arrays, *floats)
         return datatypes.Variable(
             data,
-            quantities.Unit(unit),
-            self.axes,
-            name=self.name,
+            *self.name,
+            unit=quantities.Unit(unit),
+            axes=self.axes,
         )
 
     def __str__(self) -> str:

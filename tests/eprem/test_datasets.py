@@ -239,6 +239,6 @@ def test_variables(datapath):
         assert variable.axes == expected['axes']
         assert variable.unit == expected['unit']
         key = aliased.MappingKey(name, *expected['aliases'])
-        assert variable.name == key
+        assert variable.names == key
 
 

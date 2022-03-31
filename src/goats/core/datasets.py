@@ -315,9 +315,9 @@ class Variables(aliased.Mapping):
         datavar = super().__getitem__(key)
         variable = datatypes.Variable(
             datavar.data,
-            standardize(datavar.unit),
-            datavar.axes,
-            name=observables.ALIASES[key],
+            *observables.ALIASES[key],
+            unit=standardize(datavar.unit),
+            axes=datavar.axes,
         )
         result = variable.convert_to(self.units[key])
         self._cache[key] = result

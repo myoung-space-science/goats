@@ -37,7 +37,7 @@ class Observation(iterables.ReprStrMixin):
         assumptions: typing.Mapping[str, quantities.Scalar]=None,
     ) -> None:
         self._data = data
-        self.name = data.name
+        self.name = data.names
         self._indices = indices
         self._assumptions = assumptions or {}
         self._axes = None
@@ -104,12 +104,11 @@ class Observation(iterables.ReprStrMixin):
         axes = [str(axis) for axis in self.axes]
         parameters = [str(parameter) for parameter in self.parameters]
         attrs = [
-            f"'{self.name}'",
             f"unit='{self.unit()}'",
             f"axes={axes}",
             f"parameters={parameters}",
         ]
-        return ', '.join(attrs)
+        return f"'{self.name}': {', '.join(attrs)}"
 
     def plot(
         self,
