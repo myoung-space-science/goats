@@ -538,6 +538,9 @@ def _mean(v: Variable, **kwargs):
     return Variable(data, unit=v.unit, axes=axes, name=name)
 
 
+quantities.Measured.register(Variable)
+
+
 def _extend_arrays(
     a: Variable,
     b: Variable,
