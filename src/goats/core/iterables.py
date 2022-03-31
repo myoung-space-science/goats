@@ -1145,7 +1145,10 @@ class NonStrIterable(abc.ABCMeta):
 
     def __instancecheck__(cls, this: typing.Any) -> bool:
         """True if `this` is not string-like and is iterable."""
-        return not isinstance(this, (str, bytes)) and isinstance(this, typing.Iterable)
+        return (
+            not isinstance(this, (str, bytes))
+            and isinstance(this, typing.Iterable)
+        )
 
 
 class SeparableTypeError(TypeError):
