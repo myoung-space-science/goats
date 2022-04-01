@@ -16,8 +16,8 @@ _METADATA = {
     },
     (
         'mu', 'mus',
-        'pitch angle', 'pitch-angle cosine',
-        'pitch angles', 'pitch-angle cosines',
+        'pitch angle', 'pitch-angle', 'pitch-angle cosine',
+        'pitch angles', 'pitch-angles', 'pitch-angle cosines',
     ): {
         'quantity': 'ratio',
     },
