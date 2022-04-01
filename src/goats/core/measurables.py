@@ -904,9 +904,10 @@ class Measurement(Vector):
         if isinstance(index, typing.SupportsIndex) and index < 0:
             index += len(self)
         values = self._values[index]
+        iter_values = isinstance(values, typing.Iterable)
         return (
-            Scalar(values, self.unit) if not isinstance(values, typing.Iterable)
-            else [Scalar(value, self._unit) for value in values]
+            [Scalar(value, self._unit) for value in values] if iter_values
+            else Scalar(values, self.unit)
         )
 
     @property
