@@ -151,9 +151,9 @@ def test_variables(datapath):
             'axes': (M,),
             'unit': '1',
             'aliases': [
-                'mus',
-                'pitch angle', 'pitch-angle cosine',
-                'pitch angles', 'pitch-angle cosines',
+                'mu', 'mus',
+                'pitch angle', 'pitch-angle', 'pitch-angle cosine',
+                'pitch angles', 'pitch-angles', 'pitch-angle cosines',
             ],
         },
         'mass': {
