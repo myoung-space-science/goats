@@ -342,7 +342,7 @@ def alt_intflux(
     )
 
 
-@registry.register(removed='energy')
+@registry.register(removed='energy', added='minimum energy')
 def integral_flux(
     energies: numpy.ndarray,
     flux: numpy.ndarray,
