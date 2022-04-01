@@ -1897,9 +1897,10 @@ class System(collections.abc.Mapping, iterables.ReprStrMixin):
 
     def __eq__(self, other) -> bool:
         """True if two systems have the same `name` attribute."""
-        if isinstance(other, System):
-            return other.name == self.name
-        return NotImplemented
+        return (
+            other.name == self.name if isinstance(other, System)
+            else NotImplemented
+        )
 
     def __bool__(self) -> bool:
         """A defined metric system is always truthy."""
