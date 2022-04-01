@@ -106,11 +106,11 @@ IndexLike = typing.TypeVar(
 IndexLike = typing.Union[typing.Iterable[int], slice, type(Ellipsis)]
 
 
-Instance = typing.TypeVar('Instance', bound='Variable')
+Instance = typing.TypeVar('Instance', bound='Array')
 
 
-class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
-    """A class representing a dataset variable."""
+class Array(numpy.lib.mixins.NDArrayOperatorsMixin):
+    """Base class for array-like objects."""
 
     @typing.overload
     def __init__(
@@ -118,28 +118,23 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         data: numpy.typing.ArrayLike,
         *names: str,
         unit: typing.Union[str, quantities.Unit]=None,
-        axes: typing.Iterable[str]=None,
     ) -> None:
-        """Create a new variable."""
+        """Create a new instance."""
 
     @typing.overload
     def __init__(
         self: Instance,
         instance: Instance,
     ) -> None:
-        """Create a new variable."""
+        """Create a new instance."""
 
     def __init__(self, *args, **kwargs) -> None:
         parsed = self._parse(*args, **kwargs)
-        self._data, names, unit, axes = parsed
+        self._data, names, unit = parsed
         self.names = names
         """The valid names for this variable."""
         self.unit = unit
         """The unit of this variable's array values."""
-        self.axes = axes
-        """The names of indexable axes in this variable's array."""
-        self.naxes = len(self.axes)
-        """The number of indexable axes in this variable's array."""
         self._scale = 1.0
         self._rescale = True
         self._array = None
@@ -149,7 +144,6 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         numpy.typing.ArrayLike,
         aliased.MappingKey,
         quantities.Unit,
-        typing.Tuple[str],
     ]
 
     def _parse(self, *args, **kwargs) -> Attrs:
@@ -158,23 +152,12 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
             instance = args[0]
             return tuple(
                 getattr(instance, name)
-                for name in ('_data', 'names', 'unit', 'axes')
+                for name in ('_data', 'names', 'unit')
             )
         data, *args = args
         names = aliased.MappingKey(args or ())
         unit = quantities.Unit(kwargs.get('unit', '1'))
-        axes = tuple(kwargs.get('axes', ()))
-        return data, names, unit, axes
-
-    @property
-    def ndim(self):
-        """Alias for `naxes`."""
-        return self.naxes
-
-    @property
-    def shape(self):
-        """The shape of this instance's array."""
-        return self._get_data('shape')
+        return data, names, unit
 
     def convert_to(self, unit: str):
         """Change this variable's unit and update the numerical scale factor."""
@@ -193,27 +176,44 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
 
     def __eq__(self, other: typing.Any):
         """True if two instances have the same data and attributes."""
-        if not isinstance(other, Variable):
+        if not isinstance(other, type(self)):
             return NotImplemented
-        if not self.axes == other.axes:
-            return False
         if not self.unit == other.unit:
             return False
         return numpy.array_equal(other, self)
 
     def __len__(self):
         """Called for len(self)."""
-        return self._get_data('size')
+        # Try self._data.__len__()?
+        return len(self._get_array())
 
     def __iter__(self):
         """Called for iter(self)."""
-        if method := self._get_data('__iter__'):
-            return method()
-        return iter(self._get_data())
+        # Try self._data.__iter__()?
+        return iter(self._get_array())
 
     def __contains__(self, item):
         """Called for `item` in self."""
-        return item in self._data or item in self._get_data()
+        return item in self._data or item in self._get_array()
+
+    def __getattr__(self, name: str):
+        """Access an attribute of the underlying data object or array."""
+        if attr := self._get_array_attr(name):
+            self.__dict__[name] = attr
+            return attr
+        raise AttributeError(name)
+
+    def _get_array_attr(self, name: str):
+        """Helper method to efficiently compute array-based properties.
+
+        This method will first search `_data` for the named attribute, to take
+        advantage of viewers that provide metadata without loading the full
+        dataset. If that search fails, this method will attempt to retrieve the
+        named attribute from the full array.
+        """
+        if found := getattr(self._data, name, None):
+            return found
+        return getattr(self._get_array(), name, None)
 
     _builtin = (int, slice, type(...))
 
@@ -238,10 +238,11 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         including v[:], v[...], v[i, :], v[:, j], and v[i, j], where i and j are
         integers.
         """
-        result = self._get_data(indices)
+        result = self._get_array(indices)
         if isinstance(result, numbers.Number):
+            # Should be consistent about names here.
             return quantities.Scalar(result, unit=self.unit)
-        return self._copy_with(data=result)
+        return Array(result, *self.names, unit=self.unit)
 
     def _subscript_custom(self, args):
         """Perform array subscription specific to this object.
@@ -252,14 +253,13 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         if not isinstance(args, (tuple, list)):
             args = [args]
         expanded = self._expand_ellipsis(args)
-        shape = self._get_data('shape')
         idx = [
-            range(shape[i])
+            range(self.shape[i])
             if isinstance(arg, slice) else arg
             for i, arg in enumerate(expanded)
         ]
         indices = numpy.ix_(*list(idx))
-        return self._copy_with(data=self._get_data(indices))
+        return self._copy_with(data=self._get_array(indices))
 
     def _expand_ellipsis(
         self,
@@ -268,17 +268,17 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         """Expand an ``Ellipsis`` into one or more ``slice`` objects."""
         if Ellipsis not in user:
             return user
-        length = self.naxes - len(user) + 1
+        length = self.ndim - len(user) + 1
         start = user.index(Ellipsis)
         return (
             *user[slice(start)],
             *([slice(None)] * length),
-            *user[slice(start+length, self.naxes)],
+            *user[slice(start+length, self.ndim)],
         )
 
     def __measure__(self):
         """Called for `~quantities.measure(self)`."""
-        return quantities.Measurement(self._get_data(), self.unit)
+        return quantities.Measurement(self._get_array(), self.unit)
 
     _HANDLED_TYPES = (numpy.ndarray, numbers.Number, list)
 
@@ -312,7 +312,7 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
                 return NotImplemented
         if out:
             kwargs['out'] = tuple(
-                x._get_data() if isinstance(x, type(self))
+                x._get_array() if isinstance(x, type(self))
                 else x for x in out
             )
         handler = Ufunc(ufunc)
@@ -337,7 +337,7 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         if multiplicative and correct_type:
             return _extend_arrays(*inputs)
         return tuple(
-            x._get_data() if isinstance(x, type(self))
+            x._get_array() if isinstance(x, type(self))
             else x for x in inputs
         )
 
@@ -362,14 +362,14 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
             result = self._HANDLED_FUNCTIONS[func](*args, **kwargs)
             return self._new_from_func(result)
         args = tuple(
-            arg._get_data() if isinstance(arg, type(self))
+            arg._get_array() if isinstance(arg, type(self))
             else arg for arg in args
         )
         types = tuple(
             ti for ti in types
             if not issubclass(ti, type(self))
         )
-        data = self._get_data()
+        data = self._get_array()
         arr = data.__array_function__(func, types, args, kwargs)
         return self._new_from_func(arr)
 
@@ -385,28 +385,6 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         """
         data = self._get_array()
         return numpy.asanyarray(data, *args, **kwargs)
-
-    @property
-    def shape_dict(self) -> typing.Dict[str, int]:
-        """Label and size for each axis."""
-        return dict(zip(self.axes, self._get_data('shape')))
-
-    def _get_data(self, arg: typing.Union[str, IndexLike]=None):
-        """Access the data array or a dataset attribute.
-        
-        If `arg` is not a string, this method will assume it is an index and
-        will attempt to return the relevant portion of the dataset array (after
-        loading from disk, if necessary). If `arg` is a string, this method will
-        first search `_data` for the named attribute, to take advantage of
-        viewers that provide metadata without loading the full dataset. If that
-        search fails, this method will attempt to retrieve the named attribute
-        from the full array.
-        """
-        if not isinstance(arg, str):
-            return self._get_array(index=arg)
-        if attr := getattr(self._data, arg, None):
-            return attr
-        return getattr(self._get_array(), arg)
 
     def _get_array(self, index: IndexLike=None):
         """Access array data via index or slice notation.
@@ -476,21 +454,18 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         """Create a new instance from the current attributes."""
         data = updates.get('data', self._data)
         names = updates.get('names', self.names)
-        attrs = {
-            name: updates.get(name, getattr(self, name))
-            for name in ('unit', 'axes')
-        }
+        unit = updates.get('unit', self.unit)
         if isinstance(names, str):
-            return type(self)(data, names, **attrs)
-        return type(self)(data, *names, **attrs)
+            return Array(data, names, unit=unit)
+        return Array(data, *names, unit=unit)
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
+        # Consider using the `numpy` string helper functions.
         attrs = [
             f"unit='{self.unit}'",
-            f"axes={self.axes}",
         ]
-        return f"{self.names}: {', '.join(attrs)}"
+        return f"'{self.names}': {', '.join(attrs)}"
 
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
@@ -531,12 +506,108 @@ class Variable(numpy.lib.mixins.NDArrayOperatorsMixin):
         return decorator
 
 
+Instance = typing.TypeVar('Instance', bound='Variable')
+
+
+class Variable(Array):
+    """A class representing a dataset variable."""
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        data: numpy.typing.ArrayLike,
+        *names: str,
+        unit: typing.Union[str, quantities.Unit]=None,
+        axes: typing.Iterable[str]=None,
+    ) -> None:
+        """Create a new variable from scratch."""
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        array: Array,
+        axes: typing.Iterable[str]=None,
+    ) -> None:
+        """Create a new variable from an array."""
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        instance: Instance,
+    ) -> None:
+        """Create a new variable from an existing variable."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.axes = self._parse_variable(*args, **kwargs)
+        """The names of indexable axes in this variable's array."""
+        self.naxes = len(self.axes)
+        """The number of indexable axes in this variable's array."""
+        if self.naxes != self.ndim:
+            raise ValueError(
+                f"Number of axes ({self.naxes})"
+                f" must equal number of array dimensions ({self.ndim})"
+            )
+
+    Attrs = typing.TypeVar('Attrs', bound=tuple)
+    Attrs = typing.Tuple[
+        numpy.typing.ArrayLike,
+        aliased.MappingKey,
+        quantities.Unit,
+        typing.Tuple[str],
+    ]
+
+    def _parse_variable(self, *args, **kwargs) -> Attrs:
+        """Parse input arguments to initialize this instance."""
+        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
+            return args[0].axes
+        return tuple(kwargs.get('axes', ()))
+
+    def __getitem__(self, *args: IndexLike):
+        result = super().__getitem__(*args)
+        if isinstance(result, Array) and result.ndim == self.axes:
+            return Variable(result, axes=self.axes)
+        return result
+
+    def __eq__(self, other: typing.Any):
+        return (
+            super().__eq__(other) if getattr(other, 'axes', None) == self.axes
+            else False
+        )
+
+    @property
+    def shape_dict(self) -> typing.Dict[str, int]:
+        """Label and size for each axis."""
+        return dict(zip(self.axes, self.shape))
+
+    # TODO: Refactor `Array._copy_with` to allow reuse here.
+    def _copy_with(self, **updates):
+        """Create a new instance from the current attributes."""
+        data = updates.get('data', self._data)
+        names = updates.get('names', self.names)
+        attrs = {
+            name: updates.get(name, getattr(self, name))
+            for name in ('unit', 'axes')
+        }
+        if isinstance(names, str):
+            return type(self)(data, names, **attrs)
+        return type(self)(data, *names, **attrs)
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        attrs = [
+            f"unit='{self.unit}'",
+            f"axes={self.axes}",
+        ]
+        return f"'{self.names}': {', '.join(attrs)}"
+
+
 @Variable.implements(numpy.squeeze)
 def _squeeze(v: Variable, **kwargs):
     """Remove singular axes."""
-    data = v._get_data().squeeze(**kwargs)
+    data = v._get_array().squeeze(**kwargs)
     axes = tuple(
-        a for a, d in zip(v.axes, v._get_data('shape'))
+        a for a, d in zip(v.axes, v.shape)
         if d != 1
     )
     return Variable(data, *v.names, unit=v.unit, axes=axes)
@@ -545,7 +616,7 @@ def _squeeze(v: Variable, **kwargs):
 @Variable.implements(numpy.mean)
 def _mean(v: Variable, **kwargs):
     """Compute the mean of the underlying array."""
-    data = v._get_data().mean(**kwargs)
+    data = v._get_array().mean(**kwargs)
     axis = kwargs.get('axis')
     if axis is None:
         return data
@@ -572,9 +643,9 @@ def _extend_arrays(
     full_shape = tuple(tmp[d] for d in axes)
     idx = numpy.ix_(*[range(i) for i in full_shape])
     a_idx = tuple(idx[axes.index(d)] for d in a.shape_dict)
-    a_arr = a._get_data(a_idx)
+    a_arr = a._get_array(a_idx)
     b_idx = tuple(idx[axes.index(d)] for d in b.shape_dict)
-    b_arr = b._get_data(b_idx)
+    b_arr = b._get_array(b_idx)
     return a_arr, b_arr
 
 

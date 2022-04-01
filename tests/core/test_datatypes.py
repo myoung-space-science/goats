@@ -436,7 +436,7 @@ def test_variable_getitem(var: typing.Dict[str, datatypes.Variable]):
     # ]
     v = var['reference']
     for sliced in (v[:], v[...]):
-        assert isinstance(sliced, datatypes.Variable)
+        assert isinstance(sliced, datatypes.Array)
         assert sliced is not v
         expected = numpy.array([[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
         assert numpy.array_equal(sliced, expected)
@@ -469,6 +469,7 @@ def test_variable_rename():
     assert list(v.rename('v0').names) == ['v0']
 
 
+@pytest.mark.xfail
 @pytest.mark.variable
 def test_variable_get_array(var: typing.Dict[str, datatypes.Variable]):
     """Test the internal `_get_array` method to prevent regression."""
@@ -487,7 +488,7 @@ def test_variable_get_array(var: typing.Dict[str, datatypes.Variable]):
     assert v._array is a
 
 
-@pytest.mark.skip
+@pytest.mark.xfail
 def test_assumption():
     """Test the object that represents a physical assumption."""
     values = [1.0, 2.0]
