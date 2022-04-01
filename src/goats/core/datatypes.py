@@ -1,5 +1,6 @@
 import abc
 import collections.abc
+import contextlib
 import numbers
 import typing
 
@@ -199,22 +200,26 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin):
 
     def __getattr__(self, name: str):
         """Access an attribute of the underlying data object or array."""
-        if attr := self._get_array_attr(name):
+        if attr := self._get_array_attr(name, '_get_array'):
             self.__dict__[name] = attr
             return attr
         raise AttributeError(name)
 
-    def _get_array_attr(self, name: str):
+    def _get_array_attr(self, name: str, *search: str):
         """Helper method to efficiently compute array-based properties.
 
         This method will first search `_data` for the named attribute, to take
         advantage of viewers that provide metadata without loading the full
         dataset. If that search fails, this method will attempt to retrieve the
-        named attribute from the full array.
+        named attribute from additional attributes named in `search`, if any.
         """
-        if found := getattr(self._data, name, None):
-            return found
-        return getattr(self._get_array(), name, None)
+        search_attrs = ['_data'] + list(search)
+        targets = [getattr(self, name) for name in search_attrs]
+        for target in targets:
+            with contextlib.suppress(AttributeError):
+                attr = target() if callable(target) else target
+                if value := getattr(attr, name):
+                    return value
 
     _builtin = (int, slice, type(...))
 
