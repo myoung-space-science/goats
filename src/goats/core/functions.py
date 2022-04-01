@@ -287,7 +287,7 @@ def average_energy(
     return 0.5 * epsilon / normalizer
 
 
-@registry.register(removed='pitch-angle')
+@registry.register(removed='mu')
 def isotropic_distribution(
     dist: numpy.ndarray,
 ) -> numpy.ndarray:
