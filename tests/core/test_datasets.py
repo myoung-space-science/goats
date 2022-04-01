@@ -151,6 +151,55 @@ def test_dataset(testdata: dict):
                     dataset.iter_axes(observable)
 
 
+def test_resolve_axes(testdata: dict):
+    """Test the method that orders axes based on the dataset."""
+    dataset = get_dataset(testdata, 'eprem-obs')
+    # This is only a subset of the possible cases and there's probably a more
+    # efficient way to build the collection.
+    cases = [
+        {
+            'input': ('shell', 'energy', 'time'),
+            'mode': None,
+            'output': ('time', 'shell', 'energy'),
+        },
+        {
+            'input': ('shell', 'energy', 'time'),
+            'mode': 'strict',
+            'output': ('time', 'shell', 'energy'),
+        },
+        {
+            'input': ('shell', 'energy', 'time', 'extra'),
+            'mode': None,
+            'output': ('time', 'shell', 'energy'),
+        },
+        {
+            'input': ('shell', 'energy', 'time', 'extra'),
+            'mode': 'strict',
+            'output': ('time', 'shell', 'energy'),
+        },
+        {
+            'input': ('shell', 'energy', 'time', 'extra'),
+            'mode': 'append',
+            'output': ('time', 'shell', 'energy', 'extra'),
+        },
+        {
+            'input': ('extra', 'shell', 'energy', 'time'),
+            'mode': 'append',
+            'output': ('time', 'shell', 'energy', 'extra'),
+        },
+        {
+            'input': ('shell', 'extra', 'energy', 'time'),
+            'mode': 'append',
+            'output': ('time', 'shell', 'energy', 'extra'),
+        },
+    ]
+    for case in cases:
+        names = case['input']
+        mode = case['mode']
+        expected = case['output']
+        assert dataset.resolve_axes(names, mode=mode) == expected
+
+
 def test_standardize():
     """Test the helper function that standardizes unit strings."""
     cases = {

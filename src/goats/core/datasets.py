@@ -399,10 +399,22 @@ class Dataset:
             f"Can't iterate over axes of missing variable {name!r}"
         ) from None
 
-    def resolve_axes(self, names: typing.Iterable[str]):
+    def resolve_axes(
+        self,
+        names: typing.Iterable[str],
+        mode: str='strict',
+    ) -> typing.Tuple[str]:
         """Compute and order the available axes in `names`."""
         axes = self.view.available('axes').canonical
-        return tuple(name for name in axes if name in names)
+        ordered = tuple(name for name in axes if name in names)
+        if mode == 'strict':
+            return ordered
+        extra = tuple(name for name in names if name not in ordered)
+        if not extra:
+            return ordered
+        if mode == 'append':
+            return ordered + extra
+        raise ValueError(f"Unrecognized mode {mode!r}")
 
 
 substitutions = {
