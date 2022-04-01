@@ -56,7 +56,7 @@ class Function(iterables.ReprStrMixin):
             if key in self.parameters
         ]
         for arg in known:
-            if isinstance(arg, datatypes.Variable):
+            if isinstance(arg, datatypes.Array):
                 arrays.append(np.array(arg))
             elif isinstance(arg, quantities.Scalar):
                 floats.append(float(arg))
@@ -67,7 +67,7 @@ class Function(iterables.ReprStrMixin):
         data = self.method(*arrays, *floats)
         return datatypes.Variable(
             data,
-            *self.name,
+            self.name,
             unit=quantities.Unit(unit),
             axes=self.axes,
         )
