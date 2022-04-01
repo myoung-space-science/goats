@@ -200,13 +200,13 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin):
 
     def __getattr__(self, name: str):
         """Access an attribute of the underlying data object or array."""
-        if attr := self._get_array_attr(name, '_get_array'):
+        if attr := self._get_base_attr(name, '_get_array'):
             self.__dict__[name] = attr
             return attr
         raise AttributeError(name)
 
-    def _get_array_attr(self, name: str, *search: str):
-        """Helper method to efficiently compute array-based properties.
+    def _get_base_attr(self, name: str, *search: str):
+        """Helper method to efficiently access underlying attributes.
 
         This method will first search `_data` for the named attribute, to take
         advantage of viewers that provide metadata without loading the full
