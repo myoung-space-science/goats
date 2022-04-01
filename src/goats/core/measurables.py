@@ -379,7 +379,7 @@ class Measured(Ordered):
 
     Notes on allowed binary arithmetic operations:
     - This class does not support floor division (`//`) in any form because of
-      the ambiguity it would create with `~quantities.Unit` floor division.
+      the ambiguity it would create with `~metric.Unit` floor division.
     - This class does not support floating-point division (`/`) in which the
       left operand is not the same type or a subtype. The reason for this choice
       is that the result may be ambiguous. For example, suppose we have an
@@ -417,7 +417,7 @@ class Measured(Ordered):
         amount : real-valued
             The measured amount.
 
-        unit : string or `~quantities.Unit`
+        unit : string or `~metric.Unit`
             The unit in which `amount` is measured.
         """
 
@@ -430,7 +430,7 @@ class Measured(Ordered):
         
         Parameters
         ----------
-        instance : `~quantities.Measured`
+        instance : `~measurables.Measured`
             An existing instance of this class.
         """
 
@@ -438,13 +438,13 @@ class Measured(Ordered):
     _unit: metric.Unit=None
 
     def __new__(cls, *args, **kwargs):
-        """The concrete implementation of `~quantities.Measured.__new__`.
+        """The concrete implementation of `~measurables.Measured.__new__`.
         
         Notes
         -----
         This method first extracts a local `unit` in order to pass it as a `str`
         to its parent class's `_quantity` attribute while returning it as a
-        `~quantities.Unit` for initializing the `_unit` attribute of the current
+        `~metric.Unit` for initializing the `_unit` attribute of the current
         instance.
         """
         if not kwargs and len(args) == 1 and isinstance(args[0], cls):
@@ -479,7 +479,7 @@ class Measured(Ordered):
 
         Returns
         -------
-        `~quantities.Unit`
+        `~metric.Unit`
             The current unit of `amount`.
         """
 
@@ -492,12 +492,12 @@ class Measured(Ordered):
 
         Parameters
         ----------
-        new : string or `~quantities.Unit`
+        new : string or `~metric.Unit`
             The new unit in which to measure `amount`.
 
         Returns
         -------
-        Subclass of `~quantities.Measured`
+        Subclass of `~measurables.Measured`
             A new instance of this class.
         """
 
@@ -648,7 +648,7 @@ class Scalar(Measured, allowed=allowed):
             The numerical value of this scalar. The argument must implement the
             `~numbers.Real` interface.
 
-        unit : string or  `~quantities.Unit`
+        unit : string or  `~metric.Unit`
             The metric unit of `value`.
         """
 
@@ -661,14 +661,14 @@ class Scalar(Measured, allowed=allowed):
         
         Parameters
         ----------
-        instance : `~quantities.Scalar`
+        instance : `~measurables.Scalar`
             An existing instance of this class.
         """
 
     _value: VT
 
     def __new__(cls, *args, **kwargs):
-        """The concrete implementation of `~quantities.Scalar.__new__`."""
+        """The concrete implementation of `~measurables.Scalar.__new__`."""
         if not kwargs and len(args) == 1 and isinstance(args[0], cls):
             instance = args[0]
             value = instance._value
@@ -780,7 +780,7 @@ class Vector(Measured):
             The numerical values of this vector. Each member must implement the
             `~numbers.Real` interface.
 
-        unit : string or `~quantities.Unit`
+        unit : string or `~metric.Unit`
             The metric unit of `values`.
         """
 
@@ -793,12 +793,12 @@ class Vector(Measured):
 
         Parameters
         ----------
-        instance : `~quantities.Vector`
+        instance : `~measurables.Vector`
             An existing instance of this class.
         """
 
     def __new__(cls, *args, **kwargs):
-        """The concrete implementation of `~quantities.Vector.__new__`."""
+        """The concrete implementation of `~measurables.Vector.__new__`."""
         if not kwargs and len(args) == 1 and isinstance(args[0], cls):
             instance = args[0]
             values = instance._values
@@ -895,7 +895,7 @@ class Measurement(Vector):
     """The result of measuring an object.
 
     While it is possible to directly instantiate this class, it serves primarily
-    as the return type of `quantities.measure`, which accepts a much wider
+    as the return type of `measurables.measure`, which accepts a much wider
     domain of arguments.
     """
 
@@ -918,7 +918,7 @@ class Measurement(Vector):
     def unit(self):
         """The metric unit of this measurement.
         
-        Unlike instances of `~quantities.Vector`, this object does not support
+        Unlike instances of `~measurables.Vector`, this object does not support
         updates to `unit`.
         """
         return super().unit()
@@ -958,7 +958,7 @@ class Measurable(typing.Protocol):
 
 
 def unitlike(this):
-    """True if `this` can act like a `~quantities.Unit`."""
+    """True if `this` can act like a `~metric.Unit`."""
     return isinstance(this, (str, metric.Unit))
 
 
