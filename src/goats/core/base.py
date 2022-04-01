@@ -45,7 +45,7 @@ class Observation(iterables.ReprStrMixin):
 
     def __array__(self, *args, **kwargs) -> np.ndarray:
         """Support automatic conversion to a `numpy.ndarray`."""
-        return np.array(self._data, *args, **kwargs)
+        return self._data.__array__(*args, **kwargs)
 
     def __getitem__(self, item):
         """Get an assumption, an array axis, or array values."""
