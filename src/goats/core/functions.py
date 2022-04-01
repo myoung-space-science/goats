@@ -243,42 +243,41 @@ def _behind(arr: numpy.ndarray) -> numpy.ndarray:
     return arr[:, idx, ...]
 
 
-@registry.register
+@registry.register(removed='energy')
 def energy_density(
     speed: numpy.ndarray,
     isodist: numpy.ndarray,
 ) -> numpy.ndarray:
     """Compute the distribution energy density for this dataset.
 
-    This function converts the result to energy density in ergs / cm³ before
-    returning. It first approximates the integral of v⁴f(v) with respect to
-    v, where v is the particle velocity and f(v) is the isotropic
-    distribution. The particle velocities have units of cm/s and the
-    isotropic distribution has units of s³/cm⁶, giving the intermediate
-    value units of (cm/s)⁵s³/cm⁶, or 1/cm/s². Multiplying by the proton mass
-    in grams yields an expression with units of g/cm/s², or erg/cm³.
+    This function converts the result to energy density in J/cm³ before
+    returning. It first approximates the integral of v⁴f(v) with respect to v,
+    where v is the particle velocity and f(v) is the isotropic distribution. The
+    particle velocities have units of m/s and the isotropic distribution has
+    units of s³/m⁶, giving the intermediate value units of (m/s)⁵s³/m⁶, or
+    1/m/s². Multiplying by the proton mass yields an expression with units of
+    kg/m/s², or J/cm³.
     """
     v = numpy.array(speed, ndmin=1)
     dv = numpy.gradient(v, axis=-1)
     return float(MKS['mp']) * numpy.sum(v**4 * isodist * dv, axis=-1)
 
 
-@registry.register
+@registry.register(removed='energy')
 def average_energy(
     speed: numpy.ndarray,
     isodist: numpy.ndarray,
 ) -> numpy.ndarray:
     """Compute the average distribution energy for this dataset.
 
-    This function converts the result to average energy in ergs before
-    returning. It first approximates the integral of v²f(v) with respect to
-    v, where v is the particle velocity and f(v) is the isotropic
-    distribution. The particle velocities have units of cm/s and the
-    isotropic distribution has units of s³/cm⁶, giving the intermediate
-    value units of 1/cm³. This function then computes the energy density via
-    `energy_density()`, divides that result by the intermediate result
-    computed here, and further divides by 2 to represent the kinetic energy.
-    The final result has units of ergs.
+    This function converts the result to average energy in J before returning.
+    It first approximates the integral of v²f(v) with respect to v, where v is
+    the particle velocity and f(v) is the isotropic distribution. The particle
+    velocities have units of m/s and the isotropic distribution has units of
+    s³/m⁶, giving the intermediate value units of 1/m³. This function then
+    computes the energy density via `energy_density()`, divides that result by
+    the intermediate result computed here, and further divides by 2 to represent
+    the kinetic energy. The final result has units of J.
     """
     v = numpy.array(speed, ndmin=1)
     dv = numpy.gradient(v, axis=-1)
