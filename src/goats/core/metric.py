@@ -1705,6 +1705,11 @@ class Unit(algebra.Expression):
         return 1.0 / self.__floordiv__(other)
 
 
+def unitlike(this):
+    """True if `this` can act like a `~metric.Unit`."""
+    return isinstance(this, (str, Unit))
+
+
 Instance = typing.TypeVar('Instance', bound='Dimension')
 
 

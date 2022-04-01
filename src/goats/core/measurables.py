@@ -957,11 +957,6 @@ class Measurable(typing.Protocol):
         pass
 
 
-def unitlike(this):
-    """True if `this` can act like a `~metric.Unit`."""
-    return isinstance(this, (str, metric.Unit))
-
-
 def measurable(this):
     """True if we can measure `this`.
     
@@ -994,7 +989,7 @@ def measurable(this):
         return False
     if iterables.allinstance(args, numbers.Number):
         return True
-    if unitlike(args[-1]):
+    if metric.unitlike(args[-1]):
         arg0 = args[0]
         values = arg0 if isinstance(arg0, typing.Iterable) else args[:-1]
         if iterables.allinstance(values, numbers.Number):
