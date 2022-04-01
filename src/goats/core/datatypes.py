@@ -186,16 +186,20 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin):
 
     def __len__(self):
         """Called for len(self)."""
-        # Try self._data.__len__()?
+        if method := self._get_base_attr('__len__'):
+            return method()
         return len(self._get_array())
 
     def __iter__(self):
         """Called for iter(self)."""
-        # Try self._data.__iter__()?
+        if method := self._get_base_attr('__iter__'):
+            return method()
         return iter(self._get_array())
 
     def __contains__(self, item):
         """Called for `item` in self."""
+        if method := self._get_base_attr('__contains__'):
+            return method()
         return item in self._data or item in self._get_array()
 
     def __getattr__(self, name: str):
