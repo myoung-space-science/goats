@@ -1738,7 +1738,7 @@ class Dimension(algebra.Expression):
         return super().__new__(cls, arg)
 
 
-class MetricSearchError(KeyError):
+class SearchError(KeyError):
     """Error while searching for a requested metric."""
     pass
 
@@ -1851,7 +1851,7 @@ class System(collections.abc.Mapping, iterables.ReprStrMixin):
                 return result
         args = self._format_targets(nonnull)
         errmsg = f"Could not determine unit in {self.name} from {args}"
-        raise MetricSearchError(errmsg)
+        raise SearchError(errmsg)
 
     def _format_targets(self, targets: typing.Dict[str, T]):
         """Format `get_unit` targets for printing."""
