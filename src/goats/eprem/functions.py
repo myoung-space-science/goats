@@ -127,8 +127,8 @@ class Functions(aliased.Mapping):
         if key in self._axes_cache:
             return self._axes_cache[key]
         method = self.get_method(key)
-        self._removed = list(method.metadata.get('removed', []))
-        self._restored = list(method.metadata.get('restored', []))
+        self._removed = self._get_metadata(method, 'removed')
+        self._added = self._get_metadata(method, 'added')
         self._accumulated = []
         axes = self._gather_axes(method)
         self._axes_cache[key] = axes
@@ -141,11 +141,18 @@ class Functions(aliased.Mapping):
                 axes = self.dataset.iter_axes(parameter)
                 self._accumulated.extend(axes)
             elif method := self.get_method(parameter):
-                self._removed.extend(method.metadata.get('removed', []))
-                self._restored.extend(method.metadata.get('restored', []))
+                self._removed.extend(self._get_metadata(method, 'removed'))
+                self._added.extend(self._get_metadata(method, 'added'))
                 self._accumulated.extend(self._gather_axes(method))
-        unique = set(self._accumulated) - set(self._removed)
-        return self.dataset.resolve_axes(unique)
+        unique = set(self._accumulated) - set(self._removed) | set(self._added)
+        return self.dataset.resolve_axes(unique, mode='append')
+
+    def _get_metadata(self, method: functions.Method, key: str) -> list:
+        """Helper for accessing a method's metadata dictionary."""
+        if key not in method.metadata:
+            return [] # Don't go through the trouble if it's not there.
+        value = method.metadata[key]
+        return list(iterables.whole(value))
 
     def get_dependencies(self, key: str):
         """Compute the names of all dependencies of `key`."""
