@@ -194,8 +194,8 @@ def mean_free_path(
     rg = rigidity(energy, mass, charge)
     rg0 = rigidity(1e6 * float(MKS['eV']), mass, charge)
     mfp = numpy.tensordot(
-        pow(r / float(MKS['au']), float(mfp_radial_power)),
-        pow(rg / rg0, float(rigidity_power)),
+        pow(r / float(MKS['au']), mfp_radial_power),
+        pow(rg / rg0, rigidity_power),
         axes=0,
     )
     return mfp * lambda0
@@ -411,6 +411,10 @@ class Method(iterables.ReprStrMixin):
     def __call__(self, *args, **kwargs):
         """Produce the results of this method."""
         return self.callable(*args, **kwargs)
+
+    # def __getitem__(self, key: str):
+    #     """Retrieve a metadata attribute, if possible."""
+    #     if key in
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
