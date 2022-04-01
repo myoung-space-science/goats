@@ -15,7 +15,7 @@ from goats.eprem import parameters
 from goats.eprem import interpolation
 
 
-MKS = metric.MetricSystem('mks')
+MKS = metric.System('mks')
 
 
 Observable = typing.TypeVar(

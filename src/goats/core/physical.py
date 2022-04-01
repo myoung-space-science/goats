@@ -130,7 +130,7 @@ class Constants(iterables.MappingBase):
     """A class to manage sets of physical constants."""
     def __init__(
         self,
-        system: typing.Union[str, metric.MetricSystem],
+        system: typing.Union[str, metric.System],
     ) -> None:
         self.system = str(system).lower()
         self._mapping = _CONSTANTS.copy()

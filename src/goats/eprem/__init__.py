@@ -157,7 +157,7 @@ class Observer(base.Observer):
         self._name = name
         self._path = path
         self._config = self._build_confpath(config or ENV['config'])
-        self.system = metric.MetricSystem(system)
+        self.system = metric.System(system)
         self._dataset = None
         self._arguments = None
         interface = observables.Observables(

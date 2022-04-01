@@ -932,7 +932,7 @@ class UnitConversionError(Exception):
         return f"Can't convert {self._from} to {self._to}"
 
 
-class MetricPrefix(typing.NamedTuple):
+class Prefix(typing.NamedTuple):
     """Metadata for a metric order-of-magnitude prefix."""
 
     symbol: str
@@ -977,7 +977,7 @@ class NamedUnit(iterables.ReprStrMixin):
         
         Parameters
         ----------
-        instance : `~quantities.NamedUnit`
+        instance : `~metric.NamedUnit`
             An existing instance of this class.
         """
 
@@ -985,7 +985,7 @@ class NamedUnit(iterables.ReprStrMixin):
 
     _instances = {}
 
-    prefix: MetricPrefix=None
+    prefix: Prefix=None
     base: BaseUnit=None
     name: str=None
     """The full name of this unit."""
@@ -1032,16 +1032,16 @@ class NamedUnit(iterables.ReprStrMixin):
         Returns
         -------
         tuple
-            A 2-tuple in which the first element is a `~quantities.MetricPrefix`
+            A 2-tuple in which the first element is a `~metric.Prefix`
             representing the order-of-magnitude of the given unit and the second
-            element is a `~quantities.BaseUnit` representing the unscaled (i.e.,
+            element is a `~metric.BaseUnit` representing the unscaled (i.e.,
             order-unity) metric unit.
 
         Examples
         --------
         >>> mag, ref = NamedUnit.parse('km')
         >>> mag
-        MetricPrefix(symbol='k', name='kilo', factor=1000.0)
+        Prefix(symbol='k', name='kilo', factor=1000.0)
         >>> ref
         BaseUnit(symbol='m', name='meter', quantity='length', system='mks')
         """
@@ -1049,7 +1049,7 @@ class NamedUnit(iterables.ReprStrMixin):
             unit = named_units[string]
         except KeyError as err:
             raise UnitParsingError(string) from err
-        magnitude = MetricPrefix(**unit['prefix'])
+        magnitude = Prefix(**unit['prefix'])
         reference = BaseUnit(**unit['base'])
         return magnitude, reference
 
@@ -1271,7 +1271,7 @@ class Conversion(iterables.ReprStrMixin):
         return scale * ratio
 
     available = NamedUnit.knows_about
-    """Local copy of `~quantities.NamedUnit.knows_about`."""
+    """Local copy of `~metric.NamedUnit.knows_about`."""
 
     @classmethod
     def _search(cls, u0: str, u1: str):
@@ -1306,7 +1306,7 @@ class Conversion(iterables.ReprStrMixin):
         return built
 
     units = CONVERSIONS.nodes
-    """Local copy of `~quantities.CONVERSIONS.nodes`."""
+    """Local copy of `~metric.CONVERSIONS.nodes`."""
 
     def _complex_conversion(self, u0: str, u1: str, scale: float=1.0):
         """Attempt to compute a complex conversion from `u0` to `u1`.
@@ -1348,7 +1348,7 @@ class Conversion(iterables.ReprStrMixin):
     def _rescale(cls, u0: str, u1: str):
         """Compute a new conversion after rescaling `u0`.
         
-        This method will look for a unit, `ux`, in `~quantities.CONVERSIONS`
+        This method will look for a unit, `ux`, in `~metric.CONVERSIONS`
         that has the same base unit as `u0`. If it finds one, it will attempt to
         convert `ux` to `u1`, and finally multiply the result by the relative
         magnitude of `u0` to `ux`. In other words, it attempts to compute ``(u0
@@ -1520,7 +1520,7 @@ class _Converter(iterables.ReprStrMixin):
         1. Return the ratio of metric scale factors between the target unit and
            the current unit if they have the same base unit (e.g., 'm' for 'cm'
            and 'km'). This happens later in the process because it requires two
-           conversions to `~quantities.NamedUnit` and an arithmetic operation,
+           conversions to `~metric.NamedUnit` and an arithmetic operation,
            whereas previous cases only require a mapping look-up.
         1. Search for the forward or reverse conversion between base units and,
            if found, return the corresponding numerical factor after rescaling
@@ -1545,7 +1545,7 @@ Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
 class Quantity(iterables.ReprStrMixin):
-    """A single physical quantity."""
+    """A single metric quantity."""
 
     _properties = {k: Property(k) for k in ('units', 'dimensions')}
 
@@ -1680,7 +1680,7 @@ class Unit(algebra.Expression):
             >>> cm // m
             100.0
 
-        As with `~quantities.NamedUnit`, these results are equivalent to the
+        As with `~metric.NamedUnit`, these results are equivalent to the
         statement that there are 100 centimeters in a meter. However, this class
         also supports more complex unit expressions, and can therefore compute
         more complex ratios::
@@ -1711,9 +1711,9 @@ Instance = typing.TypeVar('Instance', bound='Dimension')
 class Dimension(algebra.Expression):
     """An algebraic expression representing a physical dimension.
     
-    This class exists to support the `dimension` property of `~quantities.Unit`.
+    This class exists to support the `dimension` property of `~metric.Unit`.
     It is essentially a thin wrapper around `~algebra.Expression` with logic to
-    compute the dimension of a `~quantities.Unit` instance or equivalent object.
+    compute the dimension of a `~metric.Unit` instance or equivalent object.
     """
 
     def __new__(
@@ -1748,7 +1748,7 @@ class MetricSearchError(KeyError):
     pass
 
 
-class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
+class System(collections.abc.Mapping, iterables.ReprStrMixin):
     """Representations of physical quantities within a given metric system."""
 
     _instances = {}
@@ -1756,12 +1756,12 @@ class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
     dimensions: typing.Dict[str, str]=None
     units: typing.Dict[str, str]=None
 
-    def __new__(cls, arg: typing.Union[str, 'MetricSystem']):
+    def __new__(cls, arg: typing.Union[str, 'System']):
         """Return an existing instance or create a new one.
 
         Parameters
         ----------
-        arg : str or `~quantities.MetricSystem`
+        arg : str or `~metric.System`
             The name of the metric system to represent (e.g., 'mks') or an
             existing instance. Names are case sensitive. Instances are
             singletons.
@@ -1897,7 +1897,7 @@ class MetricSystem(collections.abc.Mapping, iterables.ReprStrMixin):
 
     def __eq__(self, other) -> bool:
         """True if two systems have the same `name` attribute."""
-        if isinstance(other, MetricSystem):
+        if isinstance(other, System):
             return other.name == self.name
         return NotImplemented
 

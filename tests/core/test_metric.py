@@ -123,7 +123,7 @@ def test_singletons():
         metric._Converter: [('m', 'length')],
         metric.Quantity: ['energy', 'Energy'],
         metric.Unit: ['m s^-1'],
-        metric.MetricSystem: ['mks', 'MKS'],
+        metric.System: ['mks', 'MKS'],
     }
     for obj, args in cases.items():
         reference = build_singleton(obj, args[0])
@@ -480,8 +480,8 @@ def test_system():
     for name, cases in systems.items():
         lower = name.lower()
         upper = name.upper()
-        assert metric.MetricSystem(lower) == metric.MetricSystem(upper)
-        system = metric.MetricSystem(lower)
+        assert metric.System(lower) == metric.System(upper)
+        system = metric.System(lower)
         for key, definition in cases.items():
             assert system[key] == metric.Metric(**definition)
 
@@ -507,7 +507,7 @@ def test_system_unit_lookup():
         ],
     }
     for name, cases in systems.items():
-        system = metric.MetricSystem(name)
+        system = metric.System(name)
         for (key, test, expected) in cases:
             search = {key: test}
             assert system.get_unit(**search) == expected
@@ -516,6 +516,6 @@ def test_system_unit_lookup():
 def test_system_singleton():
     """Metric systems should be singletons of their lower-case name."""
     for system in ('mks', 'cgs'):
-        old = metric.MetricSystem(system)
-        new = metric.MetricSystem(old)
+        old = metric.System(system)
+        new = metric.System(old)
         assert new is old

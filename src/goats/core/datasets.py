@@ -289,7 +289,7 @@ class Variables(aliased.Mapping):
             if k in observables.METADATA
         }
         super().__init__(known)
-        self._system = metric.MetricSystem('mks')
+        self._system = metric.System('mks')
         self._units = None
         self._cache = {}
 
