@@ -13,6 +13,7 @@ from goats.core import datatypes
 from goats.core import aliased
 from goats.core import iotools
 from goats.core import iterables
+from goats.core import measurables
 from goats.core import observables
 from goats.core import quantities
 
@@ -278,7 +279,7 @@ class Variables(aliased.Mapping):
     """An interface to dataset variables.
     
     This class provides aliased key-based access to all variables in a dataset.
-    It converts each requested dataset variable into a `~quantities.Variable`
+    It converts each requested dataset variable into a `~datatypes.Variable`
     instance with the appropriate MKS unit.
     """
 

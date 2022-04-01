@@ -7,6 +7,7 @@ import numpy.typing
 import pytest
 
 from goats.core import datatypes
+from goats.core import measurables
 from goats.core import quantities
 
 
@@ -51,9 +52,9 @@ def test_variable():
 
 @pytest.mark.variable
 def test_variable_measure():
-    """Test the use of `~quantities.measure` on a variable."""
+    """Test the use of `~measurables.measure` on a variable."""
     v0 = datatypes.Variable([3.0, 4.5], unit='m', axes=['x'])
-    measured = quantities.measure(v0)
+    measured = measurables.measure(v0)
     assert measured.values == [3.0, 4.5]
     assert measured.unit == 'm'
 
@@ -440,7 +441,7 @@ def test_variable_getitem(var: typing.Dict[str, datatypes.Variable]):
         assert sliced is not v
         expected = numpy.array([[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
         assert numpy.array_equal(sliced, expected)
-    assert v[0, 0] == quantities.Scalar(+1.0, v.unit)
+    assert v[0, 0] == measurables.Scalar(+1.0, v.unit)
     assert numpy.array_equal(v[0, :], [+1.0, +2.0])
     assert numpy.array_equal(v[:, 0], [+1.0, +2.0, -4.0])
     assert numpy.array_equal(v[:, 0:1], [[+1.0], [+2.0], [-4.0]])
@@ -497,7 +498,7 @@ def test_assumption():
     assumption = datatypes.Assumption(values, unit, *aliases)
     assert assumption.unit == unit
     assert all(alias in assumption.aliases for alias in aliases)
-    scalars = [quantities.Scalar(value, unit) for value in values]
+    scalars = [measurables.Scalar(value, unit) for value in values]
     assert assumption[:] == scalars
     converted = assumption.convert_to('cm')
     assert converted.unit == 'cm'
@@ -551,10 +552,10 @@ def make_variable(**attrs):
     )
 
 
-OType = typing.TypeVar('OType', datatypes.Variable, quantities.RealValued)
+OType = typing.TypeVar('OType', datatypes.Variable, measurables.RealValued)
 OType = typing.Union[
     datatypes.Variable,
-    quantities.RealValued,
+    measurables.RealValued,
 ]
 RType = typing.TypeVar('RType', bound=type)
 

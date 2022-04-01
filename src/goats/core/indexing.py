@@ -6,6 +6,7 @@ import typing
 from goats.core.numerical import find_nearest
 from goats.core import iterables
 from goats.core import quantities
+from goats.core import measurables
 
 
 class Indices(collections.abc.Sequence, iterables.ReprStrMixin):
@@ -144,7 +145,7 @@ class IndexComputer(Indexer):
 
     def __init__(
         self,
-        reference: quantities.Measured,
+        reference: measurables.Measured,
         size: int=None,
     ) -> None:
         super().__init__(reference, size=size)
@@ -155,8 +156,8 @@ class IndexComputer(Indexer):
         targets = self._normalize(*user)
         if all(isinstance(value, numbers.Integral) for value in targets):
             return Indices(targets)
-        measured = quantities.measure(*targets)
-        vector = quantities.Vector(measured.values, measured.unit)
+        measured = measurables.measure(*targets)
+        vector = measurables.Vector(measured.values, measured.unit)
         values = (
             vector.unit(self.unit)
             if vector.unit().dimension == self.unit.dimension
@@ -195,7 +196,7 @@ class Axis(iterables.ReprStrMixin):
         string = f"size={self.size}"
         unit = (
             str(self.reference.unit())
-            if isinstance(self.reference, quantities.Measured)
+            if isinstance(self.reference, measurables.Measured)
             else None
         )
         return f"{string} unit={unit!r}"
