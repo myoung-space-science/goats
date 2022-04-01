@@ -1733,16 +1733,6 @@ class Dimension(algebra.Expression):
         return super().__new__(cls, arg)
 
 
-class MetricKeyError(KeyError):
-    """Metric-system mapping-key error."""
-    pass
-
-
-class MetricTypeError(TypeError):
-    """Metric-system argument-type error."""
-    pass
-
-
 class MetricSearchError(KeyError):
     """Error while searching for a requested metric."""
     pass
@@ -1791,9 +1781,7 @@ class System(collections.abc.Mapping, iterables.ReprStrMixin):
         try:
             quantity = Quantity(key)
         except ValueError as err:
-            raise MetricKeyError(
-                f"No known quantity called '{key}'"
-            ) from err
+            raise KeyError(f"No known quantity called '{key}'") from err
         else:
             return quantity[self.name]
 
