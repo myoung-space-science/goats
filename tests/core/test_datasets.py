@@ -159,17 +159,15 @@ def test_resolve_axes(testdata: dict):
     cases = [
         {
             'input': ('shell', 'energy', 'time'),
-            'mode': None,
+            'output': ('time', 'shell', 'energy'),
+        },
+        {
+            'input': ('shell', 'energy', 'time', 'extra'),
             'output': ('time', 'shell', 'energy'),
         },
         {
             'input': ('shell', 'energy', 'time'),
             'mode': 'strict',
-            'output': ('time', 'shell', 'energy'),
-        },
-        {
-            'input': ('shell', 'energy', 'time', 'extra'),
-            'mode': None,
             'output': ('time', 'shell', 'energy'),
         },
         {
@@ -195,9 +193,12 @@ def test_resolve_axes(testdata: dict):
     ]
     for case in cases:
         names = case['input']
-        mode = case['mode']
         expected = case['output']
-        assert dataset.resolve_axes(names, mode=mode) == expected
+        result = (
+            dataset.resolve_axes(names, mode=case['mode']) if 'mode' in case
+            else dataset.resolve_axes(names)
+        )
+        assert result == expected
 
 
 def test_standardize():
