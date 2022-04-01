@@ -5,16 +5,16 @@ import typing
 
 import pytest
 
-from goats.core import quantities
+from goats.core import metric
 
 
 def test_defined_conversions():
     """Test the collection of defined conversions."""
-    assert len(quantities.CONVERSIONS) == 2 * len(quantities._CONVERSIONS)
-    for (u0, u1), wt in quantities._CONVERSIONS.items():
-        assert (u0, u1) in quantities.CONVERSIONS
-        assert quantities.CONVERSIONS.get_weight(u0, u1) == wt
-        assert quantities.CONVERSIONS.get_weight(u1, u0) == 1 / wt
+    assert len(metric.CONVERSIONS) == 2 * len(metric._CONVERSIONS)
+    for (u0, u1), wt in metric._CONVERSIONS.items():
+        assert (u0, u1) in metric.CONVERSIONS
+        assert metric.CONVERSIONS.get_weight(u0, u1) == wt
+        assert metric.CONVERSIONS.get_weight(u1, u0) == 1 / wt
 
 
 def test_conversion_class():
@@ -75,7 +75,7 @@ def test_conversion_class():
         check_conversion(u0, u1, factor)
 
 def check_conversion(u0: str, u1: str, factor: float):
-    conversion = quantities.Conversion(u0, u1)
+    conversion = metric.Conversion(u0, u1)
     assert conversion.factor == pytest.approx(factor)
 
 
@@ -109,7 +109,7 @@ def test_quantity_convert():
     }
     for name, conversion in cases.items():
         for (u0, u1), expected in conversion.items():
-            quantity = quantities.Quantity(name)
+            quantity = metric.Quantity(name)
             result = quantity.convert(u0).to(u1)
             assert result == pytest.approx(expected)
 
@@ -117,13 +117,13 @@ def test_quantity_convert():
 def test_singletons():
     """Make sure certain objects have a single reference."""
     cases = {
-        quantities.Property: ['units'],
-        quantities.NamedUnit: ['m', 'meter'],
-        quantities.Conversion: [('G', 'T')],
-        quantities._Converter: [('m', 'length')],
-        quantities.Quantity: ['energy', 'Energy'],
-        quantities.Unit: ['m s^-1'],
-        quantities.MetricSystem: ['mks', 'MKS'],
+        metric.Property: ['units'],
+        metric.NamedUnit: ['m', 'meter'],
+        metric.Conversion: [('G', 'T')],
+        metric._Converter: [('m', 'length')],
+        metric.Quantity: ['energy', 'Energy'],
+        metric.Unit: ['m s^-1'],
+        metric.MetricSystem: ['mks', 'MKS'],
     }
     for obj, args in cases.items():
         reference = build_singleton(obj, args[0])
@@ -162,22 +162,22 @@ def test_dimension():
         },
     ]
     for current in cases:
-        unit = quantities.Unit(current['unit'])
-        quantity = quantities.Quantity(current['quantity'])
+        unit = metric.Unit(current['unit'])
+        quantity = metric.Quantity(current['quantity'])
         forms = current['forms']
         for target in (unit, quantity['mks']):
-            dimension = quantities.Dimension(target)
-            assert isinstance(dimension, quantities.Dimension)
+            dimension = metric.Dimension(target)
+            assert isinstance(dimension, metric.Dimension)
             for form in forms:
                 assert dimension == form
 
 
 def test_named_unit_knows_about():
     """Test the convenience method for testing possible instances."""
-    for unit in quantities.named_units:
-        assert quantities.NamedUnit.knows_about(unit)
+    for unit in metric.named_units:
+        assert metric.NamedUnit.knows_about(unit)
     for unit in ['m^2', 'm / s', 'H / m', 'dogs^2 * cats']:
-        assert not quantities.NamedUnit.knows_about(unit)
+        assert not metric.NamedUnit.knows_about(unit)
 
 
 def test_build_named_unit():
@@ -205,11 +205,11 @@ def test_build_named_unit():
         },
     }
     for name, attrs in cases.items():
-        unit = quantities.NamedUnit(name)
+        unit = metric.NamedUnit(name)
         for key, value in attrs.items():
             assert getattr(unit, key) == value
-    with pytest.raises(quantities.UnitParsingError):
-        quantities.NamedUnit('cat')
+    with pytest.raises(metric.UnitParsingError):
+        metric.NamedUnit('cat')
 
 
 def test_named_unit_floordiv():
@@ -222,8 +222,8 @@ def test_named_unit_floordiv():
         ('m', 'km'): 1e3,
     }
     for (s0, s1), expected in cases.items():
-        u0 = quantities.NamedUnit(s0)
-        u1 = quantities.NamedUnit(s1)
+        u0 = metric.NamedUnit(s0)
+        u1 = metric.NamedUnit(s1)
         u0_per_u1 = u0 // u1 # defined between instances
         assert u0_per_u1 == pytest.approx(expected)
         u0_per_s1 = u0 // s1 # defined for instance // string
@@ -231,8 +231,8 @@ def test_named_unit_floordiv():
         s0_per_u1 = s0 // u1 # defined for string // instance
         assert s0_per_u1 == pytest.approx(expected)
     with pytest.raises(ValueError):
-        u0 = quantities.NamedUnit('m')
-        u1 = quantities.NamedUnit('J')
+        u0 = metric.NamedUnit('m')
+        u1 = metric.NamedUnit('J')
         u0 // u1 # not defined for different base units
 
 
@@ -248,7 +248,7 @@ def test_named_unit_decompose():
         ('merg', [(1e-3, 'g', 1), (1e-5, 'm', 2), (1e-3, 's', -2)]),
     ]
     for (unit, expected) in cases:
-        decomposed = quantities.NamedUnit(unit).decomposed
+        decomposed = metric.NamedUnit(unit).decomposed
         result = [
             (float(term.coefficient), term.base, int(term.exponent))
             for term in decomposed
@@ -258,22 +258,22 @@ def test_named_unit_decompose():
 
 def test_unit_algebra():
     """Test algebraic operations on the Unit class."""
-    u0 = quantities.Unit('m')
-    u1 = quantities.Unit('J')
+    u0 = metric.Unit('m')
+    u1 = metric.Unit('J')
     assert u0**2 is not u0
-    assert u0 * u1 == quantities.Unit('m * J')
-    assert u0 / u1 == quantities.Unit('m / J')
-    assert u0**2 / u1**3 == quantities.Unit('m^2 / J^3')
-    assert (u0 / u1)**2 == quantities.Unit('m^2 / J^2')
+    assert u0 * u1 == metric.Unit('m * J')
+    assert u0 / u1 == metric.Unit('m / J')
+    assert u0**2 / u1**3 == metric.Unit('m^2 / J^3')
+    assert (u0 / u1)**2 == metric.Unit('m^2 / J^2')
 
 
 def test_unit_floordiv():
     """Test conversion with the Unit class."""
-    unit = quantities.Unit('m')
-    assert quantities.Unit('cm') // unit == 1e2
+    unit = metric.Unit('m')
+    assert metric.Unit('cm') // unit == 1e2
     assert unit // 'cm' == 1e-2
     assert 'cm' // unit == 1e2
-    unit = quantities.Unit('m / s')
+    unit = metric.Unit('m / s')
     assert unit // 'km / h' == pytest.approx(1e3 / 3600)
     assert 'km / h' // unit == pytest.approx(3600 / 1e3)
 
@@ -338,53 +338,53 @@ powers = {
 def test_unit_init():
     """Initialize the Unit object with various strings."""
     for arg, expected in strings.items():
-        unit = quantities.Unit(arg)
+        unit = metric.Unit(arg)
         assert unit == expected['unit']
 
 
 def test_multiply():
     """Test the ability to create a new compound instance with '*'."""
     for (this, that), expected in multiplications.items():
-        result = quantities.Unit(this) * quantities.Unit(that)
-        assert isinstance(result, quantities.Unit)
-        assert result == quantities.Unit(expected)
-    result = quantities.Unit('m') / quantities.Unit('s')
-    wrong = quantities.Unit('km*h')
+        result = metric.Unit(this) * metric.Unit(that)
+        assert isinstance(result, metric.Unit)
+        assert result == metric.Unit(expected)
+    result = metric.Unit('m') / metric.Unit('s')
+    wrong = metric.Unit('km*h')
     assert result != wrong
 
 
 def test_divide():
     """Test the ability to create a new compound instance with '/'."""
     for (this, that), expected in divisions.items():
-        result = quantities.Unit(this) / quantities.Unit(that)
-        assert isinstance(result, quantities.Unit)
-        assert result == quantities.Unit(expected)
-    result = quantities.Unit('m') / quantities.Unit('s')
-    wrong = quantities.Unit('km/h')
+        result = metric.Unit(this) / metric.Unit(that)
+        assert isinstance(result, metric.Unit)
+        assert result == metric.Unit(expected)
+    result = metric.Unit('m') / metric.Unit('s')
+    wrong = metric.Unit('km/h')
     assert result != wrong
 
 
 def test_raise_to_power():
     """Test the ability to create a new compound instance with '**'."""
     for (this, that), expected in powers.items():
-        result = quantities.Unit(this) ** that
-        assert isinstance(result, quantities.Unit)
-        assert result == quantities.Unit(expected)
+        result = metric.Unit(this) ** that
+        assert isinstance(result, metric.Unit)
+        assert result == metric.Unit(expected)
 
 
 def test_idempotence():
     """Make sure initializing with a `Unit` creates a new `Unit`."""
-    old = quantities.Unit('m')
-    new = quantities.Unit(old)
-    assert isinstance(new, quantities.Unit)
+    old = metric.Unit('m')
+    new = metric.Unit(old)
+    assert isinstance(new, metric.Unit)
     assert str(new) == str(old)
     assert repr(new) == repr(old)
 
 
 def test_equality():
     """Test the definition of strict equality between instances."""
-    assert quantities.Unit('m/s') == quantities.Unit('m/s')
-    assert quantities.Unit('m/s') == quantities.Unit('m*s^-1')
+    assert metric.Unit('m/s') == metric.Unit('m/s')
+    assert metric.Unit('m/s') == metric.Unit('m*s^-1')
 
 
 def test_single_unit_parse():
@@ -394,52 +394,52 @@ def test_single_unit_parse():
     the `Unit` class, so full coverage is not necessary as long as `Unit` is
     well tested.
     """
-    order, unit = quantities.NamedUnit.parse('m')
+    order, unit = metric.NamedUnit.parse('m')
     assert order.symbol == ''
     assert order.name == ''
     assert order.factor == 1.0
     assert unit.symbol == 'm'
     assert unit.name == 'meter'
     assert unit.quantity == 'length'
-    order, unit = quantities.NamedUnit.parse('mm')
+    order, unit = metric.NamedUnit.parse('mm')
     assert order.symbol == 'm'
     assert order.name == 'milli'
     assert order.factor == 1e-3
     assert unit.symbol == 'm'
     assert unit.name == 'meter'
     assert unit.quantity == 'length'
-    symbolic = quantities.NamedUnit.parse('mm')
-    named = quantities.NamedUnit.parse('millimeter')
+    symbolic = metric.NamedUnit.parse('mm')
+    named = metric.NamedUnit.parse('millimeter')
     assert symbolic == named
-    order, unit = quantities.NamedUnit.parse('lm')
+    order, unit = metric.NamedUnit.parse('lm')
     assert order.symbol == ''
     assert order.name == ''
     assert order.factor == 1.0
     assert unit.symbol == 'lm'
     assert unit.name == 'lumen'
     assert unit.quantity == 'luminous flux'
-    order, unit = quantities.NamedUnit.parse('MeV')
+    order, unit = metric.NamedUnit.parse('MeV')
     assert order.symbol == 'M'
     assert order.name == 'mega'
     assert order.factor == 1e6
     assert unit.symbol == 'eV'
     assert unit.name == 'electronvolt'
     assert unit.quantity == 'energy'
-    order, unit = quantities.NamedUnit.parse('μeV')
+    order, unit = metric.NamedUnit.parse('μeV')
     assert order.symbol == 'μ'
     assert order.name == 'micro'
     assert order.factor == 1e-6
     assert unit.symbol == 'eV'
     assert unit.name == 'electronvolt'
     assert unit.quantity == 'energy'
-    order, unit = quantities.NamedUnit.parse('uerg')
+    order, unit = metric.NamedUnit.parse('uerg')
     assert order.symbol == 'μ'
     assert order.name == 'micro'
     assert order.factor == 1e-6
     assert unit.symbol == 'erg'
     assert unit.name == 'erg'
     assert unit.quantity == 'energy'
-    order, unit = quantities.NamedUnit.parse('statA')
+    order, unit = metric.NamedUnit.parse('statA')
     assert order.symbol == ''
     assert order.name == ''
     assert order.factor == 1.0
@@ -450,9 +450,9 @@ def test_single_unit_parse():
 
 def test_single_unit_idempotence():
     """Make sure we can create a new instance from an existing instance."""
-    old = quantities.NamedUnit('m')
-    new = quantities.NamedUnit(old)
-    assert isinstance(new, quantities.NamedUnit)
+    old = metric.NamedUnit('m')
+    new = metric.NamedUnit(old)
+    assert isinstance(new, metric.NamedUnit)
     assert new is old
 
 
@@ -480,10 +480,10 @@ def test_system():
     for name, cases in systems.items():
         lower = name.lower()
         upper = name.upper()
-        assert quantities.MetricSystem(lower) == quantities.MetricSystem(upper)
-        system = quantities.MetricSystem(lower)
+        assert metric.MetricSystem(lower) == metric.MetricSystem(upper)
+        system = metric.MetricSystem(lower)
         for key, definition in cases.items():
-            assert system[key] == quantities.Metric(**definition)
+            assert system[key] == metric.Metric(**definition)
 
 
 def test_system_unit_lookup():
@@ -507,7 +507,7 @@ def test_system_unit_lookup():
         ],
     }
     for name, cases in systems.items():
-        system = quantities.MetricSystem(name)
+        system = metric.MetricSystem(name)
         for (key, test, expected) in cases:
             search = {key: test}
             assert system.get_unit(**search) == expected
@@ -516,6 +516,6 @@ def test_system_unit_lookup():
 def test_system_singleton():
     """Metric systems should be singletons of their lower-case name."""
     for system in ('mks', 'cgs'):
-        old = quantities.MetricSystem(system)
-        new = quantities.MetricSystem(old)
+        old = metric.MetricSystem(system)
+        new = metric.MetricSystem(old)
         assert new is old

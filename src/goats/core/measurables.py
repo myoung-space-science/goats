@@ -7,7 +7,7 @@ import typing
 import numpy as np
 
 from goats.core import iterables
-from goats.core import quantities
+from goats.core import metric
 
 
 class ComparisonError(TypeError):
@@ -408,7 +408,7 @@ class Measured(Ordered):
     def __new__(
         cls: typing.Type[Instance],
         amount: RealValued,
-        unit: typing.Union[str, quantities.Unit],
+        unit: typing.Union[str, metric.Unit],
     ) -> Instance:
         """Create a new measured object.
         
@@ -435,7 +435,7 @@ class Measured(Ordered):
         """
 
     _amount: RealValued=None
-    _unit: quantities.Unit=None
+    _unit: metric.Unit=None
 
     def __new__(cls, *args, **kwargs):
         """The concrete implementation of `~quantities.Measured.__new__`.
@@ -459,7 +459,7 @@ class Measured(Ordered):
                 for k in ('amount', 'unit')
             }
             amount = attr_dict['amount']
-            unit = quantities.Unit(attr_dict['unit'] or '1')
+            unit = metric.Unit(attr_dict['unit'] or '1')
         self = super().__new__(cls, amount, str(unit))
         self._unit = unit
         return self
@@ -470,7 +470,7 @@ class Measured(Ordered):
         return cls(*args, **kwargs)
 
     @typing.overload
-    def unit(self: Instance) -> quantities.Unit:
+    def unit(self: Instance) -> metric.Unit:
         """Get this object's unit of measurement.
         
         Parameters
@@ -486,7 +486,7 @@ class Measured(Ordered):
     @typing.overload
     def unit(
         self: Instance,
-        new: typing.Union[str, quantities.Unit],
+        new: typing.Union[str, metric.Unit],
     ) -> Instance:
         """Update this object's unit of measurement.
 
@@ -505,7 +505,7 @@ class Measured(Ordered):
         """Concrete implementation."""
         if not new:
             return self._unit
-        scale = quantities.Unit(new) // self._unit
+        scale = metric.Unit(new) // self._unit
         amount = (scale * self)._amount
         return self._new(amount=amount, unit=new)
 
@@ -638,7 +638,7 @@ class Scalar(Measured, allowed=allowed):
     def __new__(
         cls: typing.Type[Instance],
         value: VT,
-        unit: typing.Union[str, quantities.Unit],
+        unit: typing.Union[str, metric.Unit],
     ) -> Instance:
         """Create a new scalar object.
         
@@ -770,7 +770,7 @@ class Vector(Measured):
     def __new__(
         cls: typing.Type[Instance],
         values: typing.Iterable[VT],
-        unit: typing.Union[str, quantities.Unit],
+        unit: typing.Union[str, metric.Unit],
     ) -> Instance:
         """Create a new vector object.
         
@@ -959,7 +959,7 @@ class Measurable(typing.Protocol):
 
 def unitlike(this):
     """True if `this` can act like a `~quantities.Unit`."""
-    return isinstance(this, (str, quantities.Unit))
+    return isinstance(this, (str, metric.Unit))
 
 
 def measurable(this):
@@ -1054,7 +1054,7 @@ def parse_measurable(args, distribute: bool=False):
 
     # Count the number of distinct unit-like objects.
     types = [type(arg) for arg in unwrapped]
-    n_units = sum(types.count(t) for t in (str, quantities.Unit))
+    n_units = sum(types.count(t) for t in (str, metric.Unit))
 
     # Raise an error for multiple units.
     if n_units > 1:
@@ -1115,8 +1115,8 @@ def _callback_parse(unwrapped, distribute: bool):
 def ensure_unit(args):
     """Extract the given unit or assume the quantity is unitless."""
     last = args[-1]
-    implicit = not any(isinstance(arg, (str, quantities.Unit)) for arg in args)
-    explicit = last in ['1', quantities.Unit('1')]
+    implicit = not any(isinstance(arg, (str, metric.Unit)) for arg in args)
+    explicit = last in ['1', metric.Unit('1')]
     if implicit or explicit:
         return '1'
     return str(last)

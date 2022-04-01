@@ -5,7 +5,7 @@ import numpy
 
 from goats.core import iterables
 from goats.core import measurables
-from goats.core import quantities
+from goats.core import metric
 
 
 # TODO: Redefine these items to allow constants that aren't tied to a unit
@@ -130,7 +130,7 @@ class Constants(iterables.MappingBase):
     """A class to manage sets of physical constants."""
     def __init__(
         self,
-        system: typing.Union[str, quantities.MetricSystem],
+        system: typing.Union[str, metric.MetricSystem],
     ) -> None:
         self.system = str(system).lower()
         self._mapping = _CONSTANTS.copy()

@@ -15,7 +15,7 @@ from goats.core import iotools
 from goats.core import iterables
 from goats.core import measurables
 from goats.core import observables
-from goats.core import quantities
+from goats.core import metric
 
 
 class DataViewer(collections.abc.Mapping):
@@ -289,7 +289,7 @@ class Variables(aliased.Mapping):
             if k in observables.METADATA
         }
         super().__init__(known)
-        self._system = quantities.MetricSystem('mks')
+        self._system = metric.MetricSystem('mks')
         self._units = None
         self._cache = {}
 
@@ -306,8 +306,8 @@ class Variables(aliased.Mapping):
 
     def _get_unit(self, name: str):
         """Get a standard unit for the named variable."""
-        metric = self._system[observables.METADATA[name]['quantity']]
-        return quantities.Unit(metric.unit)
+        variable = self._system[observables.METADATA[name]['quantity']]
+        return metric.Unit(variable.unit)
 
     def __getitem__(self, key: str):
         """Create the named variable, if possible."""

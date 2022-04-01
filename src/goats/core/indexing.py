@@ -5,7 +5,7 @@ import typing
 
 from goats.core.numerical import find_nearest
 from goats.core import iterables
-from goats.core import quantities
+from goats.core import metric
 from goats.core import measurables
 
 
@@ -72,14 +72,14 @@ class Coordinates(OrderedPairs):
         self,
         indices: typing.Iterable[int],
         values: typing.Iterable[typing.Any],
-        unit: typing.Union[str, quantities.Unit],
+        unit: typing.Union[str, metric.Unit],
     ) -> None:
         super().__init__(indices, values)
         self.unit = unit
 
-    def with_unit(self, new: typing.Union[str, quantities.Unit]):
+    def with_unit(self, new: typing.Union[str, metric.Unit]):
         """Convert this object to the new unit, if possible."""
-        scale = quantities.Unit(new) // self.unit
+        scale = metric.Unit(new) // self.unit
         self.values = [value * scale for value in self.values]
         self.unit = new
         return self

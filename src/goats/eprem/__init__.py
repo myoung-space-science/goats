@@ -13,9 +13,9 @@ from ..core import (
     datatypes,
     iterables,
     iotools,
+    metric,
     numerical,
     physical,
-    quantities,
 )
 from . import observables
 from .parameters import BaseTypesH
@@ -123,8 +123,8 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
         reference: datatypes.Variable,
     ) -> datatypes.Coordinates:
         """Build an arbitrary coordinate object."""
-        measured = quantities.measure(targets)
-        vector = quantities.Vector(measured.values, measured.unit)
+        measured = metric.measure(targets)
+        vector = metric.Vector(measured.values, measured.unit)
         values = (
             vector.unit(reference.unit)
             if vector.unit().dimension == reference.unit.dimension
@@ -156,7 +156,7 @@ class Observer(base.Observer):
         self._name = name
         self._path = path
         self._config = self._build_confpath(config or ENV['config'])
-        self.system = quantities.MetricSystem(system)
+        self.system = metric.MetricSystem(system)
         self._dataset = None
         self._arguments = None
         interface = observables.Observables(

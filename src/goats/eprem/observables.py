@@ -4,7 +4,7 @@ import numpy as np
 
 from goats.core import base
 from goats.core import aliased
-from goats.core import quantities
+from goats.core import metric
 from goats.core import algebra
 from goats.core import iterables
 from goats.core import physical
@@ -15,7 +15,7 @@ from goats.eprem import parameters
 from goats.eprem import interpolation
 
 
-MKS = quantities.MetricSystem('mks')
+MKS = metric.MetricSystem('mks')
 
 
 Observable = typing.TypeVar(
@@ -31,12 +31,12 @@ Observable = typing.Union[
 
 Assumption = typing.TypeVar(
     'Assumption',
-    quantities.Scalar,
-    typing.Iterable[quantities.Scalar],
+    metric.Scalar,
+    typing.Iterable[metric.Scalar],
 )
 Assumption = typing.Union[
-    quantities.Scalar,
-    typing.Iterable[quantities.Scalar],
+    metric.Scalar,
+    typing.Iterable[metric.Scalar],
 ]
 
 
@@ -54,11 +54,11 @@ Implementation = typing.Union[
 Dependency = typing.TypeVar(
     'Dependency',
     Observable,
-    quantities.Scalar,
+    metric.Scalar,
 )
 Dependency = typing.Union[
     Observable,
-    quantities.Scalar,
+    metric.Scalar,
 ]
 
 
@@ -325,10 +325,10 @@ class Interface(base.Interface):
 
     def _update_assumption(self, scalar):
         """Update a single assumption from user input."""
-        if isinstance(scalar, quantities.Scalar):
+        if isinstance(scalar, metric.Scalar):
             unit = MKS.get_unit(unit=scalar.unit())
             return scalar.unit(unit)
-        measured = quantities.measure(scalar)
+        measured = metric.measure(scalar)
         assumption = [self._update_assumption(v) for v in measured[:]]
         return assumption[0] if len(assumption) == 1 else assumption
 

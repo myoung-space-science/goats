@@ -8,7 +8,7 @@ import pytest
 
 from goats.core import datatypes
 from goats.core import measurables
-from goats.core import quantities
+from goats.core import metric
 
 
 @pytest.mark.variable
@@ -17,11 +17,11 @@ def test_variable():
     v0 = datatypes.Variable([3.0, 4.5], unit='m', axes=['x'])
     v1 = datatypes.Variable([[1.0], [2.0]], unit='J', axes=['x', 'y'])
     assert numpy.array_equal(v0, [3.0, 4.5])
-    assert v0.unit == quantities.Unit('m')
+    assert v0.unit == metric.Unit('m')
     assert list(v0.axes) == ['x']
     assert v0.naxes == 1
     assert numpy.array_equal(v1, [[1.0], [2.0]])
-    assert v1.unit == quantities.Unit('J')
+    assert v1.unit == metric.Unit('J')
     assert list(v1.axes) == ['x', 'y']
     assert v1.naxes == 2
     r = v0 + v0
@@ -31,22 +31,22 @@ def test_variable():
     r = v0 * v1
     expected = [[3.0 * 1.0], [4.5 * 2.0]]
     assert numpy.array_equal(r, expected)
-    assert r.unit == quantities.Unit('m * J')
+    assert r.unit == metric.Unit('m * J')
     r = v0 / v1
     expected = [[3.0 / 1.0], [4.5 / 2.0]]
     assert numpy.array_equal(r, expected)
-    assert r.unit == quantities.Unit('m / J')
+    assert r.unit == metric.Unit('m / J')
     r = v0 ** 2
     expected = [3.0 ** 2, 4.5 ** 2]
     assert numpy.array_equal(r, expected)
-    assert r.unit == quantities.Unit('m^2')
+    assert r.unit == metric.Unit('m^2')
     reference = datatypes.Variable(v0)
     assert reference is not v0
     v0_cm = v0.convert_to('cm')
     assert v0_cm is v0
     expected = 100 * reference
     assert numpy.array_equal(v0_cm, expected)
-    assert v0_cm.unit == quantities.Unit('cm')
+    assert v0_cm.unit == metric.Unit('cm')
     assert v0_cm.axes == reference.axes
 
 

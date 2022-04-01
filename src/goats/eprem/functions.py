@@ -9,7 +9,7 @@ from goats.core import functions
 from goats.core import iterables
 from goats.core import observables
 from goats.core import physical
-from goats.core import quantities
+from goats.core import metric
 from goats.eprem import parameters
 
 
@@ -34,19 +34,19 @@ class Function(iterables.ReprStrMixin):
     Argument = typing.TypeVar(
         'Argument',
         datatypes.Variable,
-        quantities.Scalar,
-        typing.Iterable[quantities.Scalar],
+        metric.Scalar,
+        typing.Iterable[metric.Scalar],
     )
     Argument = typing.Union[
         datatypes.Variable,
-        quantities.Scalar,
-        typing.Iterable[quantities.Scalar],
+        metric.Scalar,
+        typing.Iterable[metric.Scalar],
     ]
 
     def __call__(
         self,
         arguments: typing.Mapping[str, Argument],
-        unit: typing.Union[str, quantities.Unit],
+        unit: typing.Union[str, metric.Unit],
     ) -> datatypes.Variable:
         """Build a variable by calling the instance method."""
         arrays = []
@@ -58,17 +58,17 @@ class Function(iterables.ReprStrMixin):
         for arg in known:
             if isinstance(arg, datatypes.Array):
                 arrays.append(np.array(arg))
-            elif isinstance(arg, quantities.Scalar):
+            elif isinstance(arg, metric.Scalar):
                 floats.append(float(arg))
             elif (
                 isinstance(arg, typing.Iterable)
-                and all(isinstance(a, quantities.Scalar) for a in arg)
+                and all(isinstance(a, metric.Scalar) for a in arg)
             ): floats.extend([float(a) for a in arg])
         data = self.method(*arrays, *floats)
         return datatypes.Variable(
             data,
             self.name,
-            unit=quantities.Unit(unit),
+            unit=metric.Unit(unit),
             axes=self.axes,
         )
 

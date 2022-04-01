@@ -6,7 +6,7 @@ import typing
 import pytest
 
 from goats.core import measurables
-from goats.core import quantities
+from goats.core import metric
 
 
 def test_same():
@@ -67,8 +67,8 @@ def test_same():
 
 def test_measured_operators():
     """Test comparison and arithmetic on measured objects."""
-    meters = quantities.Unit('m')
-    joules = quantities.Unit('J')
+    meters = metric.Unit('m')
+    joules = metric.Unit('J')
     q0 = measurables.Measured(4, meters)
     q1 = measurables.Measured(5, meters)
     q2 = measurables.Measured(3, meters)
@@ -396,7 +396,7 @@ def check_units(
     updated = original.unit(new)
     assert updated is not original
     assert updated.unit() == new
-    factor = quantities.Unit(new) // quantities.Unit(reference)
+    factor = metric.Unit(new) // metric.Unit(reference)
     assert updated == obj(rescale(amount, factor), new)
     assert obj(amount).unit() == '1'
 

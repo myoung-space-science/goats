@@ -8,7 +8,7 @@ import numpy.typing
 
 from goats.core import aliased
 from goats.core import iterables
-from goats.core import quantities
+from goats.core import metric
 from goats.core import measurables
 
 
@@ -118,7 +118,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin):
         self: Instance,
         data: numpy.typing.ArrayLike,
         *names: str,
-        unit: typing.Union[str, quantities.Unit]=None,
+        unit: typing.Union[str, metric.Unit]=None,
     ) -> None:
         """Create a new instance."""
 
@@ -144,7 +144,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin):
     Attrs = typing.Tuple[
         numpy.typing.ArrayLike,
         aliased.MappingKey,
-        quantities.Unit,
+        metric.Unit,
     ]
 
     def _parse(self, *args, **kwargs) -> Attrs:
@@ -157,14 +157,14 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin):
             )
         data, *args = args
         names = aliased.MappingKey(args or ())
-        unit = quantities.Unit(kwargs.get('unit', '1'))
+        unit = metric.Unit(kwargs.get('unit', '1'))
         return data, names, unit
 
     def convert_to(self, unit: str):
         """Change this variable's unit and update the numerical scale factor."""
         if unit == self.unit:
             return self
-        self._scale *= (quantities.Unit(unit) // self.unit)
+        self._scale *= (metric.Unit(unit) // self.unit)
         self._rescale = True
         self.unit = unit
         return self
@@ -518,7 +518,7 @@ class Variable(Array):
         self: Instance,
         data: numpy.typing.ArrayLike,
         *names: str,
-        unit: typing.Union[str, quantities.Unit]=None,
+        unit: typing.Union[str, metric.Unit]=None,
         axes: typing.Iterable[str]=None,
     ) -> None:
         """Create a new variable from scratch."""
@@ -554,7 +554,7 @@ class Variable(Array):
     Attrs = typing.Tuple[
         numpy.typing.ArrayLike,
         aliased.MappingKey,
-        quantities.Unit,
+        metric.Unit,
         typing.Tuple[str],
     ]
 
@@ -812,14 +812,14 @@ class Coordinates(IndexMap):
         self,
         indices: typing.Iterable[int],
         values: typing.Iterable[typing.Any],
-        unit: typing.Union[str, quantities.Unit],
+        unit: typing.Union[str, metric.Unit],
     ) -> None:
         super().__init__(indices, values)
         self.unit = unit
 
-    def with_unit(self, new: typing.Union[str, quantities.Unit]):
+    def with_unit(self, new: typing.Union[str, metric.Unit]):
         """Convert this object to the new unit, if possible."""
-        scale = quantities.Unit(new) // self.unit
+        scale = metric.Unit(new) // self.unit
         self.values = [value * scale for value in self.values]
         self.unit = new
         return self
