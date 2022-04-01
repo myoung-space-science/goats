@@ -108,11 +108,11 @@ IndexLike = typing.TypeVar(
 IndexLike = typing.Union[typing.Iterable[int], slice, type(Ellipsis)]
 
 
-Instance = typing.TypeVar('Instance', bound='Array')
+Instance = typing.TypeVar('Instance', bound='Physical')
 
 
-class Array(numpy.lib.mixins.NDArrayOperatorsMixin):
-    """Base class for array-like objects."""
+class Physical(collections.abc.Sequence, measurables.RealValued):
+    """Base class for physical objects."""
 
     @typing.overload
     def __init__(
@@ -130,16 +130,30 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin):
     ) -> None:
         """Create a new instance."""
 
+    _search_attrs = ['_data']
+
+    def search(self, *names: str):
+        """Add attributes to the search path.
+        
+        Passing one or more names to this method will add them to the internal
+        attribute that determines where to search for attributes that are not
+        explicitly defined in this class. This class will first look for an
+        unknown attribute in the underlying data object, then will proceed to
+        search attributes named in `names`. If a named attribute is a method,
+        this class will call the method with no arguments before searching the
+        return value for the unknown attribute.
+        """
+        self._search_attrs += list(names)
+
     def __init__(self, *args, **kwargs) -> None:
         parsed = self._parse(*args, **kwargs)
         self._data, names, unit = parsed
         self.names = names
-        """The valid names for this variable."""
+        """The valid names for this object."""
         self.unit = unit
-        """The unit of this variable's array values."""
+        """The unit of this object's values."""
         self._scale = 1.0
         self._rescale = True
-        self._array = None
 
     Attrs = typing.TypeVar('Attrs', bound=tuple)
     Attrs = typing.Tuple[
@@ -184,46 +198,63 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin):
             return False
         return numpy.array_equal(other, self)
 
+    def __bool__(self) -> bool:
+        """Called for bool(self).
+        
+        This simply evaluates the existance of this instance, which is always
+        trivially `True`.
+        """
+        return True
+
     def __len__(self):
         """Called for len(self)."""
         if method := self._get_base_attr('__len__'):
             return method()
-        return len(self._get_array())
-
-    def __iter__(self):
-        """Called for iter(self)."""
-        if method := self._get_base_attr('__iter__'):
-            return method()
-        return iter(self._get_array())
-
-    def __contains__(self, item):
-        """Called for `item` in self."""
-        if method := self._get_base_attr('__contains__'):
-            return method()
-        return item in self._data or item in self._get_array()
+        return len(self._data)
 
     def __getattr__(self, name: str):
         """Access an attribute of the underlying data object or array."""
-        if attr := self._get_base_attr(name, '_get_array'):
+        if attr := self._get_base_attr(name):
             self.__dict__[name] = attr
             return attr
         raise AttributeError(name)
 
-    def _get_base_attr(self, name: str, *search: str):
+    def _get_base_attr(self, name: str):
         """Helper method to efficiently access underlying attributes.
 
         This method will first search `_data` for the named attribute, to take
         advantage of viewers that provide metadata without loading the full
         dataset. If that search fails, this method will attempt to retrieve the
-        named attribute from additional attributes named in `search`, if any.
+        named attribute from additional attributes named in
+        `self._search_attrs`, if any.
         """
-        search_attrs = ['_data'] + list(search)
-        targets = [getattr(self, name) for name in search_attrs]
+        targets = [getattr(self, name) for name in self._search_attrs]
         for target in targets:
             with contextlib.suppress(AttributeError):
                 attr = target() if callable(target) else target
                 if value := getattr(attr, name):
                     return value
+
+    def _copy_with(self, **updates):
+        """Create a new instance from the current attributes."""
+        data = updates.get('data', self._data)
+        names = updates.get('names', self.names)
+        unit = updates.get('unit', self.unit)
+        if isinstance(names, str):
+            return Physical(data, names, unit=unit)
+        return Physical(data, *names, unit=unit)
+
+
+Instance = typing.TypeVar('Instance', bound='Array')
+
+
+class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Physical):
+    """Base class for array-like objects."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._array = None
+        self.search('_get_array')
 
     _builtin = (int, slice, type(...))
 
@@ -459,15 +490,6 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin):
         if isinstance(result, numpy.ndarray) and isinstance(updates, dict):
             return self._copy_with(data=result, **updates)
         return result
-
-    def _copy_with(self, **updates):
-        """Create a new instance from the current attributes."""
-        data = updates.get('data', self._data)
-        names = updates.get('names', self.names)
-        unit = updates.get('unit', self.unit)
-        if isinstance(names, str):
-            return Array(data, names, unit=unit)
-        return Array(data, *names, unit=unit)
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
