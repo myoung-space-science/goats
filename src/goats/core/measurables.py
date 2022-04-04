@@ -990,7 +990,7 @@ def measurable(this):
         return False
     if iterables.allinstance(args, numbers.Number):
         return True
-    if metric.unitlike(args[-1]):
+    if isinstance(args[-1], metric.UnitLike):
         arg0 = args[0]
         values = arg0 if isinstance(arg0, typing.Iterable) else args[:-1]
         if iterables.allinstance(values, numbers.Number):
