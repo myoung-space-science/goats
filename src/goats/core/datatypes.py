@@ -317,10 +317,6 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Physical):
             *user[slice(start+length, self.ndim)],
         )
 
-    def __measure__(self):
-        """Called for `~measurables.measure(self)`."""
-        return measurables.Measurement(self._get_array(), self.unit)
-
     _HANDLED_TYPES = (numpy.ndarray, numbers.Number, list)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
