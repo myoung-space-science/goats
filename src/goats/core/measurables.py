@@ -1,13 +1,251 @@
 import abc
+import collections.abc
 import functools
 import math
 import numbers
+import operator
 import typing
 
-import numpy as np
+import numpy
+import numpy.typing
 
 from goats.core import iterables
 from goats.core import metric
+
+
+@typing.runtime_checkable
+class Orderable(typing.Protocol):
+    """Protocol for objects that support ordering.
+    
+    Instance checks against this ABC will return `True` iff the instance
+    implements the following methods: `__lt__`, `__gt__`, `__le__`, `__ge__`,
+    `__eq__`, and `__ne__`. It exists to support type-checking orderable objects
+    outside the `~quantified.Algebraic` framework.
+    """
+
+    __slots__ = ()
+
+    @abc.abstractmethod
+    def __lt__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __eq__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __le__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __gt__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __ge__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __ne__(self, other):
+        pass
+
+
+class Ordered:
+    """Abstract base class for all objects that support relative ordering.
+
+    Concrete implementations of this class must define the six binary comparison
+    operators (a.k.a "rich comparison" operators): `__lt__`, `__gt__`, `__le__`,
+    `__ge__`, `__eq__`, and `__ne__`.
+
+    The following default implementations are available by calling their
+    equivalents on `super()`:
+
+    - `__ne__`: defined as not equal.
+    - `__le__`: defined as less than or equal.
+    - `__gt__`: defined as not less than and not equal.
+    - `__ge__`: defined as not less than.
+    """
+
+    __slots__ = ()
+
+    __hash__ = None
+
+    @abc.abstractmethod
+    def __lt__(self, other) -> bool:
+        """True if self < other."""
+        pass
+
+    @abc.abstractmethod
+    def __eq__(self, other) -> bool:
+        """True if self == other."""
+        pass
+
+    @abc.abstractmethod
+    def __le__(self, other) -> bool:
+        """True if self <= other."""
+        return self.__lt__(other) or self.__eq__(other)
+
+    @abc.abstractmethod
+    def __gt__(self, other) -> bool:
+        """True if self > other."""
+        return not self.__le__(other)
+
+    @abc.abstractmethod
+    def __ge__(self, other) -> bool:
+        """True if self >= other."""
+        return not self.__lt__(other)
+
+    @abc.abstractmethod
+    def __ne__(self, other) -> bool:
+        """True if self != other."""
+        return not self.__eq__(other)
+
+
+Self = typing.TypeVar('Self', bound='Additive')
+
+
+class Additive(abc.ABC):
+    """Abstract base class for additive objects."""
+
+    __slots__ = ()
+
+    @abc.abstractmethod
+    def __add__(self: Self, other) -> Self:
+        pass
+
+    @abc.abstractmethod
+    def __radd__(self: Self, other) -> Self:
+        pass
+
+    @abc.abstractmethod
+    def __sub__(self: Self, other) -> Self:
+        pass
+
+    @abc.abstractmethod
+    def __rsub__(self: Self, other) -> Self:
+        pass
+
+
+Self = typing.TypeVar('Self', bound='Multiplicative')
+
+
+class Multiplicative(abc.ABC):
+    """Abstract base class for multiplicative objects."""
+
+    __slots__ = ()
+
+    @abc.abstractmethod
+    def __mul__(self: Self, other) -> Self:
+        pass
+
+    @abc.abstractmethod
+    def __rmul__(self: Self, other) -> Self:
+        pass
+
+    @abc.abstractmethod
+    def __truediv__(self: Self, other) -> Self:
+        pass
+
+    @abc.abstractmethod
+    def __rtruediv__(self: Self, other) -> Self:
+        pass
+
+    @abc.abstractmethod
+    def __pow__(self: Self, other) -> Self:
+        pass
+
+    @abc.abstractmethod
+    def __rpow__(self: Self, other) -> Self:
+        pass
+
+
+class Algebraic(Ordered, Additive, Multiplicative):
+    """Base class for algebraic objects.
+
+    Concrete subclasses of this class must implement the six comparison
+    operators,
+        - `__lt__` (less than; called for `self < other`)
+        - `__gt__` (greater than; called for `self > other`)
+        - `__le__` (less than or equal to; called for `self <= other`)
+        - `__ge__` (greater than or equal to; called for `self >= other`)
+        - `__eq__` (equal to; called for `self == other`)
+        - `__ne__` (not equal to; called for `self != other`)
+    
+    the following unary arithmetic operators,
+        - `__abs__` (absolute value; called for `abs(self)`)
+        - `__neg__` (negative value; called for `-self`)
+        - `__pos__` (positive value; called for `+self`)
+
+    and the following binary arithmetic operators,
+        - `__add__` (addition; called for `self + other`)
+        - `__radd__` (reflected addition; called for `other + self`)
+        - `__sub__` (subtraction; called for `self - other`)
+        - `__rsub__` (reflected subtraction; called for `other - self`)
+        - `__mul__` (multiplication; called for `self * other`)
+        - `__rmul__` (reflected multiplication; called for `other * self`)
+        - `__truediv__` (division; called for `self / other`)
+        - `__rtruediv__` (reflected division; called for `other / self`)
+        - `__pow__` (exponentiation; called for `self ** other`)
+        - `__rpow__` (reflected exponentiation; called for `other ** self`)
+
+    Any required method may return `NotImplemented`.
+    """
+
+    __slots__ = ()
+
+    @abc.abstractmethod
+    def __abs__(self):
+        """Implements abs(self)."""
+        pass
+
+    @abc.abstractmethod
+    def __neg__(self):
+        """Called for -self."""
+        pass
+
+    @abc.abstractmethod
+    def __pos__(self):
+        """Called for +self."""
+        pass
+
+
+Self = typing.TypeVar('Self', bound='SupportsNeg')
+
+
+@typing.runtime_checkable
+class SupportsNeg(typing.Protocol):
+    """Protocol for objects that support negation (``-self``)."""
+
+    __slots__ = ()
+
+    @abc.abstractmethod
+    def __neg__(self: Self) -> Self:
+        pass
+
+
+class RealValued(Algebraic):
+    """Abstract base class for all real-valued objects.
+    
+    This class is similar to ``numbers.Real``, but it does not presume to
+    represent a single value.
+    
+    Concrete subclasses of this object must implement all the
+    `~quantified.Algebraic` operators except for `__sub__` and `__rsub__`
+    (defined here with respect to `__neg__`). Subclasses may, of course,
+    override these base implementations.
+    """
+
+    def __sub__(self, other: SupportsNeg):
+        """Called for self - other."""
+        return self + -other
+
+    def __rsub__(self, other: SupportsNeg):
+        """Called for other - self."""
+        return -self + other
+
+
+RealValued.register(numbers.Real)
+RealValued.register(numpy.ndarray)
 
 
 class ComparisonError(TypeError):
@@ -22,7 +260,7 @@ class ComparisonError(TypeError):
 
 
 class same:
-    """A decorator class that enforces object consistency.
+    """A callable class that enforces object consistency.
 
     When used to decorate a method that takes two arguments, this class will
     ensure that the arguments have equal values of a named attribute. This may
@@ -64,898 +302,383 @@ class same:
         return getattr(this, name) == getattr(that, name)
 
 
-class Comparable(metaclass=abc.ABCMeta):
-    """The base class for all comparable objects.
-
-    Comparable objects support relative ordering. Concrete implementations of
-    this class must define the six binary comparison operators (a.k.a "rich
-    comparison" operators): `__lt__`, `__gt__`, `__le__`, `__ge__`, `__eq__`,
-    and `__ne__`.
+class Quantifiable(Algebraic, iterables.ReprStrMixin):
+    """An amount of something and the associated metric.
+    
+    This abstract base class represents the basis for quantifiable objects.
+    Concrete subclasses must implement all the `~quantified.Algebraic`
+    operators, and should do so in a way that self-consistently handles the
+    instance metric.
     """
 
-    __slots__ = ()
-
-    __hash__ = None
-
-    @abc.abstractmethod
-    def __lt__(self, other) -> bool:
-        """True if self < other."""
-        pass
-
-    @abc.abstractmethod
-    def __le__(self, other) -> bool:
-        """True if self <= other."""
-        pass
-
-    @abc.abstractmethod
-    def __gt__(self, other) -> bool:
-        """True if self > other."""
-        pass
-
-    @abc.abstractmethod
-    def __ge__(self, other) -> bool:
-        """True if self >= other."""
-        pass
-
-    @abc.abstractmethod
-    def __eq__(self, other) -> bool:
-        """True if self == other."""
-        pass
-
-    @abc.abstractmethod
-    def __ne__(self, other) -> bool:
-        """True if self != other."""
-        pass
-
-
-class RealValued(Comparable):
-    """A comparable object with one or more numerical values.
-
-    This class borrows from base classes in the ``numbers`` module but it isn't
-    in the numerical hierarchy because it doesn't require conversion to a single
-    numerical value. However, it does register ``numbers.Real`` as a virtual
-    subclass.
-    """
-
-    @abc.abstractmethod
-    def __bool__(self) -> bool:
-        """The truth value of this object as returned by bool(self)."""
-        pass
-
-    @abc.abstractmethod
-    def __abs__(self):
-        """Implements abs(self)."""
-        pass
-
-    @abc.abstractmethod
-    def __neg__(self):
-        """Called for -self."""
-        pass
-
-    @abc.abstractmethod
-    def __pos__(self):
-        """Called for +self."""
-        pass
-
-    @abc.abstractmethod
-    def __add__(self, other):
-        """Called for self + other."""
-        pass
-
-    @abc.abstractmethod
-    def __radd__(self, other):
-        """Called for other + self."""
-        pass
-
-    def __iadd__(self, other):
-        """Called for self += other."""
-        return NotImplemented
-
-    def __sub__(self, other):
-        """Called for self - other."""
-        return self + -other
-
-    def __rsub__(self, other):
-        """Called for other - self."""
-        return -self + other
-
-    def __isub__(self, other):
-        """Called for self -= other."""
-        return NotImplemented
-
-    @abc.abstractmethod
-    def __mul__(self, other):
-        """Called for self * other."""
-        pass
-
-    @abc.abstractmethod
-    def __rmul__(self, other):
-        """Called for other * self."""
-        pass
-
-    def __imul__(self, other):
-        """Called for self *= other."""
-        return NotImplemented
-
-    @abc.abstractmethod
-    def __truediv__(self, other):
-        """Called for self / other."""
-        pass
-
-    @abc.abstractmethod
-    def __rtruediv__(self, other):
-        """Called for other / self."""
-        pass
-
-    def __itruediv__(self, other):
-        """Called for self /= other."""
-        return NotImplemented
-
-    @abc.abstractmethod
-    def __pow__(self, other):
-        """Called for self ** other or pow(self, other)."""
-        pass
-
-    @abc.abstractmethod
-    def __rpow__(self, other):
-        """Called for other ** self or pow(other, self)."""
-        pass
-
-    def __ipow__(self, other):
-        """Called for self **= other."""
-        return NotImplemented
-
-RealValued.register(numbers.Real)
-RealValued.register(np.ndarray)
-
-
-Instance = typing.TypeVar('Instance', bound='Quantified')
-
-
-class Quantified(RealValued, iterables.ReprStrMixin):
-    """The base class for all quantified objects.
-
-    A quantified object has an amount and a quantity. This class does not place
-    any restrictions on the type of either attribute.
-
-    This class declares which operators require that their operands have
-    consistent quantities, and enforces those requirements on subclasses.
-    """
-
-    _quantified = (
-        '__lt__',
-        '__le__',
-        '__gt__',
-        '__ge__',
-        '__eq__',
-        '__ne__',
-        '__add__',
-        '__sub__',
-        '__iadd__',
-        '__isub__',
-    )
-
-    def __init_subclass__(cls, **kwargs) -> None:
-        """Enforce quantifiability on method implementations.
-
-        This implementation uses an instance of the `same` decorator class to
-        ensure that the operands to each method named in the `_quantified` class
-        attribute have the same quantity (i.e., the same value of their
-        `quantity` attribute). Subclasses may individually customize this
-        behavior via the keyword arguments described below
-
-        Parameters
-        ----------
-        allowed : mapping from string to type
-            A mapping (e.g., `dict`) from method name to a type or iterable of
-            types in addition to instances of the decorated class that the named
-            method should accept. The `same` class will not check objects of
-            these additional types for sameness. For example, to indicate that a
-            subclass accepts integers to its addition and subtraction methods,
-            pass `allowed={'__add__': int, '__sub__': int}` to the class
-            constructor.
-        """
-        allowed = kwargs.get('allowed', {})
-        for method in cls._quantified:
-            if current:= getattr(cls, method, None):
-                update = same('quantity', allowed=allowed.get(method))
-                updated = update(current)
-                setattr(cls, method, updated)
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        amount: typing.Any,
-        quantity: typing.Any,
-    ) -> Instance: ...
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        instance: Instance,
-    ) -> Instance: ...
-
-    _amount: typing.Any=None
-    _quantity: typing.Any=None
-
-    def __new__(cls, *args):
-        """Create a new instance of `cls`."""
-        self = super().__new__(cls)
-        if len(args) == 1 and isinstance(args[0], cls):
-            instance = args[0]
-            self._amount = instance._amount
-            self._quantity = instance._quantity
-            return self
-        if len(args) == 2:
-            self._amount, self._quantity = args
-            return self
-        raise TypeError(
-            f"Can't instantiate {cls} from {args}"
-        ) from None
-
-    @property
-    def quantity(self):
-        """The type of thing that this object represents."""
-        return self._quantity
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        return f"{self._amount} {self._quantity}"
-
-
-Instance = typing.TypeVar('Instance', bound='Ordered')
-
-
-class Ordered(Quantified):
-    """A quantified object that supports comparisons
-
-    An ordered object has an amount and a quantity. The amount must be formally
-    comparable -- that is, a comparison to another amount using one of the six
-    binary relations (i.e., <, >, <=, >=, ==, !=) must produce well-defined
-    results. The quantity may be anything that supports equality comparison,
-    which should be true unless the object explicitly disables `__eq__`.
-    """
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        amount: Comparable,
-        quantity: typing.Any,
-    ) -> Instance: ...
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        instance: Instance,
-    ) -> Instance: ...
-
-    def __new__(cls, *args):
-        return super().__new__(cls, *args)
-
-    _amount: Comparable=None
-
-    def __lt__(self, other: 'Ordered') -> bool:
-        return self._amount < other._amount
-
-    def __le__(self, other: 'Ordered') -> bool:
-        return self._amount <= other._amount
-
-    def __gt__(self, other: 'Ordered') -> bool:
-        return self._amount > other._amount
-
-    def __ge__(self, other: 'Ordered') -> bool:
-        return self._amount >= other._amount
-
-    def __eq__(self, other: 'Ordered') -> bool:
-        return self._amount == other._amount
-
-    def __ne__(self, other) -> bool:
-        """True if self != other.
-
-        Explicitly defined with respect to `self.__eq__` to promote consistency
-        in subclasses that overload `__eq__`.
-        """
-        return not self.__eq__(other)
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        return f"{self._amount} {self._quantity}"
-
-
-Instance = typing.TypeVar('Instance', bound='Measured')
-
-
-class Measured(Ordered):
-    """An ordered object with a unit.
-
-    Building on the `Ordered` class, a measured object must have an amount and a
-    unit. The amount must be formally real-valued in the sense that the
-    following arithmetic operations must produce well-defined results:
-    - unary `-`, `+`, and `abs`
-    - binary `+` and `-` between two instances with an identical unit
-    - binary `*` and `/` between two instances
-    - symmetric binary `*` between an instance and a number
-    - right-sided `/` and `**` between an instance and a number
-
-    Notes on allowed binary arithmetic operations:
-    - This class does not support floor division (`//`) in any form because of
-      the ambiguity it would create with `~metric.Unit` floor division.
-    - This class does not support floating-point division (`/`) in which the
-      left operand is not the same type or a subtype. The reason for this choice
-      is that the result may be ambiguous. For example, suppose we have an
-      instance called ``d`` with values ``[10.0, 20.0]`` and unit ``cm``.
-      Whereas the result of ``d / 2.0`` should clearly be a new instance with
-      values ``[5.0, 10.0]`` and the same unit, it is unclear whether the values
-      of ``2.0 / d`` should be element-wise ratios (i.e., ``[0.2, 0.1]``) or a
-      single value (e.g., ``2.0 / ||d||``) and it is not at all obvious what the
-      unit or dimensions should be.
-    """
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        amount: RealValued,
-    ) -> Instance:
-        """Create a new measured object.
-        
-        Parameters
-        ----------
-        amount : real-valued
-            The measured amount.
-        """
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        amount: RealValued,
-        unit: typing.Union[str, metric.Unit],
-    ) -> Instance:
-        """Create a new measured object.
-        
-        Parameters
-        ----------
-        amount : real-valued
-            The measured amount.
-
-        unit : string or `~metric.Unit`
-            The unit in which `amount` is measured.
-        """
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        instance: Instance,
-    ) -> Instance:
-        """Create a new measured object.
-        
-        Parameters
-        ----------
-        instance : `~measurables.Measured`
-            An existing instance of this class.
-        """
-
-    _amount: RealValued=None
-    _unit: metric.Unit=None
-
-    def __new__(cls, *args, **kwargs):
-        """The concrete implementation of `~measurables.Measured.__new__`.
-        
-        Notes
-        -----
-        This method first extracts a local `unit` in order to pass it as a `str`
-        to its parent class's `_quantity` attribute while returning it as a
-        `~metric.Unit` for initializing the `_unit` attribute of the current
-        instance.
-        """
-        if not kwargs and len(args) == 1 and isinstance(args[0], cls):
-            instance = args[0]
-            amount = instance._amount
-            unit = instance.unit()
-        else:
-            attrs = list(args)
-            attr_dict = {
-                k: attrs.pop(0) if attrs
-                else kwargs.pop(k, None)
-                for k in ('amount', 'unit')
-            }
-            amount = attr_dict['amount']
-            unit = metric.Unit(attr_dict['unit'] or '1')
-        self = super().__new__(cls, amount, str(unit))
-        self._unit = unit
-        return self
-
-    @classmethod
-    def _new(cls: typing.Type[Instance], *args, **kwargs) -> Instance:
-        """Create a new instance from updated attributes."""
-        return cls(*args, **kwargs)
-
-    @typing.overload
-    def unit(self: Instance) -> metric.Unit:
-        """Get this object's unit of measurement.
-        
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        `~metric.Unit`
-            The current unit of `amount`.
-        """
-
-    @typing.overload
-    def unit(
-        self: Instance,
-        new: typing.Union[str, metric.Unit],
-    ) -> Instance:
-        """Update this object's unit of measurement.
-
-        Parameters
-        ----------
-        new : string or `~metric.Unit`
-            The new unit in which to measure `amount`.
-
-        Returns
-        -------
-        Subclass of `~measurables.Measured`
-            A new instance of this class.
-        """
-
-    def unit(self, new=None):
-        """Concrete implementation."""
-        if not new:
-            return self._unit
-        scale = metric.Unit(new) // self._unit
-        amount = (scale * self)._amount
-        return self._new(amount=amount, unit=new)
+    def __init__(
+        self,
+        __amount: RealValued,
+        __metric: Multiplicative,
+    ) -> None:
+        self._amount = __amount
+        self._metric = __metric
 
     def __bool__(self) -> bool:
-        """Called for bool(self).
-        
-        A measured object is always `True` because every instance has a valid
-        amount and unit, even though the amount may be 0.
-        """
+        """Always true for a valid instance."""
         return True
 
-    def __abs__(self):
-        return self._new(
-            amount=abs(self._amount),
-            unit=self._unit,
-        )
-
-    def __neg__(self):
-        return self._new(
-            amount=-self._amount,
-            unit=self._unit,
-        )
-
-    def __pos__(self):
-        return self._new(
-            amount=+self._amount,
-            unit=self._unit,
-        )
-
-    def __add__(self, other: 'Measured'):
-        return self._new(
-            amount=self._amount + other._amount,
-            unit=self._unit,
-        )
-
-    def __radd__(self, other: typing.Any):
-        return NotImplemented
-
-    def __sub__(self, other: 'Measured'):
-        return self._new(
-            amount=self._amount - other._amount,
-            unit=self._unit,
-        )
-
-    def __rsub__(self, other: typing.Any):
-        return NotImplemented
-
-    def __mul__(self, other: typing.Any):
-        if isinstance(other, Measured):
-            amount = self._amount * other._amount
-            unit = self._unit * other._unit
-            return self._new(
-                amount=amount,
-                unit=unit,
-            )
-        if isinstance(other, numbers.Number):
-            return self._new(
-                amount=self._amount * other,
-                unit=self._unit,
-            )
-        return NotImplemented
-
-    def __rmul__(self, other: typing.Any):
-        if isinstance(other, numbers.Number):
-            return self._new(
-                amount=other * self._amount,
-                unit=self._unit,
-            )
-        return NotImplemented
-
-    def __truediv__(self, other: typing.Any):
-        if isinstance(other, Measured):
-            amount = self._amount / other._amount
-            unit = self._unit / other._unit
-            return self._new(
-                amount=amount,
-                unit=unit,
-            )
-        if isinstance(other, numbers.Number):
-            return self._new(
-                amount=self._amount / other,
-                unit=self._unit,
-            )
-        return NotImplemented
-
-    def __rtruediv__(self, other: typing.Any):
-        return NotImplemented
-
-    def __pow__(self, other: typing.Any):
-        if isinstance(other, numbers.Number):
-            return self._new(
-                amount=self._amount ** other,
-                unit=self._unit ** other
-            )
-        return NotImplemented
-
-    def __rpow__(self, other: typing.Any):
-        return NotImplemented
-
     def __str__(self) -> str:
-        return f"{self._amount} [{self._unit}]"
+        return f"{self._amount} {self._metric}"
 
 
-Instance = typing.TypeVar('Instance', bound='Measured')
+RT = typing.TypeVar('RT')
+Operator = typing.TypeVar('Operator', bound=typing.Callable)
+Operator = typing.Callable[..., RT]
 
 
-VT = typing.TypeVar('VT', bound=RealValued)
-VT = RealValued
+def _comparison(opr: Operator):
+    """Implement a comparison operator."""
+    @same('_metric', allowed=numbers.Real)
+    def func(a: Quantifiable, b):
+        if isinstance(b, Quantifiable):
+            return opr(a._amount, b._amount)
+        if isinstance(b, Orderable):
+            return opr(a._amount, b)
+        return NotImplemented
+    func.__name__ = f"__{opr.__name__}__"
+    func.__doc__ = opr.__doc__
+    return func
 
 
-allowed = {m: numbers.Real for m in ['__lt__', '__le__', '__gt__', '__ge__']}
-class Scalar(Measured, allowed=allowed):
-    """A single numerical value and associated unit."""
+def _unary(opr: Operator):
+    """Implement a unary arithmetic operator."""
+    def func(a: Quantifiable):
+        return type(a)(opr(a._amount), a._metric)
+    func.__name__ = f"__{opr.__name__}__"
+    func.__doc__ = opr.__doc__
+    return func
 
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        value: VT,
-    ) -> Instance:
-        """Create a new scalar object.
-        
-        Parameters
-        ----------
-        value : real number
-            The numerical value of this scalar. The argument must implement the
-            `~numbers.Real` interface.
-        """
 
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        value: VT,
-        unit: typing.Union[str, metric.Unit],
-    ) -> Instance:
-        """Create a new scalar object.
-        
-        Parameters
-        ----------
-        value : real number
-            The numerical value of this scalar. The argument must implement the
-            `~numbers.Real` interface.
+def _preserve_metric(opr: Operator):
+    """Implement a forward operator that preserves the instance metric."""
+    @same('_metric')
+    def func(a: Quantifiable, b: Quantifiable):
+        return type(a)(opr(a._amount, b._amount), a._metric)
+    return func
 
-        unit : string or  `~metric.Unit`
-            The metric unit of `value`.
-        """
 
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        instance: Instance,
-    ) -> Instance:
-        """Create a new scalar object.
-        
-        Parameters
-        ----------
-        instance : `~measurables.Scalar`
-            An existing instance of this class.
-        """
+def _combine_metric(opr: Operator):
+    """Implement a forward operator that combines instance metrics."""
+    def func(a: Quantifiable, b: Quantifiable):
+        return type(a)(opr(a._amount, b._amount), opr(a._metric, b._metric))
+    return func
 
-    _value: VT
 
-    def __new__(cls, *args, **kwargs):
-        """The concrete implementation of `~measurables.Scalar.__new__`."""
-        if not kwargs and len(args) == 1 and isinstance(args[0], cls):
-            instance = args[0]
-            value = instance._value
-            unit = instance.unit()
-        else:
-            attrs = list(args)
-            if 'amount' in kwargs:
-                kwargs['value'] = kwargs.pop('amount')
-            attr_dict = {
-                k: attrs.pop(0) if attrs
-                else kwargs.pop(k, None)
-                for k in ('value', 'unit')
-            }
-            value = attr_dict['value']
-            unit = attr_dict['unit']
-        self = super().__new__(cls, value, unit=unit)
-        self._value = value
+def _update_metric(opr: Operator):
+    """Implement a forward operator that updates the instance metric."""
+    def func(a: Quantifiable, b: RealValued):
+        return type(a)(opr(a._amount, b), opr(a._metric, b))
+    return func
+
+
+def _standard(opr: Operator):
+    """Implement a standard forward operator."""
+    def func(a: Quantifiable, b: RealValued):
+        return type(a)(opr(a._amount, b), a._metric)
+    return func
+
+
+Wrapper = typing.TypeVar('Wrapper', bound=typing.Callable)
+Wrapper = typing.Callable[..., typing.Callable[..., Quantifiable]]
+
+
+Rules = typing.TypeVar('Rules', bound=dict)
+Rules = typing.Dict[
+    typing.Tuple[type],
+    Wrapper,
+]
+
+
+_operators: typing.Dict[Operator, Rules] = {
+    operator.add: {
+        (Quantifiable, Quantifiable): _preserve_metric,
+        (Quantifiable, RealValued): _standard,
+    },
+    operator.sub: {
+        (Quantifiable, Quantifiable): _preserve_metric,
+        (Quantifiable, RealValued): _standard,
+    },
+    operator.mul: {
+        (Quantifiable, Quantifiable): _combine_metric,
+        (Quantifiable, RealValued): _standard,
+    },
+    operator.truediv: {
+        (Quantifiable, Quantifiable): _combine_metric,
+        (Quantifiable, RealValued): _standard,
+    },
+    operator.pow: {
+        (Quantifiable, RealValued): _update_metric,
+    },
+}
+
+
+def _get_rule(rules: dict, *args) -> Wrapper:
+    types = tuple(type(arg) for arg in args)
+    if types in rules:
+        return rules[types]
+    for key, rule in rules.items():
+        if all(issubclass(t, k) for t, k in zip(types, key)):
+            return rule
+
+
+def _forward(opr: Operator):
+    """Implement a forward operator."""
+    rules = _operators.get(opr)
+    def func(a: Quantifiable, b):
+        rule = _get_rule(rules, a, b)
+        return rule(opr)(a, b) if rule else NotImplemented
+    func.__name__ = f"__{opr.__name__}__"
+    func.__doc__ = opr.__doc__
+    return func
+
+
+def _inplace(opr: Operator):
+    """Implement an in-place operator."""
+    rules = _operators.get(opr)
+    def func(a: Quantifiable, b):
+        if rule := _get_rule(rules, a, b):
+            result = rule(opr)(a, b)
+            a._amount = result._amount
+            a._metric = result._metric
+            return a
+        return NotImplemented
+    func.__name__ = f"__i{opr.__name__}__"
+    func.__doc__ = opr.__doc__
+    return func
+
+
+def _reverse(opr: Operator):
+    """Implement a standard reverse operator."""
+    def func(b: Quantifiable, a):
+        return (
+            type(b)(opr(a, b._amount), b._metric) if isinstance(a, RealValued)
+            else NotImplemented
+        )
+    func.__name__ = f"__r{opr.__name__}__"
+    func.__doc__ = opr.__doc__
+    return func
+
+
+def _suppress(name: str):
+    """Suppress an operator."""
+    def func(*args, **kwargs):
+        return NotImplemented
+    func.__name__ = name
+    func.__doc__ = """Not implemented."""
+    return func
+
+
+class Quantified(Quantifiable):
+    """A concrete representation of quantifiable objects.
+    
+    This class implements the `~quantified.Algebraic` operators with the
+    following rules:
+        - unary `-`, `+`, and `abs` on an instance
+        - binary `+` and `-` between two instances with an identical metric
+        - binary `*` and `/` between two instances
+        - symmetric binary `*` between an instance and a number
+        - right-sided `/` and `**` between an instance and a number
+
+    Notes on allowed binary arithmetic operations:
+        - This class does not support floor division (`//`) in any form because
+          of the ambiguity it would create with `~metric.Unit` floor division.
+        - This class does not support floating-point division (`/`) in which the
+          left operand is not the same type or a subtype. The reason for this
+          choice is that the result may be ambiguous. For example, suppose we
+          have an instance called ``d`` with values ``[10.0, 20.0]`` and unit
+          ``cm``. Whereas the result of ``d / 2.0`` should clearly be a new
+          instance with values ``[5.0, 10.0]`` and the same unit, it is unclear
+          whether the values of ``2.0 / d`` should be element-wise ratios (i.e.,
+          ``[0.2, 0.1]``) or a single value (e.g., ``2.0 / ||d||``) and it is
+          not at all obvious what the unit or dimensions should be.
+    """
+
+    __lt__ = _comparison(operator.lt)
+    __le__ = _comparison(operator.le)
+    __gt__ = _comparison(operator.gt)
+    __ge__ = _comparison(operator.ge)
+    __eq__ = _comparison(operator.eq)
+    __ne__ = _comparison(operator.ne)
+
+    __abs__ = _unary(operator.abs)
+    __pos__ = _unary(operator.pos)
+    __neg__ = _unary(operator.neg)
+
+    __add__ = _forward(operator.add)
+    __iadd__ = _inplace(operator.add)
+    __radd__ = _reverse(operator.add)
+
+    __sub__ = _forward(operator.sub)
+    __isub__ = _inplace(operator.sub)
+    __rsub__ = _reverse(operator.sub)
+
+    __mul__ = _forward(operator.mul)
+    __imul__ = _inplace(operator.mul)
+    __rmul__ = _reverse(operator.mul)
+
+    __truediv__ = _forward(operator.truediv)
+    __itruediv__ = _inplace(operator.truediv)
+    __rtruediv__ = _suppress('__rtruediv__')
+
+    __pow__ = _forward(operator.pow)
+    __rpow__ = _suppress('__rpow__')
+    __ipow__ = _inplace(operator.pow)
+
+
+class Measured(Quantified):
+    """A quantified object with an associated unit."""
+
+    def __init__(
+        self,
+        __amount: RealValued,
+        unit: metric.UnitLike=None,
+    ) -> None:
+        super().__init__(__amount, metric.Unit(unit or '1'))
+
+    def unit(self, unit: metric.UnitLike=None):
+        """Get or set the unit of this object's values."""
+        if not unit:
+            return self._metric
+        new = metric.Unit(unit)
+        self._amount *= new // self._metric
+        self._metric = new
         return self
 
-    def __lt__(self, other: Ordered) -> bool:
-        if isinstance(other, Comparable):
-            return self._amount < other
-        return super().__lt__(other)
 
-    def __le__(self, other: Ordered) -> bool:
-        if isinstance(other, Comparable):
-            return self._amount <= other
-        return super().__le__(other)
-
-    def __gt__(self, other: Ordered) -> bool:
-        if isinstance(other, Comparable):
-            return self._amount > other
-        return super().__gt__(other)
-
-    def __ge__(self, other: Ordered) -> bool:
-        if isinstance(other, Comparable):
-            return self._amount >= other
-        return super().__ge__(other)
-
-    def __float__(self):
-        """Called for float(self)."""
-        return float(self._value)
-
-    def __int__(self):
-        """Called for int(self)."""
-        return int(self._value)
-
-    def __round__(self, ndigits: int=None):
-        """Called for round(self)."""
-        return round(self._value, ndigits=ndigits)
-
-    def __floor__(self):
-        """Called for math.floor(self)."""
-        return math.floor(self._value)
-
-    def __ceil__(self):
-        """Called for math.ceil(self)."""
-        return math.ceil(self._value)
-
-    def __trunc__(self):
-        """Called for math.trunc(self)."""
-        return math.trunc(self._value)
-
-    # NOTE: This class is immutable, so in-place operations defer to forward
-    # operations. That automatically happens for `__iadd__`, `__isub__`,
-    # `__imul__`, and `__itruediv__`, but not for `__ipow__`, so we need to
-    # explicitly define a trivial implementation here.
-    def __ipow__(self, other: typing.Any):
-        return super().__pow__(other)
-
-    def __hash__(self):
-        """Called for hash(self)."""
-        return hash((self._value, str(self._unit)))
+T = typing.TypeVar('T')
 
 
-Instance = typing.TypeVar('Instance', bound='Measured')
+def _cast(__type: typing.Type[T]) -> typing.Callable[[Quantifiable], T]:
+    """Implement a type-casting operator."""
+    def func(a):
+        return (
+            __type(a._amount) if isinstance(a, Quantifiable)
+            else NotImplemented
+        )
+    name = __type.__class__.__qualname__
+    func.__name__ = f"__{name}__"
+    func.__doc__ = f"""Called for {name}(self)."""
+    return func
+
+
+class Scalar(Measured):
+    """A measured object with a single value."""
+
+    __float__ = _cast(float)
+    __int__ = _cast(int)
+
+    __round__ = _unary(round)
+    __ceil__ = _unary(math.ceil)
+    __floor__ = _unary(math.floor)
+    __trunc__ = _unary(math.trunc)
+
+    def __init__(
+        self,
+        __amount: numbers.Real,
+        unit: metric.UnitLike=None,
+    ) -> None:
+        super().__init__(float(__amount), unit)
+
+    def __str__(self) -> str:
+        return f"{self._amount!r} [{self.unit()}]"
+
+    def __repr__(self) -> str:
+        args = [
+            repr(self._amount),
+            f"unit='{self.unit()}'",
+        ]
+        return f"{self.__class__.__qualname__}({', '.join(args)})"
 
 
 class Vector(Measured):
-    """Multiple numerical values and their associated unit."""
+    """A measured object with multiple values."""
 
-    _values: typing.Iterable[VT]
+    def __init__(
+        self,
+        __amount: typing.Union[RealValued, numpy.typing.ArrayLike],
+        unit: metric.UnitLike=None,
+    ) -> None:
+        amount = numpy.asfarray(list(iterables.whole(__amount)))
+        super().__init__(amount, unit)
 
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        values: typing.Iterable[VT],
-    ) -> Instance:
-        """Create a new vector object.
-        
-        Parameters
-        ----------
-        values : iterable of real numbers
-            The numerical values of this vector. Each member must implement the
-            `~numbers.Real` interface.
-        """
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        values: typing.Iterable[VT],
-        unit: typing.Union[str, metric.Unit],
-    ) -> Instance:
-        """Create a new vector object.
-        
-        Parameters
-        ----------
-        values : iterable of real numbers
-            The numerical values of this vector. Each member must implement the
-            `~numbers.Real` interface.
-
-        unit : string or `~metric.Unit`
-            The metric unit of `values`.
-        """
-
-    @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
-        instance: Instance,
-    ) -> Instance:
-        """Create a new vector object.
-
-        Parameters
-        ----------
-        instance : `~measurables.Vector`
-            An existing instance of this class.
-        """
-
-    def __new__(cls, *args, **kwargs):
-        """The concrete implementation of `~measurables.Vector.__new__`."""
-        if not kwargs and len(args) == 1 and isinstance(args[0], cls):
-            instance = args[0]
-            values = instance._values
-            unit = instance.unit()
-        else:
-            attrs = list(args)
-            if 'amount' in kwargs:
-                kwargs['values'] = kwargs.pop('amount')
-            attr_dict = {
-                k: attrs.pop(0) if attrs
-                else kwargs.pop(k, None)
-                for k in ('values', 'unit')
-            }
-            values = attr_dict['values']
-            unit = attr_dict['unit']
-        self = super().__new__(cls, values, unit=unit)
-        self._values = list(iterables.whole(self._amount))
-        return self
-
-    def __len__(self):
+    def __len__(self) -> int:
         """Called for len(self)."""
-        return len(self._values)
-
-    def __iter__(self):
-        """Called for iter(self)."""
-        return iter(self._values)
-
-    def __contains__(self, item):
-        """Called for item in self."""
-        return item in self._values
-
-    def __add__(self, other: typing.Any):
-        if isinstance(other, Vector):
-            values = [s + o for s, o in zip(self._values, other._values)]
-            return self._new(amount=values, unit=self._unit)
-        if isinstance(other, Measured):
-            values = [s + other for s in self._values]
-            return self._new(amount=values, unit=self._unit)
-        return NotImplemented
-
-    def __sub__(self, other: typing.Any):
-        if isinstance(other, Vector):
-            values = [s - o for s, o in zip(self._values, other._values)]
-            return self._new(amount=values, unit=self._unit)
-        if isinstance(other, Measured):
-            values = [s - other for s in self._values]
-            return self._new(amount=values, unit=self._unit)
-        return NotImplemented
-
-    def __mul__(self, other: typing.Any):
-        if isinstance(other, Vector):
-            values = [s * o for s, o in zip(self._values, other._values)]
-            unit = self._unit * other._unit
-            return self._new(amount=values, unit=unit)
-        if isinstance(other, Scalar):
-            other = float(other)
-        if isinstance(other, RealValued):
-            values = [s * other for s in self._values]
-            return self._new(amount=values, unit=self._unit)
-        return NotImplemented
-
-    def __rmul__(self, other: typing.Any):
-        if isinstance(other, Scalar):
-            other = float(other)
-        if isinstance(other, numbers.Number):
-            values = [other * s for s in self._values]
-            return self._new(amount=values, unit=self._unit)
-        return NotImplemented
-
-    def __truediv__(self, other: typing.Any):
-        if isinstance(other, Vector):
-            values = [s / o for s, o in zip(self._values, other._values)]
-            unit = self._unit / other._unit
-            return self._new(amount=values, unit=unit)
-        if isinstance(other, Scalar):
-            other = float(other)
-        if isinstance(other, RealValued):
-            values = [s / other for s in self._values]
-            return self._new(amount=values, unit=self._unit)
-        return NotImplemented
-
-    def __pow__(self, other: typing.Any):
-        if isinstance(other, numbers.Number):
-            values = [s ** other for s in self._values]
-            unit = self._unit ** other
-            return self._new(amount=values, unit=unit)
-        return NotImplemented
-
-    def __bool__(self) -> bool:
-        return super().__bool__()
-
-
-class Measurement(Vector):
-    """The result of measuring an object.
-
-    While it is possible to directly instantiate this class, it serves primarily
-    as the return type of `measurables.measure`, which accepts a much wider
-    domain of arguments.
-    """
+        return len(self._amount)
 
     def __getitem__(self, index):
         """Called for index-based value access."""
         if isinstance(index, typing.SupportsIndex) and index < 0:
             index += len(self)
-        values = self._values[index]
+        values = self._amount[index]
         iter_values = isinstance(values, typing.Iterable)
+        unit = self.unit()
         return (
-            [Scalar(value, self._unit) for value in values] if iter_values
-            else Scalar(values, self.unit)
+            [Scalar(value, unit) for value in values] if iter_values
+            else Scalar(values, unit)
         )
+
+    def __str__(self) -> str:
+        return f"{self._amount!r} [{self.unit()}]"
+
+    def __repr__(self) -> str:
+        args = [
+            repr(self._amount),
+            f"unit='{self.unit()}'",
+        ]
+        return f"{self.__class__.__qualname__}({', '.join(args)})"
+
+
+class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
+    """A sequence of values and their associated unit."""
+
+    def __init__(
+        self,
+        values: typing.Iterable[numbers.Real],
+        unit: metric.UnitLike,
+    ) -> None:
+        self._values = values
+        self._unit = unit
 
     @property
     def values(self):
-        """The numerical values of this measurement."""
-        return self._values
+        """This measurement's values."""
+        return tuple(self._values)
 
     @property
     def unit(self):
-        """The metric unit of this measurement.
-        
-        Unlike instances of `~measurables.Vector`, this object does not support
-        updates to `unit`.
-        """
-        return super().unit()
+        """This measurement's unit."""
+        return metric.Unit(self._unit)
 
-    def __float__(self) -> float:
-        """Represent a single-valued measurement as a `float`."""
-        return self._cast_to(float)
+    def __len__(self) -> int:
+        return len(self._values)
 
-    def __int__(self) -> int:
-        """Represent a single-valued measurement as a `int`."""
-        return self._cast_to(int)
-
-    _T = typing.TypeVar('_T', int, float)
-    def _cast_to(self, __type: _T) -> _T:
-        """Internal method for casting to numeric type."""
-        nv = len(self.values)
-        if nv == 1:
-            return __type(self.values[0])
-        errmsg = f"Can't convert measurement with {nv!r} values to {__type}"
-        raise TypeError(errmsg) from None
+    def __getitem__(self, index):
+        """Called for index-based value access."""
+        if isinstance(index, typing.SupportsIndex) and index < 0:
+            index += len(self)
+        values = iterables.whole(self.values[index])
+        unit = str(self.unit)
+        return [(value, unit) for value in values]
 
     def __str__(self) -> str:
-        """A simplified representation of this object."""
-        return f"{self.values} [{self.unit}]"
+        values = ', '.join(str(value) for value in self.values)
+        return f"{values} [{self._unit}]"
 
 
-@typing.runtime_checkable
-class Measurable(typing.Protocol):
-    """Protocol defining a formally measurable object."""
-
-    __slots__ = ()
+class Measurable(Quantifiable):
+    """A quantifiable object that supports measurement."""
 
     @abc.abstractmethod
     def __measure__(self) -> Measurement:
-        """Create a measured object from input."""
-        pass
+        """Measure this object."""
+        values = iterables.whole(self._amount)
+        return Measurement(values, self._metric)
 
 
 def measurable(this):
@@ -1116,5 +839,40 @@ def ensure_unit(args):
     if implicit or explicit:
         return '1'
     return str(last)
+
+
+# See notes in 2022-04-05.md for steps toward deprecating this class.
+class X_Measurement:
+    """The result of measuring an object."""
+
+    def __getitem__(self, index):
+        values = super().__getitem__(index)
+        iter_values = isinstance(values, typing.Iterable)
+        return (
+            [Scalar(value, self._unit) for value in values] if iter_values
+            else Scalar(values, self._unit)
+        )
+
+    def __float__(self):
+        """Represent a single-valued measurement as a `float`."""
+        return self._cast_to(float)
+
+    def __int__(self):
+        """Represent a single-valued measurement as a `int`."""
+        return self._cast_to(int)
+
+    Numeric = typing.TypeVar('Numeric', int, float)
+
+    def _cast_to(self, __type: typing.Type[Numeric]) -> Numeric:
+        """Internal method for casting to numeric type."""
+        nv = len(self._values)
+        if nv == 1:
+            return __type(self._values[0])
+        errmsg = f"Can't convert measurement with {nv!r} values to {__type}"
+        raise TypeError(errmsg) from None
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return f"{self._values} [{self._unit}]"
 
 
