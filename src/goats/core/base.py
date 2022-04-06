@@ -10,7 +10,7 @@ import numpy as np
 from goats.core import aliased
 from goats.core import datatypes
 from goats.core import iterables
-from goats.core import measurables
+from goats.core import measured
 from goats.core import metric
 from goats.core import indexing
 from goats.core import spelling
@@ -35,7 +35,7 @@ class Observation(iterables.ReprStrMixin):
         self,
         data: datatypes.Variable,
         indices: typing.Mapping[str, indexing.Indices],
-        assumptions: typing.Mapping[str, measurables.Scalar]=None,
+        assumptions: typing.Mapping[str, measured.Scalar]=None,
     ) -> None:
         self._data = data
         self.name = data.names

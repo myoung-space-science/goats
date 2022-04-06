@@ -8,7 +8,7 @@ from goats.core import datatypes
 from goats.core import functions
 from goats.core import iterables
 from goats.core import observables
-from goats.core import measurables
+from goats.core import measured
 from goats.core import metric
 from goats.eprem import parameters
 
@@ -34,13 +34,13 @@ class Function(iterables.ReprStrMixin):
     Argument = typing.TypeVar(
         'Argument',
         datatypes.Variable,
-        measurables.Scalar,
-        typing.Iterable[measurables.Scalar],
+        measured.Scalar,
+        typing.Iterable[measured.Scalar],
     )
     Argument = typing.Union[
         datatypes.Variable,
-        measurables.Scalar,
-        typing.Iterable[measurables.Scalar],
+        measured.Scalar,
+        typing.Iterable[measured.Scalar],
     ]
 
     def __call__(
@@ -58,11 +58,11 @@ class Function(iterables.ReprStrMixin):
         for arg in known:
             if isinstance(arg, datatypes.Array):
                 arrays.append(np.array(arg))
-            elif isinstance(arg, measurables.Scalar):
+            elif isinstance(arg, measured.Scalar):
                 floats.append(float(arg))
             elif (
                 isinstance(arg, typing.Iterable)
-                and all(isinstance(a, measurables.Scalar) for a in arg)
+                and all(isinstance(a, measured.Scalar) for a in arg)
             ): floats.extend([float(a) for a in arg])
         data = self.method(*arrays, *floats)
         return datatypes.Variable(

@@ -10,7 +10,7 @@ import numpy.typing
 from goats.core import aliased
 from goats.core import iterables
 from goats.core import metric
-from goats.core import measurables
+from goats.core import measured
 
 
 def same_attrs(*names: str):
@@ -111,7 +111,7 @@ IndexLike = typing.Union[typing.Iterable[int], slice, type(Ellipsis)]
 Instance = typing.TypeVar('Instance', bound='Physical')
 
 
-class Physical(collections.abc.Sequence, measurables.RealValued):
+class Physical(collections.abc.Sequence, measured.RealValued):
     """Base class for physical objects."""
 
     @typing.overload
@@ -282,7 +282,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Physical):
         result = self._get_array(indices)
         if isinstance(result, numbers.Number):
             # Should be consistent about names here.
-            return measurables.Scalar(result, unit=self.unit)
+            return measured.Scalar(result, unit=self.unit)
         return Array(result, *self.names, unit=self.unit)
 
     def _subscript_custom(self, args):
@@ -653,7 +653,7 @@ def _mean(v: Variable, **kwargs):
     return Variable(data, *names, unit=v.unit, axes=axes)
 
 
-measurables.Measured.register(Variable)
+measured.Measured.register(Variable)
 
 
 def _extend_arrays(
@@ -679,27 +679,27 @@ def _extend_arrays(
 
 _opr_rules = {
     'add': {
-        (Variable, measurables.RealValued): {},
+        (Variable, measured.RealValued): {},
         (Variable, Variable): {
             'constraints': [same_attrs('axes', 'unit')],
             'updaters': {
                 'names': attr_updater('{0.names} + {1.names}'),
             }
         },
-        (measurables.RealValued, Variable): {},
+        (measured.RealValued, Variable): {},
     },
     'subtract': {
-        (Variable, measurables.RealValued): {},
+        (Variable, measured.RealValued): {},
         (Variable, Variable): {
             'constraints': [same_attrs('axes', 'unit')],
             'updaters': {
                 'names': attr_updater('{0.names} - {1.names}'),
             }
         },
-        (measurables.RealValued, Variable): {},
+        (measured.RealValued, Variable): {},
     },
     'multiply': {
-        (Variable, measurables.RealValued): {},
+        (Variable, measured.RealValued): {},
         (Variable, Variable): {
             'updaters': {
                 'unit': attr_updater('{0.unit} * {1.unit}'),
@@ -707,10 +707,10 @@ _opr_rules = {
                 'names': attr_updater('{0.names} * {1.names}'),
             }
         },
-        (measurables.RealValued, Variable): {},
+        (measured.RealValued, Variable): {},
     },
     'true_divide': {
-        (Variable, measurables.RealValued): {},
+        (Variable, measured.RealValued): {},
         (Variable, Variable): {
             'updaters': {
                 'unit': attr_updater('{0.unit} / ({1.unit})'),
@@ -963,7 +963,7 @@ class Axis(iterables.ReprStrMixin):
         string = f"'{self.names}': size={self.size}"
         unit = (
             str(self.reference.unit())
-            if isinstance(self.reference, measurables.Measured)
+            if isinstance(self.reference, measured.Measured)
             else None
         )
         if unit:
@@ -971,7 +971,7 @@ class Axis(iterables.ReprStrMixin):
         return string
 
 
-class Assumption(measurables.Measurement):
+class Assumption(measured.Measurement):
     """A measurable parameter argument."""
 
     aliases: typing.Tuple[str, ...] = None
