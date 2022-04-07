@@ -550,6 +550,26 @@ class Measured(Quantified):
         self._metric = new
         return self
 
+    def __str__(self) -> str:
+        strings = self._display('__str__').values()
+        return " ".join(strings)
+
+    def __repr__(self) -> str:
+        strings = self._display('__repr__').values()
+        return f"{self.__class__.__qualname__}({', '.join(strings)})"
+
+    def _display(self, name: str):
+        """Helper for `__str__` and `__repr__`."""
+        strings = {
+            '_amount': str(self._amount),
+            'unit': str(self.unit()),
+        }
+        if name == '__str__':
+            strings.update(unit=f"[{self.unit()}]")
+        elif name == '__repr__':
+            strings.update(unit=f"unit='{self.unit()}'")
+        return strings
+
 
 T = typing.TypeVar('T')
 
@@ -585,16 +605,6 @@ class Scalar(Measured):
     ) -> None:
         super().__init__(float(__amount), unit)
 
-    def __str__(self) -> str:
-        return f"{self._amount!r} [{self.unit()}]"
-
-    def __repr__(self) -> str:
-        args = [
-            repr(self._amount),
-            f"unit='{self.unit()}'",
-        ]
-        return f"{self.__class__.__qualname__}({', '.join(args)})"
-
 
 class Vector(Measured):
     """A measured object with multiple values."""
@@ -622,16 +632,6 @@ class Vector(Measured):
             [Scalar(value, unit) for value in values] if iter_values
             else Scalar(values, unit)
         )
-
-    def __str__(self) -> str:
-        return f"{self._amount!r} [{self.unit()}]"
-
-    def __repr__(self) -> str:
-        args = [
-            repr(self._amount),
-            f"unit='{self.unit()}'",
-        ]
-        return f"{self.__class__.__qualname__}({', '.join(args)})"
 
 
 class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
