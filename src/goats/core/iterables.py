@@ -193,18 +193,51 @@ def show_at_most(
     return separator.join(str(v) for v in truncated)
 
 
+class DisplayMap:
+    """An attribute mapping for string formatting."""
+
+    def __init__(self, instance) -> None:
+        self._instance = instance
+
+    def __getitem__(self, name: str) -> str:
+        """Get the named attribute and call it if necessary."""
+        attr = getattr(self._instance, name)
+        this = attr() if callable(attr) else attr
+        return str(this)
+
+
 class ReprStrMixin:
     """A mixin class that provides support for `__repr__` and `__str__`."""
 
+    _display = None
+
+    @property
+    def display(self):
+        """The attributes to display for each method."""
+        if self._display is None:
+            self._display = {
+                '__str__': {},
+                '__repr__': {},
+            }
+        return self._display
+
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        return ""
+        return self._get_display('__str__')
 
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
+        string = self._get_display('__repr__')
         module = f"{self.__module__.replace('goats.', '')}."
         name = self.__class__.__qualname__
-        return f"{module}{name}({self})"
+        return f"{module}{name}({string or self})"
+
+    def _get_display(self, method: str):
+        """Helper method for `__str__` and `__repr__`."""
+        strings = self.display[method].get('strings', [''])
+        parts = [string.format_map(DisplayMap(self)) for string in strings]
+        separator = self.display[method].get('separator', ', ')
+        return separator.join(parts)
 
 
 class RequiredAttrMeta(abc.ABCMeta):

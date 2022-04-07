@@ -273,6 +273,28 @@ def test_vector_operators():
         v0 + v2
 
 
+@pytest.mark.scalar
+def test_scalar_display():
+    """Test the results of str(self) and repr(self) for a scalar."""
+    scalar = measured.Scalar(1.234, unit='m')
+    assert str(scalar) == "1.234 [m]"
+    assert repr(scalar).endswith("Scalar(1.234, unit='m')")
+    scalar.unit('cm')
+    assert str(scalar) == "123.4 [cm]"
+    assert repr(scalar).endswith("Scalar(123.4, unit='cm')")
+
+
+@pytest.mark.vector
+def test_vector_display():
+    """Test the results of str(self) and repr(self) for a vector."""
+    vector = measured.Vector(1.234, unit='m')
+    assert str(vector) == "[1.234] [m]"
+    assert repr(vector).endswith("Vector([1.234], unit='m')")
+    vector.unit('cm')
+    assert str(vector) == "[123.4] [cm]"
+    assert repr(vector).endswith("Vector([123.4], unit='cm')")
+
+
 @pytest.mark.vector
 def test_vector_init():
     """Test initializing with iterable and non-iterable values."""

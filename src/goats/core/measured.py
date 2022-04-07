@@ -318,13 +318,14 @@ class Quantifiable(Algebraic, iterables.ReprStrMixin):
     ) -> None:
         self._amount = __amount
         self._metric = __metric
+        self.display['__str__'].update(
+            strings=["{_amount} {_metric}"],
+            separator=' ',
+        )
 
     def __bool__(self) -> bool:
         """Always true for a valid instance."""
         return True
-
-    def __str__(self) -> str:
-        return f"{self._amount} {self._metric}"
 
 
 RT = typing.TypeVar('RT')
@@ -540,10 +541,17 @@ class Measured(Quantified):
         unit: metric.UnitLike=None,
     ) -> None:
         super().__init__(__amount, metric.Unit(unit or '1'))
-        self._display = {
-            '__str__': [str(self._amount), f"[{self.unit()}]"],
-            '__repr__': [str(self._amount), f"unit={self.unit()}"],
+        display = {
+            '__str__': {
+                'strings': ["{_amount}", "[{unit}]"],
+                'separator': ' ',
+            },
+            '__repr__': {
+                'strings': ["{_amount}", "unit='{unit}'"],
+                'separator': ', ',
+            },
         }
+        self.display.update(display)
 
     def unit(self, unit: metric.UnitLike=None):
         """Get or set the unit of this object's values."""
@@ -553,14 +561,6 @@ class Measured(Quantified):
         self._amount *= new // self._metric
         self._metric = new
         return self
-
-    def __str__(self) -> str:
-        strings = self._display['__str__']
-        return " ".join(strings)
-
-    def __repr__(self) -> str:
-        strings = self._display['__repr__']
-        return f"{self.__class__.__qualname__}({', '.join(strings)})"
 
 
 T = typing.TypeVar('T')
