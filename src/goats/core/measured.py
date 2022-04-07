@@ -540,6 +540,10 @@ class Measured(Quantified):
         unit: metric.UnitLike=None,
     ) -> None:
         super().__init__(__amount, metric.Unit(unit or '1'))
+        self._display = {
+            '__str__': [str(self._amount), f"[{self.unit()}]"],
+            '__repr__': [str(self._amount), f"unit={self.unit()}"],
+        }
 
     def unit(self, unit: metric.UnitLike=None):
         """Get or set the unit of this object's values."""
@@ -551,24 +555,12 @@ class Measured(Quantified):
         return self
 
     def __str__(self) -> str:
-        strings = self._display('__str__').values()
+        strings = self._display['__str__']
         return " ".join(strings)
 
     def __repr__(self) -> str:
-        strings = self._display('__repr__').values()
+        strings = self._display['__repr__']
         return f"{self.__class__.__qualname__}({', '.join(strings)})"
-
-    def _display(self, name: str):
-        """Helper for `__str__` and `__repr__`."""
-        strings = {
-            '_amount': str(self._amount),
-            'unit': str(self.unit()),
-        }
-        if name == '__str__':
-            strings.update(unit=f"[{self.unit()}]")
-        elif name == '__repr__':
-            strings.update(unit=f"unit='{self.unit()}'")
-        return strings
 
 
 T = typing.TypeVar('T')
