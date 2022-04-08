@@ -248,42 +248,26 @@ RealValued.register(numbers.Real)
 RealValued.register(numpy.ndarray) # close enough for now...
 
 
-class Quantity(Algebraic, iterables.ReprStrMixin):
-    """A real-valued amount and the associated unit.
+class Quantifiable(Algebraic, iterables.ReprStrMixin):
+    """A real-valued amount and the associated metric.
     
-    This abstract base class represents the basis for all measurable quantities.
-    Concrete subclasses must implement all the `~measurable.Algebraic`
-    operators, and should do so in a way that self-consistently handles an
-    instance of `~metric.Unit`.
+    This abstract base class represents the basis for quantifiable objects.
+    Concrete subclasses must implement all the `~quantified.Algebraic`
+    operators, and should do so in a way that self-consistently handles the
+    instance metric.
     """
 
     def __init__(
         self,
-        amount: RealValued,
-        unit: metric.UnitLike=None,
+        __amount: RealValued,
+        __metric: Multiplicative,
     ) -> None:
-        self._amount = amount
-        self._unit = metric.Unit(unit or '1')
-        display = {
-            '__str__': {
-                'strings': ["{_amount}", "[{unit}]"],
-                'separator': ' ',
-            },
-            '__repr__': {
-                'strings': ["{_amount}", "unit='{unit}'"],
-                'separator': ', ',
-            },
-        }
-        self.display.update(display)
-
-    def unit(self, unit: metric.UnitLike=None):
-        """Get or set the unit of this object's values."""
-        if not unit:
-            return self._unit
-        new = metric.Unit(unit)
-        self._amount *= new // self._unit
-        self._unit = new
-        return self
+        self._amount = __amount
+        self._metric = __metric
+        self.display['__str__'].update(
+            strings=["{_amount} {_metric}"],
+            separator=' ',
+        )
 
     def __bool__(self) -> bool:
         """Always true for a valid instance."""
@@ -351,9 +335,9 @@ Operator = typing.Callable[..., RT]
 
 def _comparison(opr: Operator):
     """Implement a comparison operator."""
-    @same('_unit', allowed=numbers.Real)
-    def func(a: Quantity, b):
-        if isinstance(b, Quantity):
+    @same('_metric', allowed=numbers.Real)
+    def func(a: Quantifiable, b):
+        if isinstance(b, Quantifiable):
             return opr(a._amount, b._amount)
         if isinstance(b, Orderable):
             return opr(a._amount, b)
@@ -365,8 +349,8 @@ def _comparison(opr: Operator):
 
 def _unary(opr: Operator):
     """Implement a unary arithmetic operator."""
-    def func(a: Quantity):
-        return type(a)(opr(a._amount), a._unit)
+    def func(a: Quantifiable):
+        return type(a)(opr(a._amount), a._metric)
     func.__name__ = f"__{opr.__name__}__"
     func.__doc__ = opr.__doc__
     return func
@@ -374,35 +358,35 @@ def _unary(opr: Operator):
 
 def _preserve_metric(opr: Operator):
     """Implement a forward operator that preserves the instance metric."""
-    @same('_unit')
-    def func(a: Quantity, b: Quantity):
-        return type(a)(opr(a._amount, b._amount), a._unit)
+    @same('_metric')
+    def func(a: Quantifiable, b: Quantifiable):
+        return type(a)(opr(a._amount, b._amount), a._metric)
     return func
 
 
 def _combine_metric(opr: Operator):
     """Implement a forward operator that combines instance metrics."""
-    def func(a: Quantity, b: Quantity):
-        return type(a)(opr(a._amount, b._amount), opr(a._unit, b._unit))
+    def func(a: Quantifiable, b: Quantifiable):
+        return type(a)(opr(a._amount, b._amount), opr(a._metric, b._metric))
     return func
 
 
 def _update_metric(opr: Operator):
     """Implement a forward operator that updates the instance metric."""
-    def func(a: Quantity, b: RealValued):
-        return type(a)(opr(a._amount, b), opr(a._unit, b))
+    def func(a: Quantifiable, b: RealValued):
+        return type(a)(opr(a._amount, b), opr(a._metric, b))
     return func
 
 
 def _standard(opr: Operator):
     """Implement a standard forward operator."""
-    def func(a: Quantity, b: RealValued):
-        return type(a)(opr(a._amount, b), a._unit)
+    def func(a: Quantifiable, b: RealValued):
+        return type(a)(opr(a._amount, b), a._metric)
     return func
 
 
 Wrapper = typing.TypeVar('Wrapper', bound=typing.Callable)
-Wrapper = typing.Callable[..., typing.Callable[..., Quantity]]
+Wrapper = typing.Callable[..., typing.Callable[..., Quantifiable]]
 
 
 Rules = typing.TypeVar('Rules', bound=dict)
@@ -414,23 +398,23 @@ Rules = typing.Dict[
 
 _operators: typing.Dict[Operator, Rules] = {
     operator.add: {
-        (Quantity, Quantity): _preserve_metric,
-        (Quantity, RealValued): _standard,
+        (Quantifiable, Quantifiable): _preserve_metric,
+        (Quantifiable, RealValued): _standard,
     },
     operator.sub: {
-        (Quantity, Quantity): _preserve_metric,
-        (Quantity, RealValued): _standard,
+        (Quantifiable, Quantifiable): _preserve_metric,
+        (Quantifiable, RealValued): _standard,
     },
     operator.mul: {
-        (Quantity, Quantity): _combine_metric,
-        (Quantity, RealValued): _standard,
+        (Quantifiable, Quantifiable): _combine_metric,
+        (Quantifiable, RealValued): _standard,
     },
     operator.truediv: {
-        (Quantity, Quantity): _combine_metric,
-        (Quantity, RealValued): _standard,
+        (Quantifiable, Quantifiable): _combine_metric,
+        (Quantifiable, RealValued): _standard,
     },
     operator.pow: {
-        (Quantity, RealValued): _update_metric,
+        (Quantifiable, RealValued): _update_metric,
     },
 }
 
@@ -447,7 +431,7 @@ def _get_rule(rules: dict, *args) -> Wrapper:
 def _forward(opr: Operator):
     """Implement a forward operator."""
     rules = _operators.get(opr)
-    def func(a: Quantity, b):
+    def func(a: Quantifiable, b):
         rule = _get_rule(rules, a, b)
         return rule(opr)(a, b) if rule else NotImplemented
     func.__name__ = f"__{opr.__name__}__"
@@ -458,11 +442,11 @@ def _forward(opr: Operator):
 def _inplace(opr: Operator):
     """Implement an in-place operator."""
     rules = _operators.get(opr)
-    def func(a: Quantity, b):
+    def func(a: Quantifiable, b):
         if rule := _get_rule(rules, a, b):
             result = rule(opr)(a, b)
             a._amount = result._amount
-            a._unit = result._unit
+            a._metric = result._metric
             return a
         return NotImplemented
     func.__name__ = f"__i{opr.__name__}__"
@@ -472,9 +456,9 @@ def _inplace(opr: Operator):
 
 def _reverse(opr: Operator):
     """Implement a standard reverse operator."""
-    def func(b: Quantity, a):
+    def func(b: Quantifiable, a):
         return (
-            type(b)(opr(a, b._amount), b._unit) if isinstance(a, RealValued)
+            type(b)(opr(a, b._amount), b._metric) if isinstance(a, RealValued)
             else NotImplemented
         )
     func.__name__ = f"__r{opr.__name__}__"
@@ -551,11 +535,11 @@ class OperatorMixin:
 T = typing.TypeVar('T')
 
 
-def _cast(__type: typing.Type[T]) -> typing.Callable[[Quantity], T]:
+def _cast(__type: typing.Type[T]) -> typing.Callable[[Quantifiable], T]:
     """Implement a type-casting operator."""
     def func(a):
         return (
-            __type(a._amount) if isinstance(a, Quantity)
+            __type(a._amount) if isinstance(a, Quantifiable)
             else NotImplemented
         )
     name = __type.__class__.__qualname__
@@ -602,8 +586,57 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
         return f"{values} [{self._unit}]"
 
 
+class Quantity(Quantifiable):
+    """A real-valued amount and the associated unit.
+    
+    This abstract base class represents the basis for all measurable quantities.
+    It builds on `~measurable.Quantifiable` by specifying an instance of
+    `~metric.Unit` as the metric.
+
+    This class is intended as the primary ABC on which to build more specific
+    abstract or concrete measurable objects. Concrete subclasses must implement
+    all the abstract methods of `~measurable.Algebraic`, but may choose to do so
+    in a way that leverages properties of the `~metric.Unit` class. Implementors
+    may use `~measurable.OperatorMixin` as a simple way to provide default
+    versions of all required operators.
+    """
+
+    def __init__(
+        self,
+        amount: RealValued,
+        unit: metric.UnitLike=None,
+    ) -> None:
+        super().__init__(amount, metric.Unit(unit or '1'))
+        display = {
+            '__str__': {
+                'strings': ["{_amount}", "[{_metric}]"],
+                'separator': ' ',
+            },
+            '__repr__': {
+                'strings': ["{_amount}", "unit='{_metric}'"],
+                'separator': ', ',
+            },
+        }
+        self.display.update(display)
+
+    def unit(self, unit: metric.UnitLike=None):
+        """Get or set the unit of this object's values."""
+        if not unit:
+            return self._metric
+        new = metric.Unit(unit)
+        self._amount *= new // self._metric
+        self._metric = new
+        return self
+
+
 class Measurable(Quantity):
-    """A quantifiable object that supports measure(self)."""
+    """A quantifiable object that supports direct measurement.
+    
+    Concrete subclasses of this ABC must implement all the abstract methods of
+    `~measurable.Algebraic`, as well as a new method, `__measure__`, which the
+    `~measurable.measure` function will call to produce an instance of
+    `~measurable.Measurement` from the given instance.
+    """
 
     @abc.abstractmethod
     def __measure__(self) -> Measurement:
@@ -653,7 +686,7 @@ class SingleValued(Measurable):
 
     def __measure__(self) -> Measurement:
         values = iterables.whole(self._amount)
-        return Measurement(values, self._unit)
+        return Measurement(values, self.unit())
 
 
 class MultiValued(Measurable):
@@ -681,7 +714,7 @@ class MultiValued(Measurable):
         pass
 
     def __measure__(self) -> Measurement:
-        return Measurement(self._amount, self._unit)
+        return Measurement(self._amount, self.unit())
 
 
 class Scalar(OperatorMixin, SingleValued):

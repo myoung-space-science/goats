@@ -331,8 +331,8 @@ def vectors_equal(v0: measurable.Vector, v1: measurable.Vector):
 
 def test_quantified_bool():
     """Quantified objects are always truthy."""
-    class Quantified(measurable.OperatorMixin, measurable.Quantity):
-        """Concrete version of `~measurable.Quantity` for testing."""
+    class Quantified(measurable.OperatorMixin, measurable.Quantifiable):
+        """Concrete version of `~measurable.Quantifiable` for testing."""
     cases = [
         Quantified(1, 'quantum'),
         Quantified(0, 'quantum'),
