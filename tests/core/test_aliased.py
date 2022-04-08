@@ -17,6 +17,7 @@ def test_aliased_key():
     assert key | 't3' == aliased.MappingKey('t0', 't1', 't2', 't3')
     assert key - 't2' == aliased.MappingKey('t0', 't1')
     assert aliased.MappingKey('a', 'b') == aliased.MappingKey('b', 'a')
+    assert not aliased.MappingKey('')
 
 
 def test_alias_map():

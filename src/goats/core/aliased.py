@@ -52,6 +52,10 @@ class MappingKey(iterables.ReprStrMixin, collections.abc.Set):
         """Compute the hash of the underlying key set."""
         return hash(tuple(self._aliases))
 
+    def __bool__(self) -> bool:
+        """Same as the truth value of the equivalent string."""
+        return bool(str(self))
+
     def _implement(operator):
         def method(self: 'MappingKey', other):
             return operator(self, MappingKey(other))
