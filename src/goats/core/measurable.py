@@ -623,6 +623,8 @@ class Quantity(Quantifiable):
         """Get or set the unit of this object's values."""
         if not unit:
             return self._metric
+        if unit == self._metric:
+            return self
         new = metric.Unit(unit)
         self._amount *= new // self._metric
         self._metric = new
