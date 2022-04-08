@@ -9,205 +9,9 @@ import typing
 import numpy
 import numpy.typing
 
-from goats.core import aliased
+from goats.core import algebra
 from goats.core import iterables
 from goats.core import metric
-
-
-@typing.runtime_checkable
-class Orderable(typing.Protocol):
-    """Protocol for objects that support ordering.
-    
-    Instance checks against this ABC will return `True` iff the instance
-    implements the following methods: `__lt__`, `__gt__`, `__le__`, `__ge__`,
-    `__eq__`, and `__ne__`. It exists to support type-checking orderable objects
-    outside the `~quantified.Algebraic` framework (e.g., pure numbers).
-    """
-
-    __slots__ = ()
-
-    @abc.abstractmethod
-    def __lt__(self, other):
-        pass
-
-    @abc.abstractmethod
-    def __eq__(self, other):
-        pass
-
-    @abc.abstractmethod
-    def __le__(self, other):
-        pass
-
-    @abc.abstractmethod
-    def __gt__(self, other):
-        pass
-
-    @abc.abstractmethod
-    def __ge__(self, other):
-        pass
-
-    @abc.abstractmethod
-    def __ne__(self, other):
-        pass
-
-
-class Ordered:
-    """Abstract base class for all objects that support relative ordering.
-
-    Concrete implementations of this class must define the six binary comparison
-    operators (a.k.a "rich comparison" operators): `__lt__`, `__gt__`, `__le__`,
-    `__ge__`, `__eq__`, and `__ne__`.
-
-    The following default implementations are available by calling their
-    equivalents on `super()`:
-
-    - `__ne__`: defined as not equal.
-    - `__le__`: defined as less than or equal.
-    - `__gt__`: defined as not less than and not equal.
-    - `__ge__`: defined as not less than.
-    """
-
-    __slots__ = ()
-
-    __hash__ = None
-
-    @abc.abstractmethod
-    def __lt__(self, other) -> bool:
-        """True if self < other."""
-        pass
-
-    @abc.abstractmethod
-    def __eq__(self, other) -> bool:
-        """True if self == other."""
-        pass
-
-    @abc.abstractmethod
-    def __le__(self, other) -> bool:
-        """True if self <= other."""
-        return self.__lt__(other) or self.__eq__(other)
-
-    @abc.abstractmethod
-    def __gt__(self, other) -> bool:
-        """True if self > other."""
-        return not self.__le__(other)
-
-    @abc.abstractmethod
-    def __ge__(self, other) -> bool:
-        """True if self >= other."""
-        return not self.__lt__(other)
-
-    @abc.abstractmethod
-    def __ne__(self, other) -> bool:
-        """True if self != other."""
-        return not self.__eq__(other)
-
-
-Self = typing.TypeVar('Self', bound='Additive')
-
-
-class Additive(abc.ABC):
-    """Abstract base class for additive objects."""
-
-    __slots__ = ()
-
-    @abc.abstractmethod
-    def __add__(self: Self, other) -> Self:
-        pass
-
-    @abc.abstractmethod
-    def __radd__(self: Self, other) -> Self:
-        pass
-
-    @abc.abstractmethod
-    def __sub__(self: Self, other) -> Self:
-        pass
-
-    @abc.abstractmethod
-    def __rsub__(self: Self, other) -> Self:
-        pass
-
-
-Self = typing.TypeVar('Self', bound='Multiplicative')
-
-
-class Multiplicative(abc.ABC):
-    """Abstract base class for multiplicative objects."""
-
-    __slots__ = ()
-
-    @abc.abstractmethod
-    def __mul__(self: Self, other) -> Self:
-        pass
-
-    @abc.abstractmethod
-    def __rmul__(self: Self, other) -> Self:
-        pass
-
-    @abc.abstractmethod
-    def __truediv__(self: Self, other) -> Self:
-        pass
-
-    @abc.abstractmethod
-    def __rtruediv__(self: Self, other) -> Self:
-        pass
-
-    @abc.abstractmethod
-    def __pow__(self: Self, other) -> Self:
-        pass
-
-    @abc.abstractmethod
-    def __rpow__(self: Self, other) -> Self:
-        pass
-
-
-class Algebraic(Ordered, Additive, Multiplicative):
-    """Base class for algebraic objects.
-
-    Concrete subclasses of this class must implement the six comparison
-    operators,
-        - `__lt__` (less than; called for `self < other`)
-        - `__gt__` (greater than; called for `self > other`)
-        - `__le__` (less than or equal to; called for `self <= other`)
-        - `__ge__` (greater than or equal to; called for `self >= other`)
-        - `__eq__` (equal to; called for `self == other`)
-        - `__ne__` (not equal to; called for `self != other`)
-    
-    the following unary arithmetic operators,
-        - `__abs__` (absolute value; called for `abs(self)`)
-        - `__neg__` (negative value; called for `-self`)
-        - `__pos__` (positive value; called for `+self`)
-
-    and the following binary arithmetic operators,
-        - `__add__` (addition; called for `self + other`)
-        - `__radd__` (reflected addition; called for `other + self`)
-        - `__sub__` (subtraction; called for `self - other`)
-        - `__rsub__` (reflected subtraction; called for `other - self`)
-        - `__mul__` (multiplication; called for `self * other`)
-        - `__rmul__` (reflected multiplication; called for `other * self`)
-        - `__truediv__` (division; called for `self / other`)
-        - `__rtruediv__` (reflected division; called for `other / self`)
-        - `__pow__` (exponentiation; called for `self ** other`)
-        - `__rpow__` (reflected exponentiation; called for `other ** self`)
-
-    Any required method may return `NotImplemented`.
-    """
-
-    __slots__ = ()
-
-    @abc.abstractmethod
-    def __abs__(self):
-        """Implements abs(self)."""
-        pass
-
-    @abc.abstractmethod
-    def __neg__(self):
-        """Called for -self."""
-        pass
-
-    @abc.abstractmethod
-    def __pos__(self):
-        """Called for +self."""
-        pass
 
 
 Self = typing.TypeVar('Self', bound='SupportsNeg')
@@ -224,7 +28,7 @@ class SupportsNeg(typing.Protocol):
         pass
 
 
-class RealValued(Algebraic):
+class RealValued(algebra.Algebraic):
     """Abstract base class for all real-valued objects.
     
     This class is similar to ``numbers.Real``, but it does not presume to
@@ -249,7 +53,7 @@ RealValued.register(numbers.Real)
 RealValued.register(numpy.ndarray) # close enough for now...
 
 
-class Quantifiable(Algebraic, iterables.ReprStrMixin):
+class Quantifiable(algebra.Algebraic, iterables.ReprStrMixin):
     """A real-valued amount and the associated metric.
     
     This abstract base class represents the basis for quantifiable objects.
@@ -261,7 +65,7 @@ class Quantifiable(Algebraic, iterables.ReprStrMixin):
     def __init__(
         self,
         __amount: RealValued,
-        __metric: Multiplicative,
+        __metric: algebra.Multiplicative,
     ) -> None:
         self._amount = __amount
         self._metric = __metric
@@ -340,7 +144,7 @@ def _comparison(opr: Operator):
     def func(a: Quantifiable, b):
         if isinstance(b, Quantifiable):
             return opr(a._amount, b._amount)
-        if isinstance(b, Orderable):
+        if isinstance(b, algebra.Orderable):
             return opr(a._amount, b)
         return NotImplemented
     func.__name__ = f"__{opr.__name__}__"
