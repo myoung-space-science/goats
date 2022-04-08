@@ -50,6 +50,10 @@ def test_ordered():
     assert this >= 1
 
 
+class Quantified(measurable.OperatorMixin, measurable.Quantifiable):
+    """Concrete version of `~measurable.Quantifiable` for testing."""
+
+
 class Quantity(measurable.OperatorMixin, measurable.Quantity):
     """Concrete quantity for testing."""
 
@@ -343,8 +347,6 @@ def vectors_equal(v0: measurable.Vector, v1: measurable.Vector):
 
 def test_quantified_bool():
     """Quantified objects are always truthy."""
-    class Quantified(measurable.OperatorMixin, measurable.Quantifiable):
-        """Concrete version of `~measurable.Quantifiable` for testing."""
     cases = [
         Quantified(1, 'quantum'),
         Quantified(0, 'quantum'),
