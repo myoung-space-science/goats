@@ -599,10 +599,13 @@ class Quantity(Quantifiable):
 
     This class is intended as the primary ABC on which to build more specific
     abstract or concrete measurable objects. Concrete subclasses must implement
-    all the abstract methods of `~measurable.Algebraic`, but may choose to do so
-    in a way that leverages properties of the `~metric.Unit` class. Implementors
-    may use `~measurable.OperatorMixin` as a simple way to provide default
-    versions of all required operators.
+    all the abstract methods of `~measurable.Algebraic`. Implementors may use
+    `~measurable.OperatorMixin` as a simple way to provide default versions of
+    all required operators. Those default implementations inter-operate with all
+    concrete types that define the `~measurable.Multiplicative` operators, and
+    therefore automatically handle `~metric.Unit`. However, implementators may
+    choose to overload certain operators in order to leverage properties of the
+    `~metric.Unit` class.
     """
 
     @typing.overload
@@ -659,6 +662,10 @@ class Quantity(Quantifiable):
             return self._metric
         if unit == self._metric:
             return self
+        return self._update_unit(unit)
+
+    def _update_unit(self, unit: metric.UnitLike=None):
+        """Update the instance unit. Extracted for overloading."""
         new = metric.Unit(unit)
         self._amount *= new // self._metric
         self._metric = new
