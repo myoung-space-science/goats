@@ -5,7 +5,7 @@ import numpy as np
 from goats.core import base
 from goats.core import aliased
 from goats.core import metric
-from goats.core import algebra
+from goats.core import algebraic
 from goats.core import iterables
 from goats.core import measurable
 from goats.core import datasets
@@ -43,11 +43,11 @@ Assumption = typing.Union[
 Implementation = typing.TypeVar(
     'Implementation',
     Observable,
-    algebra.Expression,
+    algebraic.Expression,
 )
 Implementation = typing.Union[
     Observable,
-    algebra.Expression,
+    algebraic.Expression,
 ]
 
 
@@ -76,7 +76,7 @@ Reference = typing.Union[
 class Compound(typing.NamedTuple):
     """An algebraic combination of primary or derived observables."""
 
-    expression: algebra.Expression
+    expression: algebraic.Expression
     axes: typing.Tuple[str]
     name: str=None
 
@@ -435,10 +435,10 @@ class Observables(iterables.MappingBase):
         if key in self.functions:
             return self.functions[key]
         if '/' in key or '*' in key:
-            expression = algebra.Expression(key)
+            expression = algebraic.Expression(key)
             return self._build_compound_observable(expression)
 
-    def _build_compound_observable(self, expression: algebra.Expression):
+    def _build_compound_observable(self, expression: algebraic.Expression):
         """Build a compound observable from an algebraic expression."""
         unique = list(
             {
@@ -470,7 +470,7 @@ class Observables(iterables.MappingBase):
             ]
             return {i[0]: i[1] for i in items}
         if '/' in key or '*' in key:
-            terms = algebra.Expression(key).terms
+            terms = algebraic.Expression(key).terms
             out = {}
             for term in terms:
                 name = term.base

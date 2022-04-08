@@ -1326,7 +1326,7 @@ class Orderable(typing.Protocol):
     Instance checks against this ABC will return `True` iff the instance
     implements the following methods: `__lt__`, `__gt__`, `__le__`, `__ge__`,
     `__eq__`, and `__ne__`. It exists to support type-checking orderable objects
-    outside the `~quantified.Algebraic` framework (e.g., pure numbers).
+    outside the `~algebraic.Quantity` framework (e.g., pure numbers).
     """
 
     __slots__ = ()
@@ -1468,8 +1468,8 @@ class Multiplicative(abc.ABC):
 Multiplicative.register(Expression)
 
 
-class Algebraic(Ordered, Additive, Multiplicative):
-    """Base class for algebraic objects.
+class Quantity(Ordered, Additive, Multiplicative):
+    """Base class for algebraic quantities.
 
     Concrete subclasses of this class must implement the six comparison
     operators,

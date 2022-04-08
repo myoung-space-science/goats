@@ -99,41 +99,68 @@ class Ufunc(iterables.ReprStrMixin):
         return self.name
 
 
-IndexLike = typing.TypeVar(
-    'IndexLike',
-    typing.Iterable[int],
-    slice,
-    type(Ellipsis),
-)
-IndexLike = typing.Union[typing.Iterable[int], slice, type(Ellipsis)]
+Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
-Instance = typing.TypeVar('Instance', bound='Physical')
-
-
-class Physical(collections.abc.Sequence, measurable.RealValued):
-    """Base class for physical objects."""
+class Quantity(measurable.Quantity):
+    """A measurable quantity with a name."""
 
     @typing.overload
     def __init__(
         self: Instance,
-        data: numpy.typing.ArrayLike,
-        *names: str,
-        unit: typing.Union[str, metric.Unit]=None,
+        amount: measurable.RealValued,
+        unit: metric.UnitLike=None,
+        name: str=None,
     ) -> None:
-        """Create a new instance."""
+        """Initialize this instance from arguments."""
 
     @typing.overload
     def __init__(
         self: Instance,
         instance: Instance,
     ) -> None:
-        """Create a new instance."""
+        """Initialize this instance from an existing one."""
 
-    _search_attrs = ['_data']
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._name = self._parse_quantity(*args, **kwargs)
+        if self._name:
+            self.display['__str__']['strings'].insert(0, "'{_name}': ")
+            self.display['__repr__']['strings'].insert(1, "'{_name}'")
+
+    def _parse_quantity(self, *args, **kwargs):
+        """Parse input arguments to initialize this instance."""
+        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
+            return args[0]._name
+        return aliased.MappingKey(
+            args[2] if len(args) == 3
+            else kwargs.get('name') or ''
+        )
+
+    def name(self, *new: str, reset: bool=False):
+        """Get, set, or add to this object's name(s)."""
+        if not new:
+            return self._name
+        name = new if reset else self._name | new
+        self._name = aliased.MappingKey(name)
+        return self
+
+
+# This is probably just over-engineering.
+class AttrSearchMixin:
+    """Mixin class to provide access to underlying attributes."""
+
+    _search_attrs = None
+
+    @property
+    def search_attrs(self):
+        """The known attributes to search for unknown attributes."""
+        if self._search_attrs is None:
+            self._search_attrs = []
+        return self._search_attrs
 
     def search(self, *names: str):
-        """Add attributes to the search path.
+        """Add attributes to the search collection.
         
         Passing one or more names to this method will add them to the internal
         attribute that determines where to search for attributes that are not
@@ -145,88 +172,11 @@ class Physical(collections.abc.Sequence, measurable.RealValued):
         """
         self._search_attrs += list(names)
 
-    def __init__(self, *args, **kwargs) -> None:
-        parsed = self._parse(*args, **kwargs)
-        self._data, names, unit = parsed
-        self.names = names
-        """The valid names for this object."""
-        self.unit = unit
-        """The unit of this object's values."""
-        self._scale = 1.0
-        self._rescale = True
-
-    Attrs = typing.TypeVar('Attrs', bound=tuple)
-    Attrs = typing.Tuple[
-        numpy.typing.ArrayLike,
-        aliased.MappingKey,
-        metric.Unit,
-    ]
-
-    def _parse(self, *args, **kwargs) -> Attrs:
-        """Parse input arguments to initialize this instance."""
-        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
-            instance = args[0]
-            return tuple(
-                getattr(instance, name)
-                for name in ('_data', 'names', 'unit')
-            )
-        data, *args = args
-        names = aliased.MappingKey(args or ())
-        unit = metric.Unit(kwargs.get('unit', '1'))
-        return data, names, unit
-
-    def convert_to(self, unit: str):
-        """Change this variable's unit and update the numerical scale factor."""
-        if unit == self.unit:
-            return self
-        self._scale *= (metric.Unit(unit) // self.unit)
-        self._rescale = True
-        self.unit = unit
-        return self
-
-    def rename(self, *new: str, update: bool=False):
-        """Change or update this variable's name(s)."""
-        names = self.names | new if update else new
-        self.names = aliased.MappingKey(names)
-        return self
-
-    def __eq__(self, other: typing.Any):
-        """True if two instances have the same data and attributes."""
-        if not isinstance(other, type(self)):
-            return NotImplemented
-        if not self.unit == other.unit:
-            return False
-        return numpy.array_equal(other, self)
-
-    def __bool__(self) -> bool:
-        """Called for bool(self).
-        
-        This simply evaluates the existance of this instance, which is always
-        trivially `True`.
-        """
-        return True
-
-    def __len__(self):
-        """Called for len(self)."""
-        if method := self._get_base_attr('__len__'):
-            return method()
-        return len(self._data)
-
-    def __getattr__(self, name: str):
-        """Access an attribute of the underlying data object or array."""
-        if attr := self._get_base_attr(name):
-            self.__dict__[name] = attr
-            return attr
-        raise AttributeError(name)
-
     def _get_base_attr(self, name: str):
         """Helper method to efficiently access underlying attributes.
 
-        This method will first search `_data` for the named attribute, to take
-        advantage of viewers that provide metadata without loading the full
-        dataset. If that search fails, this method will attempt to retrieve the
-        named attribute from additional attributes named in
-        `self._search_attrs`, if any.
+        This method will attempt to retrieve the named attribute from the
+        attributes in `self._search_attrs`, if any.
         """
         targets = [getattr(self, name) for name in self._search_attrs]
         for target in targets:
@@ -235,26 +185,81 @@ class Physical(collections.abc.Sequence, measurable.RealValued):
                 if value := getattr(attr, name):
                     return value
 
-    def _copy_with(self, **updates):
-        """Create a new instance from the current attributes."""
-        data = updates.get('data', self._data)
-        names = updates.get('names', self.names)
-        unit = updates.get('unit', self.unit)
-        if isinstance(names, str):
-            return Physical(data, names, unit=unit)
-        return Physical(data, *names, unit=unit)
+
+
+class Value(Quantity):
+    """"""
+
+
+IndexLike = typing.TypeVar(
+    'IndexLike',
+    typing.Iterable[int],
+    slice,
+    type(Ellipsis),
+)
+IndexLike = typing.Union[typing.Iterable[int], slice, type(Ellipsis)]
 
 
 Instance = typing.TypeVar('Instance', bound='Array')
 
 
-class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Physical):
+class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
     """Base class for array-like objects."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        self._scale = 1.0
+        self._old_scale = self._scale
         self._array = None
-        self.search('_get_array')
+
+    def unit(self, unit: metric.UnitLike=None):
+        """Get or set the unit of this object's values."""
+        if not unit:
+            return self._metric
+        if unit == self._metric:
+            return self
+        new = metric.Unit(unit)
+        self._scale *= new // self._metric
+        self._metric = new
+        return self
+
+    def __eq__(self, other: typing.Any):
+        """True if two instances have the same data and attributes."""
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        if not self.unit() == other.unit():
+            return False
+        return numpy.array_equal(other, self)
+
+    def __len__(self):
+        """Called for len(self)."""
+        if method := self._get_base_attr('__len__'):
+            return method()
+        return len(self._amount)
+
+    def __getattr__(self, name: str):
+        """Access an attribute of the underlying data object or array."""
+        if attr := self._get_base_attr(name):
+            self.__dict__[name] = attr
+            return attr
+        raise AttributeError(name)
+
+    _search_attrs = ('_amount', '_get_array')
+
+    def _get_base_attr(self, name: str):
+        """Helper method to efficiently access underlying attributes.
+
+        This method will first search the underlying data object for the named
+        attribute, to take advantage of viewers that provide metadata without
+        loading the full dataset. If that search fails, this method will attempt
+        to retrieve the named attribute from the actual dataset array.
+        """
+        targets = [getattr(self, name) for name in self._search_attrs]
+        for target in targets:
+            with contextlib.suppress(AttributeError):
+                attr = target() if callable(target) else target
+                if value := getattr(attr, name):
+                    return value
 
     _builtin = (int, slice, type(...))
 
@@ -280,10 +285,8 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Physical):
         integers.
         """
         result = self._get_array(indices)
-        if isinstance(result, numbers.Number):
-            # Should be consistent about names here.
-            return measurable.Scalar(result, unit=self.unit)
-        return Array(result, *self.names, unit=self.unit)
+        Type = Value if isinstance(result, numbers.Number) else Array
+        return Type(result, unit=self.unit(), name=self.name())
 
     def _subscript_custom(self, args):
         """Perform array subscription specific to this object.
@@ -487,13 +490,20 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Physical):
             return self._copy_with(data=result, **updates)
         return result
 
+    def _copy_with(self, **updates):
+        """Create a new instance from the current attributes."""
+        data = updates.get('data', self._amount)
+        name = updates.get('names', self.name())
+        unit = updates.get('unit', self.unit())
+        return Array(data, unit=unit, name=name)
+
     def __str__(self) -> str:
         """A simplified representation of this object."""
         # Consider using the `numpy` string helper functions.
         attrs = [
-            f"unit='{self.unit}'",
+            f"unit='{self.unit()}'",
         ]
-        return f"'{self.names}': {', '.join(attrs)}"
+        return f"'{self.name()}': {', '.join(attrs)}"
 
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
@@ -577,15 +587,7 @@ class Variable(Array):
                 f" must equal number of array dimensions ({self.ndim})"
             )
 
-    Attrs = typing.TypeVar('Attrs', bound=tuple)
-    Attrs = typing.Tuple[
-        numpy.typing.ArrayLike,
-        aliased.MappingKey,
-        metric.Unit,
-        typing.Tuple[str],
-    ]
-
-    def _parse_variable(self, *args, **kwargs) -> Attrs:
+    def _parse_variable(self, *args, **kwargs) -> typing.Tuple[str]:
         """Parse input arguments to initialize this instance."""
         if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
             return args[0].axes
@@ -1029,30 +1031,6 @@ class Assumption(measurable.Measurement):
             f"'{self.aliases}': {values} '{self.unit}'" if self.aliases
             else f"{values} '{self.unit}'"
         )
-
-
-class Quantity(measurable.Quantity):
-    """A measured object with optional name."""
-
-    def __init__(
-        self,
-        __amount: numbers.Real,
-        unit: metric.UnitLike=None,
-        name: str=None,
-    ) -> None:
-        super().__init__(__amount, unit)
-        self._name = aliased.MappingKey(name or '')
-        if self._name:
-            self.display['__str__']['strings'].insert(0, "'{_name}': ")
-            self.display['__repr__']['strings'].insert(1, "'{_name}'")
-
-    def name(self, *new: str, reset: bool=False):
-        """Get, set, or add to this object's name(s)."""
-        if not new:
-            return self._name
-        name = new if reset else self._name | new
-        self._name = aliased.MappingKey(name)
-        return self
 
 
 class Option(iterables.ReprStrMixin):

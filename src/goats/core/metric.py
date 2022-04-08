@@ -4,7 +4,7 @@ import typing
 
 import numpy as np
 
-from goats.core import algebra
+from goats.core import algebraic
 from goats.core import aliased
 from goats.core import iterables
 
@@ -862,19 +862,19 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
         """Parse a string representing a compound quantity."""
         if ' ' in string and all(c not in string for c in ['*', '/']):
             string = string.replace(' ', '_')
-        parts = [self._expand(term) for term in algebra.Expression(string)]
+        parts = [self._expand(term) for term in algebraic.Expression(string)]
         keys = {key for part in parts for key in part.keys()}
         merged = {key: [] for key in keys}
         for part in parts:
             for key, value in part.items():
                 merged[key].append(value)
         return {
-            k: str(algebra.Expression(v))
+            k: str(algebraic.Expression(v))
             for k, v in merged.items()
         }
 
-    _operand = algebra.OperandFactory()
-    def _expand(self, term: algebra.Term):
+    _operand = algebraic.OperandFactory()
+    def _expand(self, term: algebraic.Term):
         """Create a `dict` of operands from this term."""
         return {
             k: self._operand.create(v, term.exponent)
@@ -1076,7 +1076,7 @@ class NamedUnit(iterables.ReprStrMixin):
     @property
     def decomposed(self):
         """The representation of this unit in base-quantity units."""
-        terms = algebra.Expression(self.dimension)
+        terms = algebraic.Expression(self.dimension)
         quantities = [
             _BASE_QUANTITIES.find(term.base)[0]['name']
             for term in terms
@@ -1087,7 +1087,7 @@ class NamedUnit(iterables.ReprStrMixin):
         ]
         parsed = [self.parse(unit) for unit in units]
         return [
-            algebra.Term(
+            algebraic.Term(
                 coefficient=part[0].factor*self.scale,
                 base=part[1].symbol,
                 exponent=term.exponent,
@@ -1367,7 +1367,7 @@ class Conversion(iterables.ReprStrMixin):
 
     def _convert_expressions(self, u0: str, u1: str):
         """Convert complex unit expressions term-by-term."""
-        e0, e1 = (algebra.Expression(unit) for unit in (u0, u1))
+        e0, e1 = (algebraic.Expression(unit) for unit in (u0, u1))
         if e0 == e1:
             return 1.0
         identities = {'#', '1'}
@@ -1393,9 +1393,9 @@ class Conversion(iterables.ReprStrMixin):
 
     def _match_terms(
         self,
-        target: algebra.Term,
-        terms: typing.Iterable[algebra.Term],
-    ) -> typing.Optional[typing.Union[float, algebra.Term]]:
+        target: algebraic.Term,
+        terms: typing.Iterable[algebraic.Term],
+    ) -> typing.Optional[typing.Union[float, algebraic.Term]]:
         """Attempt to convert `target` to a term in `terms`."""
         u0 = target.base
         exponent = target.exponent
@@ -1638,7 +1638,7 @@ UnitLike.register(str)
 Instance = typing.TypeVar('Instance', bound='Unit')
 
 
-class Unit(algebra.Expression):
+class Unit(algebraic.Expression):
     """An algebraic expression representing a physical unit."""
 
     _instances = {}
@@ -1721,7 +1721,7 @@ UnitLike.register(Unit)
 Instance = typing.TypeVar('Instance', bound='Dimension')
 
 
-class Dimension(algebra.Expression):
+class Dimension(algebraic.Expression):
     """An algebraic expression representing a physical dimension.
     
     This class exists to support the `dimension` property of `~metric.Unit`.
@@ -1735,10 +1735,10 @@ class Dimension(algebra.Expression):
     ) -> Instance:
         if isinstance(arg, Unit):
             terms = [
-                algebra.Term(
+                algebraic.Term(
                     base=NamedUnit(term.base).dimension,
                     exponent=term.exponent,
-                ) for term in algebra.Expression(arg)
+                ) for term in algebraic.Expression(arg)
             ]
             return super().__new__(cls, terms)
         if isinstance(arg, Metric):

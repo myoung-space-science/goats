@@ -9,7 +9,7 @@ import typing
 import numpy
 import numpy.typing
 
-from goats.core import algebra
+from goats.core import algebraic
 from goats.core import iterables
 from goats.core import metric
 
@@ -28,16 +28,16 @@ class SupportsNeg(typing.Protocol):
         pass
 
 
-class RealValued(algebra.Algebraic):
+class RealValued(algebraic.Quantity):
     """Abstract base class for all real-valued objects.
     
     This class is similar to ``numbers.Real``, but it does not presume to
     represent a single value.
     
     Concrete subclasses of this object must implement all the
-    `~quantified.Algebraic` operators except for `__sub__` and `__rsub__`
-    (defined here with respect to `__neg__`). Subclasses may, of course,
-    override these base implementations.
+    `~algebraic.Quantity` operators except for `__sub__` and `__rsub__` (defined
+    here with respect to `__neg__`). Subclasses may, of course, override these
+    base implementations.
     """
 
     def __sub__(self, other: SupportsNeg):
@@ -53,19 +53,19 @@ RealValued.register(numbers.Real)
 RealValued.register(numpy.ndarray) # close enough for now...
 
 
-class Quantifiable(algebra.Algebraic, iterables.ReprStrMixin):
+class Quantifiable(algebraic.Quantity, iterables.ReprStrMixin):
     """A real-valued amount and the associated metric.
     
     This abstract base class represents the basis for quantifiable objects.
-    Concrete subclasses must implement all the `~quantified.Algebraic`
-    operators, and should do so in a way that self-consistently handles the
-    instance metric.
+    Concrete subclasses must implement all the `~algebraic.Quantity` operators,
+    and should do so in a way that self-consistently handles the instance
+    metric.
     """
 
     def __init__(
         self,
         __amount: RealValued,
-        __metric: algebra.Multiplicative,
+        __metric: algebraic.Multiplicative,
     ) -> None:
         self._amount = __amount
         self._metric = __metric
@@ -144,7 +144,7 @@ def _comparison(opr: Operator):
     def func(a: Quantifiable, b):
         if isinstance(b, Quantifiable):
             return opr(a._amount, b._amount)
-        if isinstance(b, algebra.Orderable):
+        if isinstance(b, algebraic.Orderable):
             return opr(a._amount, b)
         return NotImplemented
     func.__name__ = f"__{opr.__name__}__"
@@ -283,8 +283,8 @@ def _suppress(name: str):
 class OperatorMixin:
     """A mixin class that defines operators for quantifiable objects.
     
-    This class implements the `~quantified.Algebraic` operators with the
-    following rules:
+    This class implements the `~algebraic.Quantity` operators with the following
+    rules:
         - unary `-`, `+`, and `abs` on an instance
         - binary `+` and `-` between two instances with an identical metric
         - binary `*` and `/` between two instances
@@ -403,7 +403,7 @@ class Quantity(Quantifiable):
 
     This class is intended as the primary ABC on which to build more specific
     abstract or concrete measurable objects. Concrete subclasses must implement
-    all the abstract methods of `~measurable.Algebraic`. Implementors may use
+    all the abstract methods of `~algebraic.Quantity`. Implementors may use
     `~measurable.OperatorMixin` as a simple way to provide default versions of
     all required operators. Those default implementations inter-operate with all
     concrete types that define the `~measurable.Multiplicative` operators, and
@@ -480,7 +480,7 @@ class Measurable(Quantity):
     """A quantifiable object that supports direct measurement.
     
     Concrete subclasses of this ABC must implement all the abstract methods of
-    `~measurable.Algebraic`, as well as a new method, `__measure__`, which the
+    `~algebraic.Quantity`, as well as a new method, `__measure__`, which the
     `~measurable.measure` function will call to produce an instance of
     `~measurable.Measurement` from the given instance.
     """
