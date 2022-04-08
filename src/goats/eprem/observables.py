@@ -7,7 +7,7 @@ from goats.core import aliased
 from goats.core import metric
 from goats.core import algebra
 from goats.core import iterables
-from goats.core import measured
+from goats.core import measurable
 from goats.core import datasets
 from goats.core import datatypes
 from goats.eprem import functions
@@ -31,12 +31,12 @@ Observable = typing.Union[
 
 Assumption = typing.TypeVar(
     'Assumption',
-    measured.Scalar,
-    typing.Iterable[measured.Scalar],
+    measurable.Scalar,
+    typing.Iterable[measurable.Scalar],
 )
 Assumption = typing.Union[
-    measured.Scalar,
-    typing.Iterable[measured.Scalar],
+    measurable.Scalar,
+    typing.Iterable[measurable.Scalar],
 ]
 
 
@@ -54,11 +54,11 @@ Implementation = typing.Union[
 Dependency = typing.TypeVar(
     'Dependency',
     Observable,
-    measured.Scalar,
+    measurable.Scalar,
 )
 Dependency = typing.Union[
     Observable,
-    measured.Scalar,
+    measurable.Scalar,
 ]
 
 

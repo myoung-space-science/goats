@@ -5,11 +5,11 @@ import typing
 
 import pytest
 
-from goats.core import measured
+from goats.core import measurable
 from goats.core import metric
 
 
-class Ordered(measured.Ordered):
+class Ordered(measurable.Ordered):
     """Test class for ordered quantities."""
 
     def __init__(self, __value) -> None:
@@ -50,42 +50,12 @@ def test_ordered():
     assert this >= 1
 
 
-class Implicit:
-    """An object that is implicitly ordered."""
-
-    def __init__(self, __value) -> None:
-        self._value = __value
-
-    def __lt__(self, other) -> bool:
-        return self._value < other
-
-    def __eq__(self, other) -> bool:
-        return self._value == other
-
-    def __le__(self, other) -> bool:
-        return super().__le__(other)
-
-    def __ge__(self, other) -> bool:
-        return super().__ge__(other)
-
-    def __gt__(self, other) -> bool:
-        return super().__gt__(other)
-
-    def __ne__(self, other) -> bool:
-        return super().__ne__(other)
-
-
-def test_orderable():
-    """Test the orderable protocol."""
-    assert isinstance(Implicit(1), measured.Orderable)
-
-
 @pytest.mark.scalar
 def test_scalar_scalar_comparisons():
     """Test comparisons between two scalars."""
     value = 2.0
     unit = 'm'
-    scalar = measured.Scalar(value, unit)
+    scalar = measurable.Scalar(value, unit)
     cases = [
         (operator.lt, value + 1),
         (operator.le, value + 1),
@@ -98,9 +68,9 @@ def test_scalar_scalar_comparisons():
     ]
     for case in cases:
         opr, v = case
-        assert opr(scalar, measured.Scalar(v, unit))
+        assert opr(scalar, measurable.Scalar(v, unit))
         with pytest.raises(TypeError):
-            opr(scalar, measured.Scalar(v, 'J'))
+            opr(scalar, measurable.Scalar(v, 'J'))
 
 
 @pytest.mark.scalar
@@ -108,7 +78,7 @@ def test_scalar_number_comparisons():
     """Test comparisons between a scalar and a number."""
     value = 2.0
     unit = 'm'
-    scalar = measured.Scalar(value, unit)
+    scalar = measurable.Scalar(value, unit)
     cases = [
         (operator.lt, operator.gt, value + 1),
         (operator.le, operator.ge, value + 1),
@@ -129,7 +99,7 @@ def test_scalar_number_comparisons():
 def test_scalar_cast():
     """Test numeric casting operations on a scalar."""
     value = 2.0
-    scalar = measured.Scalar(value, 'm')
+    scalar = measurable.Scalar(value, 'm')
     for dtype in {int, float}:
         number = dtype(scalar)
         assert isinstance(number, dtype)
@@ -141,7 +111,7 @@ def test_scalar_unary():
     """Test unary arithmetic operations on a scalar."""
     value = 2.0
     unit = 'm'
-    scalar = measured.Scalar(value, unit)
+    scalar = measurable.Scalar(value, unit)
     oprs = [
         operator.neg,
         operator.pos,
@@ -153,7 +123,7 @@ def test_scalar_unary():
     ]
     for opr in oprs:
         result = opr(scalar)
-        assert result == measured.Scalar(opr(value), unit)
+        assert result == measurable.Scalar(opr(value), unit)
 
 
 @pytest.mark.scalar
@@ -164,7 +134,7 @@ def test_scalar_binary():
         (3.5, 'm'),
         (2.0, 'J'),
     ]
-    instances = {args: measured.Scalar(*args) for args in cases}
+    instances = {args: measurable.Scalar(*args) for args in cases}
     same_unit = cases[0], cases[1]
     diff_unit = cases[0], cases[2]
     scalars_same = [instances[k] for k in same_unit]
@@ -182,14 +152,14 @@ def test_scalar_binary():
     unit = 'm'
     for opr in oprs:
         # between two instances with same unit
-        expected = measured.Scalar(opr(*values_same), unit)
+        expected = measurable.Scalar(opr(*values_same), unit)
         assert opr(*scalars_same) == expected
         # between an instance and a number
         # ...forward
-        expected = measured.Scalar(opr(*values_same), unit)
+        expected = measurable.Scalar(opr(*values_same), unit)
         assert opr(scalar, value) == expected
         # ...reverse
-        expected = measured.Scalar(opr(*values_same[::-1]), unit)
+        expected = measurable.Scalar(opr(*values_same[::-1]), unit)
         assert opr(value, scalar) == expected
     # between two instances with different units
     for opr in oprs:
@@ -199,33 +169,33 @@ def test_scalar_binary():
     # MULTIPLICATION
     opr = operator.mul
     # between two instances with same unit
-    expected = measured.Scalar(opr(*values_same), 'm^2')
+    expected = measurable.Scalar(opr(*values_same), 'm^2')
     assert opr(*scalars_same) == expected
     # between an instance and a number
     # ...forward
-    expected = measured.Scalar(opr(*values_same), 'm')
+    expected = measurable.Scalar(opr(*values_same), 'm')
     assert opr(scalar, value) == expected
     # reverse
-    expected = measured.Scalar(opr(*values_same[::-1]), 'm')
+    expected = measurable.Scalar(opr(*values_same[::-1]), 'm')
     assert opr(value, scalar) == expected
     # between two instances with different units
-    expected = measured.Scalar(opr(*values_diff), 'm * J')
+    expected = measurable.Scalar(opr(*values_diff), 'm * J')
     assert opr(*scalars_diff) == expected
 
     # DIVISION
     opr = operator.truediv
     # between two instances with same unit
-    expected = measured.Scalar(opr(*values_same), '1')
+    expected = measurable.Scalar(opr(*values_same), '1')
     assert opr(*scalars_same) == expected
     # between an instance and a number
     # ...forward
-    expected = measured.Scalar(opr(*values_same), 'm')
+    expected = measurable.Scalar(opr(*values_same), 'm')
     assert opr(scalar, value) == expected
     # reverse
     with pytest.raises(TypeError):
         opr(value, scalar)
     # between two instances with different units
-    expected = measured.Scalar(opr(*values_diff), 'm / J')
+    expected = measurable.Scalar(opr(*values_diff), 'm / J')
     assert opr(*scalars_diff) == expected
 
     # EXPONENTIAL
@@ -235,7 +205,7 @@ def test_scalar_binary():
         opr(*scalars_same)
     # between an instance and a number
     # ...forward
-    expected = measured.Scalar(opr(*values_same), f'm^{value}')
+    expected = measurable.Scalar(opr(*values_same), f'm^{value}')
     assert opr(scalar, value) == expected
     # ...reverse
     with pytest.raises(TypeError):
@@ -245,7 +215,7 @@ def test_scalar_binary():
 @pytest.mark.scalar
 def test_scalar_bitwise():
     """bitwise comparison is undefined"""
-    scalar = measured.Scalar(2)
+    scalar = measurable.Scalar(2)
     with pytest.raises(TypeError):
         scalar & 1
         scalar | 1
@@ -255,28 +225,28 @@ def test_scalar_bitwise():
 @pytest.mark.vector
 def test_vector_operators():
     """Test the updated operators on the vector object."""
-    v0 = measured.Vector([3.0, 6.0], 'm')
-    v1 = measured.Vector([1.0, 3.0], 'm')
-    v2 = measured.Vector([1.0, 3.0], 'J')
-    assert vectors_equal(v0 + v1, measured.Vector([4.0, 9.0], 'm'))
-    assert vectors_equal(v0 - v1, measured.Vector([2.0, 3.0], 'm'))
-    assert vectors_equal(v0 * v1, measured.Vector([3.0, 18.0], 'm^2'))
-    assert vectors_equal(v0 / v1, measured.Vector([3.0, 2.0], '1'))
-    assert vectors_equal(v0 / v2, measured.Vector([3.0, 2.0], 'm / J'))
-    assert vectors_equal(v0 ** 2, measured.Vector([9.0, 36.0], 'm^2'))
-    assert vectors_equal(10.0 * v0, measured.Vector([30.0, 60.0], 'm'))
-    assert vectors_equal(v0 * 10.0, measured.Vector([30.0, 60.0], 'm'))
-    assert vectors_equal(v0 / 10.0, measured.Vector([0.3, 0.6], 'm'))
+    v0 = measurable.Vector([3.0, 6.0], 'm')
+    v1 = measurable.Vector([1.0, 3.0], 'm')
+    v2 = measurable.Vector([1.0, 3.0], 'J')
+    assert vectors_equal(v0 + v1, measurable.Vector([4.0, 9.0], 'm'))
+    assert vectors_equal(v0 - v1, measurable.Vector([2.0, 3.0], 'm'))
+    assert vectors_equal(v0 * v1, measurable.Vector([3.0, 18.0], 'm^2'))
+    assert vectors_equal(v0 / v1, measurable.Vector([3.0, 2.0], '1'))
+    assert vectors_equal(v0 / v2, measurable.Vector([3.0, 2.0], 'm / J'))
+    assert vectors_equal(v0 ** 2, measurable.Vector([9.0, 36.0], 'm^2'))
+    assert vectors_equal(10.0 * v0, measurable.Vector([30.0, 60.0], 'm'))
+    assert vectors_equal(v0 * 10.0, measurable.Vector([30.0, 60.0], 'm'))
+    assert vectors_equal(v0 / 10.0, measurable.Vector([0.3, 0.6], 'm'))
     with pytest.raises(TypeError):
         1.0 / v0
-    with pytest.raises(measured.ComparisonError):
+    with pytest.raises(measurable.ComparisonError):
         v0 + v2
 
 
 @pytest.mark.scalar
 def test_scalar_display():
     """Test the results of str(self) and repr(self) for a scalar."""
-    scalar = measured.Scalar(1.234, unit='m')
+    scalar = measurable.Scalar(1.234, unit='m')
     assert str(scalar) == "1.234 [m]"
     assert repr(scalar).endswith("Scalar(1.234, unit='m')")
     scalar.unit('cm')
@@ -287,7 +257,7 @@ def test_scalar_display():
 @pytest.mark.vector
 def test_vector_display():
     """Test the results of str(self) and repr(self) for a vector."""
-    vector = measured.Vector(1.234, unit='m')
+    vector = measurable.Vector(1.234, unit='m')
     assert str(vector) == "[1.234] [m]"
     assert repr(vector).endswith("Vector([1.234], unit='m')")
     vector.unit('cm')
@@ -298,36 +268,36 @@ def test_vector_display():
 @pytest.mark.vector
 def test_vector_init():
     """Test initializing with iterable and non-iterable values."""
-    expected = sorted(measured.Vector([1.1], 'm'))
-    assert sorted(measured.Vector(1.1, 'm')) == expected
+    expected = sorted(measurable.Vector([1.1], 'm'))
+    assert sorted(measurable.Vector(1.1, 'm')) == expected
 
 
 @pytest.mark.scalar
 def test_scalar_unit():
     """Get and set the unit on a Scalar."""
-    check_units(measured.Scalar, 1, 'm', 'cm')
+    check_units(measurable.Scalar, 1, 'm', 'cm')
 
 
 @pytest.mark.vector
 def test_vector_unit():
     """Get and set the unit on a Vector."""
-    check_units(measured.Vector, [1, 2], 'm', 'cm')
+    check_units(measurable.Vector, [1, 2], 'm', 'cm')
 
 
 Obj = typing.TypeVar(
     'Obj',
-    typing.Type[measured.Scalar],
-    typing.Type[measured.Vector],
+    typing.Type[measurable.Scalar],
+    typing.Type[measurable.Vector],
 )
 Obj = typing.Union[
-    typing.Type[measured.Scalar],
-    typing.Type[measured.Vector],
+    typing.Type[measurable.Scalar],
+    typing.Type[measurable.Vector],
 ]
 
 
 def check_units(
     obj: Obj,
-    amount: measured.RealValued,
+    amount: measurable.RealValued,
     reference: str,
     new: str,
 ) -> None:
@@ -339,7 +309,7 @@ def check_units(
     assert updated.unit() == new
     factor = metric.Unit(new) // metric.Unit(reference)
     equal = (
-        vectors_equal if isinstance(updated, measured.Vector)
+        vectors_equal if isinstance(updated, measurable.Vector)
         else operator.eq
     )
     assert equal(updated, obj(rescale(amount, factor), new))
@@ -354,16 +324,18 @@ def rescale(amount, factor):
         return [factor * value for value in amount]
 
 
-def vectors_equal(v0: measured.Vector, v1: measured.Vector):
+def vectors_equal(v0: measurable.Vector, v1: measurable.Vector):
     """Helper function for determining if two vectors are equal."""
     return all(v0 == v1)
 
 
 def test_quantified_bool():
     """Quantified objects are always truthy."""
+    class Quantified(measurable.OperatorMixin, measurable.Quantity):
+        """Concrete version of `~measurable.Quantity` for testing."""
     cases = [
-        measured.Quantified(1, 'quantum'),
-        measured.Quantified(0, 'quantum'),
+        Quantified(1, 'quantum'),
+        Quantified(0, 'quantum'),
     ]
     for case in cases:
         assert bool(case)
@@ -395,12 +367,12 @@ def test_same():
         return a.points + b.points
 
     # Instances must have the same kind:
-    @measured.same('kind')
+    @measurable.same('kind')
     def f1(*args):
         return f0(*args)
 
     # Instances must have the same kind and the same name:
-    @measured.same('kind', 'name')
+    @measurable.same('kind', 'name')
     def f2(*args):
         return f0(*args)
 
@@ -411,7 +383,7 @@ def test_same():
     assert f1(scores[0], scores[1]) == 5.0
 
     # Try to add two instances with different kind.
-    with pytest.raises(measured.ComparisonError):
+    with pytest.raises(measurable.ComparisonError):
         f1(scores[0], scores[2])
 
     # Try to add an instance to a built-in float.
@@ -421,7 +393,7 @@ def test_same():
     assert f2(scores[1], scores[3]) == 9.0
 
     # Try to add two instances with same kind but different name.
-    with pytest.raises(measured.ComparisonError):
+    with pytest.raises(measurable.ComparisonError):
         f2(scores[0], scores[1])
 
 
@@ -490,45 +462,45 @@ builtin_cases = [
 def test_parse_measurable():
     """Test the function that attempts to parse a measurable object."""
     for case in builtin_cases:
-        result = measured.parse_measurable(case['test'])
+        result = measurable.parse_measurable(case['test'])
         expected = case['full']
         assert result == expected
     for case in builtin_cases:
-        result = measured.parse_measurable(case['test'], distribute=True)
+        result = measurable.parse_measurable(case['test'], distribute=True)
         expected = case['dist']
         assert result == expected
-    assert measured.parse_measurable(0) == (0, '1') # zero is measurable!
-    with pytest.raises(measured.Unmeasurable):
-        measured.parse_measurable(None)
-    with pytest.raises(measured.MeasuringTypeError):
-        measured.parse_measurable([1.1, 'm', 2.3, 'cm'])
-    with pytest.raises(measured.MeasuringTypeError):
-        measured.parse_measurable([(1.1, 'm'), (2.3, 5.8, 'cm')])
+    assert measurable.parse_measurable(0) == (0, '1') # zero is measurable!
+    with pytest.raises(measurable.Unmeasurable):
+        measurable.parse_measurable(None)
+    with pytest.raises(measurable.MeasuringTypeError):
+        measurable.parse_measurable([1.1, 'm', 2.3, 'cm'])
+    with pytest.raises(measurable.MeasuringTypeError):
+        measurable.parse_measurable([(1.1, 'm'), (2.3, 5.8, 'cm')])
 
 
 def test_measurable():
     """Test the function that determines if we can measure and object."""
     cases = [case['test'] for case in builtin_cases]
     for case in cases:
-        assert measured.measurable(case)
+        assert measurable.ismeasurable(case)
     class Test:
         def __measure__(): ...
-    assert measured.measurable(Test())
+    assert measurable.ismeasurable(Test())
 
 
 def test_measure():
     """Test the function that creates a measurement object."""
     for case in builtin_cases:
-        result = measured.measure(case['test'])
-        assert isinstance(result, measured.Measurement)
+        result = measurable.measure(case['test'])
+        assert isinstance(result, measurable.Measurement)
 
 
 def test_measurement():
     """Test the measurement object on its own."""
     values = (1.1, 2.3)
     unit = 'm'
-    measurement = measured.Measurement(values, unit)
-    assert isinstance(measurement, measured.Measurement)
+    measurement = measurable.Measurement(values, unit)
+    assert isinstance(measurement, measurable.Measurement)
     assert measurement.values == values
     assert measurement.unit == unit
     assert len(measurement) == len(values)
@@ -541,11 +513,11 @@ def test_single_valued_measurement():
     """Test special properties of a single-valued measurement."""
     unit = 'm'
     values = [1.1]
-    measurement = measured.Measurement(values, unit)
+    measurement = measurable.Measurement(values, unit)
     assert float(measurement) == float(values[0])
     assert int(measurement) == int(values[0])
     values = [1.1, 2.3]
-    measurement = measured.Measurement(values, unit)
+    measurement = measurable.Measurement(values, unit)
     with pytest.raises(TypeError):
         float(measurement)
     with pytest.raises(TypeError):

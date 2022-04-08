@@ -13,7 +13,7 @@ from ..core import (
     datatypes,
     iterables,
     iotools,
-    measured,
+    measurable,
     metric,
     numerical,
     physical,
@@ -124,8 +124,8 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
         reference: datatypes.Variable,
     ) -> datatypes.Coordinates:
         """Build an arbitrary coordinate object."""
-        measured = measured.measure(targets)
-        vector = measured.Vector(measured.values, measured.unit)
+        result = measurable.measure(targets)
+        vector = measurable.Vector(result.values, result.unit)
         values = (
             vector.unit(reference.unit)
             if vector.unit().dimension == reference.unit.dimension

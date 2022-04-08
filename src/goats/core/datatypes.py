@@ -10,7 +10,7 @@ import numpy.typing
 from goats.core import aliased
 from goats.core import iterables
 from goats.core import metric
-from goats.core import measured
+from goats.core import measurable
 
 
 def same_attrs(*names: str):
@@ -111,7 +111,7 @@ IndexLike = typing.Union[typing.Iterable[int], slice, type(Ellipsis)]
 Instance = typing.TypeVar('Instance', bound='Physical')
 
 
-class Physical(collections.abc.Sequence, measured.RealValued):
+class Physical(collections.abc.Sequence, measurable.RealValued):
     """Base class for physical objects."""
 
     @typing.overload
@@ -282,7 +282,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Physical):
         result = self._get_array(indices)
         if isinstance(result, numbers.Number):
             # Should be consistent about names here.
-            return measured.Scalar(result, unit=self.unit)
+            return measurable.Scalar(result, unit=self.unit)
         return Array(result, *self.names, unit=self.unit)
 
     def _subscript_custom(self, args):
@@ -653,7 +653,7 @@ def _mean(v: Variable, **kwargs):
     return Variable(data, *names, unit=v.unit, axes=axes)
 
 
-measured.Measured.register(Variable)
+measurable.Quantity.register(Variable)
 
 
 def _extend_arrays(
@@ -679,27 +679,27 @@ def _extend_arrays(
 
 _opr_rules = {
     'add': {
-        (Variable, measured.RealValued): {},
+        (Variable, measurable.RealValued): {},
         (Variable, Variable): {
             'constraints': [same_attrs('axes', 'unit')],
             'updaters': {
                 'names': attr_updater('{0.names} + {1.names}'),
             }
         },
-        (measured.RealValued, Variable): {},
+        (measurable.RealValued, Variable): {},
     },
     'subtract': {
-        (Variable, measured.RealValued): {},
+        (Variable, measurable.RealValued): {},
         (Variable, Variable): {
             'constraints': [same_attrs('axes', 'unit')],
             'updaters': {
                 'names': attr_updater('{0.names} - {1.names}'),
             }
         },
-        (measured.RealValued, Variable): {},
+        (measurable.RealValued, Variable): {},
     },
     'multiply': {
-        (Variable, measured.RealValued): {},
+        (Variable, measurable.RealValued): {},
         (Variable, Variable): {
             'updaters': {
                 'unit': attr_updater('{0.unit} * {1.unit}'),
@@ -707,10 +707,10 @@ _opr_rules = {
                 'names': attr_updater('{0.names} * {1.names}'),
             }
         },
-        (measured.RealValued, Variable): {},
+        (measurable.RealValued, Variable): {},
     },
     'true_divide': {
-        (Variable, measured.RealValued): {},
+        (Variable, measurable.RealValued): {},
         (Variable, Variable): {
             'updaters': {
                 'unit': attr_updater('{0.unit} / ({1.unit})'),
@@ -963,7 +963,7 @@ class Axis(iterables.ReprStrMixin):
         string = f"'{self.names}': size={self.size}"
         unit = (
             str(self.reference.unit())
-            if isinstance(self.reference, measured.Measured)
+            if isinstance(self.reference, measurable.Quantity)
             else None
         )
         if unit:
@@ -971,7 +971,43 @@ class Axis(iterables.ReprStrMixin):
         return string
 
 
-class Assumption(measured.Measurement):
+# I'm going to use the `__int__` and `__float__` logic from this to re-implement
+# Assumption.
+class X_Measurement:
+    """The result of measuring an object."""
+
+    def __getitem__(self, index):
+        values = super().__getitem__(index)
+        iter_values = isinstance(values, typing.Iterable)
+        return (
+            [Scalar(value, self._unit) for value in values] if iter_values
+            else Scalar(values, self._unit)
+        )
+
+    def __float__(self):
+        """Represent a single-valued measurement as a `float`."""
+        return self._cast_to(float)
+
+    def __int__(self):
+        """Represent a single-valued measurement as a `int`."""
+        return self._cast_to(int)
+
+    Numeric = typing.TypeVar('Numeric', int, float)
+
+    def _cast_to(self, __type: typing.Type[Numeric]) -> Numeric:
+        """Internal method for casting to numeric type."""
+        nv = len(self._values)
+        if nv == 1:
+            return __type(self._values[0])
+        errmsg = f"Can't convert measurement with {nv!r} values to {__type}"
+        raise TypeError(errmsg) from None
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return f"{self._values} [{self._unit}]"
+
+
+class Assumption(measurable.Measurement):
     """A measurable parameter argument."""
 
     aliases: typing.Tuple[str, ...] = None
@@ -993,6 +1029,30 @@ class Assumption(measured.Measurement):
             f"'{self.aliases}': {values} '{self.unit}'" if self.aliases
             else f"{values} '{self.unit}'"
         )
+
+
+class Quantity(measurable.Quantity):
+    """A measured object with optional name."""
+
+    def __init__(
+        self,
+        __amount: numbers.Real,
+        unit: metric.UnitLike=None,
+        name: str=None,
+    ) -> None:
+        super().__init__(__amount, unit)
+        self._name = aliased.MappingKey(name or '')
+        if self._name:
+            self.display['__str__']['strings'].insert(0, "'{_name}': ")
+            self.display['__repr__']['strings'].insert(1, "'{_name}'")
+
+    def name(self, *new: str, reset: bool=False):
+        """Get, set, or add to this object's name(s)."""
+        if not new:
+            return self._name
+        name = new if reset else self._name | new
+        self._name = aliased.MappingKey(name)
+        return self
 
 
 class Option(iterables.ReprStrMixin):

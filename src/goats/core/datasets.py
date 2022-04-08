@@ -13,7 +13,7 @@ from goats.core import datatypes
 from goats.core import aliased
 from goats.core import iotools
 from goats.core import iterables
-from goats.core import measured
+from goats.core import measurable
 from goats.core import observables
 from goats.core import metric
 

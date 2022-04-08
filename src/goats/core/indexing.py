@@ -6,7 +6,7 @@ import typing
 from goats.core.numerical import find_nearest
 from goats.core import iterables
 from goats.core import metric
-from goats.core import measured
+from goats.core import measurable
 
 
 class Indices(collections.abc.Sequence, iterables.ReprStrMixin):
@@ -145,7 +145,7 @@ class IndexComputer(Indexer):
 
     def __init__(
         self,
-        reference: measured.Measured,
+        reference: measurable.Quantity,
         size: int=None,
     ) -> None:
         super().__init__(reference, size=size)
@@ -196,7 +196,7 @@ class Axis(iterables.ReprStrMixin):
         string = f"size={self.size}"
         unit = (
             str(self.reference.unit())
-            if isinstance(self.reference, measured.Measured)
+            if isinstance(self.reference, measurable.Measured)
             else None
         )
         return f"{string} unit={unit!r}"

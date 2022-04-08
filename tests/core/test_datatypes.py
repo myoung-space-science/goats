@@ -7,7 +7,7 @@ import numpy.typing
 import pytest
 
 from goats.core import datatypes
-from goats.core import measured
+from goats.core import measurable
 from goats.core import metric
 
 
@@ -432,7 +432,7 @@ def test_variable_getitem(var: typing.Dict[str, datatypes.Variable]):
         assert sliced is not v
         expected = numpy.array([[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
         assert numpy.array_equal(sliced, expected)
-    assert v[0, 0] == measured.Scalar(+1.0, v.unit)
+    assert v[0, 0] == measurable.Scalar(+1.0, v.unit)
     assert numpy.array_equal(v[0, :], [+1.0, +2.0])
     assert numpy.array_equal(v[:, 0], [+1.0, +2.0, -4.0])
     assert numpy.array_equal(v[:, 0:1], [[+1.0], [+2.0], [-4.0]])
@@ -489,7 +489,7 @@ def test_assumption():
     assumption = datatypes.Assumption(values, unit, *aliases)
     assert assumption.unit == unit
     assert all(alias in assumption.aliases for alias in aliases)
-    scalars = [measured.Scalar(value, unit) for value in values]
+    scalars = [measurable.Scalar(value, unit) for value in values]
     assert assumption[:] == scalars
     converted = assumption.convert_to('cm')
     assert converted.unit == 'cm'
@@ -543,10 +543,10 @@ def make_variable(**attrs):
     )
 
 
-OType = typing.TypeVar('OType', datatypes.Variable, measured.RealValued)
+OType = typing.TypeVar('OType', datatypes.Variable, measurable.RealValued)
 OType = typing.Union[
     datatypes.Variable,
-    measured.RealValued,
+    measurable.RealValued,
 ]
 RType = typing.TypeVar('RType', bound=type)
 
