@@ -481,23 +481,8 @@ class Quantity(Quantifiable):
         return self
 
 
-class Measurable(Quantity):
-    """A quantifiable object that supports direct measurement.
-    
-    Concrete subclasses of this ABC must implement all the abstract methods of
-    `~algebraic.Quantity`, as well as a new method, `__measure__`, which the
-    `~measurable.measure` function will call to produce an instance of
-    `~measurable.Measurement` from the given instance.
-    """
-
-    @abc.abstractmethod
-    def __measure__(self) -> Measurement:
-        """Measure this object."""
-        pass
-
-
-class SingleValued(Measurable):
-    """Abstract definition of a single-valued measurable quantity."""
+class SingleValued(Quantity):
+    """Abstract definition of a single-valued quantity."""
 
     def __init__(
         self,
@@ -536,12 +521,8 @@ class SingleValued(Measurable):
         """Called for trunc(self)."""
         pass
 
-    def __measure__(self) -> Measurement:
-        values = iterables.whole(self.data)
-        return Measurement(values, self.unit())
 
-
-class MultiValued(Measurable):
+class MultiValued(Quantity):
     """Abstract definition of a multi-valued measurable quantity."""
 
     def __init__(
@@ -565,9 +546,6 @@ class MultiValued(Measurable):
         """Called for index-based value access."""
         pass
 
-    def __measure__(self) -> Measurement:
-        return Measurement(self.data, self.unit())
-
 
 class Scalar(OperatorMixin, SingleValued):
     """A measured object with a single value."""
@@ -579,6 +557,10 @@ class Scalar(OperatorMixin, SingleValued):
     __ceil__ = _unary(math.ceil)
     __floor__ = _unary(math.floor)
     __trunc__ = _unary(math.trunc)
+
+    def __measure__(self) -> Measurement:
+        values = iterables.whole(self.data)
+        return Measurement(values, self.unit())
 
 
 class Vector(OperatorMixin, MultiValued):
@@ -599,6 +581,24 @@ class Vector(OperatorMixin, MultiValued):
             [Scalar(value, unit) for value in values] if iter_values
             else Scalar(values, unit)
         )
+
+    def __measure__(self) -> Measurement:
+        return Measurement(self.data, self.unit())
+
+
+@typing.runtime_checkable
+class Measurable(typing.Protocol):
+    """Protocol for a quantity that supports direct measurement.
+    
+    If an object defines the `__measure__` method, `~measurable.measure` will
+    call it instead of attempting to parse the object. Concrete implementations
+    of `__measure__` should return an instance of `~measurable.Measurement`
+    """
+
+    @abc.abstractmethod
+    def __measure__(self) -> Measurement:
+        """Measure this object."""
+        pass
 
 
 def ismeasurable(this):
