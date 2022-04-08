@@ -523,15 +523,24 @@ class SingleValued(Quantity):
 
 
 class MultiValued(Quantity):
-    """Abstract definition of a multi-valued measurable quantity."""
+    """Abstract definition of a multi-valued measurable quantity.
+    
+    Notes
+    -----
+    This class converts `data` into a `numpy.ndarray` via a `list` during
+    instantiation. It may therefore become a bottleneck for large 1-D objects
+    and may produce unexpected results for higher-dimension objects. In those
+    cases, an array-like class derived from `~measurable.Quantity` that
+    incorporates native `numpy` operators may be more appropriate.
+    """
 
     def __init__(
         self,
         data: typing.Union[RealValued, numpy.typing.ArrayLike],
         unit: metric.UnitLike=None,
     ) -> None:
-        data = numpy.asfarray(list(iterables.whole(data)))
-        super().__init__(data, unit)
+        array = numpy.asfarray(list(iterables.whole(data)))
+        super().__init__(array, unit)
 
     @abc.abstractmethod
     def __len__(self) -> int:
@@ -560,7 +569,7 @@ class SingleValuedMixin:
 
 
 class Scalar(OperatorMixin, SingleValuedMixin, SingleValued):
-    """A measured object with a single value."""
+    """A single-valued measurable quantity."""
 
     def __measure__(self) -> Measurement:
         values = iterables.whole(self.data)
@@ -568,7 +577,7 @@ class Scalar(OperatorMixin, SingleValuedMixin, SingleValued):
 
 
 class Vector(OperatorMixin, MultiValued):
-    """A measured object with multiple values."""
+    """A multi-valued measurable quantity."""
 
     def __len__(self) -> int:
         """Called for len(self)."""
