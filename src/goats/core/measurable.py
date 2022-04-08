@@ -395,7 +395,7 @@ Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
 class Quantity(Quantifiable):
-    """A real-valued amount and the associated unit.
+    """Real-valued data and the associated unit.
     
     This abstract base class represents the basis for all measurable quantities.
     It builds on `~measurable.Quantifiable` by specifying an instance of
@@ -415,7 +415,7 @@ class Quantity(Quantifiable):
     @typing.overload
     def __init__(
         self: Instance,
-        amount: RealValued,
+        data: RealValued,
         unit: metric.UnitLike=None,
     ) -> None:
         """Initialize this instance from arguments."""
@@ -441,6 +441,11 @@ class Quantity(Quantifiable):
             },
         }
         self.display.update(display)
+
+    @property
+    def data(self):
+        """This quantity's data."""
+        return self._amount
 
     Attrs = typing.TypeVar('Attrs', bound=tuple)
     Attrs = typing.Tuple[RealValued, metric.UnitLike]
@@ -496,10 +501,10 @@ class SingleValued(Measurable):
 
     def __init__(
         self,
-        amount: numbers.Real,
+        data: numbers.Real,
         unit: metric.UnitLike=None,
     ) -> None:
-        super().__init__(float(amount), unit)
+        super().__init__(float(data), unit)
 
     @abc.abstractmethod
     def __float__(self) -> float:
@@ -532,7 +537,7 @@ class SingleValued(Measurable):
         pass
 
     def __measure__(self) -> Measurement:
-        values = iterables.whole(self._amount)
+        values = iterables.whole(self.data)
         return Measurement(values, self.unit())
 
 
@@ -541,11 +546,11 @@ class MultiValued(Measurable):
 
     def __init__(
         self,
-        amount: typing.Union[RealValued, numpy.typing.ArrayLike],
+        data: typing.Union[RealValued, numpy.typing.ArrayLike],
         unit: metric.UnitLike=None,
     ) -> None:
-        amount = numpy.asfarray(list(iterables.whole(amount)))
-        super().__init__(amount, unit)
+        data = numpy.asfarray(list(iterables.whole(data)))
+        super().__init__(data, unit)
 
     @abc.abstractmethod
     def __len__(self) -> int:
@@ -561,7 +566,7 @@ class MultiValued(Measurable):
         pass
 
     def __measure__(self) -> Measurement:
-        return Measurement(self._amount, self.unit())
+        return Measurement(self.data, self.unit())
 
 
 class Scalar(OperatorMixin, SingleValued):
@@ -581,13 +586,13 @@ class Vector(OperatorMixin, MultiValued):
 
     def __len__(self) -> int:
         """Called for len(self)."""
-        return len(self._amount)
+        return len(self.data)
 
     def __getitem__(self, index):
         """Called for index-based value access."""
         if isinstance(index, typing.SupportsIndex) and index < 0:
             index += len(self)
-        values = self._amount[index]
+        values = self.data[index]
         iter_values = isinstance(values, typing.Iterable)
         unit = self.unit()
         return (
