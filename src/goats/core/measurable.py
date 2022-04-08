@@ -547,8 +547,8 @@ class MultiValued(Quantity):
         pass
 
 
-class Scalar(OperatorMixin, SingleValued):
-    """A measured object with a single value."""
+class SingleValuedMixin:
+    """Mixin class that defines operators for single-valued objects."""
 
     __float__ = _cast(float)
     __int__ = _cast(int)
@@ -557,6 +557,10 @@ class Scalar(OperatorMixin, SingleValued):
     __ceil__ = _unary(math.ceil)
     __floor__ = _unary(math.floor)
     __trunc__ = _unary(math.trunc)
+
+
+class Scalar(OperatorMixin, SingleValuedMixin, SingleValued):
+    """A measured object with a single value."""
 
     def __measure__(self) -> Measurement:
         values = iterables.whole(self.data)
