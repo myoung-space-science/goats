@@ -50,6 +50,18 @@ def test_ordered():
     assert this >= 1
 
 
+class Quantity(measurable.OperatorMixin, measurable.Quantity):
+    """Concrete quantity for testing."""
+
+
+def test_quantity_idempotence():
+    """Test initializing a concrete quantity from an existing instance."""
+    q0 = Quantity(1.5, 'm')
+    q1 = Quantity(q0)
+    assert q1 is not q0
+    assert q1 == q0
+
+
 @pytest.mark.scalar
 def test_scalar_scalar_comparisons():
     """Test comparisons between two scalars."""

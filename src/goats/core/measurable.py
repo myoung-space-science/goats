@@ -9,6 +9,7 @@ import typing
 import numpy
 import numpy.typing
 
+from goats.core import aliased
 from goats.core import iterables
 from goats.core import metric
 
@@ -586,6 +587,9 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
         return f"{values} [{self._unit}]"
 
 
+Instance = typing.TypeVar('Instance', bound='Quantity')
+
+
 class Quantity(Quantifiable):
     """A real-valued amount and the associated unit.
     
@@ -601,12 +605,24 @@ class Quantity(Quantifiable):
     versions of all required operators.
     """
 
+    @typing.overload
     def __init__(
-        self,
+        self: Instance,
         amount: RealValued,
         unit: metric.UnitLike=None,
     ) -> None:
-        super().__init__(amount, metric.Unit(unit or '1'))
+        """Initialize this instance from arguments."""
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        instance: Instance,
+    ) -> None:
+        """Initialize this instance from an existing one."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        init = self._parse(*args, **kwargs)
+        super().__init__(*init)
         display = {
             '__str__': {
                 'strings': ["{_amount}", "[{_metric}]"],
@@ -618,6 +634,24 @@ class Quantity(Quantifiable):
             },
         }
         self.display.update(display)
+
+    Attrs = typing.TypeVar('Attrs', bound=tuple)
+    Attrs = typing.Tuple[RealValued, metric.UnitLike]
+
+    def _parse(self, *args, **kwargs) -> Attrs:
+        """Parse input arguments to initialize this instance."""
+        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
+            instance = args[0]
+            return tuple(
+                getattr(instance, name)
+                for name in ('_amount', '_metric')
+            )
+        data, *args = args
+        unit = metric.Unit(
+            args[0] if len(args) == 1
+            else kwargs.get('unit') or '1'
+        )
+        return data, unit
 
     def unit(self, unit: metric.UnitLike=None):
         """Get or set the unit of this object's values."""
