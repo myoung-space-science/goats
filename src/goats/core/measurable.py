@@ -481,15 +481,8 @@ class Quantity(Quantifiable):
         return self
 
 
-class SingleValued(Quantity):
-    """Abstract definition of a single-valued quantity."""
-
-    def __init__(
-        self,
-        data: numbers.Real,
-        unit: metric.UnitLike=None,
-    ) -> None:
-        super().__init__(float(data), unit)
+class Scalar(Quantity):
+    """ABC for a single-valued measurable quantity."""
 
     @abc.abstractmethod
     def __float__(self) -> float:
@@ -522,8 +515,8 @@ class SingleValued(Quantity):
         pass
 
 
-class MultiValued(Quantity):
-    """Abstract definition of a multi-valued measurable quantity.
+class Vector(Quantity):
+    """ABC for a multi-valued measurable quantity.
     
     Notes
     -----
@@ -534,69 +527,18 @@ class MultiValued(Quantity):
     incorporates native `numpy` operators may be more appropriate.
     """
 
-    def __init__(
-        self,
-        data: typing.Union[RealValued, numpy.typing.ArrayLike],
-        unit: metric.UnitLike=None,
-    ) -> None:
-        array = numpy.asfarray(list(iterables.whole(data)))
-        super().__init__(array, unit)
-
     @abc.abstractmethod
     def __len__(self) -> int:
         """Called for len(self)."""
         pass
 
     Item = typing.TypeVar('Item', bound=typing.Iterable)
-    Item = typing.Union[SingleValued, typing.List[SingleValued]]
+    Item = typing.Union[Scalar, typing.List[Scalar]]
 
     @abc.abstractmethod
     def __getitem__(self, index) -> Item:
         """Called for index-based value access."""
         pass
-
-
-class SingleValuedMixin:
-    """Mixin class that defines operators for single-valued objects."""
-
-    __float__ = _cast(float)
-    __int__ = _cast(int)
-
-    __round__ = _unary(round)
-    __ceil__ = _unary(math.ceil)
-    __floor__ = _unary(math.floor)
-    __trunc__ = _unary(math.trunc)
-
-
-class Scalar(OperatorMixin, SingleValuedMixin, SingleValued):
-    """A single-valued measurable quantity."""
-
-    def __measure__(self) -> Measurement:
-        values = iterables.whole(self.data)
-        return Measurement(values, self.unit())
-
-
-class Vector(OperatorMixin, MultiValued):
-    """A multi-valued measurable quantity."""
-
-    def __len__(self) -> int:
-        """Called for len(self)."""
-        return len(self.data)
-
-    def __getitem__(self, index):
-        """Called for index-based value access."""
-        if isinstance(index, typing.SupportsIndex) and index < 0:
-            index += len(self)
-        values = self.data[index]
-        iter_values = isinstance(values, typing.Iterable)
-        unit = self.unit()
-        return (
-            [Scalar(value, unit) for value in values] if iter_values
-            else Scalar(values, unit)
-        )
-
-    def __measure__(self) -> Measurement:
-        return Measurement(self.data, self.unit())
 
 
 @typing.runtime_checkable
