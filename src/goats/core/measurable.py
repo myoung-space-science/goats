@@ -1,7 +1,6 @@
 import abc
 import collections.abc
 import functools
-import math
 import numbers
 import operator
 import typing
@@ -28,7 +27,7 @@ class SupportsNeg(typing.Protocol):
         pass
 
 
-class RealValued(algebraic.Quantity):
+class Real(algebraic.Quantity):
     """Abstract base class for all real-valued objects.
     
     This class is similar to ``numbers.Real``, but it does not presume to
@@ -49,8 +48,8 @@ class RealValued(algebraic.Quantity):
         return -self + other
 
 
-RealValued.register(numbers.Real)
-RealValued.register(numpy.ndarray) # close enough for now...
+Real.register(numbers.Real)
+Real.register(numpy.ndarray) # close enough for now...
 
 
 class Quantifiable(algebraic.Quantity, iterables.ReprStrMixin):
@@ -64,7 +63,7 @@ class Quantifiable(algebraic.Quantity, iterables.ReprStrMixin):
 
     def __init__(
         self,
-        __amount: RealValued,
+        __amount: Real,
         __metric: algebraic.Multiplicative,
     ) -> None:
         self._amount = __amount
@@ -178,14 +177,14 @@ def _combine_metric(opr: Operator):
 
 def _update_metric(opr: Operator):
     """Implement a forward operator that updates the instance metric."""
-    def func(a: Quantifiable, b: RealValued):
+    def func(a: Quantifiable, b: Real):
         return type(a)(opr(a._amount, b), opr(a._metric, b))
     return func
 
 
 def _standard(opr: Operator):
     """Implement a standard forward operator."""
-    def func(a: Quantifiable, b: RealValued):
+    def func(a: Quantifiable, b: Real):
         return type(a)(opr(a._amount, b), a._metric)
     return func
 
@@ -204,22 +203,22 @@ Rules = typing.Dict[
 _operators: typing.Dict[Operator, Rules] = {
     operator.add: {
         (Quantifiable, Quantifiable): _preserve_metric,
-        (Quantifiable, RealValued): _standard,
+        (Quantifiable, Real): _standard,
     },
     operator.sub: {
         (Quantifiable, Quantifiable): _preserve_metric,
-        (Quantifiable, RealValued): _standard,
+        (Quantifiable, Real): _standard,
     },
     operator.mul: {
         (Quantifiable, Quantifiable): _combine_metric,
-        (Quantifiable, RealValued): _standard,
+        (Quantifiable, Real): _standard,
     },
     operator.truediv: {
         (Quantifiable, Quantifiable): _combine_metric,
-        (Quantifiable, RealValued): _standard,
+        (Quantifiable, Real): _standard,
     },
     operator.pow: {
-        (Quantifiable, RealValued): _update_metric,
+        (Quantifiable, Real): _update_metric,
     },
 }
 
@@ -263,7 +262,7 @@ def _reverse(opr: Operator):
     """Implement a standard reverse operator."""
     def func(b: Quantifiable, a):
         return (
-            type(b)(opr(a, b._amount), b._metric) if isinstance(a, RealValued)
+            type(b)(opr(a, b._amount), b._metric) if isinstance(a, Real)
             else NotImplemented
         )
     func.__name__ = f"__r{opr.__name__}__"
@@ -415,7 +414,7 @@ class Quantity(Quantifiable):
     @typing.overload
     def __init__(
         self: Instance,
-        data: RealValued,
+        data: Real,
         unit: metric.UnitLike=None,
     ) -> None:
         """Initialize this instance from arguments."""
@@ -448,7 +447,7 @@ class Quantity(Quantifiable):
         return self._amount
 
     Attrs = typing.TypeVar('Attrs', bound=tuple)
-    Attrs = typing.Tuple[RealValued, metric.UnitLike]
+    Attrs = typing.Tuple[Real, metric.UnitLike]
 
     def _parse(self, *args, **kwargs) -> Attrs:
         """Parse input arguments to initialize this instance."""
