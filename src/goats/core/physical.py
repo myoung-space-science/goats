@@ -3,8 +3,8 @@ import typing
 
 import numpy
 
+from goats.core import datatypes
 from goats.core import iterables
-from goats.core import measurable
 from goats.core import metric
 
 
@@ -142,7 +142,7 @@ class Constants(iterables.MappingBase):
             definition = self._mapping[name][self.system]
             value = definition['value']
             unit = definition['unit']
-            return measurable.Scalar(value, unit=unit)
+            return datatypes.Scalar(value, unit=unit)
         raise KeyError(name)
 
     def __repr__(self) -> str:
@@ -340,13 +340,13 @@ class PlasmaSpecies(iterables.ReprStrMixin):
         return self._symbol
 
     @property
-    def mass(self) -> measurable.Scalar:
+    def mass(self) -> datatypes.Scalar:
         """The mass of this species."""
         if self._mass is None:
             base = self._symbol.rstrip('+-')
             element = _elements.find(base, unique=True)
             unit = 'nucleon'
-            self._mass = measurable.Scalar(element['mass'], unit)
+            self._mass = datatypes.Scalar(element['mass'], unit)
         return self._mass
 
     @property
@@ -355,14 +355,14 @@ class PlasmaSpecies(iterables.ReprStrMixin):
         return self.mass
 
     @property
-    def charge(self) -> measurable.Scalar:
+    def charge(self) -> datatypes.Scalar:
         """The charge of this species."""
         if self._charge is None:
             base = self._symbol.rstrip('+-')
             sign = self._symbol.lstrip(base)
             value = sum(float(f"{s}1.0") for s in sign)
             unit = 'e'
-            self._charge = measurable.Scalar(value, unit)
+            self._charge = datatypes.Scalar(value, unit)
         return self._charge
 
     @property
