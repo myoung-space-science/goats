@@ -133,11 +133,11 @@ class same:
 
 
 RT = typing.TypeVar('RT')
-Operator = typing.TypeVar('Operator', bound=typing.Callable)
-Operator = typing.Callable[..., RT]
+OprType = typing.TypeVar('OprType', bound=typing.Callable)
+OprType = typing.Callable[..., RT]
 
 
-def _comparison(opr: Operator):
+def _comparison(opr: OprType):
     """Implement a comparison operator."""
     @same('_metric', allowed=numbers.Real)
     def func(a: Quantifiable, b):
@@ -151,7 +151,7 @@ def _comparison(opr: Operator):
     return func
 
 
-def _unary(opr: Operator):
+def _unary(opr: OprType):
     """Implement a unary arithmetic operator."""
     def func(a: Quantifiable):
         return type(a)(opr(a._amount), a._metric)
@@ -160,33 +160,64 @@ def _unary(opr: Operator):
     return func
 
 
-def _preserve_metric(opr: Operator):
+class Method:
+    """An operator wrapper that simplifies evaluation."""
+
+    def __init__(self, method: OprType) -> None:
+        self._method = method
+
+    def evaluate(self, attr: str, *args):
+        """Apply the operator to arguments or their attributes."""
+        operands = [getattr(arg, attr, arg) for arg in args]
+        return self._method(*operands)
+
+    def preserves(self, *args, **kwargs):
+        """Require that this operation preserve certain attributes."""
+        def wrapper(func):
+            decorated = same(*args, **kwargs)
+            return decorated(func)
+        return wrapper
+
+
+def _preserve_metric(opr: OprType):
     """Implement a forward operator that preserves the instance metric."""
-    @same('_metric')
-    def func(a: Quantifiable, b: Quantifiable):
-        return type(a)(opr(a._amount, b._amount), a._metric)
+    method = Method(opr)
+    @method.preserves('_metric', allowed=numbers.Real)
+    def func(a: Quantifiable, b):
+        return type(a)(
+            method.evaluate('_amount', a, b),
+            a._metric
+        )
     return func
 
 
-def _combine_metric(opr: Operator):
-    """Implement a forward operator that combines instance metrics."""
-    def func(a: Quantifiable, b: Quantifiable):
-        return type(a)(opr(a._amount, b._amount), opr(a._metric, b._metric))
-    return func
-
-
-def _update_metric(opr: Operator):
+def _update_metric(opr: OprType):
     """Implement a forward operator that updates the instance metric."""
-    def func(a: Quantifiable, b: Real):
-        return type(a)(opr(a._amount, b), opr(a._metric, b))
+    method = Method(opr)
+    def func(a: Quantifiable, b):
+        return type(a)(
+            method.evaluate('_amount', a, b),
+            method.evaluate('_metric', a, b),
+        )
     return func
 
 
-def _standard(opr: Operator):
-    """Implement a standard forward operator."""
-    def func(a: Quantifiable, b: Real):
-        return type(a)(opr(a._amount, b), a._metric)
-    return func
+def _name_tbd(*preserved: str):
+    """"""
+    def _inside(opr: OprType):
+        method = Method(opr)
+        @method.preserves(*preserved, allowed=Real)
+        def func(a: Quantifiable, b):
+            if not isinstance(b, (Quantifiable, Real)):
+                return NotImplemented
+            args = [
+                getattr(a, attr) if attr in preserved
+                else method.evaluate(attr, a, b)
+                for attr in ('_amount', '_metric')
+            ]
+            return type(a)(*args)
+        return func
+    return _inside
 
 
 Wrapper = typing.TypeVar('Wrapper', bound=typing.Callable)
@@ -200,25 +231,25 @@ Rules = typing.Dict[
 ]
 
 
-_operators: typing.Dict[Operator, Rules] = {
+_operators: typing.Dict[OprType, Rules] = {
     operator.add: {
-        (Quantifiable, Quantifiable): _preserve_metric,
-        (Quantifiable, Real): _standard,
+        (Quantifiable, Quantifiable): '_metric',
+        (Quantifiable, Real): '_metric',
     },
     operator.sub: {
-        (Quantifiable, Quantifiable): _preserve_metric,
-        (Quantifiable, Real): _standard,
+        (Quantifiable, Quantifiable): '_metric',
+        (Quantifiable, Real): '_metric',
     },
     operator.mul: {
-        (Quantifiable, Quantifiable): _combine_metric,
-        (Quantifiable, Real): _standard,
+        (Quantifiable, Quantifiable): None,
+        (Quantifiable, Real): '_metric',
     },
     operator.truediv: {
-        (Quantifiable, Quantifiable): _combine_metric,
-        (Quantifiable, Real): _standard,
+        (Quantifiable, Quantifiable): None,
+        (Quantifiable, Real): '_metric',
     },
     operator.pow: {
-        (Quantifiable, Real): _update_metric,
+        (Quantifiable, Real): None,
     },
 }
 
@@ -232,7 +263,7 @@ def _get_rule(rules: dict, *args) -> Wrapper:
             return rule
 
 
-def _forward(opr: Operator):
+def _forward(opr: OprType):
     """Implement a forward operator."""
     rules = _operators.get(opr)
     def func(a: Quantifiable, b):
@@ -243,7 +274,58 @@ def _forward(opr: Operator):
     return func
 
 
-def _inplace(opr: Operator):
+def _forward(opr: OprType):
+    """Implement a forward operator."""
+    rules = _operators.get(opr)
+    def func(a: Quantifiable, b):
+        preserved = _get_rule(rules, a, b)
+        method = _name_tbd(*iterables.whole(preserved))
+        return method(opr)(a, b) if preserved is not None else NotImplemented
+    func.__name__ = f"__{opr.__name__}__"
+    func.__doc__ = opr.__doc__
+    return func
+
+
+# This could eventually just be `Operator` and it could take `_attrs` as an
+# argument to `__init__`.
+class QuantifiableOperator:
+    """An operator that knows how to handle quantifiable objects."""
+
+    def __init__(self, opr: OprType) -> None:
+        self._opr = opr
+
+    _attrs = ('_amount', '_metric')
+
+    def __call__(self, *args):
+        """Apply the operator to arguments or their attributes."""
+        updated = [self._evaluate(attr, *args) for attr in self._attrs]
+        return type(args[0])(*updated)
+
+    def _evaluate(self, attr: str, *args):
+        operands = [getattr(arg, attr, arg) for arg in args]
+        return self._opr(*operands)
+
+
+def _forward(opr: OprType):
+    """Implement a forward operator."""
+    def func(a: Quantifiable, b):
+        if isinstance(b, Quantifiable):
+            return type(a)(
+                opr(a._amount, b._amount),
+                opr(a._metric, b._metric),
+            )
+        if isinstance(b, Real):
+            return type(a)(
+                opr(a._amount, b),
+                a._metric,
+            )
+        return NotImplemented
+    func.__name__ = f"__{opr.__name__}__"
+    func.__doc__ = opr.__doc__
+    return func
+
+
+def _inplace(opr: OprType):
     """Implement an in-place operator."""
     rules = _operators.get(opr)
     def func(a: Quantifiable, b):
@@ -258,7 +340,7 @@ def _inplace(opr: Operator):
     return func
 
 
-def _reverse(opr: Operator):
+def _reverse(opr: OprType):
     """Implement a standard reverse operator."""
     def func(b: Quantifiable, a):
         return (
@@ -277,63 +359,6 @@ def _suppress(name: str):
     func.__name__ = name
     func.__doc__ = """Not implemented."""
     return func
-
-
-class OperatorMixin:
-    """A mixin class that defines operators for quantifiable objects.
-    
-    This class implements the `~algebraic.Quantity` operators with the following
-    rules:
-        - unary `-`, `+`, and `abs` on an instance
-        - binary `+` and `-` between two instances with an identical metric
-        - binary `*` and `/` between two instances
-        - symmetric binary `*` between an instance and a number
-        - right-sided `/` and `**` between an instance and a number
-
-    Notes on allowed binary arithmetic operations:
-        - This class does not support floor division (`//`) in any form because
-          of the ambiguity it would create with `~metric.Unit` floor division.
-        - This class does not support floating-point division (`/`) in which the
-          left operand is not the same type or a subtype. The reason for this
-          choice is that the result may be ambiguous. For example, suppose we
-          have an instance called ``d`` with values ``[10.0, 20.0]`` and unit
-          ``cm``. Whereas the result of ``d / 2.0`` should clearly be a new
-          instance with values ``[5.0, 10.0]`` and the same unit, it is unclear
-          whether the values of ``2.0 / d`` should be element-wise ratios (i.e.,
-          ``[0.2, 0.1]``) or a single value (e.g., ``2.0 / ||d||``) and it is
-          not at all obvious what the unit or dimensions should be.
-    """
-
-    __lt__ = _comparison(operator.lt)
-    __le__ = _comparison(operator.le)
-    __gt__ = _comparison(operator.gt)
-    __ge__ = _comparison(operator.ge)
-    __eq__ = _comparison(operator.eq)
-    __ne__ = _comparison(operator.ne)
-
-    __abs__ = _unary(operator.abs)
-    __pos__ = _unary(operator.pos)
-    __neg__ = _unary(operator.neg)
-
-    __add__ = _forward(operator.add)
-    __iadd__ = _inplace(operator.add)
-    __radd__ = _reverse(operator.add)
-
-    __sub__ = _forward(operator.sub)
-    __isub__ = _inplace(operator.sub)
-    __rsub__ = _reverse(operator.sub)
-
-    __mul__ = _forward(operator.mul)
-    __imul__ = _inplace(operator.mul)
-    __rmul__ = _reverse(operator.mul)
-
-    __truediv__ = _forward(operator.truediv)
-    __itruediv__ = _inplace(operator.truediv)
-    __rtruediv__ = _suppress('__rtruediv__')
-
-    __pow__ = _forward(operator.pow)
-    __rpow__ = _suppress('__rpow__')
-    __ipow__ = _inplace(operator.pow)
 
 
 T = typing.TypeVar('T')
@@ -478,6 +503,231 @@ class Quantity(Quantifiable):
         self._amount *= new // self._metric
         self._metric = new
         return self
+
+
+class Comparison:
+    """A comparison operation between two quantifiable objects."""
+
+    def __init__(self, opr: OprType) -> None:
+        self._opr = opr
+
+    def __call__(self, a: Quantifiable, b):
+        """Apply the operator to arguments or their attributes."""
+        if isinstance(b, Quantifiable):
+            return self._opr(a._amount, b._amount)
+        if isinstance(b, algebraic.Orderable):
+            return self._opr(a._amount, b)
+        return NotImplemented
+
+
+class Unary:
+    """An arithmetic operation one a single quantifiable object."""
+
+    def __init__(self, opr: OprType) -> None:
+        self._opr = opr
+
+    def __call__(self, a: Quantifiable):
+        """Apply the operator to the argument."""
+        return type(a)(self._opr(a._amount), a._metric)
+
+
+class Binary:
+    """An arithmetic operation between two quantifiable objects."""
+
+    def __init__(self, opr: OprType) -> None:
+        self._opr = opr
+
+    # _attrs = ('_amount', '_metric')
+
+    def __call__(self, a: Quantifiable, b):
+        """Apply the operator to arguments or their attributes."""
+        # updated = [self._evaluate(attr, *args) for attr in self._attrs]
+        # return type(args[0])(*updated)
+        if isinstance(b, Quantifiable):
+            return type(a)(
+                self._opr(a._amount, b._amount),
+                self._opr(a._metric, b._metric),
+            )
+        if isinstance(b, Real):
+            return type(a)(
+                self._opr(a._amount, b),
+                self._opr(a._metric, b),
+            )
+        return NotImplemented
+
+    # def _evaluate(self, attr: str, a, b):
+    #     operands = [getattr(arg, attr, arg) for arg in (a, b)]
+    #     try:
+    #         return self._opr(*operands)
+    #     except TypeError:
+    #         return getattr(a, attr)
+
+
+class Operator: # Really only binary for now.
+    """"""
+
+    def __init__(
+        self,
+        rules: typing.Dict[typing.Tuple[type], typing.Tuple[str]],
+    ) -> None:
+        self._rules = rules
+
+    _attrs = ('_amount', '_metric')
+
+    def implement(self, opr: OprType, *modes: str):
+        """Implement `opr` for the requested modes."""
+        forward = self._build_forward(opr)
+        forward.__name__ = f"__{opr.__name__}__"
+        forward.__doc__ = opr.__doc__
+        reverse = (
+            self._build_reverse(opr) if 'reverse' in modes
+            else self._suppress(opr)
+        )
+        reverse.__name__ = f"__r{opr.__name__}__"
+        reverse.__doc__ = opr.__doc__
+        inplace = (
+            self._build_inplace(opr) if 'inplace' in modes
+            else self._suppress(opr)
+        )
+        inplace.__name__ = f"__i{opr.__name__}__"
+        inplace.__doc__ = opr.__doc__
+        return forward, reverse, inplace
+
+    def _get_updatable(self, *args):
+        """Get the names of updatable attributes, based on arg types."""
+        types = tuple(type(arg) for arg in args)
+        if types in self._rules:
+            return self._rules[types]
+        for key, names in self._rules.items():
+            if all(issubclass(t, k) for t, k in zip(types, key)):
+                return names
+        raise TypeError(f"No operator rule for {types}") from None
+
+    def _build_forward(self, opr: OprType):
+        """Build the forward version of `opr`."""
+        def func(a: Quantifiable, b):
+            updatable = self._get_updatable(a, b)
+            values = []
+            for attr in self._attrs:
+                if attr in updatable:
+                    operands = [getattr(arg, attr, arg) for arg in (a, b)]
+                    values.append(opr(*operands))
+                else:
+                    values.append(getattr(a, attr))
+            return type(a)(*values)
+        return func
+
+    def _build_reverse(self, opr: OprType):
+        """Build the reverse version of `opr`."""
+        def func(b: Quantifiable, a):
+            return (
+                type(b)(opr(a, b._amount), b._metric) if isinstance(a, Real)
+                else NotImplemented
+            )
+        return func
+
+    def _build_inplace(self, opr: OprType):
+        """Build the in-place version of `opr`."""
+        def func(a: Quantifiable, b):
+            result = self._build_forward(opr)(a, b)
+            a._amount = result._amount
+            a._metric = result._metric
+            return a
+        return func
+
+    def _suppress(self, opr: OprType):
+        """Explicitly suppress use of `opr`."""
+        def func(*args, **kwargs):
+            return NotImplemented
+        return func
+
+
+binary = Operator(
+    {
+        (Quantifiable, Quantifiable): ('_amount', '_metric'),
+        (Quantifiable, Real): ('_amount',),
+    },
+)
+pow_tmp = Operator(
+    {
+        (Quantifiable, Real): ('_amount', '_metric'),
+    },
+)
+class OperatorMixin:
+    """A mixin class that defines operators for quantifiable objects.
+    
+    This class implements the `~algebraic.Quantity` operators with the following
+    rules:
+        - unary `-`, `+`, and `abs` on an instance
+        - binary `+` and `-` between two instances with an identical metric
+        - binary `*` and `/` between two instances
+        - symmetric binary `*` between an instance and a number
+        - right-sided `/` and `**` between an instance and a number
+
+    Notes on allowed binary arithmetic operations:
+        - This class does not support floor division (`//`) in any form because
+          of the ambiguity it would create with `~metric.Unit` floor division.
+        - This class does not support floating-point division (`/`) in which the
+          left operand is not the same type or a subtype. The reason for this
+          choice is that the result may be ambiguous. For example, suppose we
+          have an instance called ``d`` with values ``[10.0, 20.0]`` and unit
+          ``cm``. Whereas the result of ``d / 2.0`` should clearly be a new
+          instance with values ``[5.0, 10.0]`` and the same unit, it is unclear
+          whether the values of ``2.0 / d`` should be element-wise ratios (i.e.,
+          ``[0.2, 0.1]``) or a single value (e.g., ``2.0 / ||d||``) and it is
+          not at all obvious what the unit or dimensions should be.
+    """
+
+    __lt__ = _comparison(operator.lt)
+    __le__ = _comparison(operator.le)
+    __gt__ = _comparison(operator.gt)
+    __ge__ = _comparison(operator.ge)
+    __eq__ = _comparison(operator.eq)
+    __ne__ = _comparison(operator.ne)
+
+    __abs__ = _unary(operator.abs)
+    __pos__ = _unary(operator.pos)
+    __neg__ = _unary(operator.neg)
+
+    __add__ = _forward(operator.add)
+    __iadd__ = _inplace(operator.add)
+    __radd__ = _reverse(operator.add)
+
+    __sub__ = _forward(operator.sub)
+    __isub__ = _inplace(operator.sub)
+    __rsub__ = _reverse(operator.sub)
+
+    __mul__ = _forward(operator.mul)
+    __imul__ = _inplace(operator.mul)
+    __rmul__ = _reverse(operator.mul)
+
+    __truediv__ = _forward(operator.truediv)
+    __itruediv__ = _inplace(operator.truediv)
+    __rtruediv__ = _suppress('__rtruediv__')
+
+    __pow__ = _forward(operator.pow)
+    __rpow__ = _suppress('__rpow__')
+    __ipow__ = _inplace(operator.pow)
+
+    __add__, __radd__, __iadd__ = binary.implement(
+        operator.add, 'reverse', 'inplace',
+    )
+
+    __sub__, __rsub__, __isub__ = binary.implement(
+        operator.sub, 'reverse', 'inplace',
+    )
+
+    __mul__, __rmul__, __imul__ = binary.implement(
+        operator.mul, 'reverse', 'inplace',
+    )
+
+    __truediv__, __rtruediv__, __itruediv__ = binary.implement(
+        operator.truediv, 'inplace',
+    )
+
+    __pow__, __rpow__, __ipow__ = pow_tmp.implement(
+        operator.pow, 'inplace',
+    )
 
 
 class Scalar(Quantity):
