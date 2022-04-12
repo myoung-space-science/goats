@@ -393,7 +393,7 @@ def test_unit_multiply():
         result = metric.Unit(this) * metric.Unit(that)
         assert isinstance(result, metric.Unit)
         assert result == metric.Unit(expected)
-    result = metric.Unit('m') / metric.Unit('s')
+    result = metric.Unit('m') * metric.Unit('s')
     wrong = metric.Unit('km*h')
     assert result != wrong
 
