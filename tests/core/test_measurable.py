@@ -1,3 +1,5 @@
+import operator
+
 import pytest
 
 from goats.core import measurable
@@ -9,6 +11,149 @@ class Quantified(measurable.OperatorMixin, measurable.Quantifiable):
 
 class Quantity(measurable.OperatorMixin, measurable.Quantity):
     """Concrete quantity for testing."""
+
+
+@pytest.mark.quantity
+def test_quantity_comparisons():
+    """Test comparisons between two default quantities."""
+    value = 2.0
+    unit = 'm'
+    scalar = Quantity(value, unit)
+    cases = [
+        (operator.lt, value + 1),
+        (operator.le, value + 1),
+        (operator.le, value),
+        (operator.eq, value),
+        (operator.ne, value + 1),
+        (operator.gt, value - 1),
+        (operator.ge, value - 1),
+        (operator.ge, value),
+    ]
+    for case in cases:
+        opr, v = case
+        assert opr(scalar, Quantity(v, unit))
+        with pytest.raises(TypeError):
+            opr(scalar, Quantity(v, 'J'))
+
+
+@pytest.mark.quantity
+def test_quantities_same_unit():
+    """Test operations on default quantities with the same unit."""
+    cases = [
+        (2.0, 'm'),
+        (3.5, 'm'),
+    ]
+    quantities = [Quantity(*args) for args in cases]
+    values = [k[0] for k in cases]
+
+    # ADDITIVE
+    oprs = [
+        operator.add,
+        operator.sub,
+    ]
+    unit = 'm'
+    for opr in oprs:
+        expected = Quantity(opr(*values), unit)
+        assert opr(*quantities) == expected
+
+    # MULTIPLICATION
+    opr = operator.mul
+    expected = Quantity(opr(*values), 'm^2')
+    assert opr(*quantities) == expected
+
+    # DIVISION
+    opr = operator.truediv
+    expected = Quantity(opr(*values), '1')
+    assert opr(*quantities) == expected
+
+    # EXPONENTIAL
+    opr = operator.pow
+    with pytest.raises(TypeError):
+        opr(*quantities)
+
+
+@pytest.mark.quantity
+def test_quantities_diff_unit():
+    """Test operations on default quantities with different units."""
+    cases = [
+        (2.0, 'm'),
+        (2.0, 'J'),
+    ]
+    quantities = [Quantity(*args) for args in cases]
+    values = [k[0] for k in cases]
+
+    # ADDITIVE
+    oprs = [
+        operator.add,
+        operator.sub,
+    ]
+    for opr in oprs:
+        with pytest.raises(TypeError):
+            opr(*quantities)
+
+    # MULTIPLICATION
+    opr = operator.mul
+    expected = Quantity(opr(*values), 'm * J')
+    assert opr(*quantities) == expected
+
+    # DIVISION
+    opr = operator.truediv
+    expected = Quantity(opr(*values), 'm / J')
+    assert opr(*quantities) == expected
+
+    # EXPONENTIAL
+    opr = operator.pow
+    with pytest.raises(TypeError):
+        opr(*quantities)
+
+
+@pytest.mark.quantity
+def test_quantity_number():
+    """Test operations on a default quantity and a number."""
+    values = [2.0, 3.5]
+    unit = 'm'
+    quantity = Quantity(values[0], unit)
+    value = values[1]
+
+    # ADDITIVE
+    oprs = [
+        operator.add,
+        operator.sub,
+    ]
+    for opr in oprs:
+        # forward
+        expected = Quantity(opr(*values), unit)
+        assert opr(quantity, value) == expected
+        # reverse
+        expected = Quantity(opr(*values[::-1]), unit)
+        assert opr(value, quantity) == expected
+
+    # MULTIPLICATION
+    opr = operator.mul
+    # forward
+    expected = Quantity(opr(*values), unit)
+    assert opr(quantity, value) == expected
+    # reverse
+    expected = Quantity(opr(*values[::-1]), unit)
+    assert opr(value, quantity) == expected
+
+    # DIVISION
+    opr = operator.truediv
+    # forward
+    expected = Quantity(opr(*values), unit)
+    assert opr(quantity, value) == expected
+    # reverse
+    with pytest.raises(TypeError):
+        opr(value, quantity)
+
+    # EXPONENTIAL
+    opr = operator.pow
+    # forward
+    expected = Quantity(opr(*values), f'{unit}^{value}')
+    assert opr(quantity, value) == expected
+    # reverse
+    with pytest.raises(TypeError):
+        opr(value, quantity)
 
 
 def test_quantity_idempotence():
