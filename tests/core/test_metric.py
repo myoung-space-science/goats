@@ -362,31 +362,6 @@ def test_unit_init():
         assert unit == expected['unit']
 
 
-conversions = {
-    ('km/s', 'm/s'): 1e3,
-    ('km/h', 'km/s'): 1/3600,
-    ('s^3/km^6', 's^3/cm^6'): 1e-30,
-    ('m/h', 'cm/s'): 1/36,
-    ('G', 'nT'): 1e5,
-    ('nT', 'G'): 1e-5,
-}
-multiplications = {
-    ('m', 's'): 'm*s',
-    ('m/s', 'km/m'): 'km/s',
-    ('m', 'm^-1'): '1',
-}
-divisions = {
-    ('m', 's'): 'm/s',
-    ('m/s', 'm/km'): 'km/s',
-    ('m', 'm'): '1',
-}
-powers = {
-    ('m', 2): 'm^2',
-    ('m/s', 3): 'm^3 s^-3',
-    ('J*s^2/m^3', -1): 'J^-1 s^-2 m^3',
-}
-
-
 def test_unit_algebra():
     """Test algebraic operations on the Unit class."""
     u0 = metric.Unit('m')
@@ -411,7 +386,12 @@ def test_unit_floordiv():
 
 def test_unit_multiply():
     """Test the ability to create a new compound unit with '*'."""
-    for (this, that), expected in multiplications.items():
+    cases = {
+        ('m', 's'): 'm*s',
+        ('m/s', 'km/m'): 'km/s',
+        ('m', 'm^-1'): '1',
+    }
+    for (this, that), expected in cases.items():
         result = metric.Unit(this) * metric.Unit(that)
         assert isinstance(result, metric.Unit)
         assert result == metric.Unit(expected)
@@ -422,7 +402,12 @@ def test_unit_multiply():
 
 def test_unit_divide():
     """Test the ability to create a new compound unit with '/'."""
-    for (this, that), expected in divisions.items():
+    cases = {
+        ('m', 's'): 'm/s',
+        ('m/s', 'm/km'): 'km/s',
+        ('m', 'm'): '1',
+    }
+    for (this, that), expected in cases.items():
         result = metric.Unit(this) / metric.Unit(that)
         assert isinstance(result, metric.Unit)
         assert result == metric.Unit(expected)
@@ -431,9 +416,14 @@ def test_unit_divide():
     assert result != wrong
 
 
-def test_unit_power():
+def test_unit_raise():
     """Test the ability to create a new compound unit with '**'."""
-    for (this, that), expected in powers.items():
+    cases = {
+        ('m', 2): 'm^2',
+        ('m/s', 3): 'm^3 s^-3',
+        ('J*s^2/m^3', -1): 'J^-1 s^-2 m^3',
+    }
+    for (this, that), expected in cases.items():
         result = metric.Unit(this) ** that
         assert isinstance(result, metric.Unit)
         assert result == metric.Unit(expected)
