@@ -413,7 +413,7 @@ binary = Operator(
         '_metric': [Quantifiable],
     },
 )
-pow_tmp = Operator(
+power = Operator(
     {
         '_amount': [Real],
         '_metric': [Real],
@@ -471,7 +471,7 @@ class OperatorMixin:
         operator.truediv, 'inplace',
     )
 
-    __pow__, __rpow__, __ipow__ = pow_tmp.implement(
+    __pow__, __rpow__, __ipow__ = power.implement(
         operator.pow, 'inplace',
     )
 
