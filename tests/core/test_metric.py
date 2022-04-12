@@ -362,6 +362,15 @@ def test_unit_init():
         assert unit == expected['unit']
 
 
+def test_unit_idempotence():
+    """Make sure initializing with a Unit creates a new Unit."""
+    old = metric.Unit('m')
+    new = metric.Unit(old)
+    assert isinstance(new, metric.Unit)
+    assert str(new) == str(old)
+    assert repr(new) == repr(old)
+
+
 def test_unit_algebra():
     """Test algebraic operations on the Unit class."""
     u0 = metric.Unit('m')
@@ -371,17 +380,6 @@ def test_unit_algebra():
     assert u0 / u1 == metric.Unit('m / J')
     assert u0**2 / u1**3 == metric.Unit('m^2 / J^3')
     assert (u0 / u1)**2 == metric.Unit('m^2 / J^2')
-
-
-def test_unit_floordiv():
-    """Test conversion with the Unit class."""
-    unit = metric.Unit('m')
-    assert metric.Unit('cm') // unit == 1e2
-    assert unit // 'cm' == 1e-2
-    assert 'cm' // unit == 1e2
-    unit = metric.Unit('m / s')
-    assert unit // 'km / h' == pytest.approx(1e3 / 3600)
-    assert 'km / h' // unit == pytest.approx(3600 / 1e3)
 
 
 def test_unit_multiply():
@@ -416,6 +414,17 @@ def test_unit_divide():
     assert result != wrong
 
 
+def test_unit_floordiv():
+    """Test conversion with the Unit class."""
+    unit = metric.Unit('m')
+    assert metric.Unit('cm') // unit == 1e2
+    assert unit // 'cm' == 1e-2
+    assert 'cm' // unit == 1e2
+    unit = metric.Unit('m / s')
+    assert unit // 'km / h' == pytest.approx(1e3 / 3600)
+    assert 'km / h' // unit == pytest.approx(3600 / 1e3)
+
+
 def test_unit_raise():
     """Test the ability to create a new compound unit with '**'."""
     cases = {
@@ -427,15 +436,6 @@ def test_unit_raise():
         result = metric.Unit(this) ** that
         assert isinstance(result, metric.Unit)
         assert result == metric.Unit(expected)
-
-
-def test_unit_idempotence():
-    """Make sure initializing with a Unit creates a new Unit."""
-    old = metric.Unit('m')
-    new = metric.Unit(old)
-    assert isinstance(new, metric.Unit)
-    assert str(new) == str(old)
-    assert repr(new) == repr(old)
 
 
 def test_unit_equality():
