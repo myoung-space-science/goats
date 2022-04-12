@@ -256,139 +256,8 @@ def test_named_unit_decompose():
         assert result == expected
 
 
-def test_unit_algebra():
-    """Test algebraic operations on the Unit class."""
-    u0 = metric.Unit('m')
-    u1 = metric.Unit('J')
-    assert u0**2 is not u0
-    assert u0 * u1 == metric.Unit('m * J')
-    assert u0 / u1 == metric.Unit('m / J')
-    assert u0**2 / u1**3 == metric.Unit('m^2 / J^3')
-    assert (u0 / u1)**2 == metric.Unit('m^2 / J^2')
-
-
-def test_unit_floordiv():
-    """Test conversion with the Unit class."""
-    unit = metric.Unit('m')
-    assert metric.Unit('cm') // unit == 1e2
-    assert unit // 'cm' == 1e-2
-    assert 'cm' // unit == 1e2
-    unit = metric.Unit('m / s')
-    assert unit // 'km / h' == pytest.approx(1e3 / 3600)
-    assert 'km / h' // unit == pytest.approx(3600 / 1e3)
-
-
-# These were copied from test_units.py; there is significant overlap with other
-# tests in this module.
-strings = {
-    'm': {
-        'unit': 'm',
-        'dimension': 'L',
-    },
-    'm / s': {
-        'unit': 'm s^-1',
-        'dimension': 'L T^-1',
-    },
-    '1 / s': {
-        'unit': 's^-1',
-        'dimension': 'T^-1',
-    },
-    '1 / s^2': {
-        'unit': 's^-2',
-        'dimension': 'T^-2',
-    },
-    's^3 / km^6': {
-        'unit': 's^3 km^-6',
-        'dimension': 'T^3 L^-6',
-    },
-    '# / (cm^2*s*sr*MeV/nuc)': {
-        'unit': '# cm^-2 s^-1 sr^-1 (MeV nuc^-1)^-1',
-        'dimension': 'L^-2 T^-1 (M L^2 T^-2 M^-1)^-1',
-    },
-    '# / ((cm^2*s*sr*MeV/nuc))': {
-        'unit': '# cm^-2 s^-1 sr^-1 (MeV nuc^-1)^-1',
-        'dimension': 'L^-2 T^-1 (M L^2 T^-2 M^-1)^-1',
-    },
-}
-conversions = {
-    ('km/s', 'm/s'): 1e3,
-    ('km/h', 'km/s'): 1/3600,
-    ('s^3/km^6', 's^3/cm^6'): 1e-30,
-    ('m/h', 'cm/s'): 1/36,
-    ('G', 'nT'): 1e5,
-    ('nT', 'G'): 1e-5,
-}
-multiplications = {
-    ('m', 's'): 'm*s',
-    ('m/s', 'km/m'): 'km/s',
-    ('m', 'm^-1'): '1',
-}
-divisions = {
-    ('m', 's'): 'm/s',
-    ('m/s', 'm/km'): 'km/s',
-    ('m', 'm'): '1',
-}
-powers = {
-    ('m', 2): 'm^2',
-    ('m/s', 3): 'm^3 s^-3',
-    ('J*s^2/m^3', -1): 'J^-1 s^-2 m^3',
-}
-
-
-def test_unit_init():
-    """Initialize the Unit object with various strings."""
-    for arg, expected in strings.items():
-        unit = metric.Unit(arg)
-        assert unit == expected['unit']
-
-
-def test_multiply():
-    """Test the ability to create a new compound unit with '*'."""
-    for (this, that), expected in multiplications.items():
-        result = metric.Unit(this) * metric.Unit(that)
-        assert isinstance(result, metric.Unit)
-        assert result == metric.Unit(expected)
-    result = metric.Unit('m') / metric.Unit('s')
-    wrong = metric.Unit('km*h')
-    assert result != wrong
-
-
-def test_divide():
-    """Test the ability to create a new compound unit with '/'."""
-    for (this, that), expected in divisions.items():
-        result = metric.Unit(this) / metric.Unit(that)
-        assert isinstance(result, metric.Unit)
-        assert result == metric.Unit(expected)
-    result = metric.Unit('m') / metric.Unit('s')
-    wrong = metric.Unit('km/h')
-    assert result != wrong
-
-
-def test_raise_to_power():
-    """Test the ability to create a new compound unit with '**'."""
-    for (this, that), expected in powers.items():
-        result = metric.Unit(this) ** that
-        assert isinstance(result, metric.Unit)
-        assert result == metric.Unit(expected)
-
-
-def test_idempotence():
-    """Make sure initializing with a Unit creates a new Unit."""
-    old = metric.Unit('m')
-    new = metric.Unit(old)
-    assert isinstance(new, metric.Unit)
-    assert str(new) == str(old)
-    assert repr(new) == repr(old)
-
-
-def test_equality():
-    """Test the definition of strict equality between units."""
-    assert metric.Unit('m/s') == metric.Unit('m/s')
-    assert metric.Unit('m/s') == metric.Unit('m*s^-1')
-
-
-def test_single_unit_parse():
-    """Test the ability to handle arbitrary single units.
+def test_named_unit_parse():
+    """Test the ability to handle arbitrary named units.
 
     Note that the class that manages single units is primarily an assistant to
     the Unit class, so full coverage is not necessary as long as Unit is
@@ -454,6 +323,135 @@ def test_named_unit_idempotence():
     new = metric.NamedUnit(old)
     assert isinstance(new, metric.NamedUnit)
     assert new is old
+
+
+strings = {
+    'm': {
+        'unit': 'm',
+        'dimension': 'L',
+    },
+    'm / s': {
+        'unit': 'm s^-1',
+        'dimension': 'L T^-1',
+    },
+    '1 / s': {
+        'unit': 's^-1',
+        'dimension': 'T^-1',
+    },
+    '1 / s^2': {
+        'unit': 's^-2',
+        'dimension': 'T^-2',
+    },
+    's^3 / km^6': {
+        'unit': 's^3 km^-6',
+        'dimension': 'T^3 L^-6',
+    },
+    '# / (cm^2*s*sr*MeV/nuc)': {
+        'unit': '# cm^-2 s^-1 sr^-1 (MeV nuc^-1)^-1',
+        'dimension': 'L^-2 T^-1 (M L^2 T^-2 M^-1)^-1',
+    },
+    '# / ((cm^2*s*sr*MeV/nuc))': {
+        'unit': '# cm^-2 s^-1 sr^-1 (MeV nuc^-1)^-1',
+        'dimension': 'L^-2 T^-1 (M L^2 T^-2 M^-1)^-1',
+    },
+}
+conversions = {
+    ('km/s', 'm/s'): 1e3,
+    ('km/h', 'km/s'): 1/3600,
+    ('s^3/km^6', 's^3/cm^6'): 1e-30,
+    ('m/h', 'cm/s'): 1/36,
+    ('G', 'nT'): 1e5,
+    ('nT', 'G'): 1e-5,
+}
+multiplications = {
+    ('m', 's'): 'm*s',
+    ('m/s', 'km/m'): 'km/s',
+    ('m', 'm^-1'): '1',
+}
+divisions = {
+    ('m', 's'): 'm/s',
+    ('m/s', 'm/km'): 'km/s',
+    ('m', 'm'): '1',
+}
+powers = {
+    ('m', 2): 'm^2',
+    ('m/s', 3): 'm^3 s^-3',
+    ('J*s^2/m^3', -1): 'J^-1 s^-2 m^3',
+}
+
+
+def test_unit_init():
+    """Initialize the Unit object with various strings."""
+    for arg, expected in strings.items():
+        unit = metric.Unit(arg)
+        assert unit == expected['unit']
+
+
+def test_unit_algebra():
+    """Test algebraic operations on the Unit class."""
+    u0 = metric.Unit('m')
+    u1 = metric.Unit('J')
+    assert u0**2 is not u0
+    assert u0 * u1 == metric.Unit('m * J')
+    assert u0 / u1 == metric.Unit('m / J')
+    assert u0**2 / u1**3 == metric.Unit('m^2 / J^3')
+    assert (u0 / u1)**2 == metric.Unit('m^2 / J^2')
+
+
+def test_unit_floordiv():
+    """Test conversion with the Unit class."""
+    unit = metric.Unit('m')
+    assert metric.Unit('cm') // unit == 1e2
+    assert unit // 'cm' == 1e-2
+    assert 'cm' // unit == 1e2
+    unit = metric.Unit('m / s')
+    assert unit // 'km / h' == pytest.approx(1e3 / 3600)
+    assert 'km / h' // unit == pytest.approx(3600 / 1e3)
+
+
+def test_unit_multiply():
+    """Test the ability to create a new compound unit with '*'."""
+    for (this, that), expected in multiplications.items():
+        result = metric.Unit(this) * metric.Unit(that)
+        assert isinstance(result, metric.Unit)
+        assert result == metric.Unit(expected)
+    result = metric.Unit('m') / metric.Unit('s')
+    wrong = metric.Unit('km*h')
+    assert result != wrong
+
+
+def test_unit_divide():
+    """Test the ability to create a new compound unit with '/'."""
+    for (this, that), expected in divisions.items():
+        result = metric.Unit(this) / metric.Unit(that)
+        assert isinstance(result, metric.Unit)
+        assert result == metric.Unit(expected)
+    result = metric.Unit('m') / metric.Unit('s')
+    wrong = metric.Unit('km/h')
+    assert result != wrong
+
+
+def test_unit_power():
+    """Test the ability to create a new compound unit with '**'."""
+    for (this, that), expected in powers.items():
+        result = metric.Unit(this) ** that
+        assert isinstance(result, metric.Unit)
+        assert result == metric.Unit(expected)
+
+
+def test_unit_idempotence():
+    """Make sure initializing with a Unit creates a new Unit."""
+    old = metric.Unit('m')
+    new = metric.Unit(old)
+    assert isinstance(new, metric.Unit)
+    assert str(new) == str(old)
+    assert repr(new) == repr(old)
+
+
+def test_unit_equality():
+    """Test the definition of strict equality between units."""
+    assert metric.Unit('m/s') == metric.Unit('m/s')
+    assert metric.Unit('m/s') == metric.Unit('m*s^-1')
 
 
 def test_system():
