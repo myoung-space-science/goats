@@ -343,7 +343,7 @@ def test_unit_init():
 
 
 def test_multiply():
-    """Test the ability to create a new compound instance with '*'."""
+    """Test the ability to create a new compound unit with '*'."""
     for (this, that), expected in multiplications.items():
         result = metric.Unit(this) * metric.Unit(that)
         assert isinstance(result, metric.Unit)
@@ -354,7 +354,7 @@ def test_multiply():
 
 
 def test_divide():
-    """Test the ability to create a new compound instance with '/'."""
+    """Test the ability to create a new compound unit with '/'."""
     for (this, that), expected in divisions.items():
         result = metric.Unit(this) / metric.Unit(that)
         assert isinstance(result, metric.Unit)
@@ -365,7 +365,7 @@ def test_divide():
 
 
 def test_raise_to_power():
-    """Test the ability to create a new compound instance with '**'."""
+    """Test the ability to create a new compound unit with '**'."""
     for (this, that), expected in powers.items():
         result = metric.Unit(this) ** that
         assert isinstance(result, metric.Unit)
@@ -373,7 +373,7 @@ def test_raise_to_power():
 
 
 def test_idempotence():
-    """Make sure initializing with a `Unit` creates a new `Unit`."""
+    """Make sure initializing with a Unit creates a new Unit."""
     old = metric.Unit('m')
     new = metric.Unit(old)
     assert isinstance(new, metric.Unit)
@@ -382,7 +382,7 @@ def test_idempotence():
 
 
 def test_equality():
-    """Test the definition of strict equality between instances."""
+    """Test the definition of strict equality between units."""
     assert metric.Unit('m/s') == metric.Unit('m/s')
     assert metric.Unit('m/s') == metric.Unit('m*s^-1')
 
@@ -391,7 +391,7 @@ def test_single_unit_parse():
     """Test the ability to handle arbitrary single units.
 
     Note that the class that manages single units is primarily an assistant to
-    the `Unit` class, so full coverage is not necessary as long as `Unit` is
+    the Unit class, so full coverage is not necessary as long as Unit is
     well tested.
     """
     order, unit = metric.NamedUnit.parse('m')
@@ -448,8 +448,8 @@ def test_single_unit_parse():
     assert unit.quantity == 'current'
 
 
-def test_single_unit_idempotence():
-    """Make sure we can create a new instance from an existing instance."""
+def test_named_unit_idempotence():
+    """Make sure we can create a new NamedUnit from an existing instance."""
     old = metric.NamedUnit('m')
     new = metric.NamedUnit(old)
     assert isinstance(new, metric.NamedUnit)
