@@ -413,13 +413,7 @@ def test_unit_multiply():
         ('m/s', 'km/m'): 'km/s',
         ('m', 'm^-1'): '1',
     }
-    for (this, that), expected in cases.items():
-        result = metric.Unit(this) * metric.Unit(that)
-        assert isinstance(result, metric.Unit)
-        assert result == metric.Unit(expected)
-    result = metric.Unit('m') * metric.Unit('s')
-    wrong = metric.Unit('km*h')
-    assert result != wrong
+    apply_multiplicative(operator.mul, cases)
 
 
 def test_unit_divide():
@@ -429,13 +423,15 @@ def test_unit_divide():
         ('m/s', 'm/km'): 'km/s',
         ('m', 'm'): '1',
     }
+    apply_multiplicative(operator.truediv, cases)
+
+
+def apply_multiplicative(opr, cases: dict):
+    """Apply a multiplicative operator between units."""
     for (this, that), expected in cases.items():
-        result = metric.Unit(this) / metric.Unit(that)
+        result = opr(metric.Unit(this), metric.Unit(that))
         assert isinstance(result, metric.Unit)
         assert result == metric.Unit(expected)
-    result = metric.Unit('m') / metric.Unit('s')
-    wrong = metric.Unit('km/h')
-    assert result != wrong
 
 
 def test_unit_floordiv():
