@@ -137,41 +137,6 @@ def build_singleton(obj, arg):
     return obj(*arg) if isinstance(arg, tuple) else obj(arg)
 
 
-def test_dimension():
-    """Test the Dimension class."""
-    cases = [
-        {
-            'unit': 'm',
-            'quantity': 'length',
-            'forms': ['L'],
-        },
-        {
-            'unit': 'm / s',
-            'quantity': 'velocity',
-            'forms': ['L T^-1', 'T^-1 L'],
-        },
-        {
-            'unit': 'km / s',
-            'quantity': 'velocity',
-            'forms': ['L T^-1', 'T^-1 L'],
-        },
-        {
-            'unit': 'J',
-            'quantity': 'energy',
-            'forms': ['M L^2 T^-2', 'M T^-2 L^2', 'L^2 M T^-2'],
-        },
-    ]
-    for current in cases:
-        unit = metric.Unit(current['unit'])
-        quantity = metric.Quantity(current['quantity'])
-        forms = current['forms']
-        for target in (unit, quantity['mks']):
-            dimension = metric.Dimension(target)
-            assert isinstance(dimension, metric.Dimension)
-            for form in forms:
-                assert dimension == form
-
-
 def test_named_unit_knows_about():
     """Test the convenience method for testing possible instances."""
     for unit in metric.named_units:
@@ -325,36 +290,78 @@ def test_named_unit_idempotence():
     assert new is old
 
 
-strings = {
-    'm': {
-        'unit': 'm',
-        'dimension': 'L',
-    },
-    'm / s': {
-        'unit': 'm s^-1',
-        'dimension': 'L T^-1',
-    },
-    '1 / s': {
-        'unit': 's^-1',
-        'dimension': 'T^-1',
-    },
-    '1 / s^2': {
-        'unit': 's^-2',
-        'dimension': 'T^-2',
-    },
-    's^3 / km^6': {
-        'unit': 's^3 km^-6',
-        'dimension': 'T^3 L^-6',
-    },
-    '# / (cm^2*s*sr*MeV/nuc)': {
-        'unit': '# cm^-2 s^-1 sr^-1 (MeV nuc^-1)^-1',
-        'dimension': 'L^-2 T^-1 (M L^2 T^-2 M^-1)^-1',
-    },
-    '# / ((cm^2*s*sr*MeV/nuc))': {
-        'unit': '# cm^-2 s^-1 sr^-1 (MeV nuc^-1)^-1',
-        'dimension': 'L^-2 T^-1 (M L^2 T^-2 M^-1)^-1',
-    },
-}
+def test_dimension_init():
+    """Test the Dimension class."""
+    cases = [
+        {
+            'unit': 'm',
+            'quantity': 'length',
+            'forms': ['L'],
+        },
+        {
+            'unit': 'm / s',
+            'quantity': 'velocity',
+            'forms': ['L T^-1', 'T^-1 L'],
+        },
+        {
+            'unit': 'km / s',
+            'quantity': 'velocity',
+            'forms': ['L T^-1', 'T^-1 L'],
+        },
+        {
+            'unit': 'J',
+            'quantity': 'energy',
+            'forms': ['M L^2 T^-2', 'M T^-2 L^2', 'L^2 M T^-2'],
+        },
+    ]
+    for current in cases:
+        unit = metric.Unit(current['unit'])
+        quantity = metric.Quantity(current['quantity'])
+        forms = current['forms']
+        for target in (unit, quantity['mks']):
+            dimension = metric.Dimension(target)
+            assert isinstance(dimension, metric.Dimension)
+            for form in forms:
+                assert dimension == form
+
+
+def test_unit_init():
+    """Initialize the Unit object with various strings."""
+    strings = {
+        'm': {
+            'unit': 'm',
+            'dimension': 'L',
+        },
+        'm / s': {
+            'unit': 'm s^-1',
+            'dimension': 'L T^-1',
+        },
+        '1 / s': {
+            'unit': 's^-1',
+            'dimension': 'T^-1',
+        },
+        '1 / s^2': {
+            'unit': 's^-2',
+            'dimension': 'T^-2',
+        },
+        's^3 / km^6': {
+            'unit': 's^3 km^-6',
+            'dimension': 'T^3 L^-6',
+        },
+        '# / (cm^2*s*sr*MeV/nuc)': {
+            'unit': '# cm^-2 s^-1 sr^-1 (MeV nuc^-1)^-1',
+            'dimension': 'L^-2 T^-1 (M L^2 T^-2 M^-1)^-1',
+        },
+        '# / ((cm^2*s*sr*MeV/nuc))': {
+            'unit': '# cm^-2 s^-1 sr^-1 (MeV nuc^-1)^-1',
+            'dimension': 'L^-2 T^-1 (M L^2 T^-2 M^-1)^-1',
+        },
+    }
+    for arg, expected in strings.items():
+        unit = metric.Unit(arg)
+        assert unit == expected['unit']
+
+
 conversions = {
     ('km/s', 'm/s'): 1e3,
     ('km/h', 'km/s'): 1/3600,
@@ -378,13 +385,6 @@ powers = {
     ('m/s', 3): 'm^3 s^-3',
     ('J*s^2/m^3', -1): 'J^-1 s^-2 m^3',
 }
-
-
-def test_unit_init():
-    """Initialize the Unit object with various strings."""
-    for arg, expected in strings.items():
-        unit = metric.Unit(arg)
-        assert unit == expected['unit']
 
 
 def test_unit_algebra():
