@@ -1715,6 +1715,21 @@ class Unit(algebraic.Expression):
         """Compute the inverse of self // other."""
         return 1.0 / self.__floordiv__(other)
 
+    def __add__(self, other):
+        """Called for self + other; either a no-op or an error."""
+        return (
+            Unit(self) if isinstance(other, Unit) and self == other
+            else NotImplemented
+        )
+
+    def __sub__(self, other):
+        """Called for self - other; either a no-op or an error."""
+        return (
+            Unit(self) if isinstance(other, Unit) and self == other
+            else NotImplemented
+        )
+
+
 UnitLike.register(Unit)
 
 

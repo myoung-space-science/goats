@@ -382,6 +382,24 @@ def test_unit_algebra():
     assert (u0 / u1)**2 == metric.Unit('m^2 / J^2')
 
 
+def test_unit_add():
+    """Test the use of '+' between units."""
+    meter = metric.Unit('m')
+    assert meter + metric.Unit('m') == metric.Unit('m')
+    for arg in ['cm', 'J', '1', 1]:
+        with pytest.raises(TypeError):
+            meter + metric.Unit(arg)
+
+
+def test_unit_sub():
+    """Test the use of '-' between units."""
+    meter = metric.Unit('m')
+    assert meter - metric.Unit('m') == metric.Unit('m')
+    for arg in ['cm', 'J', '1', 1]:
+        with pytest.raises(TypeError):
+            meter - metric.Unit(arg)
+
+
 def test_unit_multiply():
     """Test the ability to create a new compound unit with '*'."""
     cases = {
