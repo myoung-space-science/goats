@@ -396,9 +396,14 @@ def apply_additive(opr):
     """Apply an additive operator between units."""
     meter = metric.Unit('m')
     assert opr(meter, metric.Unit('m')) == metric.Unit('m')
-    for arg in ['cm', 'J', '1', 1]:
+    for number in [1, 1.0]:
         with pytest.raises(TypeError):
+            opr(meter, number)
+    for arg in ['J', '1']:
+        with pytest.raises(metric.DimensionMismatch):
             opr(meter, metric.Unit(arg))
+    with pytest.raises(metric.ScaleMismatch):
+        opr(meter, metric.Unit('cm'))
 
 
 def test_unit_multiply():

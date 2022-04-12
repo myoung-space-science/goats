@@ -1635,6 +1635,14 @@ class UnitLike(metaclass=abc.ABCMeta):
 UnitLike.register(str)
 
 
+class DimensionMismatch(TypeError):
+    """These units have different dimensions."""
+
+
+class ScaleMismatch(TypeError):
+    """These units have different metric scale factors."""
+
+
 Instance = typing.TypeVar('Instance', bound='Unit')
 
 
@@ -1717,17 +1725,26 @@ class Unit(algebraic.Expression):
 
     def __add__(self, other):
         """Called for self + other; either a no-op or an error."""
-        return (
-            Unit(self) if isinstance(other, Unit) and self == other
-            else NotImplemented
-        )
+        return self._add_sub(other)
 
     def __sub__(self, other):
-        """Called for self - other; either a no-op or an error."""
-        return (
-            Unit(self) if isinstance(other, Unit) and self == other
-            else NotImplemented
-        )
+        """Called for self + other; either a no-op or an error."""
+        return self._add_sub(other)
+
+    def _add_sub(self, other):
+        """Called for self +/- other; either a no-op or an error."""
+        if isinstance(other, Unit):
+            if self == other:
+                return self
+            errmsg = "The units '{}' and '{}' have different {}"
+            if self.dimension == other.dimension:
+                raise ScaleMismatch(
+                    errmsg.format(self, other, 'scale factors')
+                ) from None
+            raise DimensionMismatch(
+                errmsg.format(self, other, 'dimensions')
+            ) from None
+        return NotImplemented
 
 
 UnitLike.register(Unit)
