@@ -2,7 +2,7 @@ import abc
 import collections.abc
 import functools
 import numbers
-import operator
+import operator as standard
 import typing
 
 import numpy
@@ -133,11 +133,11 @@ class same:
 
 
 RT = typing.TypeVar('RT')
-OprType = typing.TypeVar('OprType', bound=typing.Callable)
-OprType = typing.Callable[..., RT]
+Method = typing.TypeVar('Method', bound=typing.Callable)
+Method = typing.Callable[..., RT]
 
 
-def _comparison(opr: OprType):
+def _comparison(opr: Method):
     """Implement a comparison operator."""
     @same('_metric', allowed=numbers.Real)
     def func(a: Quantifiable, b):
@@ -151,7 +151,7 @@ def _comparison(opr: OprType):
     return func
 
 
-def _unary(opr: OprType):
+def _unary(opr: Method):
     """Implement a unary arithmetic operator."""
     def func(a: Quantifiable):
         return type(a)(opr(a._amount), a._metric)
@@ -304,121 +304,214 @@ class Quantity(Quantifiable):
         return self
 
 
-class Comparison:
-    """A comparison operation between two quantifiable objects."""
-
-    def __init__(self, opr: OprType) -> None:
-        self._opr = opr
-
-    def __call__(self, a: Quantifiable, b):
-        """Apply the operator to arguments or their attributes."""
-        if isinstance(b, Quantifiable):
-            return self._opr(a._amount, b._amount)
-        if isinstance(b, algebraic.Orderable):
-            return self._opr(a._amount, b)
-        return NotImplemented
+Signature = typing.TypeVar('Signature', bound=tuple)
+Signature = typing.Tuple[type, ...]
 
 
-class Unary:
-    """An arithmetic operation one a single quantifiable object."""
-
-    def __init__(self, opr: OprType) -> None:
-        self._opr = opr
-
-    def __call__(self, a: Quantifiable):
-        """Apply the operator to the argument."""
-        return type(a)(self._opr(a._amount), a._metric)
+Operands = typing.TypeVar('Operands', bound=typing.Iterable)
+Operands = typing.Mapping[str, typing.Collection[Signature]]
 
 
-class Operator:
-    """"""
+class OperatorFactory(abc.ABC):
+    """Base class for operator factories."""
 
-    def __init__(
-        self,
-        rules: typing.Dict[str, typing.List[type]],
-    ) -> None:
-        self._rules = rules
-        self._attrs = tuple(rules)
+    def __init__(self, **operands: typing.Collection[Signature]) -> None:
+        self.operands = operands
 
-    def implement(self, opr: OprType, *modes: str):
-        """Implement `opr` for the requested modes."""
-        forward = self._build_forward(opr)
-        forward.__name__ = f"__{opr.__name__}__"
-        forward.__doc__ = opr.__doc__
-        reverse = (
-            self._build_reverse(opr) if 'reverse' in modes
-            else self._suppress(opr)
-        )
-        reverse.__name__ = f"__r{opr.__name__}__"
-        reverse.__doc__ = opr.__doc__
-        inplace = (
-            self._build_inplace(opr) if 'inplace' in modes
-            else self._suppress(opr)
-        )
-        inplace.__name__ = f"__i{opr.__name__}__"
-        inplace.__doc__ = opr.__doc__
-        return forward, reverse, inplace
+    @abc.abstractmethod
+    def implement(self, method: Method, **kwargs) -> typing.Callable:
+        """Create an operator from the given method."""
+        pass
 
-    def _get_updatable(self, t: type):
-        """Get the names of updatable attributes, based on type."""
-        return [
-            name for name, types in self._rules.items()
-            if t in types
-            or any(issubclass(t, p) for p in types)
+    def suppress(self, method: Method, **kwargs) -> typing.Callable:
+        """Suppress the given method"""
+        implemented = self.implement(method, **kwargs)
+        def func(*a, **k):
+            return NotImplemented
+        func.__name__ = implemented.__name__
+        func.__doc__ = implemented.__doc__
+        return func
+
+
+class Comparison(OperatorFactory):
+    """A concrete implementation of a binary comparison operator."""
+
+    def implement(self, method: Method) -> typing.Callable:
+        func = self._implement(method)
+        def compare(a: Quantifiable, b):
+            return all(func(a, b))
+        compare.__name__ = f"__{method.__name__}__"
+        compare.__doc__ = method.__doc__
+        return compare
+
+    def _implement(self, method: Method):
+        """Build the standard (forward) implementation of `method`."""
+        preserved = [
+            name for name, types in self.operands.items()
+            if list(types) == []
         ]
+        @same(*preserved)
+        def func(a, b):
+            types = tuple(type(i) for i in (a, b))
+            if updatable := self._get_updatable(types):
+                values = []
+                for operand in self.operands:
+                    if operand in updatable:
+                        operands = [
+                            getattr(arg, operand, arg) for arg in (a, b)
+                        ]
+                        values.append(method(*operands))
+                    else:
+                        attr = getattr(a, operand, None) or getattr(b, operand)
+                        values.append(attr)
+                return all(values)
+            return NotImplemented
+        return func
 
-    def _build_forward(self, opr: OprType):
-        """Build the forward version of `opr`."""
+    def _implement(self, method: Method):
+        """Build the standard (forward) implementation of `method`."""
+        preserved = [
+            name for name, types in self.operands.items()
+            if list(types) == []
+        ]
+        @same(*preserved)
         def func(a: Quantifiable, b):
             if updatable := self._get_updatable(type(b)):
                 values = []
-                for attr in self._attrs:
-                    if attr in updatable:
-                        operands = [getattr(arg, attr, arg) for arg in (a, b)]
-                        values.append(opr(*operands))
+                for operand in self.operands:
+                    if operand in updatable:
+                        operands = [
+                            getattr(arg, operand, arg) for arg in (a, b)
+                        ]
+                        values.append(method(*operands))
                     else:
-                        values.append(getattr(a, attr))
-                return type(a)(*values)
+                        values.append(getattr(a, operand))
+                return all(values)
             return NotImplemented
         return func
 
-    def _build_reverse(self, opr: OprType):
-        """Build the reverse version of `opr`."""
-        def func(b: Quantifiable, a):
-            return (
-                type(b)(opr(a, b._amount), b._metric) if isinstance(a, Real)
-                else NotImplemented
+    def _get_updatable(self, types: typing.Tuple[type, type]):
+        """Get the names of updatable attributes, based on type."""
+        return [
+            name
+            for name, pairs in self.operands.items()
+            if types is None
+            or types in pairs
+            or any(
+                all(issubclass(t, p) for t, p in zip(types, pair))
+                for pair in pairs
             )
+        ]
+
+
+
+class Unary(OperatorFactory):
+    """A concrete implementation of a unary arithmetic operator."""
+
+    def implement(self, method: Method) -> typing.Callable:
+        def func(a: Quantifiable):
+            """Apply the operator to the argument."""
+            return type(a)(method(a._amount), a._metric)
+        func.__name__ = f"__{method.__name__}__"
+        func.__doc__ = method.__doc__
         return func
 
-    def _build_inplace(self, opr: OprType):
-        """Build the in-place version of `opr`."""
-        def func(a: Quantifiable, b):
-            result = self._build_forward(opr)(a, b)
-            a._amount = result._amount
-            a._metric = result._metric
-            return a
-        return func
 
-    def _suppress(self, opr: OprType):
-        """Explicitly suppress use of `opr`."""
-        def func(*args, **kwargs):
+class Binary(OperatorFactory):
+    """A concrete implementation of a binary arithmetic operator."""
+
+    def implement(self, method: Method, mode: str='forward'):
+        func = self._implement(method)
+        def forward(a: Quantifiable, b):
+            return type(a)(*func(a, b))
+        def reverse(b: Quantifiable, a):
+            return type(b)(*func(a, b))
+        def inplace(a: Quantifiable, b):
+            r = forward(a, b)
+            for operand in self.operands:
+                setattr(a, operand, getattr(r, operand))
+        if mode == 'forward':
+            operator = forward
+            operator.__name__ = f"__{method.__name__}__"
+        elif mode == 'reverse':
+            operator = reverse
+            operator.__name__ = f"__r{method.__name__}__"
+        elif mode == 'inplace':
+            operator = inplace
+            operator.__name__ = f"__i{method.__name__}__"
+        else:
+            raise ValueError(
+                f"Unknown implementation mode {mode!r}"
+            ) from None
+        operator.__doc__ = method.__doc__
+        return operator
+
+    def _implement(self, method: Method):
+        """Build the standard (forward) implementation of `method`."""
+        def func(a, b):
+            types = tuple(type(i) for i in (a, b))
+            if updatable := self._get_updatable(types):
+                values = []
+                for operand in self.operands:
+                    if operand in updatable:
+                        operands = [
+                            getattr(arg, operand, arg) for arg in (a, b)
+                        ]
+                        values.append(method(*operands))
+                    else:
+                        attr = getattr(a, operand, None) or getattr(b, operand)
+                        values.append(attr)
+                return values
             return NotImplemented
         return func
 
+    def _get_updatable(self, types: typing.Tuple[type, type]):
+        """Get the names of updatable attributes, based on type."""
+        return [
+            name
+            for name, pairs in self.operands.items()
+            if types is None
+            or types in pairs
+            or any(
+                all(issubclass(t, p) for t, p in zip(types, pair))
+                for pair in pairs
+            )
+        ]
 
-binary = Operator(
-    {
-        '_amount': [Quantifiable, Real],
-        '_metric': [Quantifiable],
-    },
+
+comparison = Comparison(
+    _amount=[
+        (Quantifiable, Quantifiable),
+        (Quantifiable, algebraic.Orderable),
+    ],
+    _metric=[],
 )
-power = Operator(
-    {
-        '_amount': [Real],
-        '_metric': [Real],
-    },
+unary = Unary(
+    _amount=None,
+    _metric=None,
 )
+additive = Binary(
+    _amount=[
+        (Quantifiable, Quantifiable),
+        (Quantifiable, Real),
+        (Real, Quantifiable),
+    ],
+    _metric=[(Quantifiable, Quantifiable)],
+)
+multiplicative = Binary(
+    _amount=[
+        (Quantifiable, Quantifiable),
+        (Quantifiable, Real),
+        (Real, Quantifiable),
+    ],
+    _metric=[(Quantifiable, Quantifiable)],
+)
+exponential = Binary(
+    _amount=[(Quantifiable, Real)],
+    _metric=[(Quantifiable, Real)],
+)
+
+
 class OperatorMixin:
     """A mixin class that defines operators for quantifiable objects.
     
@@ -444,36 +537,36 @@ class OperatorMixin:
           not at all obvious what the unit or dimensions should be.
     """
 
-    __lt__ = _comparison(operator.lt)
-    __le__ = _comparison(operator.le)
-    __gt__ = _comparison(operator.gt)
-    __ge__ = _comparison(operator.ge)
-    __eq__ = _comparison(operator.eq)
-    __ne__ = _comparison(operator.ne)
+    __lt__ = comparison.implement(standard.lt)
+    __le__ = comparison.implement(standard.le)
+    __gt__ = comparison.implement(standard.gt)
+    __ge__ = comparison.implement(standard.ge)
+    __eq__ = comparison.implement(standard.eq)
+    __ne__ = comparison.implement(standard.ne)
 
-    __abs__ = _unary(operator.abs)
-    __pos__ = _unary(operator.pos)
-    __neg__ = _unary(operator.neg)
+    __abs__ = unary.implement(standard.abs)
+    __neg__ = unary.implement(standard.neg)
+    __pos__ = unary.implement(standard.pos)
 
-    __add__, __radd__, __iadd__ = binary.implement(
-        operator.add, 'reverse', 'inplace',
-    )
+    __add__ = additive.implement(standard.add)
+    __radd__ = additive.implement(standard.add, mode='reverse')
+    __iadd__ = additive.implement(standard.add, mode='inplace')
 
-    __sub__, __rsub__, __isub__ = binary.implement(
-        operator.sub, 'reverse', 'inplace',
-    )
+    __sub__ = additive.implement(standard.sub)
+    __rsub__ = additive.implement(standard.sub, mode='reverse')
+    __isub__ = additive.implement(standard.sub, mode='inplace')
 
-    __mul__, __rmul__, __imul__ = binary.implement(
-        operator.mul, 'reverse', 'inplace',
-    )
+    __mul__ = multiplicative.implement(standard.mul)
+    __rmul__ = multiplicative.implement(standard.mul, mode='reverse')
+    __imul__ = multiplicative.implement(standard.mul, mode='inplace')
 
-    __truediv__, __rtruediv__, __itruediv__ = binary.implement(
-        operator.truediv, 'inplace',
-    )
+    __truediv__ = multiplicative.implement(standard.truediv)
+    __rtruediv__ = multiplicative.suppress(standard.truediv, mode='reverse')
+    __itruediv__ = multiplicative.implement(standard.truediv, mode='inplace')
 
-    __pow__, __rpow__, __ipow__ = power.implement(
-        operator.pow, 'inplace',
-    )
+    __pow__ = exponential.implement(standard.pow)
+    __rpow__ = exponential.suppress(standard.pow, mode='reverse')
+    __ipow__ = exponential.implement(standard.pow, mode='inplace')
 
 
 class Scalar(Quantity):
@@ -710,4 +803,370 @@ def ensure_unit(args):
         return '1'
     return str(last)
 
+
+
+# Signature = typing.TypeVar('Signature', bound=tuple)
+# Signature = typing.Tuple[type, ...]
+
+
+# Operands = typing.TypeVar('Operands', bound=typing.Iterable)
+# Operands = typing.Mapping[str, typing.Iterable[Signature]]
+
+
+
+
+# class Binary(OperatorFactory):
+
+#     This class was using the following version of `_get_updatable` when
+#     `_implement` began with
+#     - def func(a: Quantifiable, b):
+#     -    types = tuple(type(i) for i in (a, b))
+#     -    if updatable := self._get_updatable(types):
+#
+#     def _get_updatable(self, types: typing.Tuple[type, type]):
+#         """Get the names of updatable attributes, based on type."""
+#         return [
+#             name for name, pairs in self.operands.items()
+#             if types in pairs
+#             or all(issubclass(t, p) for t, p in zip(types, pair))
+#             for pair in pairs
+#         ]
+
+#     @property
+#     def forward(self):
+#         """The forward version of this operator."""
+#         if self._forward is None:
+#             self._forward = self.__call__
+#         return self._forward
+
+#     @property
+#     def reverse(self):
+#         """The version of this operator with reflected operands."""
+#         if self._reverse is None:
+#             func = self._build_reverse(self.method)
+#             func.__name__ = f"__r{self.method.__name__}__"
+#             func.__doc__ = self.method.__doc__
+#             self._reverse = func
+#         return self._reverse
+
+#     @property
+#     def inplace(self):
+#         """The in-place version of this operator."""
+#         if self._inplace is None:
+#             func = self._build_inplace(self.method)
+#             func.__name__ = f"__i{self.method.__name__}__"
+#             func.__doc__ = self.method.__doc__
+#             self._inplace = func
+#         return self._inplace
+
+#     @property
+#     def null(self):
+#         """The suppressed version of this operator."""
+#         def func(*args, **kwargs):
+#             return NotImplemented
+#         return func
+
+#     def _get_updatable(self, t: type):
+#         """Get the names of updatable attributes, based on type."""
+#         return [
+#             name for name, types in self.rules.items()
+#             if t in types
+#             or any(issubclass(t, p) for p in types)
+#         ]
+
+#     def _build_forward(self, opr: Method):
+#         """Build the forward version of `opr`."""
+#         def func(a: Quantifiable, b):
+#             if updatable := self._get_updatable(type(b)):
+#                 values = []
+#                 for attr in self.rules:
+#                     if attr in updatable:
+#                         operands = [getattr(arg, attr, arg) for arg in (a, b)]
+#                         values.append(opr(*operands))
+#                     else:
+#                         values.append(getattr(a, attr))
+#                 return type(a)(*values)
+#             return NotImplemented
+#         return func
+
+#     def _build_reverse(self, opr: Method):
+#         """Build the reverse version of `opr`."""
+#         def func(b: Quantifiable, a):
+#             return (
+#                 type(b)(opr(a, b._amount), b._metric) if isinstance(a, Real)
+#                 else NotImplemented
+#             )
+#         return func
+
+#     def _build_inplace(self, opr: Method):
+#         """Build the in-place version of `opr`."""
+#         def func(a: Quantifiable, b):
+#             result = self._build_forward(opr)(a, b)
+#             a._amount = result._amount
+#             a._metric = result._metric
+#             return a
+#         return func
+
+#     def _suppress(self, opr: Method):
+#         """Explicitly suppress use of `opr`."""
+#         def func(*args, **kwargs):
+#             return NotImplemented
+#         return func
+
+
+
+# RULES = {
+#     'comparison': {
+#         '_amount': [
+#             (Quantifiable, Quantifiable),
+#             (Quantifiable, algebraic.Orderable),
+#         ],
+#     },
+#     'unary': {
+#         '_amount': [
+#             (Quantifiable,)
+#         ],
+#     },
+#     'additive': {
+#         '_amount': [
+#             (Quantifiable, Quantifiable),
+#             (Quantifiable, Real),
+#             (Real, Quantifiable),
+#         ],
+#         '_metric': [
+#             (Quantifiable, Quantifiable),
+#         ],
+#     },
+#     'multiplicative': {
+#         '_amount': [
+#             (Quantifiable, Quantifiable),
+#             (Quantifiable, Real),
+#             (Real, Quantifiable),
+#         ],
+#         '_metric': [
+#             (Quantifiable, Quantifiable),
+#         ],
+#     },
+#     'exponential': {
+#         '_amount': [
+#             (Quantifiable, Real),
+#             (Real, Quantifiable),
+#         ],
+#         '_metric': [
+#             (Quantifiable, Real),
+#             (Real, Quantifiable),
+#         ],
+#     },
+# }
+
+
+# comparison = OperatorFactory(RULES['comparison'])
+# unary = OperatorFactory(RULES['unary'])
+# additive = OperatorFactory(RULES['additive'])
+# multiplicative = OperatorFactory(RULES['multiplicative'])
+# exponential = OperatorFactory(RULES['exponential'])
+
+
+
+
+# class Operator:
+#     """"""
+
+#     def __init__(
+#         self,
+#         rules: typing.Dict[str, typing.List[type]],
+#     ) -> None:
+#         self._rules = rules
+#         self._attrs = tuple(rules)
+
+#     def implement(self, opr: Method, *modes: str):
+#         """Implement `opr` for the requested modes."""
+#         forward = self._build_forward(opr)
+#         forward.__name__ = f"__{opr.__name__}__"
+#         forward.__doc__ = opr.__doc__
+#         reverse = (
+#             self._build_reverse(opr) if 'reverse' in modes
+#             else self._suppress(opr)
+#         )
+#         reverse.__name__ = f"__r{opr.__name__}__"
+#         reverse.__doc__ = opr.__doc__
+#         inplace = (
+#             self._build_inplace(opr) if 'inplace' in modes
+#             else self._suppress(opr)
+#         )
+#         inplace.__name__ = f"__i{opr.__name__}__"
+#         inplace.__doc__ = opr.__doc__
+#         return forward, reverse, inplace
+
+#     def _get_updatable(self, t: type):
+#         """Get the names of updatable attributes, based on type."""
+#         return [
+#             name for name, types in self._rules.items()
+#             if t in types
+#             or any(issubclass(t, p) for p in types)
+#         ]
+
+#     def _build_forward(self, opr: Method):
+#         """Build the forward version of `opr`."""
+#         def func(a: Quantifiable, b):
+#             if updatable := self._get_updatable(type(b)):
+#                 values = []
+#                 for attr in self._attrs:
+#                     if attr in updatable:
+#                         operands = [getattr(arg, attr, arg) for arg in (a, b)]
+#                         values.append(opr(*operands))
+#                     else:
+#                         values.append(getattr(a, attr))
+#                 return type(a)(*values)
+#             return NotImplemented
+#         return func
+
+#     def _build_reverse(self, opr: Method):
+#         """Build the reverse version of `opr`."""
+#         def func(b: Quantifiable, a):
+#             return (
+#                 type(b)(opr(a, b._amount), b._metric) if isinstance(a, Real)
+#                 else NotImplemented
+#             )
+#         return func
+
+#     def _build_inplace(self, opr: Method):
+#         """Build the in-place version of `opr`."""
+#         def func(a: Quantifiable, b):
+#             result = self._build_forward(opr)(a, b)
+#             a._amount = result._amount
+#             a._metric = result._metric
+#             return a
+#         return func
+
+#     def _suppress(self, opr: Method):
+#         """Explicitly suppress use of `opr`."""
+#         def func(*args, **kwargs):
+#             return NotImplemented
+#         return func
+
+
+
+
+
+# class Operator(abc.ABC):
+#     """Base class for all operators."""
+
+#     def __init__(self, method: Method, rules: Rules) -> None:
+#         # self.function = self.implement(method, rules)
+#         self.__call__ = self.implement(method, rules)
+
+#     # def __call__(self, *args, **kwargs) -> RT:
+#     #     """Evaluate the given arguments."""
+#     #     return self.function(*args, **kwargs)
+
+#     @abc.abstractmethod
+#     def implement(self, method: Method, rules: Rules) -> typing.Callable:
+#         """Implement `method` subject to `rules`."""
+#         pass
+
+
+# class OperatorFactory:
+#     """A class that creates operators from implementations."""
+
+#     def __init__(
+#         self,
+#         implementation: typing.Type[Operator],
+#         rules: Rules=None,
+#     ) -> None:
+#         self.rules = rules or {}
+#         self.implementation = implementation
+
+#     def implement(self, method: Method):
+#         """Implement the given operator method."""
+#         return self.implementation(method, self.rules)
+
+
+
+
+# This is a mess.
+# class _Implementation(abc.ABC):
+#     """"""
+
+#     def __init__(
+#         self,
+#         opr: Method,
+#         rules: typing.Dict[str, typing.List[typing.Tuple[type, type]]]
+#     ) -> None:
+#         self._func = self._build(opr, rules)
+
+#     @abc.abstractmethod
+#     def _build(self, rules):
+#         """"""
+#         pass
+
+
+# class _Binary(Implementation):
+
+#     def _build(self, rules):
+#         """"""
+#         def func(a, b):
+#             types = tuple(type(i) for i in (a, b))
+#             if updatable := self._get_updatable(types):
+#                 values = []
+#                 for attr in tuple(rules):
+#                     if attr in updatable:
+#                         operands = [getattr(arg, attr, arg) for arg in (a, b)]
+#                         values.append(self._opr(*operands))
+#                     else:
+#                         values.append(getattr(a, attr))
+#                 return values
+#             return NotImplemented
+#         return func
+
+#     def _get_updatable(self, types: typing.Tuple[type, type]):
+#         """Get the names of updatable attributes, based on type."""
+#         return [
+#             name for name, pairs in self._rules.items()
+#             if types in pairs
+#             or all(issubclass(t, p) for t, p in zip(types, pair))
+#             for pair in pairs
+#         ]
+
+
+# class Operands:
+#     """"""
+
+#     def __init__(
+#         self,
+#         rules: typing.Dict[str, typing.List[type]],
+#         implement: typing.Type[Implementation],
+#     ) -> None:
+#         self._rules = rules
+#         self._implement = implement
+
+#     def implement(self, opr: Method):
+#         """Implement this operator under the given rules."""
+#         return self._implement(opr, self._rules)
+
+
+# binary = Operands(
+#     {
+#         '_amount': [
+#             (Quantifiable, Quantifiable),
+#             (Quantifiable, Real),
+#             (Real, Quantifiable),
+#         ],
+#         '_metric': [
+#             (Quantifiable, Quantifiable),
+#         ],
+#     },
+# )
+# power = Operands(
+#     {
+#         '_amount': [
+#             (Quantifiable, Real),
+#             (Real, Quantifiable),
+#         ],
+#         '_metric': [
+#             (Quantifiable, Real),
+#             (Real, Quantifiable),
+#         ],
+#     },
+# )
 
