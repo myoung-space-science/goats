@@ -355,19 +355,20 @@ class Binary(OperatorFactory):
             if list(types) == []
         ]
         @same(*preserved)
-        def func(a, b):
-            types = tuple(type(i) for i in (a, b))
+        def func(*args):
+            types = tuple(type(i) for i in args)
             if updatable := self._get_updatable(types):
                 values = []
                 for operand in self.operands:
                     if operand in updatable:
                         operands = [
-                            getattr(arg, operand, arg) for arg in (a, b)
+                            getattr(arg, operand, arg) for arg in args
                         ]
                         values.append(method(*operands))
                     else:
-                        attr = getattr(a, operand, None) or getattr(b, operand)
-                        values.append(attr)
+                        attrs = (getattr(arg, operand, None) for arg in args)
+                        value = next(attr for attr in attrs if attr)
+                        values.append(value)
                 return values
             return NotImplemented
         return func
