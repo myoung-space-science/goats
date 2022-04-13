@@ -333,78 +333,6 @@ class OperatorFactory(abc.ABC):
         return func
 
 
-class Comparison(OperatorFactory):
-    """A concrete implementation of a binary comparison operator."""
-
-    def implement(self, method: Method) -> typing.Callable:
-        func = self._implement(method)
-        def compare(a: Quantifiable, b):
-            return all(func(a, b))
-        compare.__name__ = f"__{method.__name__}__"
-        compare.__doc__ = method.__doc__
-        return compare
-
-    def _implement(self, method: Method):
-        """Build the standard (forward) implementation of `method`."""
-        preserved = [
-            name for name, types in self.operands.items()
-            if list(types) == []
-        ]
-        @same(*preserved)
-        def func(a, b):
-            types = tuple(type(i) for i in (a, b))
-            if updatable := self._get_updatable(types):
-                values = []
-                for operand in self.operands:
-                    if operand in updatable:
-                        operands = [
-                            getattr(arg, operand, arg) for arg in (a, b)
-                        ]
-                        values.append(method(*operands))
-                    else:
-                        attr = getattr(a, operand, None) or getattr(b, operand)
-                        values.append(attr)
-                return all(values)
-            return NotImplemented
-        return func
-
-    def _implement(self, method: Method):
-        """Build the standard (forward) implementation of `method`."""
-        preserved = [
-            name for name, types in self.operands.items()
-            if list(types) == []
-        ]
-        @same(*preserved)
-        def func(a: Quantifiable, b):
-            if updatable := self._get_updatable(type(b)):
-                values = []
-                for operand in self.operands:
-                    if operand in updatable:
-                        operands = [
-                            getattr(arg, operand, arg) for arg in (a, b)
-                        ]
-                        values.append(method(*operands))
-                    else:
-                        values.append(getattr(a, operand))
-                return all(values)
-            return NotImplemented
-        return func
-
-    def _get_updatable(self, types: typing.Tuple[type, type]):
-        """Get the names of updatable attributes, based on type."""
-        return [
-            name
-            for name, pairs in self.operands.items()
-            if types is None
-            or types in pairs
-            or any(
-                all(issubclass(t, p) for t, p in zip(types, pair))
-                for pair in pairs
-            )
-        ]
-
-
-
 class Unary(OperatorFactory):
     """A concrete implementation of a unary arithmetic operator."""
 
@@ -418,36 +346,15 @@ class Unary(OperatorFactory):
 
 
 class Binary(OperatorFactory):
-    """A concrete implementation of a binary arithmetic operator."""
-
-    def implement(self, method: Method, mode: str='forward'):
-        func = self._implement(method)
-        def forward(a: Quantifiable, b):
-            return type(a)(*func(a, b))
-        def reverse(b: Quantifiable, a):
-            return type(b)(*func(a, b))
-        def inplace(a: Quantifiable, b):
-            r = forward(a, b)
-            for operand in self.operands:
-                setattr(a, operand, getattr(r, operand))
-        if mode == 'forward':
-            operator = forward
-            operator.__name__ = f"__{method.__name__}__"
-        elif mode == 'reverse':
-            operator = reverse
-            operator.__name__ = f"__r{method.__name__}__"
-        elif mode == 'inplace':
-            operator = inplace
-            operator.__name__ = f"__i{method.__name__}__"
-        else:
-            raise ValueError(
-                f"Unknown implementation mode {mode!r}"
-            ) from None
-        operator.__doc__ = method.__doc__
-        return operator
+    """The base implementation of a binary operator."""
 
     def _implement(self, method: Method):
         """Build the standard (forward) implementation of `method`."""
+        preserved = [
+            name for name, types in self.operands.items()
+            if list(types) == []
+        ]
+        @same(*preserved)
         def func(a, b):
             types = tuple(type(i) for i in (a, b))
             if updatable := self._get_updatable(types):
@@ -479,6 +386,48 @@ class Binary(OperatorFactory):
         ]
 
 
+class Comparison(Binary):
+    """A concrete implementation of a binary comparison operator."""
+
+    def implement(self, method: Method) -> typing.Callable:
+        func = self._implement(method)
+        def compare(a: Quantifiable, b):
+            return all(func(a, b))
+        compare.__name__ = f"__{method.__name__}__"
+        compare.__doc__ = method.__doc__
+        return compare
+
+
+class Numeric(Binary):
+    """A concrete implementation of a binary arithmetic operator."""
+
+    def implement(self, method: Method, mode: str='forward'):
+        func = self._implement(method)
+        def forward(a: Quantifiable, b):
+            return type(a)(*func(a, b))
+        def reverse(b: Quantifiable, a):
+            return type(b)(*func(a, b))
+        def inplace(a: Quantifiable, b):
+            r = forward(a, b)
+            for operand in self.operands:
+                setattr(a, operand, getattr(r, operand))
+        if mode == 'forward':
+            operator = forward
+            operator.__name__ = f"__{method.__name__}__"
+        elif mode == 'reverse':
+            operator = reverse
+            operator.__name__ = f"__r{method.__name__}__"
+        elif mode == 'inplace':
+            operator = inplace
+            operator.__name__ = f"__i{method.__name__}__"
+        else:
+            raise ValueError(
+                f"Unknown implementation mode {mode!r}"
+            ) from None
+        operator.__doc__ = method.__doc__
+        return operator
+
+
 comparison = Comparison(
     _amount=[
         (Quantifiable, Quantifiable),
@@ -490,7 +439,7 @@ unary = Unary(
     _amount=None,
     _metric=None,
 )
-additive = Binary(
+additive = Numeric(
     _amount=[
         (Quantifiable, Quantifiable),
         (Quantifiable, Real),
@@ -498,7 +447,7 @@ additive = Binary(
     ],
     _metric=[(Quantifiable, Quantifiable)],
 )
-multiplicative = Binary(
+multiplicative = Numeric(
     _amount=[
         (Quantifiable, Quantifiable),
         (Quantifiable, Real),
@@ -506,7 +455,7 @@ multiplicative = Binary(
     ],
     _metric=[(Quantifiable, Quantifiable)],
 )
-exponential = Binary(
+exponential = Numeric(
     _amount=[(Quantifiable, Real)],
     _metric=[(Quantifiable, Real)],
 )
@@ -815,7 +764,7 @@ def ensure_unit(args):
 
 
 
-# class Binary(OperatorFactory):
+# class Numeric(OperatorFactory):
 
 #     This class was using the following version of `_get_updatable` when
 #     `_implement` began with
@@ -1101,7 +1050,7 @@ def ensure_unit(args):
 #         pass
 
 
-# class _Binary(Implementation):
+# class _Numeric(Implementation):
 
 #     def _build(self, rules):
 #         """"""
