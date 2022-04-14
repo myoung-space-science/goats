@@ -574,19 +574,8 @@ class Binary(Implementation):
     ) -> typing.Callable:
         updater = Updater(rules)
         def func(*args):
-            types = tuple(type(i) for i in args)
-            if types not in updater:
-                return NotImplemented
-            updatable = list(updater[types])
-            instance = (arg for arg in args if isinstance(arg, Quantity))
-            reference = next(instance)
             try:
-                return [
-                    self.method(*[getattrval(arg, name) for arg in args])
-                    if name in updatable
-                    else getattrval(reference, name)
-                    for name in self._attrs
-                ]
+                return self._implement(updater, *args)
             except metric.UnitError as err:
                 raise OperandError(err) from err
         def forward(a: Quantity, b):
@@ -613,15 +602,20 @@ class Binary(Implementation):
         operator.__doc__ = self.method.__doc__
         return operator
 
-    @classmethod
-    def supports(cls, types: typing.Iterable[type]):
-        """True if this class supports the given types."""
-        if types in cls._supported:
-            return True
-        for pair in cls._supported:
-            if all(issubclass(t, p) for t, p in zip(types, pair)):
-                return True
-        return False
+    def _implement(self, updater: Updater, *args):
+        """Implement the instance method."""
+        types = tuple(type(i) for i in args)
+        if types not in updater:
+            return NotImplemented
+        updatable = list(updater[types])
+        instance = (arg for arg in args if isinstance(arg, Quantity))
+        reference = next(instance)
+        return [
+            self.method(*[getattrval(arg, name) for arg in args])
+            if name in updatable
+            else getattrval(reference, name)
+            for name in self._attrs
+        ]
 
 
 IT = typing.TypeVar('IT', bound=Implementation)
