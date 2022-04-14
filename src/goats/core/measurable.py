@@ -133,43 +133,7 @@ Method = typing.TypeVar('Method', bound=typing.Callable)
 Method = typing.Callable[..., RT]
 
 
-def _comparison(opr: Method):
-    """Implement a comparison operator."""
-    @same('_metric', allowed=numbers.Real)
-    def func(a: Quantifiable, b):
-        if isinstance(b, Quantifiable):
-            return opr(a._amount, b._amount)
-        if isinstance(b, algebraic.Orderable):
-            return opr(a._amount, b)
-        return NotImplemented
-    func.__name__ = f"__{opr.__name__}__"
-    func.__doc__ = opr.__doc__
-    return func
-
-
-def _unary(opr: Method):
-    """Implement a unary arithmetic operator."""
-    def func(a: Quantifiable):
-        return type(a)(opr(a._amount), a._metric)
-    func.__name__ = f"__{opr.__name__}__"
-    func.__doc__ = opr.__doc__
-    return func
-
-
 T = typing.TypeVar('T')
-
-
-def _cast(__type: typing.Type[T]) -> typing.Callable[[Quantifiable], T]:
-    """Implement a type-casting operator."""
-    def func(a):
-        return (
-            __type(a._amount) if isinstance(a, Quantifiable)
-            else NotImplemented
-        )
-    name = __type.__class__.__qualname__
-    func.__name__ = f"__{name}__"
-    func.__doc__ = f"""Called for {name}(self)."""
-    return func
 
 
 class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
