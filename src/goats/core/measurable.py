@@ -556,6 +556,10 @@ class Updater(collections.abc.Mapping):
         ) from None
 
 
+class OperandError(Exception):
+    """Operands are incompatible with operator."""
+
+
 class Binary(Implementation):
     """A concrete implementation of a binary arithmetic operator."""
 
@@ -576,18 +580,15 @@ class Binary(Implementation):
             updatable = list(updater[types])
             instance = (arg for arg in args if isinstance(arg, Quantity))
             reference = next(instance)
-            values = []
             try:
-                for name in self._attrs:
-                    if name in updatable:
-                        operands = [getattrval(arg, name) for arg in args]
-                        value = self.method(*operands)
-                    else:
-                        value = getattrval(reference, name)
-                    values.append(value)
-                return values
-            except metric.UnitError:
-                return NotImplemented
+                return [
+                    self.method(*[getattrval(arg, name) for arg in args])
+                    if name in updatable
+                    else getattrval(reference, name)
+                    for name in self._attrs
+                ]
+            except metric.UnitError as err:
+                raise OperandError(err) from err
         def forward(a: Quantity, b):
             return type(a)(*func(a, b))
         def reverse(b: Quantity, a):

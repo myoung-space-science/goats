@@ -88,7 +88,7 @@ def test_quantities_diff_unit():
         operator.sub,
     ]
     for opr in oprs:
-        with pytest.raises(TypeError):
+        with pytest.raises(measurable.OperandError):
             opr(*quantities)
 
     # MULTIPLICATION
