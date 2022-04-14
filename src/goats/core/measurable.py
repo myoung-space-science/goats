@@ -123,14 +123,9 @@ class same:
             return func(this, that)
         return wrapper
 
-    def _comparable(
-        self,
-        this: typing.Any,
-        that: typing.Any,
-        name: str,
-    ) -> bool:
+    def _comparable(self, this, that, name: str) -> bool:
         """Check whether the instances are comparable."""
-        return getattr(this, name) == getattr(that, name)
+        return getattrval(this, name) == getattrval(that, name)
 
 
 RT = typing.TypeVar('RT')
