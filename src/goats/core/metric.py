@@ -1635,11 +1635,15 @@ class UnitLike(metaclass=abc.ABCMeta):
 UnitLike.register(str)
 
 
-class DimensionMismatch(TypeError):
+class UnitError(Exception):
+    """Base class for Unit-related exceptions."""
+
+
+class DimensionMismatch(UnitError):
     """These units have different dimensions."""
 
 
-class ScaleMismatch(TypeError):
+class ScaleMismatch(UnitError):
     """These units have different metric scale factors."""
 
 
