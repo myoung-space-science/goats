@@ -462,6 +462,43 @@ def getattrval(
     return attr(*args, **kwargs) if callable(attr) else attr
 
 
+Signature = typing.TypeVar('Signature', bound=tuple)
+Signature = typing.Tuple[type, type]
+
+
+Rules = typing.TypeVar('Rules', bound=typing.Iterable)
+Rules = typing.Mapping[Signature, typing.Collection[str]]
+
+
+class Updater(collections.abc.Mapping):
+    """A mapping from type signature to updatable attributes."""
+
+    def __init__(self, rules: Rules) -> None:
+        self.rules = rules or {}
+
+    def __len__(self) -> int:
+        return len(self.rules)
+
+    def __iter__(self) -> typing.Iterator:
+        return iter(self.rules)
+
+    def __getitem__(self, types: Signature):
+        """The updatable attributes for the given arguments types."""
+        if types in self.rules:
+            return self.rules[types]
+        for pair in self.rules:
+            these = zip(types, pair)
+            if all(issubclass(t, p) for t, p in these):
+                return self.rules[pair]
+        raise KeyError(
+            f"No updatable attributes for types {types!r}"
+        ) from None
+
+
+class OperandError(Exception):
+    """Operands are incompatible with operator."""
+
+
 class Implementation(abc.ABC):
     """Abstract base class for operator implementations."""
 
@@ -521,43 +558,6 @@ class Unary(Implementation):
         func.__name__ = f"__{self.method.__name__}__"
         func.__doc__ = self.method.__doc__
         return func
-
-
-Signature = typing.TypeVar('Signature', bound=tuple)
-Signature = typing.Tuple[type, type]
-
-
-Rules = typing.TypeVar('Rules', bound=typing.Iterable)
-Rules = typing.Mapping[Signature, typing.Collection[str]]
-
-
-class Updater(collections.abc.Mapping):
-    """A mapping from type signature to updatable attributes."""
-
-    def __init__(self, rules: Rules) -> None:
-        self.rules = rules or {}
-
-    def __len__(self) -> int:
-        return len(self.rules)
-
-    def __iter__(self) -> typing.Iterator:
-        return iter(self.rules)
-
-    def __getitem__(self, types: Signature):
-        """The updatable attributes for the given arguments types."""
-        if types in self.rules:
-            return self.rules[types]
-        for pair in self.rules:
-            these = zip(types, pair)
-            if all(issubclass(t, p) for t, p in these):
-                return self.rules[pair]
-        raise KeyError(
-            f"No updatable attributes for types {types!r}"
-        ) from None
-
-
-class OperandError(Exception):
-    """Operands are incompatible with operator."""
 
 
 class Binary(Implementation):
