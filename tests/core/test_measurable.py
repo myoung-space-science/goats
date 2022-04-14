@@ -230,6 +230,31 @@ def test_same():
         f2(scores[0], scores[1])
 
 
+def test_getattrval():
+    """Test the function that gets computes a value based on object type."""
+    class Base:
+        def __init__(self, value) -> None:
+            self._value = value
+    class PropertyAttr(Base):
+        @property
+        def value(self):
+            return self._value
+    class CallableAttr(Base):
+        def value(self, scale=1.0):
+            return scale * self._value
+
+    value = 2.5
+    c0 = PropertyAttr(value)
+    c1 = CallableAttr(value)
+    assert measurable.getattrval(c0, 'value') == value
+    assert measurable.getattrval(c1, 'value') == value
+    scale = 10.0
+    expected = scale * value
+    assert measurable.getattrval(c1, 'value', scale) == expected
+    assert measurable.getattrval(c1, 'value', scale=scale) == expected
+    assert measurable.getattrval(value, 'value') == value
+
+
 unity = '1'
 unitless = [
     {'test': 1.1, 'full': (1.1, unity), 'dist': [(1.1, unity)]},

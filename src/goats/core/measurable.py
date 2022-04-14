@@ -1,5 +1,6 @@
 import abc
 import collections.abc
+import contextlib
 import functools
 import numbers
 import operator as standard
@@ -460,6 +461,46 @@ exponential = Numeric(
     _amount=[(Quantifiable, Real)],
     _metric=[(Quantifiable, Real)],
 )
+
+
+def getattrval(
+    __object: T,
+    __name: str,
+    *args,
+    **kwargs
+) -> typing.Union[typing.Any, T]:
+    """Compute an appropriate value based on the given object type.
+    
+    This function will attempt to retrieve the named attribute from the given
+    object. If the attribute exists and is callable (e.g., a class method), this
+    function will call the attribute with `*args` and `**kwargs`, and return the
+    result. If the attribute exists and is not callable, this function will
+    return it as-is. If the attribute does not exist, this function will return
+    the given object; this case supports programmatic use when the calling code
+    does not know the type of object until runtime.
+
+    Parameters
+    ----------
+    __object : Any
+        The object in which to search for the target attribute.
+
+    __name : string
+        The name of the target attribute.
+
+    *args
+        Optional positional arguments to pass to the retrieved attribute, if it
+        is callable.
+
+    **kwargs
+        Optional keyword arguments to pass to the retrieved attribute, if it is
+        callable.
+
+    Returns
+    -------
+
+    """
+    attr = getattr(__object, __name, __object)
+    return attr(*args, **kwargs) if callable(attr) else attr
 
 
 class OperatorMixin:
