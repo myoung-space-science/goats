@@ -523,35 +523,78 @@ class Unary(Implementation):
         return func
 
 
+Signature = typing.TypeVar('Signature', bound=tuple)
+Signature = typing.Tuple[type, type]
+
+
+Rules = typing.TypeVar('Rules', bound=typing.Iterable)
+Rules = typing.Mapping[Signature, typing.Collection[str]]
+
+
+class Updater(collections.abc.Mapping):
+    """A mapping from type signature to updatable attributes."""
+
+    def __init__(self, rules: Rules) -> None:
+        self.rules = rules or {}
+
+    def __len__(self) -> int:
+        return len(self.rules)
+
+    def __iter__(self) -> typing.Iterator:
+        return iter(self.rules)
+
+    def __getitem__(self, types: Signature):
+        """The updatable attributes for the given arguments types."""
+        if types in self.rules:
+            return self.rules[types]
+        for pair in self.rules:
+            these = zip(types, pair)
+            if all(issubclass(t, p) for t, p in these):
+                return self.rules[pair]
+        raise KeyError(
+            f"No updatable attributes for types {types!r}"
+        ) from None
+
+
 class Binary(Implementation):
     """A concrete implementation of a binary arithmetic operator."""
 
-    _updatable = ('data', 'unit')
+    # Could we expect an instance of `Updater` to be able to compute all
+    # possible attributes, instead of declaring this class attribute?
+    _attrs = ('data', 'unit')
 
-    _supported = (
-        (Quantity, Quantity),
-        (Quantity, Real),
-        (Real, Quantity),
-    )
-
-    def build(self, mode: str='forward') -> typing.Callable:
+    def build(
+        self,
+        rules: Rules=None,
+        mode: str='forward',
+    ) -> typing.Callable:
+        updater = Updater(rules)
         def func(*args):
             types = tuple(type(i) for i in args)
+            if types not in updater:
+                return NotImplemented
+            updatable = list(updater[types])
+            instance = (arg for arg in args if isinstance(arg, Quantity))
+            reference = next(instance)
             values = []
-            if self.supports(types):
-                values = [
-                    self.method(*[getattrval(arg, name) for arg in args])
-                    for name in self._updatable
-                ]
+            try:
+                for name in self._attrs:
+                    if name in updatable:
+                        operands = [getattrval(arg, name) for arg in args]
+                        value = self.method(*operands)
+                    else:
+                        value = getattrval(reference, name)
+                    values.append(value)
                 return values
-            return NotImplemented
-        def forward(a: Quantifiable, b):
+            except metric.UnitError:
+                return NotImplemented
+        def forward(a: Quantity, b):
             return type(a)(*func(a, b))
-        def reverse(b: Quantifiable, a):
-            return type(b)(*forward(a, b))
-        def inplace(a: Quantifiable, b):
+        def reverse(b: Quantity, a):
+            return type(b)(*func(a, b))
+        def inplace(a: Quantity, b):
             r = forward(a, b)
-            for name in self._updatable:
+            for name in self._attrs:
                 setattr(a, name, getattr(r, name))
         if mode == 'forward':
             operator = forward
@@ -614,6 +657,18 @@ class Operator(typing.Generic[IT]):
 # The second case would allow us to pass in implementation-specific arguments.
 
 
+RULES = {
+    'add': {
+        (Quantity, Quantity): ['data', 'unit'],
+        (Quantity, Real): ['data'],
+        (Real, Quantity): ['data'],
+    },
+    'pow': {
+        (Quantity, Real): ['data', 'unit'],
+        (Real, Quantity): ['data', 'unit'],
+    },
+}
+
 comparison = Operator(Comparison)
 unary = Operator(Unary)
 binary = Operator(Binary)
@@ -655,25 +710,27 @@ class OperatorMixin:
     __neg__ = unary.implement(standard.neg, fixed='unit')
     __pos__ = unary.implement(standard.pos, fixed='unit')
 
-    __add__ = binary.implement(standard.add)
-    __radd__ = binary.implement(standard.add, mode='reverse')
-    __iadd__ = binary.implement(standard.add, mode='inplace')
+    r = RULES['add']
+    __add__ = binary.implement(standard.add, rules=r)
+    __radd__ = binary.implement(standard.add, rules=r, mode='reverse')
+    __iadd__ = binary.implement(standard.add, rules=r, mode='inplace')
 
-    __sub__ = binary.implement(standard.sub)
-    __rsub__ = binary.implement(standard.sub, mode='reverse')
-    __isub__ = binary.implement(standard.sub, mode='inplace')
+    __sub__ = binary.implement(standard.sub, rules=r)
+    __rsub__ = binary.implement(standard.sub, rules=r, mode='reverse')
+    __isub__ = binary.implement(standard.sub, rules=r, mode='inplace')
 
-    __mul__ = binary.implement(standard.mul)
-    __rmul__ = binary.implement(standard.mul, mode='reverse')
-    __imul__ = binary.implement(standard.mul, mode='inplace')
+    __mul__ = binary.implement(standard.mul, rules=r)
+    __rmul__ = binary.implement(standard.mul, rules=r, mode='reverse')
+    __imul__ = binary.implement(standard.mul, rules=r, mode='inplace')
 
-    __truediv__ = binary.implement(standard.truediv)
-    __rtruediv__ = binary.suppress(standard.truediv, mode='reverse')
-    __itruediv__ = binary.implement(standard.truediv, mode='inplace')
+    __truediv__ = binary.implement(standard.truediv, rules=r)
+    __rtruediv__ = binary.suppress(standard.truediv, rules=r, mode='reverse')
+    __itruediv__ = binary.implement(standard.truediv, rules=r, mode='inplace')
 
-    __pow__ = binary.implement(standard.pow)
-    __rpow__ = binary.suppress(standard.pow, mode='reverse')
-    __ipow__ = binary.implement(standard.pow, mode='inplace')
+    r = RULES['pow']
+    __pow__ = binary.implement(standard.pow, rules=r)
+    __rpow__ = binary.suppress(standard.pow, rules=r, mode='reverse')
+    __ipow__ = binary.implement(standard.pow, rules=r, mode='inplace')
 
 
 class Scalar(Quantity):
