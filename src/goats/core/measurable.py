@@ -388,6 +388,23 @@ class Updater(collections.abc.Mapping):
 
     def __init__(self, rules: Rules) -> None:
         self.rules = rules or {}
+        self._names = None
+        self._fixed = None
+
+    @property
+    def names(self):
+        """The (unordered) names of all known attributes."""
+        if self._names is None:
+            names = {name for names in self.rules.values() for name in names}
+            self._names = tuple(names) + self.fixed
+        return self._names
+
+    @property
+    def fixed(self):
+        """The names of immutable attributes."""
+        if self._fixed is None:
+            self._fixed = tuple(self.rules.get(None, ()))
+        return self._fixed
 
     def __len__(self) -> int:
         return len(self.rules)
@@ -477,32 +494,14 @@ class Binary:
 
     def __init__(
         self,
-        strict: typing.Iterable[str]=None,
         allowed: typing.Iterable[type]=None,
-        names: typing.Iterable[str]=None,
         rules: Rules=None,
     ) -> None:
-        self.strict = iterables.whole(strict)
         self.allowed = iterables.whole(allowed)
         self.updater = Updater(rules)
-        self.names = self._get_attr_names(names)
-
-    def _get_attr_names(
-        self,
-        names: typing.Iterable[str]=None,
-    ) -> typing.Tuple[str]:
-        """Get the names of all updatable attributes."""
-        if names:
-            return tuple(names)
-        sets = self.updater.values()
-        attrs = []
-        for these in sets:
-            if len(these) > len(attrs):
-                attrs = these
-        return tuple(attrs)
 
     def implement(self, method: Method) -> typing.Callable:
-        @same(*self.strict, allowed=self.allowed)
+        @same(*self.updater.fixed, allowed=self.allowed)
         def func(*args):
             try:
                 return self._implement(method, *args)
@@ -522,7 +521,7 @@ class Binary:
             method(*[getattrval(arg, name) for arg in args])
             if name in updatable
             else getattrval(reference, name)
-            for name in self.names
+            for name in self.updater.names
         ]
 
 
@@ -532,13 +531,11 @@ class Numeric(Operator):
     def __init__(
         self,
         method: Method,
-        strict: typing.Iterable[str]=None,
         allowed: typing.Iterable[type]=None,
-        names: typing.Iterable[str]=None,
         rules: Rules=None,
     ) -> None:
         super().__init__(method)
-        self.operator = Binary(strict, allowed, names, rules)
+        self.operator = Binary(allowed, rules)
 
     def implement(self, mode: str='forward') -> typing.Callable:
         func = self.operator.implement(self.method)
@@ -573,13 +570,11 @@ class Comparison(Operator):
     def __init__(
         self,
         method: Method,
-        strict: typing.Iterable[str]=None,
         allowed: typing.Iterable[type]=None,
-        names: typing.Iterable[str]=None,
         rules: Rules=None,
     ) -> None:
         super().__init__(method)
-        self.operator = Binary(strict, allowed, names, rules)
+        self.operator = Binary(allowed, rules)
 
     def implement(self) -> typing.Callable:
         func = self.operator.implement(self.method)
@@ -619,6 +614,7 @@ RULES = {
     'comparison': {
         (Quantity, Quantity): ['data'],
         (Quantity, algebraic.Operand): ['data'],
+        None: ['unit'],
     },
     'add': {
         (Quantity, Quantity): ['data', 'unit'],
@@ -637,7 +633,6 @@ RULES = {
 }
 
 comparison = OperatorFactory(Comparison).constrain(
-    strict='unit',
     allowed=Real,
     rules=RULES['comparison'],
 )
