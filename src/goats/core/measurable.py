@@ -241,11 +241,9 @@ class Quantity(Quantifiable):
                 getattr(instance, name)
                 for name in ('_amount', '_metric')
             )
-        data, *args = args
-        unit = metric.Unit(
-            args[0] if len(args) == 1
-            else kwargs.get('unit') or '1'
-        )
+        pos = list(args)
+        data = kwargs.get('data') or pos.pop(0)
+        unit = metric.Unit(kwargs.get('unit') or pos.pop(0) or '1')
         return data, unit
 
     def unit(self, unit: metric.UnitLike=None):
