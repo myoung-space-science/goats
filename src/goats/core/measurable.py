@@ -379,8 +379,8 @@ Signature = typing.TypeVar('Signature', bound=tuple)
 Signature = typing.Tuple[type, type]
 
 
-Rules = typing.TypeVar('Rules', bound=typing.MutableMapping)
-Rules = typing.MutableMapping[Signature, typing.Collection[str]]
+Rules = typing.TypeVar('Rules', bound=typing.Mapping)
+Rules = typing.Mapping[Signature, typing.Collection[str]]
 
 
 class Updater(collections.abc.Mapping):
