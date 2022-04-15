@@ -264,164 +264,6 @@ class Quantity(Quantifiable):
         return self
 
 
-Signature = typing.TypeVar('Signature', bound=tuple)
-Signature = typing.Tuple[type, ...]
-
-
-Operands = typing.TypeVar('Operands', bound=typing.Iterable)
-Operands = typing.Mapping[str, typing.Collection[Signature]]
-
-
-class OperatorFactory(abc.ABC):
-    """Base class for operator factories."""
-
-    def __init__(self, **operands: typing.Collection[Signature]) -> None:
-        self.operands = operands
-
-    @abc.abstractmethod
-    def implement(self, method: Method, **kwargs) -> typing.Callable:
-        """Create an operator from the given method."""
-        pass
-
-    def suppress(self, method: Method, **kwargs) -> typing.Callable:
-        """Suppress the given method"""
-        implemented = self.implement(method, **kwargs)
-        def func(*a, **k):
-            return NotImplemented
-        func.__name__ = implemented.__name__
-        func.__doc__ = implemented.__doc__
-        return func
-
-
-class Unary(OperatorFactory):
-    """A concrete implementation of a unary arithmetic operator."""
-
-    def implement(self, method: Method) -> typing.Callable:
-        def func(a: Quantifiable):
-            """Apply the operator to the argument."""
-            return type(a)(method(a._amount), a._metric)
-        func.__name__ = f"__{method.__name__}__"
-        func.__doc__ = method.__doc__
-        return func
-
-
-class Binary(OperatorFactory):
-    """The base implementation of a binary operator."""
-
-    def _implement(self, method: Method):
-        """Build the standard (forward) implementation of `method`."""
-        preserved = [
-            name for name, types in self.operands.items()
-            if list(types) == []
-        ]
-        @same(*preserved)
-        def func(*args):
-            types = tuple(type(i) for i in args)
-            if updatable := self._get_updatable(types):
-                values = []
-                for operand in self.operands:
-                    if operand in updatable:
-                        operands = [
-                            getattr(arg, operand, arg) for arg in args
-                        ]
-                        values.append(method(*operands))
-                    else:
-                        attrs = (getattr(arg, operand, None) for arg in args)
-                        value = next(attr for attr in attrs if attr)
-                        values.append(value)
-                return values
-            return NotImplemented
-        return func
-
-    def _get_updatable(self, types: typing.Tuple[type, type]):
-        """Get the names of updatable attributes, based on type."""
-        return [
-            name
-            for name, pairs in self.operands.items()
-            if types is None
-            or types in pairs
-            or any(
-                all(issubclass(t, p) for t, p in zip(types, pair))
-                for pair in pairs
-            )
-        ]
-
-
-class Comparison(Binary):
-    """A concrete implementation of a binary comparison operator."""
-
-    def implement(self, method: Method) -> typing.Callable:
-        func = self._implement(method)
-        def compare(a: Quantifiable, b):
-            return all(func(a, b))
-        compare.__name__ = f"__{method.__name__}__"
-        compare.__doc__ = method.__doc__
-        return compare
-
-
-class Numeric(Binary):
-    """A concrete implementation of a binary arithmetic operator."""
-
-    def implement(self, method: Method, mode: str='forward'):
-        func = self._implement(method)
-        def forward(a: Quantifiable, b):
-            return type(a)(*func(a, b))
-        def reverse(b: Quantifiable, a):
-            return type(b)(*func(a, b))
-        def inplace(a: Quantifiable, b):
-            r = forward(a, b)
-            for operand in self.operands:
-                setattr(a, operand, getattr(r, operand))
-        if mode == 'forward':
-            operator = forward
-            operator.__name__ = f"__{method.__name__}__"
-        elif mode == 'reverse':
-            operator = reverse
-            operator.__name__ = f"__r{method.__name__}__"
-        elif mode == 'inplace':
-            operator = inplace
-            operator.__name__ = f"__i{method.__name__}__"
-        else:
-            raise ValueError(
-                f"Unknown implementation mode {mode!r}"
-            ) from None
-        operator.__doc__ = method.__doc__
-        return operator
-
-
-comparison = Comparison(
-    _amount=[
-        (Quantifiable, Quantifiable),
-        (Quantifiable, algebraic.Orderable),
-    ],
-    _metric=[],
-)
-unary = Unary(
-    _amount=None,
-    _metric=None,
-)
-additive = Numeric(
-    _amount=[
-        (Quantifiable, Quantifiable),
-        (Quantifiable, Real),
-        (Real, Quantifiable),
-    ],
-    _metric=[(Quantifiable, Quantifiable)],
-)
-multiplicative = Numeric(
-    _amount=[
-        (Quantifiable, Quantifiable),
-        (Quantifiable, Real),
-        (Real, Quantifiable),
-    ],
-    _metric=[(Quantifiable, Quantifiable)],
-)
-exponential = Numeric(
-    _amount=[(Quantifiable, Real)],
-    _metric=[(Quantifiable, Real)],
-)
-
-
 def getattrval(
     __object: T,
     __name: str,
@@ -537,8 +379,8 @@ Signature = typing.TypeVar('Signature', bound=tuple)
 Signature = typing.Tuple[type, type]
 
 
-Rules = typing.TypeVar('Rules', bound=typing.Iterable)
-Rules = typing.Mapping[Signature, typing.Collection[str]]
+Rules = typing.TypeVar('Rules', bound=typing.MutableMapping)
+Rules = typing.MutableMapping[Signature, typing.Collection[str]]
 
 
 class Updater(collections.abc.Mapping):
@@ -570,22 +412,51 @@ class OperandError(Exception):
     """Operands are incompatible with operator."""
 
 
-class Implementation(abc.ABC):
-    """Abstract base class for operator implementations."""
+class Operator(abc.ABC):
+    """Abstract base class for operators."""
 
     def __init__(self, method: Method) -> None:
         self.method = method
 
     @abc.abstractmethod
-    def build(self, **constraints) -> typing.Callable:
-        """Implement the operator under the given constraints."""
+    def implement(self, *args, **kwargs):
+        """Impement the instance method."""
         pass
 
+    def suppress(self, *args, **kwargs):
+        """Suppress the instance method"""
+        implemented = self.implement(*args, **kwargs)
+        def func(*a, **k):
+            return NotImplemented
+        func.__name__ = implemented.__name__
+        func.__doc__ = implemented.__doc__
+        return func
 
-class Cast(Implementation):
+
+class Unary(Operator):
+    """A concrete implementation of a unary arithmetic operator."""
+
+    def __init__(
+        self,
+        method: Method,
+        fixed: typing.Iterable[str]=None,
+    ) -> None:
+        super().__init__(method)
+        self.fixed = iterables.whole(fixed)
+
+    def implement(self) -> typing.Callable:
+        def func(a: Quantity):
+            passed = [getattrval(a, name) for name in self.fixed]
+            return type(a)(self.method(a.data), passed)
+        func.__name__ = f"__{self.method.__name__}__"
+        func.__doc__ = self.method.__doc__
+        return func
+
+
+class Cast(Operator):
     """A concrete implementation of a unary type-casting operator."""
 
-    def build(self) -> typing.Callable:
+    def implement(self):
         def func(a):
             return (
                 self.method(a.data) if isinstance(a, Quantity)
@@ -597,56 +468,37 @@ class Cast(Implementation):
         return func
 
 
-class Comparison(Implementation):
-    """A concrete implementation of a binary comparison operator."""
-
-    def build(
-        self,
-        strict: typing.Iterable[str]=None,
-        allowed: typing.Iterable[type]=None,
-    ) -> typing.Callable:
-        names = iterables.whole(strict)
-        @same(*names, allowed=allowed)
-        def func(a: Quantity, b):
-            if isinstance(b, Quantity):
-                return self.method(a.data, b.data)
-            if isinstance(b, algebraic.Orderable):
-                return self.method(a.data, b)
-            return NotImplemented
-        func.__name__ = f"__{self.method.__name__}__"
-        func.__doc__ = self.method.__doc__
-        return func
-
-
-class Unary(Implementation):
-    """A concrete implementation of a unary arithmetic operator."""
-
-    def build(self, fixed: typing.Iterable[str]=None) -> typing.Callable:
-        names = iterables.whole(fixed)
-        def func(a: Quantity):
-            passed = [getattrval(a, name) for name in names]
-            return type(a)(self.method(a.data), passed)
-        func.__name__ = f"__{self.method.__name__}__"
-        func.__doc__ = self.method.__doc__
-        return func
-
-
-class Binary(Implementation):
+class Binary(Operator):
     """A concrete implementation of a binary arithmetic operator."""
 
-    # Could we expect an instance of `Updater` to be able to compute all
-    # possible attributes, instead of declaring this class attribute?
-    _attrs = ('data', 'unit')
-
-    def build(
+    def __init__(
         self,
+        method: Method,
+        names: typing.Iterable[str]=None,
         rules: Rules=None,
-        mode: str='forward',
-    ) -> typing.Callable:
-        updater = Updater(rules)
+    ) -> None:
+        super().__init__(method)
+        self.updater = Updater(rules)
+        self._names = self._get_attr_names(names)
+
+    def _get_attr_names(
+        self,
+        names: typing.Iterable[str]=None,
+    ) -> typing.Tuple[str]:
+        """Get the names of all updatable attributes."""
+        if names:
+            return tuple(names)
+        sets = self.updater.values()
+        attrs = []
+        for these in sets:
+            if len(these) > len(attrs):
+                attrs = these
+        return tuple(attrs)
+
+    def implement(self, mode: str='forward') -> typing.Callable:
         def func(*args):
             try:
-                return self._implement(updater, *args)
+                return self._implement(*args)
             except metric.UnitError as err:
                 raise OperandError(err) from err
         def forward(a: Quantity, b):
@@ -655,7 +507,7 @@ class Binary(Implementation):
             return type(b)(*func(a, b))
         def inplace(a: Quantity, b):
             r = forward(a, b)
-            for name in self._attrs:
+            for name in self._names:
                 setattr(a, name, getattr(r, name))
         if mode == 'forward':
             operator = forward
@@ -673,58 +525,82 @@ class Binary(Implementation):
         operator.__doc__ = self.method.__doc__
         return operator
 
-    def _implement(self, updater: Updater, *args):
+    def _implement(self, *args):
         """Implement the instance method."""
         types = tuple(type(i) for i in args)
-        if types not in updater:
+        if types not in self.updater:
             return NotImplemented
-        updatable = list(updater[types])
+        updatable = list(self.updater[types])
         instance = (arg for arg in args if isinstance(arg, Quantity))
         reference = next(instance)
         return [
             self.method(*[getattrval(arg, name) for arg in args])
             if name in updatable
             else getattrval(reference, name)
-            for name in self._attrs
+            for name in self._names
         ]
 
 
-IT = typing.TypeVar('IT', bound=Implementation)
+class Comparison(Operator):
+    """A concrete implementation of a binary comparison operator."""
 
+    def __init__(
+        self,
+        method: Method,
+        strict: typing.Iterable[str]=None,
+        allowed: typing.Iterable[type]=None,
+    ) -> None:
+        super().__init__(method)
+        self.strict = iterables.whole(strict)
+        self.allowed = iterables.whole(allowed)
 
-class Operator(typing.Generic[IT]):
-    """A generic operator."""
-
-    def __init__(self, __type: typing.Type[IT]) -> None:
-        self._implement = __type
-
-    def implement(self, method: Method, **kwargs):
-        """Implement the given method."""
-        implementation = self._implement(method)
-        return implementation.build(**kwargs)
-
-    def suppress(self, method: Method, **kwargs):
-        """Suppress the given method"""
-        implemented = self.implement(method, **kwargs)
-        def func(*a, **k):
+    def implement(self) -> typing.Callable:
+        @same(*self.strict, allowed=self.allowed)
+        def func(a: Quantity, b):
+            if isinstance(b, Quantity):
+                return self.method(a.data, b.data)
+            if isinstance(b, algebraic.Orderable):
+                return self.method(a.data, b)
             return NotImplemented
-        func.__name__ = implemented.__name__
-        func.__doc__ = implemented.__doc__
+        func.__name__ = f"__{self.method.__name__}__"
+        func.__doc__ = self.method.__doc__
         return func
 
 
-# Possible interfaces:
-# 1. comparison = Operator(Comparison)
-# 2. comparison = Operator(Comparison(enforced='unit', ignored=Real))
-#
-# In the first case, `Operator` takes a type of `Implementation` and initializes
-# it in `Operator.__call__`. In the second case, `Operator` takes an instance of
-# a TBD intermediate class, which initializes an instance of `Implementation`.
-# The second case would allow us to pass in implementation-specific arguments.
+GT = typing.TypeVar('GT', bound=Operator)
+
+
+class OperatorFactory(typing.Generic[GT]):
+    """A factory for creating generic operators."""
+
+    def __init__(self, __type: typing.Type[GT], **constraints) -> None:
+        self._implement = __type
+        self._constraints = constraints
+
+    def restrict(self, **constraints):
+        """Create a new factory instance with the given constraints."""
+        return type(self)(self._implement, **constraints)
+
+    def constrain(self, reset: bool=False, **constraints):
+        """Update the implementation constraints."""
+        if reset:
+            self._constraints = constraints
+        else:
+            self._constraints.update(constraints)
+        return self
+
+    def operator(self, method: Method):
+        """Create an operator from the given method."""
+        return self._implement(method, **self._constraints)
 
 
 RULES = {
     'add': {
+        (Quantity, Quantity): ['data', 'unit'],
+        (Quantity, Real): ['data'],
+        (Real, Quantity): ['data'],
+    },
+    'mul': {
         (Quantity, Quantity): ['data', 'unit'],
         (Quantity, Real): ['data'],
         (Real, Quantity): ['data'],
@@ -735,9 +611,12 @@ RULES = {
     },
 }
 
-comparison = Operator(Comparison)
-unary = Operator(Unary)
-binary = Operator(Binary)
+comparison = OperatorFactory(Comparison).constrain(strict='unit', allowed=Real)
+unary = OperatorFactory(Unary).constrain(fixed='unit')
+binary = OperatorFactory(Binary)
+additive = binary.restrict(rules=RULES['add'])
+multiplicative = binary.restrict(rules=RULES['mul'])
+exponential = binary.restrict(rules=RULES['pow'])
 
 
 class OperatorMixin:
@@ -765,38 +644,41 @@ class OperatorMixin:
           not at all obvious what the unit or dimensions should be.
     """
 
-    __lt__ = comparison.implement(standard.lt, strict='unit', allowed=Real)
-    __le__ = comparison.implement(standard.le, strict='unit', allowed=Real)
-    __gt__ = comparison.implement(standard.gt, strict='unit', allowed=Real)
-    __ge__ = comparison.implement(standard.ge, strict='unit', allowed=Real)
-    __eq__ = comparison.implement(standard.eq, strict='unit', allowed=Real)
-    __ne__ = comparison.implement(standard.ne, strict='unit', allowed=Real)
+    __lt__ = comparison.operator(standard.lt).implement()
+    __le__ = comparison.operator(standard.le).implement()
+    __gt__ = comparison.operator(standard.gt).implement()
+    __ge__ = comparison.operator(standard.ge).implement()
+    __eq__ = comparison.operator(standard.eq).implement()
+    __ne__ = comparison.operator(standard.ne).implement()
 
-    __abs__ = unary.implement(standard.abs, fixed='unit')
-    __neg__ = unary.implement(standard.neg, fixed='unit')
-    __pos__ = unary.implement(standard.pos, fixed='unit')
+    __abs__ = unary.operator(standard.abs).implement()
+    __neg__ = unary.operator(standard.neg).implement()
+    __pos__ = unary.operator(standard.pos).implement()
 
-    r = RULES['add']
-    __add__ = binary.implement(standard.add, rules=r)
-    __radd__ = binary.implement(standard.add, rules=r, mode='reverse')
-    __iadd__ = binary.implement(standard.add, rules=r, mode='inplace')
+    addition = additive.operator(standard.add)
+    __add__ = addition.implement('forward')
+    __radd__ = addition.implement('reverse')
+    __iadd__ = addition.implement('inplace')
 
-    __sub__ = binary.implement(standard.sub, rules=r)
-    __rsub__ = binary.implement(standard.sub, rules=r, mode='reverse')
-    __isub__ = binary.implement(standard.sub, rules=r, mode='inplace')
+    subtraction = additive.operator(standard.sub)
+    __sub__ = subtraction.implement('forward')
+    __rsub__ = subtraction.implement('reverse')
+    __isub__ = subtraction.implement('inplace')
 
-    __mul__ = binary.implement(standard.mul, rules=r)
-    __rmul__ = binary.implement(standard.mul, rules=r, mode='reverse')
-    __imul__ = binary.implement(standard.mul, rules=r, mode='inplace')
+    multiplication = multiplicative.operator(standard.mul)
+    __mul__ = multiplication.implement('forward')
+    __rmul__ = multiplication.implement('reverse')
+    __imul__ = multiplication.implement('inplace')
 
-    __truediv__ = binary.implement(standard.truediv, rules=r)
-    __rtruediv__ = binary.suppress(standard.truediv, rules=r, mode='reverse')
-    __itruediv__ = binary.implement(standard.truediv, rules=r, mode='inplace')
+    division = multiplicative.operator(standard.truediv)
+    __truediv__ = division.implement('forward')
+    __rtruediv__ = division.suppress('reverse')
+    __itruediv__ = division.implement('inplace')
 
-    r = RULES['pow']
-    __pow__ = binary.implement(standard.pow, rules=r)
-    __rpow__ = binary.suppress(standard.pow, rules=r, mode='reverse')
-    __ipow__ = binary.implement(standard.pow, rules=r, mode='inplace')
+    exponentiation = exponential.operator(standard.pow)
+    __pow__ = exponentiation.implement('forward')
+    __rpow__ = exponentiation.suppress('reverse')
+    __ipow__ = exponentiation.implement('inplace')
 
 
 class Scalar(Quantity):
