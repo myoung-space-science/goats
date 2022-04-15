@@ -231,7 +231,7 @@ def test_same():
 
 
 def test_getattrval():
-    """Test the function that gets computes a value based on object type."""
+    """Test the function that gets a value based on object type."""
     class Base:
         def __init__(self, value) -> None:
             self._value = value
@@ -253,6 +253,44 @@ def test_getattrval():
     assert measurable.getattrval(instance, 'value', scale) == expected
     assert measurable.getattrval(instance, 'value', scale=scale) == expected
     assert measurable.getattrval(value, 'value') == value
+
+
+def test_setattrval():
+    """Test the function that sets a value based on object type."""
+    class Base:
+        def __init__(self, value) -> None:
+            self._value = value
+    class StandardAttr(Base):
+        def __init__(self, value) -> None:
+            super().__init__(value)
+            self.value = self._value
+    class PropertyAttr(Base):
+        @property
+        def value(self):
+            return self._value
+        @value.setter
+        def value(self, value):
+            self._value = value
+    class CallableAttr(Base):
+        def value(self, value=None, scale=1.0):
+            if value is None:
+                return scale * self._value
+            self._value = scale * value
+            return self
+
+    old, new, scale = 2.5, 4.0, 10.0
+    for Instance in StandardAttr, PropertyAttr, CallableAttr:
+        instance = Instance(old)
+        assert measurable.getattrval(instance, 'value') == old
+        measurable.setattrval(instance, 'value', new)
+        assert measurable.getattrval(instance, 'value') == new
+        if isinstance(instance, CallableAttr):
+            measurable.setattrval(instance, 'value', new, scale)
+            assert measurable.getattrval(instance, 'value') == scale * new
+            measurable.setattrval(instance, 'value', new, scale=scale)
+            assert measurable.getattrval(instance, 'value') == scale * new
+        with pytest.raises(AttributeError):
+            measurable.setattrval(instance, 'other', None)
 
 
 unity = '1'
