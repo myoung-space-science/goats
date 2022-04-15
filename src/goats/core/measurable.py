@@ -621,17 +621,17 @@ RULES = {
         (Quantity, algebraic.Operand): ['data'],
         None: ['unit'],
     },
-    'add': {
+    'additive': {
         (Quantity, Quantity): ['data', 'unit'],
         (Quantity, Real): ['data'],
         (Real, Quantity): ['data'],
     },
-    'mul': {
+    'multiplicative': {
         (Quantity, Quantity): ['data', 'unit'],
         (Quantity, Real): ['data'],
         (Real, Quantity): ['data'],
     },
-    'pow': {
+    'exponential': {
         (Quantity, Real): ['data', 'unit'],
         (Real, Quantity): ['data', 'unit'],
     },
@@ -640,9 +640,9 @@ RULES = {
 comparison = OperatorFactory(Comparison).constrain(rules=RULES['comparison'])
 unary = OperatorFactory(Unary).constrain(fixed='unit')
 binary = OperatorFactory(Numeric)
-additive = binary.restrict(rules=RULES['add'])
-multiplicative = binary.restrict(rules=RULES['mul'])
-exponential = binary.restrict(rules=RULES['pow'])
+additive = binary.restrict(rules=RULES['additive'])
+multiplicative = binary.restrict(rules=RULES['multiplicative'])
+exponential = binary.restrict(rules=RULES['exponential'])
 
 
 class OperatorMixin:
