@@ -468,18 +468,24 @@ class Cast(Operator):
         return func
 
 
-class Binary(Operator):
+# Consider defining a new `Implementation` as base class for this and a unary
+# version. That will require finding a new name for the current `Unary` operator
+# class. Next, pass an instance of `Binary(Impementation)` into `Numeric` and
+# `Comparison` and do similarly for the unary operator classes.
+class Binary:
     """A concrete implementation of a binary arithmetic operator."""
 
     def __init__(
         self,
-        method: Method,
+        strict: typing.Iterable[str]=None,
+        allowed: typing.Iterable[type]=None,
         names: typing.Iterable[str]=None,
         rules: Rules=None,
     ) -> None:
-        super().__init__(method)
+        self.strict = iterables.whole(strict)
+        self.allowed = iterables.whole(allowed)
         self.updater = Updater(rules)
-        self._names = self._get_attr_names(names)
+        self.names = self._get_attr_names(names)
 
     def _get_attr_names(
         self,
@@ -495,19 +501,54 @@ class Binary(Operator):
                 attrs = these
         return tuple(attrs)
 
-    def implement(self, mode: str='forward') -> typing.Callable:
+    def implement(self, method: Method) -> typing.Callable:
+        @same(*self.strict, allowed=self.allowed)
         def func(*args):
             try:
-                return self._implement(*args)
+                return self._implement(method, *args)
             except metric.UnitError as err:
                 raise OperandError(err) from err
+        return func
+
+    def _implement(self, method: Method, *args):
+        """Implement the instance method."""
+        types = tuple(type(i) for i in args)
+        if types not in self.updater:
+            return NotImplemented
+        updatable = list(self.updater[types])
+        instance = (arg for arg in args if isinstance(arg, Quantity))
+        reference = next(instance)
+        return [
+            method(*[getattrval(arg, name) for arg in args])
+            if name in updatable
+            else getattrval(reference, name)
+            for name in self.names
+        ]
+
+
+class Numeric(Operator):
+    """A concrete implementation of a binary arithmetic operator."""
+
+    def __init__(
+        self,
+        method: Method,
+        strict: typing.Iterable[str]=None,
+        allowed: typing.Iterable[type]=None,
+        names: typing.Iterable[str]=None,
+        rules: Rules=None,
+    ) -> None:
+        super().__init__(method)
+        self.operator = Binary(strict, allowed, names, rules)
+
+    def implement(self, mode: str='forward') -> typing.Callable:
+        func = self.operator.implement(self.method)
         def forward(a: Quantity, b):
             return type(a)(*func(a, b))
         def reverse(b: Quantity, a):
             return type(b)(*func(a, b))
         def inplace(a: Quantity, b):
             r = forward(a, b)
-            for name in self._names:
+            for name in self.operator.names:
                 setattr(a, name, getattr(r, name))
         if mode == 'forward':
             operator = forward
@@ -525,21 +566,6 @@ class Binary(Operator):
         operator.__doc__ = self.method.__doc__
         return operator
 
-    def _implement(self, *args):
-        """Implement the instance method."""
-        types = tuple(type(i) for i in args)
-        if types not in self.updater:
-            return NotImplemented
-        updatable = list(self.updater[types])
-        instance = (arg for arg in args if isinstance(arg, Quantity))
-        reference = next(instance)
-        return [
-            self.method(*[getattrval(arg, name) for arg in args])
-            if name in updatable
-            else getattrval(reference, name)
-            for name in self._names
-        ]
-
 
 class Comparison(Operator):
     """A concrete implementation of a binary comparison operator."""
@@ -549,19 +575,14 @@ class Comparison(Operator):
         method: Method,
         strict: typing.Iterable[str]=None,
         allowed: typing.Iterable[type]=None,
+        names: typing.Iterable[str]=None,
+        rules: Rules=None,
     ) -> None:
         super().__init__(method)
-        self.strict = iterables.whole(strict)
-        self.allowed = iterables.whole(allowed)
+        self.operator = Binary(strict, allowed, names, rules)
 
     def implement(self) -> typing.Callable:
-        @same(*self.strict, allowed=self.allowed)
-        def func(a: Quantity, b):
-            if isinstance(b, Quantity):
-                return self.method(a.data, b.data)
-            if isinstance(b, algebraic.Orderable):
-                return self.method(a.data, b)
-            return NotImplemented
+        func = self.operator.implement(self.method)
         func.__name__ = f"__{self.method.__name__}__"
         func.__doc__ = self.method.__doc__
         return func
@@ -595,6 +616,10 @@ class OperatorFactory(typing.Generic[GT]):
 
 
 RULES = {
+    'comparison': {
+        (Quantity, Quantity): ['data'],
+        (Quantity, algebraic.Operand): ['data'],
+    },
     'add': {
         (Quantity, Quantity): ['data', 'unit'],
         (Quantity, Real): ['data'],
@@ -611,9 +636,13 @@ RULES = {
     },
 }
 
-comparison = OperatorFactory(Comparison).constrain(strict='unit', allowed=Real)
+comparison = OperatorFactory(Comparison).constrain(
+    strict='unit',
+    allowed=Real,
+    rules=RULES['comparison'],
+)
 unary = OperatorFactory(Unary).constrain(fixed='unit')
-binary = OperatorFactory(Binary)
+binary = OperatorFactory(Numeric)
 additive = binary.restrict(rules=RULES['add'])
 multiplicative = binary.restrict(rules=RULES['mul'])
 exponential = binary.restrict(rules=RULES['pow'])
