@@ -102,15 +102,19 @@ class Ufunc(iterables.ReprStrMixin):
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
-class Quantity(measurable.Quantity):
-    """A measurable quantity with a name."""
+class Quantity(measurable.OperatorMixin, measurable.Quantity):
+    """A measurable quantity with a name.
+    
+    This class is a concrete implementation of `~measurable.Quantity` that uses
+    the default operator implementations in `~measurable.OperatorMixin`.
+    """
 
     @typing.overload
     def __init__(
         self: Instance,
-        amount: measurable.RealValued,
+        data: measurable.Real,
         unit: metric.UnitLike=None,
-        name: str=None,
+        name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None:
         """Initialize this instance from arguments."""
 
@@ -125,13 +129,13 @@ class Quantity(measurable.Quantity):
         super().__init__(*args, **kwargs)
         self._name = self._parse_quantity(*args, **kwargs)
         if self._name:
-            self.display['__str__']['strings'].insert(0, "'{_name}': ")
-            self.display['__repr__']['strings'].insert(1, "'{_name}'")
+            self.display['__str__']['strings'].insert(0, "'{name}': ")
+            self.display['__repr__']['strings'].insert(1, "'{name}'")
 
     def _parse_quantity(self, *args, **kwargs):
         """Parse input arguments to initialize this instance."""
         if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
-            return args[0]._name
+            return args[0].name()
         return aliased.MappingKey(
             args[2] if len(args) == 3
             else kwargs.get('name') or ''
@@ -146,49 +150,95 @@ class Quantity(measurable.Quantity):
         return self
 
 
-# This is probably just over-engineering.
-class AttrSearchMixin:
-    """Mixin class to provide access to underlying attributes."""
+class Scalar(Quantity):
+    """A single-valued data-type quantity.
+    
+    This class is a virtual concrete implementation of `~measurable.Scalar` that
+    uses the results of `~measurable._cast` and `~measurable._unary` to provide
+    scalar-specific methods. It defines the magic method `__measure__` in order
+    to directly support `~measurables.measure`.
+    """
 
-    _search_attrs = None
+    def __float__(self):
+        """Called for float(self)."""
+        return float(self.data)
 
-    @property
-    def search_attrs(self):
-        """The known attributes to search for unknown attributes."""
-        if self._search_attrs is None:
-            self._search_attrs = []
-        return self._search_attrs
+    def __int__(self):
+        """Called for int(self)."""
+        return int(self.data)
 
-    def search(self, *names: str):
-        """Add attributes to the search collection.
-        
-        Passing one or more names to this method will add them to the internal
-        attribute that determines where to search for attributes that are not
-        explicitly defined in this class. This class will first look for an
-        unknown attribute in the underlying data object, then will proceed to
-        search attributes named in `names`. If a named attribute is a method,
-        this class will call the method with no arguments before searching the
-        return value for the unknown attribute.
-        """
-        self._search_attrs += list(names)
+    def __round__(self, ndigits):
+        """Called for round(self)."""
+        return NotImplemented
 
-    def _get_base_attr(self, name: str):
-        """Helper method to efficiently access underlying attributes.
+    def __ceil__(self):
+        """Called for math.ceil(self)."""
+        return NotImplemented
 
-        This method will attempt to retrieve the named attribute from the
-        attributes in `self._search_attrs`, if any.
-        """
-        targets = [getattr(self, name) for name in self._search_attrs]
-        for target in targets:
-            with contextlib.suppress(AttributeError):
-                attr = target() if callable(target) else target
-                if value := getattr(attr, name):
-                    return value
+    def __floor__(self):
+        """Called for math.floor(self)."""
+        return NotImplemented
+
+    def __trunk__(self):
+        """Called for math.trunk(self)."""
+        return NotImplemented
+
+    def __init__(
+        self,
+        data: numbers.Real,
+        unit: metric.UnitLike=None,
+        name: typing.Union[str, typing.Iterable[str]]=None,
+    ) -> None:
+        super().__init__(float(data), unit=unit, name=name)
+
+    def __measure__(self):
+        """Create a measurement from this scalar's value and unit."""
+        value = iterables.whole(self.data)
+        return measurable.Measurement(value, self.unit())
 
 
+measurable.Scalar.register(Scalar)
 
-class Value(Quantity):
-    """"""
+
+class Vector(Quantity):
+    """A multi-valued measurable quantity.
+
+    This class is a virtual concrete implementation of `~measurable.Vector` that
+    uses local definitions of `__len__` and `__getitem__`. It defines the magic
+    method `__measure__` in order to directly support `~measurables.measure`.
+    """
+
+    def __init__(
+        self,
+        data: typing.Union[measurable.Real, numpy.typing.ArrayLike],
+        unit: metric.UnitLike=None,
+        name: typing.Union[str, typing.Iterable[str]]=None,
+    ) -> None:
+        array = numpy.asfarray(list(iterables.whole(data)))
+        super().__init__(array, unit=unit, name=name)
+
+    def __len__(self) -> int:
+        """Called for len(self)."""
+        return len(self.data)
+
+    def __getitem__(self, index):
+        """Called for index-based value access."""
+        if isinstance(index, typing.SupportsIndex) and index < 0:
+            index += len(self)
+        values = self.data[index]
+        iter_values = isinstance(values, typing.Iterable)
+        unit = self.unit()
+        return (
+            [Scalar(value, unit) for value in values] if iter_values
+            else Scalar(values, unit)
+        )
+
+    def __measure__(self):
+        """Create a measurement from this vector's values and unit."""
+        return measurable.Measurement(self.data, self.unit())
+
+
+measurable.Vector.register(Vector)
 
 
 IndexLike = typing.TypeVar(
