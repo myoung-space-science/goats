@@ -498,7 +498,7 @@ class Implementation(abc.ABC):
 class Binary(Implementation):
     """A generalized implementation of a binary operator."""
 
-    def apply(self, method: Method) -> typing.Callable:
+    def apply(self, method: Method):
         @same(*self.attributes.fixed)
         def func(*args):
             try:
@@ -515,12 +515,12 @@ class Binary(Implementation):
         updatable = list(self.attributes[types])
         instance = (arg for arg in args if isinstance(arg, Quantity))
         reference = next(instance)
-        return [
-            method(*[getattrval(arg, name) for arg in args])
+        return {
+            name: method(*[getattrval(arg, name) for arg in args])
             if name in updatable
             else getattrval(reference, name)
             for name in self.attributes.names
-        ]
+        }
 
 
 class Numeric(Operator):
@@ -537,13 +537,22 @@ class Numeric(Operator):
     def implement(self, mode: str='forward') -> typing.Callable:
         func = self.implementation.apply(self.method)
         def forward(a: Quantity, b):
-            return type(a)(*func(a, b))
+            result = func(a, b)
+            if isinstance(result, typing.Mapping):
+                return type(a)(**func(a, b))
+            return result
         def reverse(b: Quantity, a):
-            return type(b)(*func(a, b))
+            result = func(a, b)
+            if isinstance(result, typing.Mapping):
+                return type(b)(**func(a, b))
+            return result
         def inplace(a: Quantity, b):
-            r = forward(a, b)
-            for name in self.implementation.attributes.names: # YIKES
-                setattr(a, name, getattr(r, name))
+            result = func(a, b)
+            if isinstance(result, typing.Mapping):
+                for name in self.implementation.attributes.names: # YIKES
+                    setattrval(a, name, result.get(name))
+                return a
+            return result
         if mode == 'forward':
             operator = forward
             operator.__name__ = f"__{self.method.__name__}__"
