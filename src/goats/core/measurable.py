@@ -485,46 +485,48 @@ class Cast(Operator):
         return func
 
 
-# Consider defining a new `Implementation` as base class for this and a unary
-# version. That will require finding a new name for the current `Unary` operator
-# class. Next, pass an instance of `Binary(Impementation)` into `Numeric` and
-# `Comparison` and do similarly for the unary operator classes.
-class Binary:
-    """A concrete implementation of a binary arithmetic operator."""
+class Implementation(abc.ABC):
+    """Abstract base class for operator implementations."""
 
-    def __init__(
-        self,
-        rules: Rules=None,
-    ) -> None:
-        self.updater = Updater(rules)
+    def __init__(self, rules: Rules):
+        self.attributes = Updater(rules)
 
-    def implement(self, method: Method) -> typing.Callable:
-        @same(*self.updater.fixed)
+    @abc.abstractmethod
+    def apply(self, method: Method):
+        """Apply the given method to this implementation."""
+        pass
+
+
+class Binary(Implementation):
+    """A generalized implementation of a binary operator."""
+
+    def apply(self, method: Method) -> typing.Callable:
+        @same(*self.attributes.fixed)
         def func(*args):
             try:
-                return self._implement(method, *args)
+                return self._apply(method, *args)
             except metric.UnitError as err:
                 raise OperandError(err) from err
         return func
 
-    def _implement(self, method: Method, *args):
-        """Implement the instance method."""
+    def _apply(self, method: Method, *args):
+        """Internal method-application logic."""
         types = tuple(type(i) for i in args)
-        if types not in self.updater:
+        if types not in self.attributes:
             return NotImplemented
-        updatable = list(self.updater[types])
+        updatable = list(self.attributes[types])
         instance = (arg for arg in args if isinstance(arg, Quantity))
         reference = next(instance)
         return [
             method(*[getattrval(arg, name) for arg in args])
             if name in updatable
             else getattrval(reference, name)
-            for name in self.updater.names
+            for name in self.attributes.names
         ]
 
 
 class Numeric(Operator):
-    """A concrete implementation of a binary arithmetic operator."""
+    """A concrete implementation of a binary numeric operator."""
 
     def __init__(
         self,
@@ -532,17 +534,17 @@ class Numeric(Operator):
         rules: Rules=None,
     ) -> None:
         super().__init__(method)
-        self.operator = Binary(rules)
+        self.implementation = Binary(rules)
 
     def implement(self, mode: str='forward') -> typing.Callable:
-        func = self.operator.implement(self.method)
+        func = self.implementation.apply(self.method)
         def forward(a: Quantity, b):
             return type(a)(*func(a, b))
         def reverse(b: Quantity, a):
             return type(b)(*func(a, b))
         def inplace(a: Quantity, b):
             r = forward(a, b)
-            for name in self.operator.names:
+            for name in self.implementation.attributes.names: # YIKES
                 setattr(a, name, getattr(r, name))
         if mode == 'forward':
             operator = forward
@@ -570,10 +572,10 @@ class Comparison(Operator):
         rules: Rules=None,
     ) -> None:
         super().__init__(method)
-        self.operator = Binary(rules)
+        self.implementation = Binary(rules)
 
     def implement(self) -> typing.Callable:
-        func = self.operator.implement(self.method)
+        func = self.implementation.apply(self.method)
         func.__name__ = f"__{self.method.__name__}__"
         func.__doc__ = self.method.__doc__
         return func
