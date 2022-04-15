@@ -494,14 +494,12 @@ class Binary:
 
     def __init__(
         self,
-        allowed: typing.Iterable[type]=None,
         rules: Rules=None,
     ) -> None:
-        self.allowed = iterables.whole(allowed)
         self.updater = Updater(rules)
 
     def implement(self, method: Method) -> typing.Callable:
-        @same(*self.updater.fixed, allowed=self.allowed)
+        @same(*self.updater.fixed)
         def func(*args):
             try:
                 return self._implement(method, *args)
@@ -531,11 +529,10 @@ class Numeric(Operator):
     def __init__(
         self,
         method: Method,
-        allowed: typing.Iterable[type]=None,
         rules: Rules=None,
     ) -> None:
         super().__init__(method)
-        self.operator = Binary(allowed, rules)
+        self.operator = Binary(rules)
 
     def implement(self, mode: str='forward') -> typing.Callable:
         func = self.operator.implement(self.method)
@@ -570,11 +567,10 @@ class Comparison(Operator):
     def __init__(
         self,
         method: Method,
-        allowed: typing.Iterable[type]=None,
         rules: Rules=None,
     ) -> None:
         super().__init__(method)
-        self.operator = Binary(allowed, rules)
+        self.operator = Binary(rules)
 
     def implement(self) -> typing.Callable:
         func = self.operator.implement(self.method)
@@ -632,10 +628,7 @@ RULES = {
     },
 }
 
-comparison = OperatorFactory(Comparison).constrain(
-    allowed=Real,
-    rules=RULES['comparison'],
-)
+comparison = OperatorFactory(Comparison).constrain(rules=RULES['comparison'])
 unary = OperatorFactory(Unary).constrain(fixed='unit')
 binary = OperatorFactory(Numeric)
 additive = binary.restrict(rules=RULES['add'])
