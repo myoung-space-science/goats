@@ -244,14 +244,14 @@ def test_getattrval():
             return scale * self._value
 
     value = 2.5
-    c0 = PropertyAttr(value)
-    c1 = CallableAttr(value)
-    assert measurable.getattrval(c0, 'value') == value
-    assert measurable.getattrval(c1, 'value') == value
+    instance = PropertyAttr(value)
+    assert measurable.getattrval(instance, 'value') == value
+    instance = CallableAttr(value)
+    assert measurable.getattrval(instance, 'value') == value
     scale = 10.0
     expected = scale * value
-    assert measurable.getattrval(c1, 'value', scale) == expected
-    assert measurable.getattrval(c1, 'value', scale=scale) == expected
+    assert measurable.getattrval(instance, 'value', scale) == expected
+    assert measurable.getattrval(instance, 'value', scale=scale) == expected
     assert measurable.getattrval(value, 'value') == value
 
 
