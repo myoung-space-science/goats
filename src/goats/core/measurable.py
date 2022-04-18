@@ -521,11 +521,11 @@ class Operator(abc.ABC):
 
     @abc.abstractmethod
     def implement(self, *args, **kwargs):
-        """Impement the instance method."""
+        """Implement the instance method."""
         pass
 
     def suppress(self, *args, **kwargs):
-        """Suppress the instance method"""
+        """Suppress the instance method."""
         implemented = self.implement(*args, **kwargs)
         def func(*a, **k):
             return NotImplemented
