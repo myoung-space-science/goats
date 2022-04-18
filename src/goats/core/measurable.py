@@ -90,6 +90,32 @@ class ComparisonError(TypeError):
         return f"Can't compare '{self.this}' to '{self.that}'"
 
 
+class Operand:
+    """A class representing a measurable operand."""
+
+    def __init__(self, operand, attributes: typing.Container[str]) -> None:
+        self.operand = operand
+        self.attributes = attributes
+        self._type = type(operand)
+
+    def validate(self, other, ignored: typing.Iterable[typing.Type]=None):
+        """Make sure `other` is a valid co-operand."""
+        allowed = self._type if ignored is None else (self._type, *ignored)
+        if not isinstance(other, allowed):
+            return False
+        if isinstance(other, self._type):
+            for name in self.attributes:
+                if not self._comparable(other, name):
+                    raise ComparisonError(
+                        self.operand, other, name
+                    ) from None
+        return True
+
+    def _comparable(self, that, name: str) -> bool:
+        """Determine whether the instances are comparable."""
+        return getattrval(self.operand, name) == getattrval(that, name)
+
+
 class same:
     """A callable class that enforces object consistency.
 
@@ -116,24 +142,13 @@ class same:
             if len(args) == 1:
                 return func(*args)
             this, *those = args
-            valid = [self._validate(this, that) for that in those]
+            target = Operand(this, self.names)
+            valid = [
+                target.validate(that, ignored=self.allowed)
+                for that in those
+            ]
             return func(this, *those) if all(valid) else NotImplemented
         return wrapper
-
-    def _validate(self, this, that):
-        """Make sure `that` is a valid operand."""
-        allowed = (type(this), *self.allowed)
-        if not isinstance(that, allowed):
-            return False
-        if isinstance(that, type(this)):
-            for name in self.names:
-                if not self._comparable(this, that, name):
-                    raise ComparisonError(this, that, name) from None
-        return True
-
-    def _comparable(self, this, that, name: str) -> bool:
-        """Determine whether the instances are comparable."""
-        return getattrval(this, name) == getattrval(that, name)
 
 
 RT = typing.TypeVar('RT')
