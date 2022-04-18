@@ -112,19 +112,26 @@ class same:
         if not self.names:
             return func
         @functools.wraps(func)
-        def wrapper(this, that):
-            allowed = (type(this), *self.allowed)
-            if not isinstance(that, allowed):
-                return NotImplemented
-            if isinstance(that, type(this)):
-                for name in self.names:
-                    if not self._comparable(this, that, name):
-                        raise ComparisonError(this, that, name) from None
-            return func(this, that)
+        def wrapper(this, *those):
+            if not those:
+                return func(this)
+            valid = [self._validate(this, that) for that in those]
+            return func(this, *those) if all(valid) else NotImplemented
         return wrapper
 
+    def _validate(self, this, that):
+        """Make sure `that` is a valid operand."""
+        allowed = (type(this), *self.allowed)
+        if not isinstance(that, allowed):
+            return False
+        if isinstance(that, type(this)):
+            for name in self.names:
+                if not self._comparable(this, that, name):
+                    raise ComparisonError(this, that, name) from None
+        return True
+
     def _comparable(self, this, that, name: str) -> bool:
-        """Check whether the instances are comparable."""
+        """Determine whether the instances are comparable."""
         return getattrval(this, name) == getattrval(that, name)
 
 

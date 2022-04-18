@@ -196,8 +196,8 @@ def test_same():
     ]
 
     # No restrictions:
-    def f0(a: Score, b: Score):
-        return a.points + b.points
+    def f0(*scores: Score):
+        return sum((score.points for score in scores))
 
     # Instances must have the same kind:
     @measurable.same('kind')
@@ -209,11 +209,23 @@ def test_same():
     def f2(*args):
         return f0(*args)
 
+    # A single instance always passes:
+    @measurable.same('kind')
+    def f3(arg):
+        return arg
+
     # Add two instances with no restrictions.
     assert f0(scores[0], scores[2]) == 3.0
 
+    # Add all instances with no restrictions.
+    assert f0(*scores) == 12.0
+
     # Add two instances with restricted kind.
     assert f1(scores[0], scores[1]) == 5.0
+
+    # Add three instances with restricted kind.
+    args = [scores[i] for i in (0, 1, 3)]
+    assert f1(*args) == 11.0
 
     # Try to add two instances with different kind.
     with pytest.raises(measurable.ComparisonError):
@@ -228,6 +240,9 @@ def test_same():
     # Try to add two instances with same kind but different name.
     with pytest.raises(measurable.ComparisonError):
         f2(scores[0], scores[1])
+
+    # Test a trivial case.
+    assert f3(scores[0]) == scores[0]
 
 
 def test_getattrval():
