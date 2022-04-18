@@ -472,8 +472,7 @@ class Implementation:
         if types not in self.attributes:
             return NotImplemented
         updatable = list(self.attributes[types])
-        instance = (arg for arg in args if isinstance(arg, Quantity))
-        reference = next(instance)
+        reference = self._get_reference(*args)
         # NOTE: This uses a `dict` because we can't guarantee that
         # `self.attribute.names` will be in the correct order. An alternate
         # approach could be to get parameter order from `inspect.signature`.
@@ -483,6 +482,16 @@ class Implementation:
             else getattrval(reference, name)
             for name in self.attributes.names
         }
+
+    def _get_reference(self, *args):
+        """Get a reference quantity.
+        
+        This method relies on the assuption that at least one operand in any
+        operation that this class handles is an instance of a
+        `~measurable.Quantity` or a subclass.
+        """
+        instance = (arg for arg in args if isinstance(arg, Quantity))
+        return next(instance)
 
 
 class Operator(abc.ABC):
