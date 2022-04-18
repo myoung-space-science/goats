@@ -540,8 +540,6 @@ class Unary(Operator):
     def implement(self) -> typing.Callable:
         def operator(a: Quantity):
             return self.evaluate(a, out=type(a))
-        operator.__name__ = f"__{self.method.__name__}__"
-        operator.__doc__ = self.method.__doc__
         return operator
 
 
@@ -551,36 +549,49 @@ class Cast(Operator):
     def implement(self):
         def operator(a: Quantity):
             return self.evaluate(a)
-        operator.__name__ = f"__{self.method.__name__}__"
-        operator.__doc__ = self.method.__doc__
         return operator
 
 
 class Numeric(Operator):
     """A concrete implementation of a binary numeric operator."""
 
-    def implement(self, mode: str='forward') -> typing.Callable:
-        def forward(a: Quantity, b):
+    @property
+    def forward(self):
+        """The standard version of this operator."""
+        def operator(a: Quantity, b):
             return self.evaluate(a, b, out=type(a))
-        def reverse(b: Quantity, a):
-            return self.evaluate(a, b, out=type(b))
-        def inplace(a: Quantity, b):
-            return self.evaluate(a, b, out=a)
-        if mode == 'forward':
-            operator = forward
-            operator.__name__ = f"__{self.method.__name__}__"
-        elif mode == 'reverse':
-            operator = reverse
-            operator.__name__ = f"__r{self.method.__name__}__"
-        elif mode == 'inplace':
-            operator = inplace
-            operator.__name__ = f"__i{self.method.__name__}__"
-        else:
-            raise ValueError(
-                f"Unknown implementation mode {mode!r}"
-            ) from None
+        operator.__name__ = f"__{self.method.__name__}__"
         operator.__doc__ = self.method.__doc__
         return operator
+
+    @property
+    def reverse(self):
+        """The version of this operator with reflected operands."""
+        def operator(b: Quantity, a):
+            return self.evaluate(a, b, out=type(b))
+        operator.__name__ = f"__r{self.method.__name__}__"
+        operator.__doc__ = self.method.__doc__
+        return operator
+
+    @property
+    def inplace(self):
+        """The version of this operator for augmented assignments."""
+        def operator(a: Quantity, b):
+            return self.evaluate(a, b, out=a)
+        operator.__name__ = f"__i{self.method.__name__}__"
+        operator.__doc__ = self.method.__doc__
+        return operator
+
+    def implement(self, mode: str='forward') -> typing.Callable:
+        if mode == 'forward':
+            return self.forward
+        if mode == 'reverse':
+            return self.reverse
+        if mode == 'inplace':
+            return self.inplace
+        raise ValueError(
+            f"Unknown implementation mode {mode!r}"
+        ) from None
 
 
 class Comparison(Operator):
@@ -589,8 +600,6 @@ class Comparison(Operator):
     def implement(self) -> typing.Callable:
         def operator(a: Quantity, b):
             return self.evaluate(a, b)
-        operator.__name__ = f"__{self.method.__name__}__"
-        operator.__doc__ = self.method.__doc__
         return operator
 
 
