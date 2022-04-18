@@ -1,3 +1,4 @@
+import math
 import operator
 
 import pytest
@@ -11,6 +12,18 @@ class Quantified(measurable.OperatorMixin, measurable.Quantifiable):
 
 class Quantity(measurable.OperatorMixin, measurable.Quantity):
     """Concrete quantity for testing."""
+
+
+class Scalar(Quantity):
+    """Concrete scalar quantity for testing."""
+
+    __float__ = measurable.cast.operator(float).implement()
+    __int__ = measurable.cast.operator(int).implement()
+
+    __round__ = measurable.unary.operator(round).implement()
+    __ceil__ = measurable.unary.operator(math.ceil).implement()
+    __floor__ = measurable.unary.operator(math.floor).implement()
+    __trunc__ = measurable.unary.operator(math.trunc).implement()
 
 
 @pytest.mark.quantity
@@ -31,7 +44,9 @@ def test_quantity_comparisons():
     ]
     for case in cases:
         opr, v = case
-        assert opr(scalar, Quantity(v, unit))
+        result = opr(scalar, Quantity(v, unit))
+        assert isinstance(result, bool)
+        assert result
         with pytest.raises(TypeError):
             opr(scalar, Quantity(v, 'J'))
 
@@ -154,6 +169,22 @@ def test_quantity_number():
     # reverse
     with pytest.raises(TypeError):
         opr(value, quantity)
+
+
+def test_scalar_cast():
+    """Test the type-casting operators on a scalar quantity."""
+    value = 1.5
+    scalar = Scalar(value, 'm')
+    assert float(scalar) == value
+    assert int(scalar) == int(value)
+
+
+def test_scalar_unary():
+    """Test the unary operators on a scalar quantity."""
+    value = 1.5
+    unit = 'm'
+    scalar = Scalar(value, unit)
+    assert round(scalar) == Scalar(round(value), unit)
 
 
 def test_quantity_idempotence():
