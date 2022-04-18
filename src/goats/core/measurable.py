@@ -608,25 +608,36 @@ GT = typing.TypeVar('GT', bound=Operator)
 class OperatorFactory(typing.Generic[GT]):
     """A factory for creating generic operators."""
 
-    def __init__(self, __type: typing.Type[GT], **constraints) -> None:
+    def __init__(self, __type: typing.Type[GT], rules: Rules=None) -> None:
         self._implement = __type
-        self._constraints = constraints
-
-    def restrict(self, **constraints):
-        """Create a new factory instance with the given constraints."""
-        return type(self)(self._implement, **constraints)
-
-    def constrain(self, reset: bool=False, **constraints):
-        """Update the implementation constraints."""
-        if reset:
-            self._constraints = constraints
-        else:
-            self._constraints.update(constraints)
-        return self
+        init = dict(rules or {})
+        self.rules = {
+            signature: list(attributes)
+            for signature, attributes in init.items()
+        }
 
     def operator(self, method: Method):
         """Create an operator from the given method."""
-        return self._implement(method, **self._constraints)
+        return self._implement(method, rules=self.rules)
+
+    def add_rules(self, rules: Rules):
+        """Add one or more implementation rule(s).
+        
+        This method will insert the given rules into the current dictionary of
+        rules, overwriting existing rules if necessary.
+        """
+        self.rules.update(rules)
+        return self
+
+    def update_rules(self, rules: Rules):
+        """Update one or more implementation rule(s).
+        
+        This method will append the attributes in each of the given rules to the
+        current attributes in that rule. The rule must exist.
+        """
+        for signature, attributes in rules.items():
+            self.rules[signature].extend(attributes)
+        return self
 
 
 RULES = {
@@ -659,13 +670,22 @@ RULES = {
     },
 }
 
-comparison = OperatorFactory(Comparison).constrain(rules=RULES['comparison'])
-cast = OperatorFactory(Cast).constrain(rules=RULES['cast'])
-unary = OperatorFactory(Unary).constrain(rules=RULES['unary'])
-binary = OperatorFactory(Numeric)
-additive = binary.restrict(rules=RULES['additive'])
-multiplicative = binary.restrict(rules=RULES['multiplicative'])
-exponential = binary.restrict(rules=RULES['exponential'])
+
+# An operator requires three things:
+# - a callable object
+# - an algorithm for evaluating arguments via the callable object
+# - rules that declare allowed types of operands and which attributes to update
+#
+# The final two define an operator category (e.g., binary comparison operators),
+# so we could equivalently say that an operator requires a callable object and a
+# category.
+
+comparison = OperatorFactory(Comparison, RULES['comparison'])
+cast = OperatorFactory(Cast, RULES['cast'])
+unary = OperatorFactory(Unary, RULES['unary'])
+additive = OperatorFactory(Numeric, RULES['additive'])
+multiplicative = OperatorFactory(Numeric, RULES['multiplicative'])
+exponential = OperatorFactory(Numeric, RULES['exponential'])
 
 
 class OperatorMixin:
