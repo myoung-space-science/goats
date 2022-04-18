@@ -625,7 +625,7 @@ class OperatorFactory(typing.Generic[GT]):
 RULES = {
     'comparison': {
         (Quantity, Quantity): ['data'],
-        (Quantity, algebraic.Operand): ['data'],
+        (Quantity, algebraic.Orderable): ['data'],
         None: ['unit'],
     },
     'additive': {
