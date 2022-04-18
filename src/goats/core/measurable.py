@@ -608,8 +608,17 @@ class OperatorFactory(typing.Generic[GT]):
             for signature, attributes in init.items()
         }
 
-    def operator(self, method: Method):
+    def implement(self, method: Method):
         """Create an operator from the given method."""
+        implementation = self._implement(method, rules=self.rules)
+        def operator(*args, **kwargs):
+            return implementation.evaluate(*args, **kwargs)
+        operator.__name__ = f"__{method.__name__}__"
+        operator.__doc__ = method.__doc__
+        return operator
+
+    def operator(self, method: Method):
+        """Initialize an operator implementation."""
         return self._implement(method, rules=self.rules)
 
     def add_rules(self, rules: Rules):
@@ -705,16 +714,16 @@ class OperatorMixin:
           not at all obvious what the unit or dimensions should be.
     """
 
-    __lt__ = comparison.operator(standard.lt).implement()
-    __le__ = comparison.operator(standard.le).implement()
-    __gt__ = comparison.operator(standard.gt).implement()
-    __ge__ = comparison.operator(standard.ge).implement()
-    __eq__ = comparison.operator(standard.eq).implement()
-    __ne__ = comparison.operator(standard.ne).implement()
+    __lt__ = comparison.implement(standard.lt)
+    __le__ = comparison.implement(standard.le)
+    __gt__ = comparison.implement(standard.gt)
+    __ge__ = comparison.implement(standard.ge)
+    __eq__ = comparison.implement(standard.eq)
+    __ne__ = comparison.implement(standard.ne)
 
-    __abs__ = unary.operator(standard.abs).implement()
-    __neg__ = unary.operator(standard.neg).implement()
-    __pos__ = unary.operator(standard.pos).implement()
+    __abs__ = unary.implement(standard.abs)
+    __neg__ = unary.implement(standard.neg)
+    __pos__ = unary.implement(standard.pos)
 
     addition = additive.operator(standard.add)
     __add__ = addition.implement('forward')
