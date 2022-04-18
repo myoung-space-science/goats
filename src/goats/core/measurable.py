@@ -544,9 +544,8 @@ class Cast(Operator):
             if isinstance(result, typing.Mapping):
                 return result['data']
             return result
-        name = self.method.__class__.__qualname__
-        operator.__name__ = f"__{name}__"
-        operator.__doc__ = f"""Called for {name}(self)."""
+        operator.__name__ = f"__{self.method.__name__}__"
+        operator.__doc__ = self.method.__doc__
         return operator
 
 
