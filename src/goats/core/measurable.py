@@ -112,9 +112,10 @@ class same:
         if not self.names:
             return func
         @functools.wraps(func)
-        def wrapper(this, *those):
-            if not those:
-                return func(this)
+        def wrapper(*args):
+            if len(args) == 1:
+                return func(*args)
+            this, *those = args
             valid = [self._validate(this, that) for that in those]
             return func(this, *those) if all(valid) else NotImplemented
         return wrapper
