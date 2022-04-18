@@ -500,10 +500,24 @@ class Operator(abc.ABC):
         self.method = method
         self.implementation = Implementation(rules)
 
-    def evaluate(self, *args, **kwargs):
+    def evaluate(
+        self,
+        *args,
+        out: typing.Union[type, typing.Any]=None,
+        **kwargs
+    ) -> typing.Any:
         """Call the implemented method."""
         operator = self.implementation.apply(self.method)
-        return operator(*args, **kwargs)
+        result = operator(*args, **kwargs)
+        if not out:
+            return result['data']
+        if isinstance(result, typing.Mapping):
+            if isinstance(out, type):
+                return out(**result)
+            for name in self.implementation.attributes.names: # YIKES
+                setattrval(out, name, result.get(name))
+            return out
+        return result
 
     @abc.abstractmethod
     def implement(self, *args, **kwargs):
@@ -525,10 +539,7 @@ class Unary(Operator):
 
     def implement(self) -> typing.Callable:
         def operator(a: Quantity):
-            result = self.evaluate(a)
-            if isinstance(result, typing.Mapping):
-                return type(a)(**result)
-            return result
+            return self.evaluate(a, out=type(a))
         operator.__name__ = f"__{self.method.__name__}__"
         operator.__doc__ = self.method.__doc__
         return operator
@@ -539,10 +550,7 @@ class Cast(Operator):
 
     def implement(self):
         def operator(a: Quantity):
-            result = self.evaluate(a)
-            if isinstance(result, typing.Mapping):
-                return result['data']
-            return result
+            return self.evaluate(a)
         operator.__name__ = f"__{self.method.__name__}__"
         operator.__doc__ = self.method.__doc__
         return operator
@@ -553,22 +561,11 @@ class Numeric(Operator):
 
     def implement(self, mode: str='forward') -> typing.Callable:
         def forward(a: Quantity, b):
-            result = self.evaluate(a, b)
-            if isinstance(result, typing.Mapping):
-                return type(a)(**result)
-            return result
+            return self.evaluate(a, b, out=type(a))
         def reverse(b: Quantity, a):
-            result = self.evaluate(a, b)
-            if isinstance(result, typing.Mapping):
-                return type(b)(**result)
-            return result
+            return self.evaluate(a, b, out=type(b))
         def inplace(a: Quantity, b):
-            result = self.evaluate(a, b)
-            if isinstance(result, typing.Mapping):
-                for name in self.implementation.attributes.names: # YIKES
-                    setattrval(a, name, result.get(name))
-                return a
-            return result
+            return self.evaluate(a, b, out=a)
         if mode == 'forward':
             operator = forward
             operator.__name__ = f"__{self.method.__name__}__"
@@ -591,10 +588,7 @@ class Comparison(Operator):
 
     def implement(self) -> typing.Callable:
         def operator(a: Quantity, b):
-            result = self.evaluate(a, b)
-            if isinstance(result, typing.Mapping):
-                return result['data']
-            return result
+            return self.evaluate(a, b)
         operator.__name__ = f"__{self.method.__name__}__"
         operator.__doc__ = self.method.__doc__
         return operator
