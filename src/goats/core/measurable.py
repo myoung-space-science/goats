@@ -1,6 +1,5 @@
 import abc
 import collections.abc
-import contextlib
 import functools
 import numbers
 import operator as standard
