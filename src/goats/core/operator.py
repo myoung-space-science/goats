@@ -134,6 +134,18 @@ class Rules(collections.abc.MutableMapping):
         raise KeyError(types)
 
 
+class Category:
+    """A representation of an operator category."""
+
+    def __init__(
+        self,
+        __type: type,
+        rules: typing.Mapping[Types, Parameters]=None,
+    ) -> None:
+        self._type = __type
+        self.rules = rules
+
+
 class Implementation:
     """The default operator implementation."""
 
@@ -174,6 +186,18 @@ class Operator:
         types, parameters = self.category.parse(list(args))
         self.rules[types] = parameters
 
+    def apply(
+        self,
+        implementation: Implementation=None,
+        rules: typing.Mapping[Types, Parameters]=None,
+    ) -> 'Operator':
+        """Apply the given argument(s) to this operator."""
+        if implementation:
+            self.implementation = implementation
+        if rules:
+            self.rules.update(rules)
+        return self
+
     def implement(self, implementation: Implementation):
         """Set the implementation for this operator."""
         self.implementation = implementation
@@ -197,15 +221,10 @@ class Group(collections.abc.MutableSequence):
         super().__init__()
         self.included = list(included)
 
-    def register(self, *args):
-        """Register a rule on all operators in this group."""
+    def apply(self, **attributes) -> None:
+        """Apply the given attribute(s) to all operators in this group."""
         for operator in self.included:
-            operator.register(*args)
-
-    def implement(self, implementation: Implementation):
-        """Apply the given implementation to all operators in this group."""
-        for operator in self.included:
-            operator.implement(implementation)
+            operator.apply(**attributes)
 
     def __getitem__(self, __i: typing.SupportsIndex):
         """Retrieve the operator at index `__i`."""
