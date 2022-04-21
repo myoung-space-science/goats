@@ -42,10 +42,22 @@ def test_rule_contains():
     assert float in operator.Rule((int, float))
 
 
+def test_rule_parameters():
+    """Check updated and fixed parameters."""
+    rule = operator.Rule(int, 'a', 'b', 'c')
+    assert rule.updated == ('a', 'b', 'c')
+    assert rule.ignored == ()
+    rule.remove('b')
+    assert rule.updated == ('a', 'c')
+    assert rule.ignored == ('b',)
+
+
 def test_rule_suppress():
     """Allow users to suppress an operator for a given operand rule."""
     rule = operator.Rule(int, 'a', 'b')
-    assert rule.parameters == ('a', 'b')
+    assert rule.updated == ('a', 'b')
+    assert rule.ignored == ()
     rule.suppress
-    assert rule.parameters is None
+    assert rule.updated is None
+    assert rule.ignored == ('a', 'b')
 

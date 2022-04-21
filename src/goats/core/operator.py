@@ -37,10 +37,18 @@ class Rule(iterables.ReprStrMixin):
         self._parameters = self.default.copy()
 
     @property
-    def parameters(self):
+    def updated(self):
         """The parameters affected by this rule."""
         if self._parameters is not None:
             return tuple(self._parameters)
+
+    @property
+    def ignored(self):
+        """The parameters unaffected by this rule."""
+        if self._parameters is None:
+            return tuple(self.default)
+        these = set(self.default) - set(self._parameters)
+        return tuple(self._prune(these))
 
     @property
     def types(self):
@@ -150,8 +158,8 @@ class Rule(iterables.ReprStrMixin):
         names = [t.__qualname__ for t in self.types]
         types = names[0] if len(names) == 1 else tuple(names)
         parameters = (
-            NotImplemented if self.parameters is None
-            else list(self.parameters)
+            NotImplemented if self.updated is None
+            else list(self.updated)
         )
         return f"{types}: {parameters}"
 
