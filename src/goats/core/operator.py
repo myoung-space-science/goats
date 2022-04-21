@@ -15,13 +15,6 @@ Parameters = typing.TypeVar('Parameters', str, typing.Collection)
 Parameters = typing.Union[str, typing.Collection[str]]
 
 
-class Implementation:
-    """Base class for operator implementation schemes."""
-
-    def __init__(self) -> None:
-        pass
-
-
 class Rule(iterables.ReprStrMixin):
     """A correspondence between operand types and affected attributes."""
 
@@ -164,8 +157,8 @@ class Rule(iterables.ReprStrMixin):
         return f"{types}: {parameters}"
 
 
-class Implementation:
-    """Base class for operator implementation schemes."""
+class Operator:
+    """Base class for operator application schemes."""
 
     def __init__(
         self,
@@ -185,23 +178,27 @@ class Implementation:
         pass
 
 
-class Operator:
-    """A generalized arithmetic operator."""
+class Implementation:
+    """A generalized arithmetic operator implementation."""
 
     operands: typing.List[type]
 
     def __init__(self, *parameters: str) -> None:
         self._default = list(parameters)
-        self._implement = Implementation
+        self._build = Operator
         self._rules = {}
         self.operands = []
 
-    def implementation(self, new: typing.Type[Implementation]=None):
-        """Get or set the implementation type of this operator."""
+    def category(self, new: typing.Type[Operator]=None):
+        """Get or set the application class for this operator."""
         if new:
-            self._implement = new
+            self._build = new
             return self
-        return self._implement
+        return self._build
+
+    def implement(self, __callable: typing.Callable):
+        """Implement this operator with the given callable."""
+        return self._build(__callable, self.rules)
 
     @property
     def rules(self) -> typing.Dict[Types, Parameters]:
@@ -221,35 +218,35 @@ class Operator:
         ) from None
 
 
-class Interface(collections.abc.Mapping):
-    """An updatable interface to generalized operators."""
+class Implementations(collections.abc.Mapping):
+    """An updatable interface to operator implementations."""
 
-    _operators: typing.Dict[str, Operator]
+    _internal: typing.Dict[str, Implementation]
 
     def __init__(self, *parameters: str) -> None:
         super().__init__()
         self.parameters = list(parameters).copy()
-        """The default parameters for these operators."""
-        self._operators = {}
+        """The default parameters for these implementations."""
+        self._internal = {}
 
     def register(self, key: str):
-        """Register a new operator."""
-        if key in self._operators:
-            raise KeyError(f"Operator {key!r} already exists.")
-        self._operators[key] = Operator(self.parameters)
+        """Register a new implementation."""
+        if key in self._internal:
+            raise KeyError(f"Implementation {key!r} already exists.")
+        self._internal[key] = Implementation(self.parameters)
 
     def __len__(self) -> int:
-        """Returns the number of operators. Called for len(self)."""
-        return len(self._operators)
+        """Returns the number of implementations. Called for len(self)."""
+        return len(self._internal)
 
     def __iter__(self) -> typing.Iterator:
-        """Iterate over registered operators. Called for iter(self)."""
-        return iter(self._operators)
+        """Iterate over registered implementations. Called for iter(self)."""
+        return iter(self._internal)
 
     def __getitem__(self, key: str):
-        """Retrieve an operator by keyword. Called for self[key]."""
-        if key in self._operators:
-            return self._operators[key]
-        raise KeyError(f"No operator for {key!r}") from None
+        """Retrieve an implementation by keyword. Called for self[key]."""
+        if key in self._internal:
+            return self._internal[key]
+        raise KeyError(f"No implementation for {key!r}") from None
 
 
