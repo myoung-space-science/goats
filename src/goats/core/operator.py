@@ -1,6 +1,7 @@
 import abc
 import collections
 import collections.abc
+import operator as standard
 import typing
 
 from goats.core import iterables
@@ -58,6 +59,14 @@ class Rule(iterables.ReprStrMixin):
         """True if `t` is one of the types in this rule."""
         return t in self.types
 
+    def __eq__(self, other) -> bool:
+        """Called for self == other.
+        
+        This method return ``True`` iff each type in `other` is strictly equal
+        to the corresponding type in `self` under element-wise comparison.
+        """
+        return self._compare(other, standard.eq)
+
     def _subtypes(self, other) -> bool:
         """Helper for self > other and self >= other.
         
@@ -65,33 +74,22 @@ class Rule(iterables.ReprStrMixin):
         subclass) of the corresponding type in `self` under element-wise
         comparison.
         """
-        if isinstance(other, Rule):
-            types = zip(other._types, self._types)
-            return all(issubclass(i, j) for i, j in types)
-        if all(isinstance(i, type) for i in other):
-            types = zip(other, self._types)
-            return all(issubclass(i, j) for i, j in types)
-        return NotImplemented
+        return self._compare(other, issubclass)
+
+    def _compare(self, other, method):
+        """Compare `other` to `self` via `method`, if possible."""
+        equivalent = iterables.allinstance(other, type)
+        supported = isinstance(other, Rule) or equivalent
+        if not supported:
+            return NotImplemented
+        types = other._types if isinstance(other, Rule) else other
+        return all(method(i, j) for i, j in zip(types, self._types))
 
     __gt__ = _subtypes
     """Called for self > other."""
 
     __ge__ = _subtypes
     """Called for self >= other."""
-
-    def __eq__(self, other) -> bool:
-        """Called for self == other.
-        
-        This method return ``True`` iff each type in `other` is strictly equal
-        to the corresponding type in `self` under element-wise comparison.
-        """
-        if isinstance(other, Rule):
-            types = zip(other._types, self._types)
-            return all(i == j for i, j in types)
-        if all(isinstance(i, type) for i in other):
-            types = zip(other, self._types)
-            return all(i == j for i, j in types)
-        return NotImplemented
 
     def replace(self, old: type, new: type):
         """Replace the first occurrence of `old` type with `new` type."""
