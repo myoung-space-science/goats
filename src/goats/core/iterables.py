@@ -1317,8 +1317,11 @@ def apply(
         return result
 
 
-def allinstance(args, __type):
+def allinstance(
+    __args: typing.Iterable,
+    __type: type,
+) -> bool:
     """True if all arguments are instances of `__type`."""
-    return all(isinstance(arg, __type) for arg in args)
+    return all(isinstance(arg, __type) for arg in __args)
 
 
