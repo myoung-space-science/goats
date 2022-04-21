@@ -22,10 +22,6 @@ class Implementation:
         pass
 
 
-Category = typing.TypeVar('Category', bound=type)
-Category = typing.Type[Implementation]
-
-
 class Rule(iterables.ReprStrMixin):
     """A correspondence between operand types and affected attributes."""
 
@@ -165,28 +161,35 @@ class Operator:
 
     operands: typing.List[type]
 
-    def __init__(self) -> None:
-        self._category = Implementation
-        self._rules = None
+    def __init__(self, *parameters: str) -> None:
+        self._default = list(parameters)
+        self._implement = Implementation
+        self._rules = {}
         self.operands = []
 
-    def category(self, new: Category=None):
+    def implementation(self, new: typing.Type[Implementation]=None):
         """Get or set the implementation type of this operator."""
         if new:
-            self._category = new
+            self._implement = new
             return self
-        return self._category
+        return self._implement
 
     @property
     def rules(self) -> typing.Dict[Types, Parameters]:
         """The operand rules for this operator."""
-        if self._rules is None:
-            self._rules = {}
+        for rule in self.operands:
+            if rule not in self._rules:
+                self._rules[rule] = self._default.copy()
         return self._rules
 
     def __getitem__(self, types: Types) -> Rule:
         """Retrieve the operand-update rule for `types`."""
-
+        if types in self.rules:
+            parameters = self._rules[types]
+            return Rule(types, *parameters)
+        raise KeyError(
+            f"No rule for operand type(s) {types!r}"
+        ) from None
 
 
 class Interface(collections.abc.Mapping):
@@ -194,17 +197,17 @@ class Interface(collections.abc.Mapping):
 
     _operators: typing.Dict[str, Operator]
 
-    def __init__(self, *operands: str) -> None:
+    def __init__(self, *parameters: str) -> None:
         super().__init__()
-        self.operands = list(operands)
-        """The default operands for these operators."""
+        self.parameters = list(parameters).copy()
+        """The default parameters for these operators."""
         self._operators = {}
 
     def register(self, key: str):
         """Register a new operator."""
         if key in self._operators:
             raise KeyError(f"Operator {key!r} already exists.")
-        self._operators[key] = Operator()
+        self._operators[key] = Operator(self.parameters)
 
     def __len__(self) -> int:
         """Returns the number of operators. Called for len(self)."""
