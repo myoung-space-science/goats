@@ -164,6 +164,27 @@ class Rule(iterables.ReprStrMixin):
         return f"{types}: {parameters}"
 
 
+class Implementation:
+    """Base class for operator implementation schemes."""
+
+    def __init__(
+        self,
+        __callable: typing.Callable,
+        rules: typing.Dict[Types, Parameters],
+    ) -> None:
+        self._callable = __callable
+        self.rules = rules
+
+    def evaluate(self, *args, **kwargs):
+        """Evaluate the arguments via this implementation."""
+        types = tuple(type(i) for i in args)
+        rule = self._get_rule(types)
+
+    def _get_rule(self, types: Types):
+        """Determine the appropriate operand rule, if any."""
+        pass
+
+
 class Operator:
     """A generalized arithmetic operator."""
 
