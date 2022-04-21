@@ -215,6 +215,7 @@ class Interface(collections.abc.Mapping):
 
     def __iter__(self) -> typing.Iterator:
         """Iterate over registered operators. Called for iter(self)."""
+        return iter(self._operators)
 
     def __getitem__(self, key: str):
         """Retrieve an operator by keyword. Called for self[key]."""
