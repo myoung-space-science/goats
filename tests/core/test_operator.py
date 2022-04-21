@@ -41,3 +41,11 @@ def test_rule_contains():
     assert int in operator.Rule((int, float))
     assert float in operator.Rule((int, float))
 
+
+def test_rule_suppress():
+    """Allow users to suppress an operator for a given operand rule."""
+    rule = operator.Rule(int, 'a', 'b')
+    assert rule.parameters == ('a', 'b')
+    rule.suppress
+    assert rule.parameters is None
+

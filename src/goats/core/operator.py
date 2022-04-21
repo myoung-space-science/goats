@@ -42,7 +42,8 @@ class Rule(iterables.ReprStrMixin):
     @property
     def parameters(self):
         """The parameters affected by this rule."""
-        return tuple(self._parameters)
+        if self._parameters is not None:
+            return tuple(self._parameters)
 
     @property
     def types(self):
@@ -104,6 +105,17 @@ class Rule(iterables.ReprStrMixin):
             self._types[index] = new
             return self
 
+    @property
+    def suppress(self):
+        """Suppress this operand rule.
+        
+        Invoking this property will set the internal set of parameters to
+        ``None``, which will signal to operator implementations that they should
+        not implement the operator for these operand types.
+        """
+        self._parameters = None
+        return self
+
     def reset(self):
         """Reset the parameter set to the default set."""
         self._parameters = self.default.copy()
@@ -141,8 +153,13 @@ class Rule(iterables.ReprStrMixin):
         return p
 
     def __str__(self) -> str:
-        attrs = ('types', 'parameters')
-        return ', '.join(f"{attr}={getattr(self, attr)}" for attr in attrs)
+        names = [t.__qualname__ for t in self.types]
+        types = names[0] if len(names) == 1 else tuple(names)
+        parameters = (
+            NotImplemented if self.parameters is None
+            else list(self.parameters)
+        )
+        return f"{types}: {parameters}"
 
 
 class Operator:
