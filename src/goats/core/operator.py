@@ -232,6 +232,12 @@ class Implementation(iterables.ReprStrMixin):
         self._build = Operator
         self._rules = {}
         self.operands = Operands(*parameters)
+        self._operations = []
+
+    def include(self, *operations: str):
+        """Declare the operations that this implementation handles."""
+        self._operations.extend(operations)
+        return self
 
     def category(self, new: typing.Type[Operator]=None):
         """Get or set the application class for this operator."""
