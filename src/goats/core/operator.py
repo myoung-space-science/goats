@@ -179,14 +179,27 @@ class Rule(iterables.ReprStrMixin):
         return f"{types}: {parameters}"
 
 
-class Operands(collections.abc.Mapping):
+class Operands(collections.abc.Mapping[Types, Rule]):
     """A class for managing operand update rules."""
 
-    def __init__(self, *parameters: str) -> None:
+    def __init__(self, __type: type, *parameters: str) -> None:
+        self._type = __type
         self._default = list(parameters)
         self._rulemap = None
         self._ntypes = 0
         self._internal = []
+
+    def get_reference(self, *args):
+        """Get a reference quantity.
+        
+        This method is trivial for unary operators. Otherwise, it relies on the
+        assuption that at least one operand in any non-unary (multary?)
+        operation is an instance of the reference type or a subclass.
+        """
+        if len(args) == 1:
+            return args[0]
+        instance = (arg for arg in args if isinstance(arg, self._type))
+        return next(instance)
 
     def register(self, key: Types, *parameters: str):
         """Add an update rule to the collection."""
@@ -211,11 +224,12 @@ class Operands(collections.abc.Mapping):
         """Returns the number of rules. Called for len(self)."""
         return len(self._rulemap)
 
-    def __iter__(self) -> typing.Iterator:
+    def __iter__(self) -> typing.Iterator[Rule]:
         """Iterate over rules. Called for iter(self)."""
-        return iter(self._rulemap)
+        for types in self._rulemap:
+            yield Rule(types, self._rulemap[types])
 
-    def __getitem__(self, key: Types) -> Rule:
+    def __getitem__(self, key: Types):
         """Retrieve the operand-update rule for `types`."""
         types = tuple(key) if isinstance(key, typing.Iterable) else (key,)
         if types in self._rulemap:
