@@ -247,6 +247,8 @@ class Implementation:
         """Implement an operator with the given callable."""
         return self._build(__callable, self.operands)
 
+    def __str__(self) -> str:
+        return str(self._build.__name__)
 
 class Implementations(collections.abc.Mapping):
     """An updatable interface to operator implementations."""
