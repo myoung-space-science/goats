@@ -242,10 +242,10 @@ class Operator:
 class Implementation(iterables.ReprStrMixin):
     """A generalized arithmetic operator implementation."""
 
-    def __init__(self, *parameters: str) -> None:
+    def __init__(self, operands: Operands) -> None:
         self._build = Operator
         self._rules = {}
-        self.operands = Operands(*parameters)
+        self.operands = operands
         self._operations = []
 
     def include(self, *operations: str):
@@ -278,15 +278,15 @@ class Implementations(aliased.MutableMapping):
 
     def __init__(self, *parameters: str) -> None:
         super().__init__()
-        self.parameters = list(parameters).copy()
-        """The default parameters for these implementations."""
+        self.operands = Operands(parameters)
+        """The default operands for these implementations."""
         self._internal = {}
 
     def register(self, key: str):
         """Register a new implementation."""
         if key in self:
             raise KeyError(f"Implementation {key!r} already exists.")
-        self[key] = Implementation(self.parameters)
+        self[key] = Implementation(self.operands)
 
     def __getitem__(self, key: str) -> Implementation:
         """Retrieve an implementation by keyword. Called for self[key]."""
