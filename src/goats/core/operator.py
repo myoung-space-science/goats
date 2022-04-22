@@ -48,6 +48,7 @@ class Rule(iterables.ReprStrMixin):
         """The parameters affected by this rule."""
         if self._parameters is not None:
             return tuple(self._parameters)
+        return ()
 
     @property
     def ignored(self):
