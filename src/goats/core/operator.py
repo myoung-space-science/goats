@@ -157,16 +157,70 @@ class Rule(iterables.ReprStrMixin):
         return f"{types}: {parameters}"
 
 
+class Operands(collections.abc.Mapping):
+    """A class for managing operand update rules."""
+
+    def __init__(self, *parameters: str) -> None:
+        self._default = list(parameters)
+        self._rulemap = None
+        self._ntypes = 0
+        self._internal = []
+
+    def register(
+        self,
+        *types: type,
+        parameters: typing.Iterable[str]=None,
+    ) -> 'Operands':
+        """Add `types` to the collection."""
+        if self._rulemap is None:
+            self._rulemap = {}
+            self._ntypes = len(types)
+        ntypes = len(types)
+        if types not in self._rulemap:
+            if ntypes == self._ntypes:
+                self._rulemap[types] = parameters or self._default.copy()
+                return self
+            raise ValueError(
+                f"Can't add {ntypes} types to collection"
+                f" of length {self._ntypes} items."
+            ) from None
+        target = types[0] if ntypes == 1 else types
+        raise KeyError(
+            f"{target!r} is already in the collection."
+        ) from None
+
+    def __len__(self) -> int:
+        """Returns the number of rules. Called for len(self)."""
+        return len(self._rulemap)
+
+    def __iter__(self) -> typing.Iterator:
+        """Iterate over rules. Called for iter(self)."""
+        return iter(self._rulemap)
+
+    def __getitem__(self, types: Types) -> Rule:
+        """Retrieve the operand-update rule for `types`."""
+        key = tuple(types) if isinstance(types, typing.Iterable) else (types,)
+        if key in self._rulemap:
+            parameters = self._rulemap[key]
+            return Rule(key, *parameters)
+        for k, p in self._rulemap.items():
+            if all(issubclass(i, j) for i, j in zip(key, k)):
+                return Rule(k, *p)
+        raise KeyError(
+            f"No rule for operand type(s) {types!r}"
+        ) from None
+
+
 class Operator:
     """Base class for operator application schemes."""
 
     def __init__(
         self,
         __callable: typing.Callable,
-        rules: typing.Dict[Types, Parameters],
+        operands: Operands,
     ) -> None:
         self._callable = __callable
-        self.rules = rules
+        self.operands = operands
 
     def evaluate(self, *args, **kwargs):
         """Evaluate the arguments via this implementation."""
@@ -181,13 +235,10 @@ class Operator:
 class Implementation:
     """A generalized arithmetic operator implementation."""
 
-    operands: typing.List[type]
-
     def __init__(self, *parameters: str) -> None:
-        self._default = list(parameters)
         self._build = Operator
         self._rules = {}
-        self.operands = []
+        self.operands = Operands(*parameters)
 
     def category(self, new: typing.Type[Operator]=None):
         """Get or set the application class for this operator."""
@@ -197,25 +248,8 @@ class Implementation:
         return self._build
 
     def implement(self, __callable: typing.Callable):
-        """Implement this operator with the given callable."""
-        return self._build(__callable, self.rules)
-
-    @property
-    def rules(self) -> typing.Dict[Types, Parameters]:
-        """The operand rules for this operator."""
-        for rule in self.operands:
-            if rule not in self._rules:
-                self._rules[rule] = self._default.copy()
-        return self._rules
-
-    def __getitem__(self, types: Types) -> Rule:
-        """Retrieve the operand-update rule for `types`."""
-        if types in self.rules:
-            parameters = self._rules[types]
-            return Rule(types, *parameters)
-        raise KeyError(
-            f"No rule for operand type(s) {types!r}"
-        ) from None
+        """Implement an operator with the given callable."""
+        return self._build(__callable, self.operands)
 
 
 class Implementations(collections.abc.Mapping):
