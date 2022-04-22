@@ -249,18 +249,16 @@ class Implementation(iterables.ReprStrMixin):
         self._operations = []
 
     def include(self, *operations: str):
-        """Declare the operations that this implementation handles."""
+        """Update the operations that this implementation handles."""
         new = self._operations.copy()
         new.extend(operations)
         self._operations = prune(new)
         return self
 
-    def category(self, new: typing.Type[Operator]=None):
-        """Get or set the application class for this operator."""
-        if new:
-            self._build = new
-            return self
-        return self._build
+    def apply(self, new: typing.Type[Operator]):
+        """Set the application class for this operator."""
+        self._build = new
+        return self
 
     def implement(self, __callable: typing.Callable):
         """Implement an operator with the given callable."""
