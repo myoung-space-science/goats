@@ -299,9 +299,10 @@ class Interface(aliased.MutableMapping):
 
     _internal: typing.Dict[str, Implementation]
 
-    def __init__(self, *parameters: str) -> None:
+    def __init__(self, __type, *parameters: str) -> None:
         super().__init__()
-        self.operands = Operands(parameters)
+        self._type = __type
+        self.operands = Operands(__type, parameters)
         """The default operands for these implementations."""
         self._internal = {}
 
@@ -323,8 +324,11 @@ class Interface(aliased.MutableMapping):
         raise KeyError(f"No implementation for {key!r}")
 
     def __str__(self) -> str:
-        return ', '.join(
-            f"'{g}': {v}"
+        if len(self) == 0:
+            return str(self._type)
+        implementations = ', '.join(
+            f"'{g}'={v}"
             for g, v in zip(self._aliased.keys(), self._aliased.values())
         )
+        return f"{self._type}: {implementations}"
 
