@@ -225,8 +225,8 @@ class Rule(iterables.ReprStrMixin):
         return f"{types}: {parameters}"
 
 
-class Operands(collections.abc.Mapping[Types, Rule]):
-    """A class for managing operand update rules."""
+class Rules(collections.abc.Mapping[Types, Rule]):
+    """A class for managing operand-update rules."""
 
     def __init__(self, __type: type, *parameters: str) -> None:
         self._type = __type
@@ -299,10 +299,10 @@ class Operator:
     def __init__(
         self,
         __callable: typing.Callable,
-        operands: Operands,
+        rules: Rules,
     ) -> None:
         self.method = __callable
-        self.operands = operands
+        self.rules = rules
 
     def evaluate(self, *args, **kwargs):
         """Evaluate the arguments with the current method."""
@@ -316,11 +316,11 @@ class Operator:
     def _evaluate(self, *args, **kwargs):
         """Internal evaluation logic."""
         types = tuple(type(i) for i in args)
-        rule = self.operands.get(types)
+        rule = self.rules.get(types)
         if not rule:
             return NotImplemented
         rule.validate(args)
-        reference = self.operands.get_reference(*args)
+        reference = self.rules.get_reference(*args)
         updated = {
             name: self.method(
                 *[utilities.getattrval(arg, name) for arg in args],
@@ -337,10 +337,9 @@ class Operator:
 class Implementation(iterables.ReprStrMixin):
     """A generalized arithmetic operator implementation."""
 
-    def __init__(self, operands: Operands) -> None:
+    def __init__(self, rules: Rules) -> None:
         self._build = Operator
-        self._rules = {}
-        self.operands = operands
+        self.rules = rules
         self._operations = []
 
     def operations(self, *operations: str):
@@ -359,7 +358,7 @@ class Implementation(iterables.ReprStrMixin):
 
     def implement(self, __callable: typing.Callable):
         """Implement an operator with the given callable."""
-        return self._build(__callable, self.operands)
+        return self._build(__callable, self.rules)
 
     def __str__(self) -> str:
         name = self._build.__name__
@@ -376,15 +375,15 @@ class Interface(aliased.MutableMapping):
     def __init__(self, __type, *parameters: str) -> None:
         super().__init__()
         self._type = __type
-        self.operands = Operands(__type, parameters)
-        """The default operands for these implementations."""
+        self.rules = Rules(__type, parameters)
+        """The default operand-update rules for these implementations."""
         self._internal = {}
 
     def register(self, key: str):
         """Register a new implementation."""
         if key in self:
             raise KeyError(f"Implementation {key!r} already exists.")
-        self[key] = Implementation(self.operands)
+        self[key] = Implementation(self.rules)
         return self
 
     def __getitem__(self, key: str) -> Implementation:
