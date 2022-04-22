@@ -175,7 +175,9 @@ def test_aliased_mutable_mapping():
 
     # The caller should be able to register new aliases.
     mixed.alias(this='THIS')
-    assert 'THIS' in mixed and mixed['this'] == mixed['THIS']
+    mixed.alias(this=['a0', 'a1'])
+    for alias in ('THIS', 'a0', 'a1'):
+        assert alias in mixed and mixed['this'] == mixed[alias]
     with pytest.raises(TypeError):
         mixed.alias('this', that='new alias')
     with pytest.raises(ValueError):
