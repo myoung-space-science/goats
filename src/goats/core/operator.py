@@ -113,6 +113,8 @@ class Rule(iterables.ReprStrMixin):
             self._types[index] = new
             return self
 
+    # Consider letting this return a new immutable instance that raises an
+    # informative exception when calling code tries to append, etc.
     @property
     def suppress(self):
         """Suppress this operand rule.
@@ -131,12 +133,14 @@ class Rule(iterables.ReprStrMixin):
 
     def append(self, *parameters: str):
         """Append the given parameter(s) to the current set."""
+        self._catch_suppressed()
         new = self._parameters + list(parameters)
         self._parameters = prune(new)
         return self
 
     def insert(self, index: typing.SupportsIndex, *parameters: str):
         """Insert the given parameter(s) at `index`."""
+        self._catch_suppressed()
         new = self._parameters.copy()
         for parameter in parameters:
             new.insert(index, parameter)
@@ -146,11 +150,17 @@ class Rule(iterables.ReprStrMixin):
 
     def remove(self, *parameters: str):
         """Remove the named parameter(s) from the current set."""
+        self._catch_suppressed()
         new = self._parameters.copy()
         for parameter in parameters:
             new.remove(parameter)
         self._parameters = prune(new)
         return self
+
+    def _catch_suppressed(self):
+        """Raise an exception if the user tries to update a suppressed rule."""
+        if self._parameters is None:
+            raise TypeError("Can't update suppressed rule") from None
 
     def __str__(self) -> str:
         names = [t.__qualname__ for t in self.types]
