@@ -267,7 +267,10 @@ class Implementation(iterables.ReprStrMixin):
         return self._build(__callable, self.operands)
 
     def __str__(self) -> str:
-        return str(self._build.__name__)
+        name = self._build.__name__
+        if self._operations:
+            return f"{name}: {self._operations}"
+        return name
 
 
 class Implementations(aliased.MutableMapping):
