@@ -1,4 +1,3 @@
-import abc
 import collections
 import collections.abc
 import operator as standard
@@ -6,6 +5,8 @@ import typing
 
 from goats.core import aliased
 from goats.core import iterables
+from goats.core import metric
+from goats.core import utilities
 
 
 Types = typing.TypeVar('Types', type, tuple)
@@ -26,6 +27,41 @@ def prune(items: typing.Iterable[T]) -> typing.List[T]:
         if item not in collection:
             collection.append(item)
     return collection
+
+
+class Operand:
+    """A class representing a single operand."""
+
+    def __init__(self, operand, parameters: typing.Container[str]) -> None:
+        self.operand = operand
+        self.parameters = parameters
+        self._type = type(operand)
+
+    def validate(self, other):
+        """Make sure `other` is a valid co-operand."""
+        if not isinstance(other, self._type):
+            return # Indeterminate
+        for name in self.parameters:
+            if not self._comparable(other, name):
+                return False
+        return True
+
+    def _comparable(self, that, name: str) -> bool:
+        """Determine whether the instances are comparable."""
+        return utilities.getattrval(
+            self.operand, name
+        ) == utilities.getattrval(that, name)
+
+
+class ComparisonError(TypeError):
+    """Incomparable instances of the same type."""
+
+    def __init__(self, __this: typing.Any, __that: typing.Any, name: str):
+        self.this = getattr(__this, name, None)
+        self.that = getattr(__that, name, None)
+
+    def __str__(self) -> str:
+        return f"Can't compare {self.this!r} to {self.that!r}"
 
 
 class Rule(iterables.ReprStrMixin):
@@ -168,6 +204,16 @@ class Rule(iterables.ReprStrMixin):
         """Raise an exception if the user tries to update a suppressed rule."""
         if self.issuppressed:
             raise TypeError("Can't update suppressed rule") from None
+
+    def validate(self, *args):
+        """Ensure arguments are consistent with fixed parameters."""
+        if not self.ignored or len(args) == 1:
+            return
+        this, *those = args
+        target = Operand(this, self.ignored)
+        for that in those:
+            if target.validate(that) is False:
+                raise ComparisonError(this, that)
 
     def __str__(self) -> str:
         names = [t.__qualname__ for t in self.types]
