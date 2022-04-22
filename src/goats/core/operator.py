@@ -1,5 +1,7 @@
+import abc
 import collections
 import collections.abc
+import functools
 import operator as standard
 import typing
 
@@ -334,11 +336,120 @@ class Operator:
         return {**updated, **ignored}
 
 
+AType = typing.TypeVar('AType', bound=type)
+
+
+class Application(typing.Generic[AType]):
+    """Base class for operator applications."""
+
+    def __init__(self, rules: Rules) -> None:
+        self.rules = rules
+
+    def apply(self, method: typing.Callable):
+        """Create an operator by applying `method`."""
+        def wrapper(*args, **kwargs):
+            return method(*args, **kwargs)
+        return wrapper
+
+
+class Unary(Application):
+    """"""
+
+    def apply(self, method: typing.Callable[[AType]]):
+        """Create a unary arithmetic operator by applying `method`."""
+        def wrapper(a: AType, **kwargs):
+            rule = self.rules.get(type(a))
+            if not rule:
+                return NotImplemented
+            updated = {
+                name: method(
+                    utilities.getattrval(a, name), **kwargs
+                ) for name in rule.updated
+            }
+            ignored = {
+                name: utilities.getattrval(a, name)
+                for name in rule.ignored
+            }
+            attrs = {**updated, **ignored}
+            return type(a)(**attrs)
+        return wrapper
+
+
+class Cast(Application):
+    """"""
+
+    def apply(self, method: typing.Callable[[AType]]):
+        """Create a unary cast operator by applying `method`."""
+        def wrapper(a: AType):
+            rule = self.rules.get(type(a))
+            if not rule:
+                return NotImplemented
+            # There should only be one updatable attribute for a cast.
+            return method(utilities.getattrval(a, rule.updated))
+        return wrapper
+
+
+class Binary(Application):
+    """"""
+
+    # Add `mode` keyword for forward/reverse/inplace?
+    def apply(self, method: typing.Callable[[AType, typing.Any]]):
+        """Create a binary arithmetic operator by applying `method`."""
+        def wrapper(a: AType, b: typing.Any, **kwargs):
+            rule = self.rules.get(type(a), type(b))
+            if not rule:
+                return NotImplemented
+            rule.validate(a, b)
+            updated = {
+                name: method(
+                    utilities.getattrval(a, name),
+                    utilities.getattrval(b, name),
+                    **kwargs
+                ) for name in rule.updated
+            }
+            ignored = {
+                name: utilities.getattrval(a, name)
+                for name in rule.ignored
+            }
+            attrs = {**updated, **ignored}
+            return type(a)(**attrs)
+        return wrapper
+
+
+class Comparison(Application):
+    """"""
+
+    def apply(self, method: typing.Callable[[AType, typing.Any]]):
+        """Create a binary comparison operator by applying `method`."""
+        def wrapper(a: AType, b: typing.Any):
+            rule = self.rules.get(type(a), type(b))
+            if not rule:
+                return NotImplemented
+            rule.validate(a, b)
+            # There should only be one updatable attribute for a comparison.
+            args = [
+                utilities.getattrval(a, rule.updated),
+                utilities.getattrval(b, rule.updated),
+            ]
+            return method(*args)
+        return wrapper
+
+
+IType = typing.TypeVar('IType', bound=Application)
+IType = typing.Union[
+    Unary,
+    Cast,
+    Binary,
+    Comparison,
+]
+
+
 class Implementation(iterables.ReprStrMixin):
     """A generalized arithmetic operator implementation."""
 
     def __init__(self, rules: Rules) -> None:
-        self._build = Operator
+        self._type = Application
+        self._rules = {}
         self.rules = rules
         self._operations = []
 
@@ -351,17 +462,20 @@ class Implementation(iterables.ReprStrMixin):
         self._operations = prune(new)
         return self
 
-    def apply(self, new: typing.Type[Operator]):
+    def apply(self, new: typing.Type[IType]):
         """Set the application class for this operator."""
-        self._build = new
+        self._type = new
         return self
 
-    def implement(self, __callable: typing.Callable):
+    # This should return an operation-specific operator -- namely, one whose
+    # type signature is more specific than `(*args, **kwargs)`.
+    def implement(self, __callable: typing.Callable) -> IType:
         """Implement an operator with the given callable."""
-        return self._build(__callable, self.rules)
+        application = self._type(self.rules)
+        return application.apply(__callable)
 
     def __str__(self) -> str:
-        name = self._build.__name__
+        name = self._type.__name__
         if self._operations:
             return f"{name}: {self._operations}"
         return name
