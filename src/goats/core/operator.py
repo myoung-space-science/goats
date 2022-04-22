@@ -4,6 +4,7 @@ import collections.abc
 import operator as standard
 import typing
 
+from goats.core import aliased
 from goats.core import iterables
 
 
@@ -221,14 +222,10 @@ class Operator:
     def evaluate(self, *args, **kwargs):
         """Evaluate the arguments via this implementation."""
         types = tuple(type(i) for i in args)
-        rule = self._get_rule(types)
-
-    def _get_rule(self, types: Types):
-        """Determine the appropriate operand rule, if any."""
-        pass
+        rule = self.operands[types]
 
 
-class Implementation:
+class Implementation(iterables.ReprStrMixin):
     """A generalized arithmetic operator implementation."""
 
     def __init__(self, *parameters: str) -> None:
@@ -250,7 +247,8 @@ class Implementation:
     def __str__(self) -> str:
         return str(self._build.__name__)
 
-class Implementations(collections.abc.Mapping):
+
+class Implementations(aliased.MutableMapping):
     """An updatable interface to operator implementations."""
 
     _internal: typing.Dict[str, Implementation]
@@ -263,22 +261,20 @@ class Implementations(collections.abc.Mapping):
 
     def register(self, key: str):
         """Register a new implementation."""
-        if key in self._internal:
+        if key in self:
             raise KeyError(f"Implementation {key!r} already exists.")
-        self._internal[key] = Implementation(self.parameters)
-
-    def __len__(self) -> int:
-        """Returns the number of implementations. Called for len(self)."""
-        return len(self._internal)
-
-    def __iter__(self) -> typing.Iterator:
-        """Iterate over registered implementations. Called for iter(self)."""
-        return iter(self._internal)
+        self[key] = Implementation(self.parameters)
 
     def __getitem__(self, key: str):
         """Retrieve an implementation by keyword. Called for self[key]."""
-        if key in self._internal:
-            return self._internal[key]
-        raise KeyError(f"No implementation for {key!r}") from None
+        try:
+            return super().__getitem__(key)
+        except KeyError as err:
+            raise KeyError(f"No implementation for {key!r}") from err
 
+    def __str__(self) -> str:
+        return ', '.join(
+            f"'{g}': {v}"
+            for g, v in zip(self._aliased.keys(), self._aliased.values())
+        )
 
