@@ -265,7 +265,7 @@ class Implementations(aliased.MutableMapping):
             raise KeyError(f"Implementation {key!r} already exists.")
         self[key] = Implementation(self.parameters)
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> Implementation:
         """Retrieve an implementation by keyword. Called for self[key]."""
         try:
             return super().__getitem__(key)
