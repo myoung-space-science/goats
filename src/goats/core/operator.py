@@ -273,7 +273,7 @@ class Implementation(iterables.ReprStrMixin):
         return name
 
 
-class Implementations(aliased.MutableMapping):
+class Interface(aliased.MutableMapping):
     """An updatable interface to operator implementations."""
 
     _internal: typing.Dict[str, Implementation]
