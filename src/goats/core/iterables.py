@@ -1325,3 +1325,11 @@ def allinstance(
     return all(isinstance(arg, __type) for arg in __args)
 
 
+def extract_single(args):
+    """Extract a single value from a length-1 collection."""
+    try:
+        n = len(args)
+    except TypeError:
+        n = None
+    return args[0] if n == 1 else args
+

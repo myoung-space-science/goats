@@ -366,3 +366,11 @@ def test_batch_replace():
     string = 'abcd'
     expected = 'AbCd'
     assert iterables.batch_replace(string, these) == expected
+
+
+def test_extract_single():
+    """Test the function that extracts a single element, if possible."""
+    assert iterables.extract_single([1, 2]) == [1, 2]
+    assert iterables.extract_single([1]) == 1
+    assert iterables.extract_single(1) == 1
+
