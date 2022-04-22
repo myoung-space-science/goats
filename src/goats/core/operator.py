@@ -250,7 +250,9 @@ class Implementation(iterables.ReprStrMixin):
 
     def include(self, *operations: str):
         """Declare the operations that this implementation handles."""
-        self._operations.extend(operations)
+        new = self._operations.copy()
+        new.extend(operations)
+        self._operations = prune(new)
         return self
 
     def category(self, new: typing.Type[Operator]=None):
