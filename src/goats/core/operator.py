@@ -16,6 +16,18 @@ Parameters = typing.TypeVar('Parameters', str, typing.Collection)
 Parameters = typing.Union[str, typing.Collection[str]]
 
 
+T = typing.TypeVar('T')
+
+
+def prune(items: typing.Iterable[T]) -> typing.List[T]:
+    """Remove repeated items while preserving order."""
+    collection = []
+    for item in items:
+        if item not in collection:
+            collection.append(item)
+    return collection
+
+
 class Rule(iterables.ReprStrMixin):
     """A correspondence between operand types and affected attributes."""
 
@@ -26,7 +38,7 @@ class Rule(iterables.ReprStrMixin):
     ) -> None:
         self._types = list(iterables.whole(__types))
         self._ntypes = len(self._types)
-        self.default = self._prune(parameters)
+        self.default = prune(parameters)
         """The default parameters."""
         self._parameters = self.default.copy()
 
@@ -42,7 +54,7 @@ class Rule(iterables.ReprStrMixin):
         if self._parameters is None:
             return tuple(self.default)
         these = set(self.default) - set(self._parameters)
-        return tuple(self._prune(these))
+        return tuple(prune(these))
 
     @property
     def types(self):
@@ -120,7 +132,7 @@ class Rule(iterables.ReprStrMixin):
     def append(self, *parameters: str):
         """Append the given parameter(s) to the current set."""
         new = self._parameters + list(parameters)
-        self._parameters = self._prune(new)
+        self._parameters = prune(new)
         return self
 
     def insert(self, index: typing.SupportsIndex, *parameters: str):
@@ -129,7 +141,7 @@ class Rule(iterables.ReprStrMixin):
         for parameter in parameters:
             new.insert(index, parameter)
             index += 1
-        self._parameters = self._prune(new)
+        self._parameters = prune(new)
         return self
 
     def remove(self, *parameters: str):
@@ -137,16 +149,8 @@ class Rule(iterables.ReprStrMixin):
         new = self._parameters.copy()
         for parameter in parameters:
             new.remove(parameter)
-        self._parameters = self._prune(new)
+        self._parameters = prune(new)
         return self
-
-    def _prune(self, parameters: typing.Iterable[str]) -> typing.List[str]:
-        """Remove repeated parameters while preserving order."""
-        p = []
-        for parameter in parameters:
-            if parameter not in p:
-                p.append(parameter)
-        return p
 
     def __str__(self) -> str:
         names = [t.__qualname__ for t in self.types]
