@@ -287,6 +287,7 @@ class Implementations(aliased.MutableMapping):
         if key in self:
             raise KeyError(f"Implementation {key!r} already exists.")
         self[key] = Implementation(self.operands)
+        return self
 
     def __getitem__(self, key: str) -> Implementation:
         """Retrieve an implementation by keyword. Called for self[key]."""
