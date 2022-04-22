@@ -289,6 +289,10 @@ class Operands(collections.abc.Mapping[Types, Rule]):
         ) from None
 
 
+class OperandError(Exception):
+    """Operands are incompatible with operator."""
+
+
 class Operator:
     """Base class for operator application schemes."""
 
@@ -297,13 +301,37 @@ class Operator:
         __callable: typing.Callable,
         operands: Operands,
     ) -> None:
-        self._callable = __callable
+        self.method = __callable
         self.operands = operands
 
     def evaluate(self, *args, **kwargs):
-        """Evaluate the arguments via this implementation."""
+        """Evaluate the arguments with the current method."""
+        try:
+            result = self._evaluate(*args, **kwargs)
+        except metric.UnitError as err:
+            raise OperandError(err) from err
+        else:
+            return result
+
+    def _evaluate(self, *args, **kwargs):
+        """Internal evaluation logic."""
         types = tuple(type(i) for i in args)
-        rule = self.operands[types]
+        rule = self.operands.get(types)
+        if not rule:
+            return NotImplemented
+        rule.validate(args)
+        reference = self.operands.get_reference(*args)
+        updated = {
+            name: self.method(
+                *[utilities.getattrval(arg, name) for arg in args],
+                **kwargs
+            ) for name in rule.updated
+        }
+        ignored = {
+            name: utilities.getattrval(reference, name)
+            for name in rule.ignored
+        }
+        return {**updated, **ignored}
 
 
 class Implementation(iterables.ReprStrMixin):
