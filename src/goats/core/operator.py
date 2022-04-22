@@ -166,27 +166,23 @@ class Operands(collections.abc.Mapping):
         self._ntypes = 0
         self._internal = []
 
-    def register(
-        self,
-        *types: type,
-        parameters: typing.Iterable[str]=None,
-    ) -> 'Operands':
-        """Add `types` to the collection."""
+    def register(self, key: Types, *parameters: str):
+        """Add an update rule to the collection."""
+        types = tuple(key) if isinstance(key, typing.Iterable) else (key,)
+        ntypes = len(types)
         if self._rulemap is None:
             self._rulemap = {}
-            self._ntypes = len(types)
-        ntypes = len(types)
+            self._ntypes = ntypes
         if types not in self._rulemap:
             if ntypes == self._ntypes:
                 self._rulemap[types] = parameters or self._default.copy()
                 return self
             raise ValueError(
-                f"Can't add {ntypes} types to collection"
-                f" of length {self._ntypes} items."
+                f"Can't add {ntypes} type(s) to collection"
+                f" of length-{self._ntypes} items."
             ) from None
-        target = types[0] if ntypes == 1 else types
         raise KeyError(
-            f"{target!r} is already in the collection."
+            f"{key!r} is already in the collection."
         ) from None
 
     def __len__(self) -> int:
@@ -197,17 +193,17 @@ class Operands(collections.abc.Mapping):
         """Iterate over rules. Called for iter(self)."""
         return iter(self._rulemap)
 
-    def __getitem__(self, types: Types) -> Rule:
+    def __getitem__(self, key: Types) -> Rule:
         """Retrieve the operand-update rule for `types`."""
-        key = tuple(types) if isinstance(types, typing.Iterable) else (types,)
-        if key in self._rulemap:
-            parameters = self._rulemap[key]
-            return Rule(key, *parameters)
-        for k, p in self._rulemap.items():
-            if all(issubclass(i, j) for i, j in zip(key, k)):
-                return Rule(k, *p)
+        types = tuple(key) if isinstance(key, typing.Iterable) else (key,)
+        if types in self._rulemap:
+            parameters = self._rulemap[types]
+            return Rule(types, *parameters)
+        for t, p in self._rulemap.items():
+            if all(issubclass(i, j) for i, j in zip(types, t)):
+                return Rule(t, *p)
         raise KeyError(
-            f"No rule for operand type(s) {types!r}"
+            f"No rule for operand type(s) {key!r}"
         ) from None
 
 
