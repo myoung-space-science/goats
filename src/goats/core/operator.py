@@ -41,6 +41,7 @@ class Rule(iterables.ReprStrMixin):
         self.default = prune(parameters)
         """The default parameters."""
         self._parameters = self.default.copy()
+        self.issuppressed = False
 
     @property
     def updated(self):
@@ -113,6 +114,10 @@ class Rule(iterables.ReprStrMixin):
             self._types[index] = new
             return self
 
+    def __bool__(self) -> bool:
+        """True unless this rule is suppressed."""
+        return not self.issuppressed
+
     # Consider letting this return a new immutable instance that raises an
     # informative exception when calling code tries to append, etc.
     @property
@@ -124,6 +129,7 @@ class Rule(iterables.ReprStrMixin):
         not implement the operator for these operand types.
         """
         self._parameters = None
+        self.issuppressed = True
         return self
 
     def reset(self):
@@ -159,7 +165,7 @@ class Rule(iterables.ReprStrMixin):
 
     def _catch_suppressed(self):
         """Raise an exception if the user tries to update a suppressed rule."""
-        if self._parameters is None:
+        if self.issuppressed:
             raise TypeError("Can't update suppressed rule") from None
 
     def __str__(self) -> str:
