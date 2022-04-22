@@ -248,8 +248,10 @@ class Implementation(iterables.ReprStrMixin):
         self.operands = operands
         self._operations = []
 
-    def include(self, *operations: str):
+    def operations(self, *operations: str):
         """Update the operations that this implementation handles."""
+        if not operations:
+            return tuple(self._operations)
         new = self._operations.copy()
         new.extend(operations)
         self._operations = prune(new)
@@ -293,8 +295,11 @@ class Implementations(aliased.MutableMapping):
         """Retrieve an implementation by keyword. Called for self[key]."""
         try:
             return super().__getitem__(key)
-        except KeyError as err:
-            raise KeyError(f"No implementation for {key!r}") from err
+        except KeyError:
+            for implementation in self.values(aliased=True):
+                if key in implementation.operations():
+                    return implementation
+        raise KeyError(f"No implementation for {key!r}")
 
     def __str__(self) -> str:
         return ', '.join(
