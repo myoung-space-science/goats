@@ -208,7 +208,14 @@ class Rule(iterables.ReprStrMixin):
             raise TypeError("Can't update suppressed rule") from None
 
     def validate(self, *args):
-        """Ensure arguments are consistent with fixed parameters."""
+        """Ensure arguments are consistent with fixed parameters.
+        
+        This method does not check argument types; rather, it checks whether all
+        arguments with an "ignored" attribute have the same value for that
+        attribute. This is necessary, for example, when performing a comparison
+        operation on two objects with a ``unit`` attribute. If those objects
+        have different units, the comparison is meaningless.
+        """
         if not self.ignored or len(args) == 1:
             return
         this, *those = args
