@@ -1,11 +1,12 @@
 import numbers
 import operator as standard
 
-from goats.core import operator
+from goats.core import operations
+
 
 def test_rule_comparison():
     """Test comparisons between operand-update rules."""
-    rule = operator.Rule((numbers.Complex, numbers.Real))
+    rule = operations.Rule((numbers.Complex, numbers.Real))
     true = [
         [standard.ne, (complex, float)],
         [standard.gt, (complex, float)],
@@ -30,21 +31,21 @@ def test_rule_comparison():
 
 def test_rule_len():
     """Test len(operator.Rule)."""
-    assert len(operator.Rule(int)) == 1
-    assert len(operator.Rule((int, float))) == 2
+    assert len(operations.Rule(int)) == 1
+    assert len(operations.Rule((int, float))) == 2
 
 
 def test_rule_contains():
     """Test x `in` operator.Rule."""
-    assert int in operator.Rule(int)
-    assert float not in operator.Rule(int)
-    assert int in operator.Rule((int, float))
-    assert float in operator.Rule((int, float))
+    assert int in operations.Rule(int)
+    assert float not in operations.Rule(int)
+    assert int in operations.Rule((int, float))
+    assert float in operations.Rule((int, float))
 
 
 def test_rule_parameters():
     """Check updated and fixed parameters."""
-    rule = operator.Rule(int, 'a', 'b', 'c')
+    rule = operations.Rule(int, 'a', 'b', 'c')
     assert rule.updated == ('a', 'b', 'c')
     assert rule.ignored == ()
     rule.remove('b')
@@ -54,10 +55,20 @@ def test_rule_parameters():
 
 def test_rule_suppress():
     """Allow users to suppress an operator for a given operand rule."""
-    rule = operator.Rule(int, 'a', 'b')
+    rule = operations.Rule(int, 'a', 'b')
     assert rule.updated == ('a', 'b')
     assert rule.ignored == ()
     rule.suppress
     assert rule.updated is None
     assert rule.ignored == ('a', 'b')
+
+
+def test_rule_validate():
+    """"""
+
+
+def test_operator():
+    """"""
+    operator = operations.Operator(standard.add)
+    assert operator.evaluate(3, 4) == 7
 

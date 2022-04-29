@@ -227,27 +227,14 @@ class Rule(iterables.ReprStrMixin):
         return f"{types}: {parameters}"
 
 
-class Rules(collections.abc.Mapping[Types, Rule]):
+class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
     """A class for managing operand-update rules."""
 
-    def __init__(self, __type: type, *parameters: str) -> None:
-        self._type = __type
+    def __init__(self, *parameters: str) -> None:
         self._default = list(parameters)
         self._rulemap = None
         self._ntypes = 0
         self._internal = []
-
-    def get_reference(self, *args):
-        """Get a reference quantity.
-        
-        This method is trivial for unary operators. Otherwise, it relies on the
-        assuption that at least one operand in any non-unary (multary?)
-        operation is an instance of the reference type or a subclass.
-        """
-        if len(args) == 1:
-            return args[0]
-        instance = (arg for arg in args if isinstance(arg, self._type))
-        return next(instance)
 
     def register(self, key: Types, *parameters: str):
         """Add an update rule to the collection."""
@@ -301,10 +288,18 @@ class Operator:
     def __init__(
         self,
         __callable: typing.Callable,
-        rules: Rules,
+        rules: Rules=None,
     ) -> None:
         self.method = __callable
-        self.rules = rules
+        self.rules = rules or Rules()
+        self._reference = None
+
+    def reference(self, new=None):
+        """Get or set the reference operand."""
+        if new is None:
+            return self._reference
+        self._reference = new
+        return self
 
     def evaluate(self, *args, **kwargs):
         """Evaluate the arguments with the current method."""
@@ -322,21 +317,24 @@ class Operator:
         if not rule:
             return NotImplemented
         rule.validate(args)
-        reference = self.rules.get_reference(*args)
         updated = {
             name: self.method(
                 *[utilities.getattrval(arg, name) for arg in args],
                 **kwargs
             ) for name in rule.updated
         }
+        if not self.reference():
+            return updated
         ignored = {
-            name: utilities.getattrval(reference, name)
+            name: utilities.getattrval(self.reference(), name)
             for name in rule.ignored
         }
         return {**updated, **ignored}
 
 
 AType = typing.TypeVar('AType', bound=type)
+BType = typing.TypeVar('BType', bound=type)
+RType = typing.TypeVar('RType')
 
 
 class Application(typing.Generic[AType]):
@@ -355,22 +353,15 @@ class Application(typing.Generic[AType]):
 class Unary(Application):
     """"""
 
-    def apply(self, method: typing.Callable[[AType]]):
+    def apply(self, method: typing.Callable[[AType], RType]):
         """Create a unary arithmetic operator by applying `method`."""
+        operator = Operator(method, self.rules)
         def wrapper(a: AType, **kwargs):
             rule = self.rules.get(type(a))
             if not rule:
                 return NotImplemented
-            updated = {
-                name: method(
-                    utilities.getattrval(a, name), **kwargs
-                ) for name in rule.updated
-            }
-            ignored = {
-                name: utilities.getattrval(a, name)
-                for name in rule.ignored
-            }
-            attrs = {**updated, **ignored}
+            operator.reference(a)
+            attrs = operator.evaluate(a, **kwargs)
             return type(a)(**attrs)
         return wrapper
 
@@ -378,7 +369,7 @@ class Unary(Application):
 class Cast(Application):
     """"""
 
-    def apply(self, method: typing.Callable[[AType]]):
+    def apply(self, method: typing.Callable[[AType], RType]):
         """Create a unary cast operator by applying `method`."""
         def wrapper(a: AType):
             rule = self.rules.get(type(a))
@@ -393,25 +384,16 @@ class Binary(Application):
     """"""
 
     # Add `mode` keyword for forward/reverse/inplace?
-    def apply(self, method: typing.Callable[[AType, typing.Any]]):
+    def apply(self, method: typing.Callable[[AType, BType], RType]):
         """Create a binary arithmetic operator by applying `method`."""
-        def wrapper(a: AType, b: typing.Any, **kwargs):
+        operator = Operator(method, self.rules)
+        def wrapper(a: AType, b: BType, **kwargs):
             rule = self.rules.get(type(a), type(b))
             if not rule:
                 return NotImplemented
             rule.validate(a, b)
-            updated = {
-                name: method(
-                    utilities.getattrval(a, name),
-                    utilities.getattrval(b, name),
-                    **kwargs
-                ) for name in rule.updated
-            }
-            ignored = {
-                name: utilities.getattrval(a, name)
-                for name in rule.ignored
-            }
-            attrs = {**updated, **ignored}
+            operator.reference(a)
+            attrs = operator.evaluate(a, b, **kwargs)
             return type(a)(**attrs)
         return wrapper
 
@@ -419,9 +401,9 @@ class Binary(Application):
 class Comparison(Application):
     """"""
 
-    def apply(self, method: typing.Callable[[AType, typing.Any]]):
+    def apply(self, method: typing.Callable[[AType, BType], RType]):
         """Create a binary comparison operator by applying `method`."""
-        def wrapper(a: AType, b: typing.Any):
+        def wrapper(a: AType, b: BType):
             rule = self.rules.get(type(a), type(b))
             if not rule:
                 return NotImplemented
