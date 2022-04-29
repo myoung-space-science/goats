@@ -63,12 +63,16 @@ def test_rule_suppress():
     assert rule.ignored == ('a', 'b')
 
 
-def test_rule_validate():
-    """"""
-
-
-def test_operator():
-    """"""
-    operator = operations.Operator(standard.add)
-    assert operator.evaluate(3, 4) == 7
+def test_operator_standard():
+    """Test the operator class with built-in operators."""
+    args = (3, 4)
+    cases = {
+        standard.add: 7,
+        standard.sub: -1,
+        standard.mul: 12,
+        standard.truediv: 0.75,
+    }
+    for method, expected in cases.items():
+        operator = operations.Operator(method)
+        assert operator.evaluate(*args) == expected
 

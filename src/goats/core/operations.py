@@ -289,16 +289,21 @@ class OperandError(Exception):
     """Operands are incompatible with operator."""
 
 
+AType = typing.TypeVar('AType', bound=type)
+BType = typing.TypeVar('BType', bound=type)
+RType = typing.TypeVar('RType')
+
+
 class Operator:
     """Base class for operator application schemes."""
 
     def __init__(
         self,
-        __callable: typing.Callable,
+        __callable: typing.Callable[..., RType],
         rules: Rules=None,
     ) -> None:
         self.method = __callable
-        self.rules = rules or Rules()
+        self.rules = rules
         self._reference = None
 
     def reference(self, new=None):
@@ -310,6 +315,8 @@ class Operator:
 
     def evaluate(self, *args, **kwargs):
         """Evaluate the arguments with the current method."""
+        if self.rules is None:
+            return self.method(*args, **kwargs)
         try:
             result = self._evaluate(*args, **kwargs)
         except metric.UnitError as err:
@@ -337,11 +344,6 @@ class Operator:
             for name in rule.ignored
         }
         return {**updated, **ignored}
-
-
-AType = typing.TypeVar('AType', bound=type)
-BType = typing.TypeVar('BType', bound=type)
-RType = typing.TypeVar('RType')
 
 
 class Application(typing.Generic[AType]):
