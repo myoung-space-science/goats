@@ -66,6 +66,38 @@ class ComparisonError(TypeError):
         return f"Can't compare {self.this!r} to {self.that!r}"
 
 
+class Result(collections.UserDict):
+    """The result of applying a rule to an operation."""
+
+    def __init__(self, __attributes, *parameters: str) -> None:
+        super().__init__(__attributes)
+        self.names = parameters
+        """The names of all parameters in the target operands."""
+
+    def format(self, form=None):
+        """Convert this result into the appropriate object.
+        
+        Parameters
+        ----------
+        form : Any, default=`None`
+            The final form that will contain this result's data. See Returns for
+            details of how the type of `form` affects the result of this method.
+
+        Returns
+        -------
+        Any
+            If `form` is a ``type``, this method will return a new instance of
+            that type, initialized with this result's data. If `form` is an
+            instance of some type, this method will return the updated instance.
+        """
+        if isinstance(form, type):
+            return form(**self.data)
+        for name in self.names:
+            value = self.data.get(name)
+            utilities.setattrval(form, name, value)
+        return form
+
+
 class Rule(iterables.ReprStrMixin):
     """A correspondence between operand types and affected attributes."""
 
