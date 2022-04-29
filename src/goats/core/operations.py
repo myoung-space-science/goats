@@ -239,6 +239,23 @@ class Rule(iterables.ReprStrMixin):
         if self.issuppressed:
             raise TypeError("Can't update suppressed rule") from None
 
+    def apply(self, method, *args, reference=None, **kwargs):
+        """Call `method` on arguments within the context of this rule."""
+        updated = {
+            name: method(
+                *[utilities.getattrval(arg, name) for arg in args],
+                **kwargs
+            ) for name in self.updated
+        }
+        result = Result(updated, *self.default)
+        if reference:
+            ignored = {
+                name: utilities.getattrval(reference, name)
+                for name in self.ignored
+            }
+            result.update(ignored)
+        return result
+
     def validate(self, *args):
         """Ensure arguments are consistent with fixed parameters.
         
