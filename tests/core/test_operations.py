@@ -59,7 +59,7 @@ def test_rule_suppress():
     assert rule.updated == ('a', 'b')
     assert rule.ignored == ()
     rule.suppress
-    assert rule.updated is None
+    assert rule.updated == ()
     assert rule.ignored == ('a', 'b')
 
 
