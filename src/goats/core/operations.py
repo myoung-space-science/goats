@@ -341,6 +341,8 @@ class OperandError(Exception):
 AType = typing.TypeVar('AType', bound=type)
 BType = typing.TypeVar('BType', bound=type)
 RType = typing.TypeVar('RType')
+OType = typing.TypeVar('OType')
+OType = typing.Union[typing.Type[T], T]
 
 
 class Operator:
@@ -353,46 +355,45 @@ class Operator:
     ) -> None:
         self.method = __callable
         self.rules = rules
-        self._reference = None
 
-    def reference(self, new=None):
-        """Get or set the reference operand."""
-        if new is None:
-            return self._reference
-        self._reference = new
-        return self
-
-    def evaluate(self, *args, **kwargs):
+    def evaluate(
+        self,
+        *args,
+        out: OType=None,
+        reference=None,
+        **kwargs
+    ) -> typing.Union[T, typing.Any]:
         """Evaluate the arguments with the current method."""
         if self.rules is None:
             return self.method(*args, **kwargs)
-        try:
-            result = self._evaluate(*args, **kwargs)
-        except metric.UnitError as err:
-            raise OperandError(err) from err
-        else:
-            return result
-
-    def _evaluate(self, *args, **kwargs):
-        """Internal evaluation logic."""
         types = tuple(type(i) for i in args)
         rule = self.rules.get(types)
         if not rule:
             return NotImplemented
+        result = self._get_result(rule, *args, reference=reference, **kwargs)
+        if out is None:
+            if len(rule.updated) > 1:
+                raise ValueError(
+                    "Can't represent multiple attributes"
+                    " with unknown output type."
+                ) from None
+            values = list(result.values())
+            return values[0]
+        return result.format(out)
+
+    def _get_result(
+        self,
+        rule: Rule,
+        *args,
+        reference=None,
+        **kwargs
+    ) -> Result:
+        """Compute the result of applying this operator's method."""
+        if len(args) == 1:
+            arg = args[0]
+            return rule.apply(self.method, arg, reference=arg, **kwargs)
         rule.validate(args)
-        updated = {
-            name: self.method(
-                *[utilities.getattrval(arg, name) for arg in args],
-                **kwargs
-            ) for name in rule.updated
-        }
-        if not self.reference():
-            return updated
-        ignored = {
-            name: utilities.getattrval(self.reference(), name)
-            for name in rule.ignored
-        }
-        return {**updated, **ignored}
+        return rule.apply(self.method, *args, reference=reference, **kwargs)
 
 
 class Application(typing.Generic[AType]):
@@ -415,12 +416,7 @@ class Unary(Application):
         """Create a unary arithmetic operator by applying `method`."""
         operator = Operator(method, self.rules)
         def wrapper(a: AType, **kwargs):
-            rule = self.rules.get(type(a))
-            if not rule:
-                return NotImplemented
-            operator.reference(a)
-            attrs = operator.evaluate(a, **kwargs)
-            return type(a)(**attrs)
+            return operator.evaluate(a, out=type(a), **kwargs)
         return wrapper
 
 
@@ -429,12 +425,9 @@ class Cast(Application):
 
     def apply(self, method: typing.Callable[[AType], RType]):
         """Create a unary cast operator by applying `method`."""
+        operator = Operator(method, self.rules)
         def wrapper(a: AType):
-            rule = self.rules.get(type(a))
-            if not rule:
-                return NotImplemented
-            # There should only be one updatable attribute for a cast.
-            return method(utilities.getattrval(a, rule.updated))
+            return operator.evaluate(a)
         return wrapper
 
 
@@ -446,13 +439,18 @@ class Binary(Application):
         """Create a binary arithmetic operator by applying `method`."""
         operator = Operator(method, self.rules)
         def wrapper(a: AType, b: BType, **kwargs):
-            rule = self.rules.get(type(a), type(b))
-            if not rule:
-                return NotImplemented
-            rule.validate(a, b)
-            operator.reference(a)
-            attrs = operator.evaluate(a, b, **kwargs)
-            return type(a)(**attrs)
+            try:
+                result = operator.evaluate(
+                    a,
+                    b,
+                    reference=a,
+                    out=type(a),
+                    **kwargs
+                )
+            except metric.UnitError as err:
+                raise OperandError(err) from err
+            else:
+                return result
         return wrapper
 
 
@@ -461,17 +459,9 @@ class Comparison(Application):
 
     def apply(self, method: typing.Callable[[AType, BType], RType]):
         """Create a binary comparison operator by applying `method`."""
+        operator = Operator(method, self.rules)
         def wrapper(a: AType, b: BType):
-            rule = self.rules.get(type(a), type(b))
-            if not rule:
-                return NotImplemented
-            rule.validate(a, b)
-            # There should only be one updatable attribute for a comparison.
-            args = [
-                utilities.getattrval(a, rule.updated),
-                utilities.getattrval(b, rule.updated),
-            ]
-            return method(*args)
+            return operator.evaluate(a, b)
         return wrapper
 
 
@@ -509,7 +499,7 @@ class Implementation(iterables.ReprStrMixin):
 
     # This should return an operation-specific operator -- namely, one whose
     # type signature is more specific than `(*args, **kwargs)`.
-    def implement(self, __callable: typing.Callable) -> IType:
+    def implement(self, __callable: typing.Callable):
         """Implement an operator with the given callable."""
         application = self._type(self.rules)
         return application.apply(__callable)
