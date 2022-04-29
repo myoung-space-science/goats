@@ -360,7 +360,7 @@ class Application(typing.Generic[AType]):
 
 
 class Unary(Application):
-    """"""
+    """Generalized application of a unary arithmetic operator."""
 
     def apply(self, method: typing.Callable[[AType], RType]):
         """Create a unary arithmetic operator by applying `method`."""
@@ -376,7 +376,7 @@ class Unary(Application):
 
 
 class Cast(Application):
-    """"""
+    """Generalized application of a unary cast operator."""
 
     def apply(self, method: typing.Callable[[AType], RType]):
         """Create a unary cast operator by applying `method`."""
@@ -390,7 +390,7 @@ class Cast(Application):
 
 
 class Binary(Application):
-    """"""
+    """Generalized application of a binary arithmetic operator."""
 
     # Add `mode` keyword for forward/reverse/inplace?
     def apply(self, method: typing.Callable[[AType, BType], RType]):
@@ -408,7 +408,7 @@ class Binary(Application):
 
 
 class Comparison(Application):
-    """"""
+    """Generalized application of a binary comparison operator."""
 
     def apply(self, method: typing.Callable[[AType, BType], RType]):
         """Create a binary comparison operator by applying `method`."""
