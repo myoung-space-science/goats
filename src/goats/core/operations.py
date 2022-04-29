@@ -356,13 +356,7 @@ class Operator:
         self.method = __callable
         self.rules = rules
 
-    def evaluate(
-        self,
-        *args,
-        out: OType=None,
-        reference=None,
-        **kwargs
-    ) -> typing.Union[T, typing.Any]:
+    def evaluate(self, *args, mode: str=None, **kwargs):
         """Evaluate the arguments with the current method."""
         if self.rules is None:
             return self.method(*args, **kwargs)
@@ -370,8 +364,10 @@ class Operator:
         rule = self.rules.get(types)
         if not rule:
             return NotImplemented
+        reference = self._get_reference(mode, *args)
         result = self._get_result(rule, *args, reference=reference, **kwargs)
-        if out is None:
+        target = self._get_target(mode, *args)
+        if target is None:
             if len(rule.updated) > 1:
                 raise ValueError(
                     "Can't represent multiple attributes"
@@ -379,7 +375,25 @@ class Operator:
                 ) from None
             values = list(result.values())
             return values[0]
-        return result.format(out)
+        return result.format(target)
+
+    def _get_reference(self, mode, *args):
+        """Get the reference object based on `mode`."""
+        if mode in {'foward', 'inplace'}:
+            return args[0]
+        if mode == 'reverse':
+            return args[-1]
+        return mode
+
+    def _get_target(self, mode, *args):
+        """Get the output target based on `mode`."""
+        if mode == 'forward':
+            return type(args[0])
+        if mode == 'reverse':
+            return type(args[-1])
+        if mode == 'inplace':
+            return args[0]
+        return mode
 
     def _get_result(
         self,
@@ -396,156 +410,255 @@ class Operator:
         return rule.apply(self.method, *args, reference=reference, **kwargs)
 
 
-class Application(typing.Generic[AType]):
+class Application:
     """Base class for operator applications."""
 
-    def __init__(self, rules: Rules) -> None:
+    def __init__(
+        self,
+        __definition: typing.Callable[[Operator], typing.Callable],
+        rules: Rules,
+    ) -> None:
+        self._implement = __definition
         self.rules = rules
 
     def apply(self, method: typing.Callable):
         """Create an operator by applying `method`."""
-        def wrapper(*args, **kwargs):
-            return method(*args, **kwargs)
-        return wrapper
-
-
-class Unary(Application):
-    """Generalized application of a unary arithmetic operator."""
-
-    def apply(self, method: typing.Callable[[AType], RType]):
-        """Create a unary arithmetic operator by applying `method`."""
         operator = Operator(method, self.rules)
-        def wrapper(a: AType, **kwargs):
-            return operator.evaluate(a, out=type(a), **kwargs)
-        return wrapper
+        return self._implement(operator)
 
 
-class Cast(Application):
-    """Generalized application of a unary cast operator."""
-
-    def apply(self, method: typing.Callable[[AType], RType]):
-        """Create a unary cast operator by applying `method`."""
-        operator = Operator(method, self.rules)
-        def wrapper(a: AType):
-            return operator.evaluate(a)
-        return wrapper
+def unary(operator: Operator) -> AType:
+    """Create a unary arithmetic operation from `operator`."""
+    def wrapper(a: AType, **kwargs):
+        return operator.evaluate(a, out=type(a), **kwargs)
+    wrapper.__name__ = f"__{operator.method.__name__}__"
+    wrapper.__doc__ = operator.method.__doc__
+    return wrapper
 
 
-class Binary(Application):
-    """Generalized application of a binary arithmetic operator."""
-
-    # Add `mode` keyword for forward/reverse/inplace?
-    def apply(self, method: typing.Callable[[AType, BType], RType]):
-        """Create a binary arithmetic operator by applying `method`."""
-        operator = Operator(method, self.rules)
-        def wrapper(a: AType, b: BType, **kwargs):
-            try:
-                result = operator.evaluate(
-                    a,
-                    b,
-                    reference=a,
-                    out=type(a),
-                    **kwargs
-                )
-            except metric.UnitError as err:
-                raise OperandError(err) from err
-            else:
-                return result
-        return wrapper
+def cast(operator: Operator):
+    """Create a unary cast operation from `operator`."""
+    def wrapper(a: AType):
+        return operator.evaluate(a)
+    wrapper.__name__ = f"__{operator.method.__name__}__"
+    wrapper.__doc__ = operator.method.__doc__
+    return wrapper
 
 
-class Comparison(Application):
-    """Generalized application of a binary comparison operator."""
-
-    def apply(self, method: typing.Callable[[AType, BType], RType]):
-        """Create a binary comparison operator by applying `method`."""
-        operator = Operator(method, self.rules)
-        def wrapper(a: AType, b: BType):
-            return operator.evaluate(a, b)
-        return wrapper
-
-
-IType = typing.TypeVar('IType', bound=Application)
-IType = typing.Union[
-    Unary,
-    Cast,
-    Binary,
-    Comparison,
-]
-
-
-class Implementation(iterables.ReprStrMixin):
-    """A generalized arithmetic operator implementation."""
-
-    def __init__(self, rules: Rules) -> None:
-        self._type = Application
-        self._rules = {}
-        self.rules = rules
-        self._operations = []
-
-    def operations(self, *operations: str):
-        """Update the operations that this implementation handles."""
-        if not operations:
-            return tuple(self._operations)
-        new = self._operations.copy()
-        new.extend(operations)
-        self._operations = prune(new)
-        return self
-
-    def apply(self, new: typing.Type[IType]):
-        """Set the application class for this operator."""
-        self._type = new
-        return self
-
-    # This should return an operation-specific operator -- namely, one whose
-    # type signature is more specific than `(*args, **kwargs)`.
-    def implement(self, __callable: typing.Callable):
-        """Implement an operator with the given callable."""
-        application = self._type(self.rules)
-        return application.apply(__callable)
-
-    def __str__(self) -> str:
-        name = self._type.__name__
-        if self._operations:
-            return f"{name}: {self._operations}"
-        return name
-
-
-class Interface(aliased.MutableMapping):
-    """An updatable interface to operator implementations."""
-
-    _internal: typing.Dict[str, Implementation]
-
-    def __init__(self, __type, *parameters: str) -> None:
-        super().__init__()
-        self._type = __type
-        self.rules = Rules(__type, parameters)
-        """The default operand-update rules for these implementations."""
-        self._internal = {}
-
-    def register(self, key: str):
-        """Register a new implementation."""
-        if key in self:
-            raise KeyError(f"Implementation {key!r} already exists.")
-        self[key] = Implementation(self.rules)
-        return self
-
-    def __getitem__(self, key: str) -> Implementation:
-        """Retrieve an implementation by keyword. Called for self[key]."""
+def _binary(operator: Operator, mode: str='forward'):
+    """Create a binary arithmetic operation from `operator`."""
+    def evaluate(*args, **kwargs):
         try:
-            return super().__getitem__(key)
-        except KeyError:
-            for implementation in self.values(aliased=True):
-                if key in implementation.operations():
-                    return implementation
-        raise KeyError(f"No implementation for {key!r}")
+            result = operator.evaluate(*args, mode=mode, **kwargs)
+        except metric.UnitError as err:
+            raise OperandError(err) from err
+        else:
+            return result
+    return evaluate
 
-    def __str__(self) -> str:
-        if len(self) == 0:
-            return str(self._type)
-        implementations = ', '.join(
-            f"'{g}'={v}"
-            for g, v in zip(self._aliased.keys(), self._aliased.values())
-        )
-        return f"{self._type}: {implementations}"
+
+def forward(operator: Operator):
+    """Create a forward binary arithmetic operation from `operator`."""
+    operation = _binary(operator, 'forward')
+    def wrapper(a: AType, b: BType, **kwargs):
+        return operation(a, b, **kwargs)
+    wrapper.__name__ = f"__{operator.method.__name__}__"
+    wrapper.__doc__ = operator.method.__doc__
+    return wrapper
+
+
+def reverse(operator: Operator):
+    """Create a reverse binary arithmetic operation from `operator`."""
+    operation = _binary(operator, 'reverse')
+    def wrapper(b: BType, a: AType, **kwargs):
+        return operation(a, b, **kwargs)
+    wrapper.__name__ = f"__r{operator.method.__name__}__"
+    wrapper.__doc__ = operator.method.__doc__
+    return wrapper
+
+
+def inplace(operator: Operator):
+    """Create a inplace binary arithmetic operation from `operator`."""
+    operation = _binary(operator, 'inplace')
+    def wrapper(a: AType, b: BType, **kwargs):
+        return operation(a, b, **kwargs)
+    wrapper.__name__ = f"__{operator.method.__name__}__"
+    wrapper.__doc__ = operator.method.__doc__
+    return wrapper
+
+
+def comparison(operator: Operator):
+    """Create a binary comparison operation from `operator`."""
+    def wrapper(a: AType, b: BType):
+        return operator.evaluate(a, b)
+    wrapper.__name__ = f"__i{operator.method.__name__}__"
+    wrapper.__doc__ = operator.method.__doc__
+    return wrapper
+
+
+DefinitionT = typing.TypeVar('DefinitionT')
+DefinitionT = typing.Callable[[Operator], typing.Callable]
+
+
+class Implementation:
+    """A generalized operator implementation."""
+
+    def __init__(
+        self,
+        __definition: DefinitionT,
+        rules: Rules,
+    ) -> None:
+        self._implement = __definition
+        self.rules = rules
+
+    def of(self, method: typing.Callable):
+        """Create an operator implementation from `method`."""
+        operator = Operator(method, self.rules)
+        return self._implement(operator)
+
+
+UnaryT = typing.TypeVar('UnaryT', bound=typing.Callable)
+UnaryT = typing.Callable[[AType], AType]
+
+
+NT = typing.TypeVar('NT', int, float, complex)
+NT = typing.Union[int, float, complex]
+
+
+CastT = typing.TypeVar('CastT', bound=typing.Callable)
+CastT = typing.Callable[[AType], NT]
+
+
+BinaryT = typing.TypeVar('BinaryT', bound=typing.Callable)
+BinaryT = typing.Callable[[AType, BType], AType]
+
+
+ComparisonT = typing.TypeVar('ComparisonT', bound=typing.Callable)
+ComparisonT = typing.Callable[[AType, BType], bool]
+
+
+class Operators:
+    """An interface to generalized operator implementations."""
+
+    def __init__(self, *parameters: str) -> None:
+        self.rules = Rules(parameters)
+        """The default operand-update rules for all operators."""
+
+    def unary(self, method: typing.Callable) -> UnaryT:
+        """Create a unary arithmetic operator from `method`."""
+        return self.implement(method, unary)
+
+    def cast(self, method: typing.Callable) -> CastT:
+        """Create a unary cast operator from `method`."""
+        return self.implement(method, cast)
+
+    def binary(self, method: typing.Callable, mode: str='forward') -> BinaryT:
+        """Create a binary arithmetic operator from `method`."""
+        if mode == 'forward':
+            return self.implement(method, forward)
+        if mode == 'reverse':
+            return self.implement(method, reverse)
+        if mode == 'inplace':
+            return self.implement(method, inplace)
+        raise ValueError(f"Unknown mode {mode} for binary operator")
+
+    def comparison(self, method: typing.Callable) -> ComparisonT:
+        """Create a comparison arithmetic operator from `method`."""
+        return self.implement(method, comparison)
+
+    def implement(self, method: typing.Callable, definition: DefinitionT):
+        """Implement `method` according to `definition`."""
+        implementation = Implementation(definition, self.rules)
+        return implementation.of(method)
+
+
+# IType = typing.TypeVar('IType', bound=Application)
+# IType = typing.Union[
+#     Unary,
+#     Cast,
+#     Binary,
+#     Comparison,
+# ]
+
+
+# class Implementation(iterables.ReprStrMixin):
+#     """A generalized arithmetic operator implementation."""
+
+#     def __init__(self, rules: Rules) -> None:
+#         self._type = Application
+#         self._rules = {}
+#         self.rules = rules
+#         self._operations = []
+
+#     def operations(self, *operations: str):
+#         """Update the operations that this implementation handles."""
+#         if not operations:
+#             return tuple(self._operations)
+#         new = self._operations.copy()
+#         new.extend(operations)
+#         self._operations = prune(new)
+#         return self
+
+#     def apply(self, new: typing.Type[IType]):
+#         """Set the application class for this operator."""
+#         self._type = new
+#         return self
+
+#     @property
+#     def application(self):
+#         """"""
+#         return self._type(self.rules)
+
+#     # This should return an operation-specific operator -- namely, one whose
+#     # type signature is more specific than `(*args, **kwargs)`.
+#     def implement(self, __callable: typing.Callable):
+#         """Implement an operator with the given callable."""
+#         application = self._type(self.rules)
+#         return application.apply(__callable)
+
+#     def __str__(self) -> str:
+#         name = self._type.__name__
+#         if self._operations:
+#             return f"{name}: {self._operations}"
+#         return name
+
+
+# class Interface(aliased.MutableMapping):
+#     """An updatable interface to operator implementations."""
+
+#     _internal: typing.Dict[str, Implementation]
+
+#     def __init__(self, __type, *parameters: str) -> None:
+#         super().__init__()
+#         self._type = __type
+#         self.rules = Rules(__type, parameters)
+#         """The default operand-update rules for these implementations."""
+#         self._internal = {}
+
+#     def register(self, key: str):
+#         """Register a new implementation."""
+#         if key in self:
+#             raise KeyError(f"Implementation {key!r} already exists.")
+#         self[key] = Implementation(self.rules)
+#         return self
+
+#     def __getitem__(self, key: str) -> Implementation:
+#         """Retrieve an implementation by keyword. Called for self[key]."""
+#         try:
+#             return super().__getitem__(key)
+#         except KeyError:
+#             for implementation in self.values(aliased=True):
+#                 if key in implementation.operations():
+#                     return implementation
+#         raise KeyError(f"No implementation for {key!r}")
+
+#     def __str__(self) -> str:
+#         if len(self) == 0:
+#             return str(self._type)
+#         implementations = ', '.join(
+#             f"'{g}'={v}"
+#             for g, v in zip(self._aliased.keys(), self._aliased.values())
+#         )
+#         return f"{self._type}: {implementations}"
+
 
