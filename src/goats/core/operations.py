@@ -104,11 +104,11 @@ class Rule(iterables.ReprStrMixin):
     def __init__(
         self,
         __types: Types,
-        *parameters: str,
+        *default: str,
     ) -> None:
         self._types = list(iterables.whole(__types))
         self._ntypes = len(self._types)
-        self.default = prune(parameters)
+        self.default = prune(default)
         """The default parameters."""
         self._parameters = self.default.copy()
         self.issuppressed = False
@@ -173,18 +173,6 @@ class Rule(iterables.ReprStrMixin):
     __ge__ = _subtypes
     """Called for self >= other."""
 
-    def replace(self, old: type, new: type):
-        """Replace the first occurrence of `old` type with `new` type."""
-        try:
-            index = self._types.index(old)
-        except ValueError as err:
-            raise ValueError(
-                f"There are no occurrences of {old!r} to replace"
-            ) from err
-        else:
-            self._types[index] = new
-            return self
-
     def __bool__(self) -> bool:
         """True unless this rule is suppressed."""
         return not self.issuppressed
@@ -202,6 +190,23 @@ class Rule(iterables.ReprStrMixin):
         self._parameters = None
         self.issuppressed = True
         return self
+
+    def define(self, *parameters: str):
+        """Declare the parameters that this rule affects."""
+        self._parameters = prune(parameters)
+        return self
+
+    def replace(self, old: type, new: type):
+        """Replace the first occurrence of `old` type with `new` type."""
+        try:
+            index = self._types.index(old)
+        except ValueError as err:
+            raise ValueError(
+                f"There are no occurrences of {old!r} to replace"
+            ) from err
+        else:
+            self._types[index] = new
+            return self
 
     def reset(self):
         """Reset the parameter set to the default set."""
