@@ -511,7 +511,7 @@ DefinitionT = typing.TypeVar('DefinitionT')
 DefinitionT = typing.Callable[[Operator], typing.Callable]
 
 
-class Implementation:
+class Implementation(typing.Generic[T]):
     """A generalized operator implementation."""
 
     def __init__(
