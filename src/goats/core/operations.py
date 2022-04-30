@@ -539,7 +539,12 @@ class Implementation:
         self._implement = __definition
         self.rules = rules
 
-    def of(self, method: typing.Callable):
+    def rule(self, __types: Types, *parameters: str):
+        """Register an operand-update rule for this implementation."""
+        self.rules.register(__types, *parameters)
+        return self
+
+    def operator(self, method: typing.Callable):
         """Create an operator implementation from `method`."""
         operator = Operator(method, self.rules)
         return self._implement(operator)
