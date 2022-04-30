@@ -347,14 +347,19 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
         """Retrieve the operand-update rule for `types`."""
         types = tuple(key) if isinstance(key, typing.Iterable) else (key,)
         if types in self.mapping:
-            parameters = self.mapping[types]
-            return Rule(types, *parameters)
-        for t, p in self.mapping.items():
+            return self._from(types)
+        for t in self.mapping:
             if all(issubclass(i, j) for i, j in zip(types, t)):
-                return Rule(t, *p)
+                return self._from(t)
         raise KeyError(
             f"No rule for operand type(s) {key!r}"
         ) from None
+
+    def _from(self, __types: Types):
+        """Build a rule from the given types."""
+        rule = Rule(__types, *self._default.copy())
+        parameters = self.mapping[__types]
+        return rule.define(*parameters)
 
 
 class OperandError(Exception):
