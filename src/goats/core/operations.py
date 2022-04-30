@@ -458,7 +458,7 @@ class Application:
 def unary(operator: Operator) -> AType:
     """Create a unary arithmetic operation from `operator`."""
     def wrapper(a: AType, **kwargs):
-        return operator.evaluate(a, out=type(a), **kwargs)
+        return operator.evaluate(a, mode='forward', **kwargs)
     wrapper.__name__ = f"__{operator.method.__name__}__"
     wrapper.__doc__ = operator.method.__doc__
     return wrapper
