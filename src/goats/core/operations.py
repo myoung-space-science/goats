@@ -289,44 +289,62 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
     def __init__(self, *parameters: str) -> None:
         self._default = list(parameters)
         self._rulemap = None
-        self._ntypes = 0
+        self.ntypes = None
+        """The number of types in these rules."""
         self._internal = []
 
     def register(self, key: Types, *parameters: str):
         """Add an update rule to the collection."""
         types = tuple(key) if isinstance(key, typing.Iterable) else (key,)
         ntypes = len(types)
-        if self._rulemap is None:
-            self._rulemap = {}
-            self._ntypes = ntypes
-        if types not in self._rulemap:
-            if ntypes == self._ntypes:
-                self._rulemap[types] = parameters or self._default.copy()
-                return self
-            raise ValueError(
-                f"Can't add {ntypes} type(s) to collection"
-                f" of length-{self._ntypes} items."
-            ) from None
+        self._check_ntypes(ntypes)
+        if types not in self.mapping:
+            self.mapping[types] = parameters or self._default.copy()
+            return self
         raise KeyError(
             f"{key!r} is already in the collection."
         ) from None
 
+    @property
+    def mapping(self):
+        """The current mapping from types to affected parameters."""
+        if self._rulemap is None:
+            self._rulemap = {}
+        return self._rulemap
+
+    def _check_ntypes(self, __ntypes: int):
+        """Helper for enforcing consistency in number of types.
+        
+        The first time through, this will set the internal attribute that keeps
+        track of how many types are allowed for these rules. After that, it will
+        raise an exception if the user tries to register a rule with a different
+        number of types.
+        """
+        if self.ntypes is None:
+            self.ntypes = __ntypes
+            return
+        if __ntypes != self.ntypes:
+            raise ValueError(
+                f"Can't add {__ntypes} type(s) to collection"
+                f" of length-{self.ntypes} items."
+            ) from None
+
     def __len__(self) -> int:
         """Returns the number of rules. Called for len(self)."""
-        return len(self._rulemap)
+        return len(self.mapping)
 
     def __iter__(self) -> typing.Iterator[Rule]:
         """Iterate over rules. Called for iter(self)."""
-        for types in self._rulemap:
-            yield Rule(types, self._rulemap[types])
+        for types in self.mapping:
+            yield Rule(types, self.mapping[types])
 
     def __getitem__(self, key: Types):
         """Retrieve the operand-update rule for `types`."""
         types = tuple(key) if isinstance(key, typing.Iterable) else (key,)
-        if types in self._rulemap:
-            parameters = self._rulemap[types]
+        if types in self.mapping:
+            parameters = self.mapping[types]
             return Rule(types, *parameters)
-        for t, p in self._rulemap.items():
+        for t, p in self.mapping.items():
             if all(issubclass(i, j) for i, j in zip(types, t)):
                 return Rule(t, *p)
         raise KeyError(
