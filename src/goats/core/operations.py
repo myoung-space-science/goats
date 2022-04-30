@@ -557,35 +557,34 @@ class Operators:
     """An interface to generalized operator implementations."""
 
     def __init__(self, *parameters: str) -> None:
-        self.rules = Rules(parameters)
+        self.rules = Rules(*parameters)
         """The default operand-update rules for all operators."""
 
-    def unary(self, method: typing.Callable) -> UnaryT:
-        """Create a unary arithmetic operator from `method`."""
-        return self.implement(method, unary)
+    def unary(self) -> Implementation[UnaryT]:
+        """Unary arithmetic operator implementations."""
+        return self.implement(unary)
 
-    def cast(self, method: typing.Callable) -> CastT:
-        """Create a unary cast operator from `method`."""
-        return self.implement(method, cast)
+    def cast(self) -> Implementation[CastT]:
+        """Unary cast operator implementations."""
+        return self.implement(cast)
 
-    def binary(self, method: typing.Callable, mode: str='forward') -> BinaryT:
-        """Create a binary arithmetic operator from `method`."""
+    def binary(self, mode: str='forward') -> Implementation[BinaryT]:
+        """Binary arithmetic operator implementations."""
         if mode == 'forward':
-            return self.implement(method, forward)
+            return self.implement(forward)
         if mode == 'reverse':
-            return self.implement(method, reverse)
+            return self.implement(reverse)
         if mode == 'inplace':
-            return self.implement(method, inplace)
+            return self.implement(inplace)
         raise ValueError(f"Unknown mode {mode} for binary operator")
 
-    def comparison(self, method: typing.Callable) -> ComparisonT:
+    def comparison(self) -> Implementation[ComparisonT]:
         """Create a comparison arithmetic operator from `method`."""
-        return self.implement(method, comparison)
+        return self.implement(comparison)
 
-    def implement(self, method: typing.Callable, definition: DefinitionT):
+    def implement(self, definition: DefinitionT):
         """Implement `method` according to `definition`."""
-        implementation = Implementation(definition, self.rules)
-        return implementation.of(method)
+        return Implementation(definition, self.rules)
 
 
 # IType = typing.TypeVar('IType', bound=Application)
