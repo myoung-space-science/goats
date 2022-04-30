@@ -438,23 +438,6 @@ class Operator:
         return rule.apply(self.method, *args, reference=reference, **kwargs)
 
 
-class Application:
-    """Base class for operator applications."""
-
-    def __init__(
-        self,
-        __definition: typing.Callable[[Operator], typing.Callable],
-        rules: Rules,
-    ) -> None:
-        self._implement = __definition
-        self.rules = rules
-
-    def apply(self, method: typing.Callable):
-        """Create an operator by applying `method`."""
-        operator = Operator(method, self.rules)
-        return self._implement(operator)
-
-
 def unary(operator: Operator) -> AType:
     """Create a unary arithmetic operation from `operator`."""
     def wrapper(a: AType, **kwargs):
