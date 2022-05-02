@@ -292,26 +292,35 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
     """A class for managing operand-update rules."""
 
     def __init__(self, *parameters: str) -> None:
-        self._default = list(parameters)
-        self._rulemap = None
+        self.default = list(parameters)
+        """The default parameters to update for each rule."""
         self.ntypes = None
         """The number of types in these rules."""
-        self._internal = []
+        self._rulemap = None
 
-    def register(self, key: Types, *parameters: str):
+    def register(self, key: Types, *parameters: typing.Optional[str]):
         """Add an update rule to the collection."""
         types = tuple(key) if isinstance(key, typing.Iterable) else (key,)
         ntypes = len(types)
         self._check_ntypes(ntypes)
         if types not in self.mapping:
-            self.mapping[types] = parameters or self._default.copy()
+            self.mapping[types] = self._resolve(*parameters)
             return self
         raise KeyError(
             f"{key!r} is already in the collection."
         ) from None
 
+    def _resolve(self, parameters) -> typing.List[str]:
+        """Determine the affected parameters based on input."""
+        if parameters is None:
+            return []
+        given = iterables.whole(parameters)
+        if not given:
+            return self.default.copy()
+        return list(given)
+
     @property
-    def mapping(self):
+    def mapping(self) -> typing.Dict[Types, Parameters]:
         """The current mapping from types to affected parameters."""
         if self._rulemap is None:
             self._rulemap = {}
@@ -357,7 +366,7 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
 
     def _from(self, __types: Types):
         """Build a rule from the given types."""
-        rule = Rule(__types, *self._default.copy())
+        rule = Rule(__types, *self.default.copy())
         parameters = self.mapping[__types]
         return rule.define(*parameters)
 
