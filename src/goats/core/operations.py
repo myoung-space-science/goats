@@ -321,14 +321,13 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
             f"{key!r} is already in the collection."
         ) from None
 
-    def _resolve(self, parameters) -> typing.List[str]:
+    def _resolve(self, *parameters) -> typing.List[str]:
         """Determine the affected parameters based on input."""
-        if parameters is None:
+        if len(parameters) == 1 and parameters[0] is None:
             return []
-        given = iterables.whole(parameters)
-        if not given:
+        if not parameters:
             return self.default.copy()
-        return list(given)
+        return list(parameters)
 
     @property
     def mapping(self) -> typing.Dict[Types, Parameters]:
