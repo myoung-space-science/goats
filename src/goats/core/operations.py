@@ -1,11 +1,9 @@
-import abc
 import collections
 import collections.abc
 import inspect
 import operator as standard
 import typing
 
-from goats.core import aliased
 from goats.core import iterables
 from goats.core import metric
 from goats.core import utilities
