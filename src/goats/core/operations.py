@@ -1,7 +1,7 @@
 import abc
 import collections
 import collections.abc
-import functools
+import inspect
 import operator as standard
 import typing
 
@@ -66,13 +66,11 @@ class ComparisonError(TypeError):
         return f"Can't compare {self.this!r} to {self.that!r}"
 
 
-class Result(collections.UserDict):
+class Result(collections.OrderedDict):
     """The result of applying a rule to an operation."""
 
-    def __init__(self, __attributes, *parameters: str) -> None:
-        super().__init__(__attributes)
-        self.names = parameters
-        """The names of all parameters in the target operands."""
+    def __init__(self, *parameters: str) -> None:
+        super().__init__({p: None for p in parameters})
 
     def format(self, form=None):
         """Convert this result into the appropriate object.
@@ -90,10 +88,22 @@ class Result(collections.UserDict):
             that type, initialized with this result's data. If `form` is an
             instance of some type, this method will return the updated instance.
         """
+        parameters = inspect.signature(form).parameters
+        args = []
+        kwds = {}
+        loop = zip(self.values(), parameters.items())
+        for value, (name, parameter) in loop:
+            kind = parameter.kind
+            if kind is inspect.Parameter.POSITIONAL_ONLY:
+                args.append(value)
+            elif kind is inspect.Parameter.POSITIONAL_OR_KEYWORD:
+                args.append(self[name])
+            elif kind is inspect.Parameter.KEYWORD_ONLY:
+                kwds[name] = self.get(name)
         if isinstance(form, type):
-            return form(**self.data)
-        for name in self.names:
-            value = self.data.get(name)
+            return form(*args, **kwds)
+        for name in self:
+            value = self.get(name)
             utilities.setattrval(form, name, value)
         return form
 
