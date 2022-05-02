@@ -256,13 +256,14 @@ class Rule(iterables.ReprStrMixin):
 
     def apply(self, method, *args, reference=None, **kwargs):
         """Call `method` on arguments within the context of this rule."""
+        result = Result(*self.default.copy())
         updated = {
             name: method(
                 *[utilities.getattrval(arg, name) for arg in args],
                 **kwargs
             ) for name in self.updated
         }
-        result = Result(updated, *self.default)
+        result.update(updated)
         if reference:
             ignored = {
                 name: utilities.getattrval(reference, name)
