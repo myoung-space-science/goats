@@ -135,8 +135,10 @@ class Rule(iterables.ReprStrMixin):
         """The parameters unaffected by this rule."""
         if self._parameters is None:
             return tuple(self.default)
-        these = set(self.default) - set(self._parameters)
-        return tuple(prune(these))
+        return tuple(
+            parameter for parameter in self.default
+            if parameter not in self._parameters
+        )
 
     @property
     def types(self):
