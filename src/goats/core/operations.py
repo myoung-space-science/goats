@@ -1,7 +1,10 @@
+import abc
 import collections
 import collections.abc
+import contextlib
 import inspect
 import operator as standard
+import types
 import typing
 
 from goats.core import iterables
@@ -29,28 +32,68 @@ def prune(items: typing.Iterable[T]) -> typing.List[T]:
     return collection
 
 
-class Operand:
+class Operand(typing.Generic[T]):
     """A class representing a single operand."""
 
-    def __init__(self, operand, parameters: typing.Container[str]) -> None:
-        self.operand = operand
-        self.parameters = parameters
-        self._type = type(operand)
+    def __init__(self, __object: T) -> None:
+        self._object = __object
+        self._type = type(__object)
+        self._parameters = None
+        self._positional = None
+        self._keyword = None
 
-    def validate(self, other):
+    @property
+    def parameters(self):
+        """All parameters used to initialize this operand."""
+        if self._parameters is None:
+            self._parameters = inspect.signature(self._type).parameters
+        return self._parameters
+
+    _postypes = {
+        inspect.Parameter.POSITIONAL_ONLY,
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+    }
+
+    @property
+    def positional(self):
+        """The names of positional arguments to this operand."""
+        if self._positional is None:
+            names = [
+                name for name, parameter in self.parameters.items()
+                if parameter.kind in self._postypes
+            ]
+            self._positional = tuple(names)
+        return self._positional
+
+    @property
+    def keyword(self):
+        """The names of keyword arguments to this operand."""
+        if self._keyword is None:
+            names = [
+                name for name, parameter in self.parameters.items()
+                if parameter.kind == inspect.Parameter.KEYWORD_ONLY
+            ]
+            self._keyword = tuple(names)
+        return self._keyword
+
+    def validate(self, other, *ignored: str):
         """Make sure `other` is a valid co-operand."""
         if not isinstance(other, self._type):
             return # Indeterminate
-        for name in self.parameters:
+        for name in ignored:
             if not self._comparable(other, name):
                 return False
         return True
 
     def _comparable(self, that, name: str) -> bool:
         """Determine whether the instances are comparable."""
-        return utilities.getattrval(
-            self.operand, name
-        ) == utilities.getattrval(that, name)
+        v0 = utilities.getattrval(self, name)
+        v1 = utilities.getattrval(that, name)
+        return v0 == v1
+
+    def __getattr__(self, __name: str):
+        """Retrieve an attribute from the underlying object."""
+        return getattr(self._object, __name)
 
 
 class ComparisonError(TypeError):
@@ -299,6 +342,201 @@ class Rule(iterables.ReprStrMixin):
         return f"{types}: {parameters}"
 
 
+class Result:
+    """The result of applying a rule to an operation."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        self.args = list(args)
+        self.kwargs = kwargs
+
+    def format(self, form):
+        """Convert this result into the appropriate object.
+        
+        Parameters
+        ----------
+        form : Any
+            The final form that will contain this result's data. See Returns for
+            details of how the type of `form` affects the result of this method.
+
+        Returns
+        -------
+        Any
+            If `form` is a ``type``, this method will return a new instance of
+            that type, initialized with this result's data. If `form` is an
+            instance of some type, this method will return the updated instance.
+        """
+        if isinstance(form, type):
+            parameters = inspect.signature(form).parameters
+            args, kwargs = self._get_args_kwargs(parameters)
+            return form(*args, **kwargs)
+        parameters = inspect.signature(type(form)).parameters
+        args, kwargs = self._get_args_kwargs(parameters)
+        for name in parameters:
+            value = self._arg_or_kwarg(args, kwargs, name)
+            utilities.setattrval(form, name, value)
+        return form
+
+    def _get_args_kwargs(self, signature: inspect.Signature):
+        """Extract appropriate argument values.
+        
+        This method will attempt to build appropriate positional and keyword
+        arguments from this result, based on the parameters in `signature`.
+        """
+        args = []
+        kwargs = {}
+        for name, parameter in signature.parameters.items():
+            kind = parameter.kind
+            if kind is inspect.Parameter.POSITIONAL_ONLY:
+                args.append(self.args.pop(0))
+            elif kind is inspect.Parameter.POSITIONAL_OR_KEYWORD:
+                args.append(self._arg_or_kwarg(args, kwargs, name))
+            elif kind is inspect.Parameter.KEYWORD_ONLY:
+                kwargs[name] = self.kwargs.get(name)
+        return tuple(args), kwargs
+
+    def _arg_or_kwarg(self, args: list, kwargs: dict, name: str):
+        """Get the value of a positional or keyword argument, if possible.
+        
+        This checks for the presence of `name` in `kwargs` rather than calling
+        `kwargs.get(name)` in order to avoid prematurely returning `None` before
+        trying to retrieve a value from `args`.
+        """
+        if name in kwargs:
+            return kwargs[name]
+        with contextlib.suppress(IndexError):
+            return args.pop(0)
+
+
+# Possible specialized return type for `Rule.suppress`. Another option is that a
+# common ABC could require all the methods the `Rule` defines, and this class
+# could implement versions that raise exceptions with informative messages.
+class Suppressed(iterables.Singleton):
+    """A suppressed operand rule."""
+
+    def __bool__(self) -> bool:
+        return False
+
+    def __str__(self) -> str:
+        names = [t.__qualname__ for t in self.types]
+        types = names[0] if len(names) == 1 else tuple(names)
+        return f"{types}: NotImplemented"
+
+
+# TODO: New `Rule` class:
+# - requires affected parameters
+# - does not require default parameters
+# - computes ignored parameters based on `reference` in `apply`
+# - passes ignored parameters to some version of `validate`, which may be in a
+#   different class (e.g., `measurable.same`)
+# - will require updates to `Rules`
+
+
+class Rule:
+    """"""
+
+    def __init__(
+        self,
+        __types: Types,
+        *parameters: str,
+    ) -> None:
+        self._types = list(iterables.whole(__types))
+        self._ntypes = len(self._types)
+        self.parameters = prune(parameters)
+        """The parameters that this rule affects."""
+        self.issuppressed = False
+
+    @property
+    def types(self):
+        """The operand types that define this rule."""
+        return tuple(self._types)
+
+    def __len__(self) -> int:
+        """The number of operands in this rule."""
+        return self._ntypes
+
+    def __contains__(self, t: type) -> bool:
+        """True if `t` is one of the types in this rule."""
+        return t in self.types
+
+    def __eq__(self, other) -> bool:
+        """Called for self == other.
+        
+        This method return ``True`` iff each type in `other` is strictly equal
+        to the corresponding type in `self` under element-wise comparison.
+        """
+        return self._compare(other, standard.eq)
+
+    def _subtypes(self, other) -> bool:
+        """Helper for self > other and self >= other.
+        
+        This method return ``True`` iff each type in `other` is a subtype (i.e.,
+        subclass) of the corresponding type in `self` under element-wise
+        comparison.
+        """
+        return self._compare(other, issubclass)
+
+    def _compare(self, other, method):
+        """Compare `other` to `self` via `method`, if possible."""
+        equivalent = iterables.allinstance(other, type)
+        supported = isinstance(other, Rule) or equivalent
+        if not supported:
+            return NotImplemented
+        types = other._types if isinstance(other, Rule) else other
+        return all(method(i, j) for i, j in zip(types, self._types))
+
+    __gt__ = _subtypes
+    """Called for self > other."""
+
+    __ge__ = _subtypes
+    """Called for self >= other."""
+
+    def __bool__(self) -> bool:
+        """True unless this rule is suppressed."""
+        return not self.issuppressed
+
+    # Consider letting this return `Suppressed` (see above).
+    @property
+    def suppress(self):
+        """Suppress this operand rule.
+        
+        Invoking this property will set the internal set of parameters to
+        ``None``, which will signal to operator implementations that they should
+        not implement the operator for these operand types.
+        """
+        self._parameters = None
+        self.issuppressed = True
+        return self
+
+    def apply(self, method, *args, reference=None, **kwargs):
+        """Call `method` on arguments within the context of this rule."""
+        target = Operand(reference or args[0])
+        a = []
+        k = {}
+        for name in target.positional:
+            a.append(
+                method(
+                    *[utilities.getattrval(arg, name) for arg in args],
+                    **kwargs
+                ) if name in self.parameters
+                else utilities.getattrval(reference, name)
+            )
+        for name in target.keyword:
+            k[name] = (
+                method(
+                    *[utilities.getattrval(arg, name) for arg in args],
+                    **kwargs
+                ) if name in self.parameters
+                else utilities.getattrval(reference, name)
+            )
+        result = Result(*a, **k)
+        return result
+
+    def __str__(self) -> str:
+        names = [t.__qualname__ for t in self.types]
+        types = names[0] if len(names) == 1 else tuple(names)
+        return f"{types}: {list(self.parameters)}"
+
+
 class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
     """A class for managing operand-update rules."""
 
@@ -376,9 +614,8 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
 
     def _from(self, __types: Types):
         """Build a rule from the given types."""
-        rule = Rule(__types, *self.default.copy())
-        parameters = self.mapping[__types]
-        return rule.define(*parameters)
+        parameters = self.mapping.get(__types, self.default.copy())
+        return Rule(__types, *parameters)
 
 
 class OperandError(Exception):
@@ -604,6 +841,259 @@ class Operators:
     def implement(self, definition: DefinitionT):
         """Implement `method` according to `definition`."""
         return Implementation(definition, self.rules)
+
+
+# An operation is the result of applying an operator to operands.
+class Operation(abc.ABC):
+    """The application of an operator to one or more operand(s)."""
+
+    def __init__(self, rule: Rule) -> None:
+        self.rule = rule
+
+    def __bool__(self) -> bool:
+        """True if this operation has a defined rule."""
+        return bool(self.rule)
+
+    @abc.abstractmethod
+    def apply(self, method: typing.Callable, *args, **kwargs):
+        """Apply `method` to the given arguments.
+        
+        The default implementation passes `method`, `*args`, and `**kwargs` to
+        the `apply` method of this operation's `Rule` instance.
+        """
+        return self.rule.apply(method, *args, **kwargs)
+
+
+class Context:
+    """The context of an operation."""
+
+    def __init__(
+        self,
+        __implementer: typing.Type[Operation],
+        rules: Rules,
+    ) -> None:
+        self._implement = __implementer
+        self.rules = rules
+
+    def rule(self, __types: Types, *parameters: str):
+        """Register an operand-update rule for this context."""
+        self.rules.register(__types, *parameters)
+        return self
+
+    def evaluate(self, *args):
+        """Determine if this context supports these arguments."""
+        types = tuple(type(i) for i in args)
+        rule = self.rules.get(types)
+        return self._implement(rule=rule)
+
+
+RT = typing.TypeVar('RT')
+
+
+class Operator:
+    """A generalized numerical operator."""
+
+    def __init__(
+        self,
+        method: typing.Callable,
+        context: Context=None,
+    ) -> None:
+        self.method = method
+        self.context = context
+        # Context will handle number of operands, return type, etc.
+
+    def __call__(self, *args, **kwargs):
+        """Evaluate the arguments within the given context."""
+        # The `Context.evalute` method should check argument types against its
+        # registered rules. If it can't find a rule, it should return a falsey
+        # result (e.g., `None` or an object whose boolean value is `False`). If
+        # it finds a rule, it should proceed similarly to the old
+        # `Operator.evaluate`. The default context can always return a truthy
+        # instance that operates on the declared data attribute, if available,
+        # or the full object, if not. The latter condition is essentially how
+        # `Rule.apply` operates on the reference object.
+        operation = self.context.evaluate(*args)
+        if not operation:
+            return NotImplemented
+        return operation.apply(self.method, *args, **kwargs)
+
+
+class Operators:
+    """"""
+
+    # The user provides the name of the attribute that contains numerical data.
+    # If absent, operations will treat (the) entire input argument(s) as the
+    # numerical data. This behavior will support for subclasses of
+    # `numbers.Number`. The user can add affected attributes for specific
+    # operators. The `Rules` class may need to change in order to accommodate.
+    def __init__(self, target: str=None) -> None:
+        self.target = target
+        """The name of the data-like attribute."""
+
+
+
+# class Operation(abc.ABC):
+#     """Base class for all operations."""
+
+#     def __init__(
+#         self,
+#         __callable: typing.Callable[..., RType],
+#         rules: Rules=None,
+#     ) -> None:
+#         self.method = __callable
+#         self.rules = rules
+
+#     @abc.abstractmethod
+#     def evaluate(self, *args, mode: str=None, **kwargs):
+#         """Evaluate the arguments based on `mode`."""
+#         pass
+
+
+# class Unary(Operation):
+#     """A concrete unary operation."""
+
+#     def evaluate(self, arg, mode: str=None, **kwargs):
+#         if self.rules is None:
+#             return self.method(arg, **kwargs)
+#         rule = self.rules.get(type(arg))
+#         if not rule:
+#             return NotImplemented
+#         result = rule.apply(self.method, arg, reference=arg, **kwargs)
+#         if mode is None:
+#             if len(rule.updated) > 1:
+#                 raise ValueError(
+#                     "Can't represent multiple attributes"
+#                     " with unknown output type."
+#                 ) from None
+#             values = list(result.values())
+#             return values[0]
+#         return result.format(type(arg))
+
+
+# class Binary(Operation):
+#     """A concrete binary operation."""
+
+#     def evaluate(self, *args, mode: str=None, **kwargs):
+#         """Evaluate the arguments with the current method."""
+#         if self.rules is None:
+#             return self.method(*args, **kwargs)
+#         types = tuple(type(i) for i in args)
+#         rule = self.rules.get(types)
+#         if not rule:
+#             return NotImplemented
+#         rule.validate(args)
+#         reference = self._get_reference(mode, *args)
+#         result = rule.apply(self.method, *args, reference=reference, **kwargs)
+#         target = self._get_target(mode, *args)
+#         if mode is None:
+#             if len(rule.updated) > 1:
+#                 raise ValueError(
+#                     "Can't represent multiple attributes"
+#                     " with unknown output type."
+#                 ) from None
+#             values = list(result.values())
+#             return values[0]
+#         return result.format(target)
+
+#     def _get_reference(self, mode, *args):
+#         """Get the reference object based on `mode`."""
+#         if mode in {'foward', 'inplace'}:
+#             return args[0]
+#         if mode == 'reverse':
+#             return args[-1]
+#         return mode
+
+#     def _get_target(self, mode, *args):
+#         """Get the output target based on `mode`."""
+#         if mode == 'forward':
+#             return type(args[0])
+#         if mode == 'reverse':
+#             return type(args[-1])
+#         if mode == 'inplace':
+#             return args[0]
+#         return mode
+
+
+# class Implementation(typing.Generic[T]):
+#     """A generalized operator implementation."""
+
+#     def __init__(self, __definition: typing.Type[T]):
+#         self._implement = __definition
+
+#     def implement(self, method: typing.Callable, mode: str=None):
+#         """Create a new operator from `method`."""
+#         pass
+
+#     def suppress(self, method: typing.Callable, mode: str=None):
+#         """Suppress the operator defined by `method`."""
+#         pass
+
+
+# def unary(operator: Operator, mode: str=None) -> AType:
+#     """Create a unary arithmetic operation from `operator`."""
+#     def wrapper(a: AType, **kwargs):
+#         return operator.evaluate(a, mode=mode, **kwargs)
+#     wrapper.__name__ = f"__{operator.method.__name__}__"
+#     wrapper.__doc__ = operator.method.__doc__
+#     return wrapper
+
+
+# def binary(operator: Operator, mode: str=None):
+#     """Create a binary operation from `operator`."""
+#     def wrapper(*args, **kwargs):
+#         try:
+#             result = operator.evaluate(*args, mode=mode, **kwargs)
+#         except metric.UnitError as err:
+#             raise OperandError(err) from err
+#         else:
+#             return result
+#     return wrapper
+
+
+# def forward(operator: Operator):
+#     """Create a forward binary arithmetic operation from `operator`."""
+#     operation = binary(operator, 'forward')
+#     def wrapper(a: AType, b: BType, **kwargs):
+#         return operation(a, b, **kwargs)
+#     wrapper.__name__ = f"__{operator.method.__name__}__"
+#     wrapper.__doc__ = operator.method.__doc__
+#     return wrapper
+
+
+# def reverse(operator: Operator):
+#     """Create a reverse binary arithmetic operation from `operator`."""
+#     operation = binary(operator, 'reverse')
+#     def wrapper(b: BType, a: AType, **kwargs):
+#         return operation(a, b, **kwargs)
+#     wrapper.__name__ = f"__r{operator.method.__name__}__"
+#     wrapper.__doc__ = operator.method.__doc__
+#     return wrapper
+
+
+# def inplace(operator: Operator):
+#     """Create a inplace binary arithmetic operation from `operator`."""
+#     operation = binary(operator, 'inplace')
+#     def wrapper(a: AType, b: BType, **kwargs):
+#         return operation(a, b, **kwargs)
+#     wrapper.__name__ = f"__i{operator.method.__name__}__"
+#     wrapper.__doc__ = operator.method.__doc__
+#     return wrapper
+
+
+# class Implementations:
+#     """A factory for operator implementations."""
+
+#     def __init__(self, __type: type) -> None:
+#         self._type = __type
+
+#     def unary(self, *parameters: str):
+#         """Define a unary implementation."""
+#         return Implementation(Unary)
+
+#     def binary(self, *parameters: str):
+#         """Define a binary implementation."""
+#         return Implementation(Binary)
+
 
 
 # IType = typing.TypeVar('IType', bound=Application)
