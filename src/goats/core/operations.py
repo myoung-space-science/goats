@@ -512,7 +512,7 @@ def inplace(operator: Operator):
     operation = _binary(operator, 'inplace')
     def wrapper(a: AType, b: BType, **kwargs):
         return operation(a, b, **kwargs)
-    wrapper.__name__ = f"__{operator.method.__name__}__"
+    wrapper.__name__ = f"__i{operator.method.__name__}__"
     wrapper.__doc__ = operator.method.__doc__
     return wrapper
 
@@ -521,7 +521,7 @@ def comparison(operator: Operator):
     """Create a binary comparison operation from `operator`."""
     def wrapper(a: AType, b: BType):
         return operator.evaluate(a, b)
-    wrapper.__name__ = f"__i{operator.method.__name__}__"
+    wrapper.__name__ = f"__{operator.method.__name__}__"
     wrapper.__doc__ = operator.method.__doc__
     return wrapper
 
