@@ -342,7 +342,7 @@ class Rule(iterables.ReprStrMixin):
         return f"{types}: {parameters}"
 
 
-class Result:
+class Result(iterables.ReprStrMixin):
     """The result of applying a rule to an operation."""
 
     def __init__(self, *args, **kwargs) -> None:
@@ -405,6 +405,18 @@ class Result:
             return kwargs[name]
         with contextlib.suppress(IndexError):
             return args.pop(0)
+
+    def __eq__(self, other) -> bool:
+        """True iff two results have equal arguments."""
+        return isinstance(other, Result) and (
+            self.args == other.args and self.kwargs == other.kwargs
+        )
+
+    def __str__(self) -> str:
+        args = ', '.join(str(arg) for arg in self.args)
+        kwargs = ', '.join(f"{k}={v}" for k, v in self.kwargs.items())
+        parts = (args, kwargs)
+        return ', '.join(part for part in parts if part)
 
 
 # Possible specialized return type for `Rule.suppress`. Another option is that a
