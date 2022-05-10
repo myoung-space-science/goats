@@ -529,7 +529,7 @@ def unary(method, rule: Rule=None) -> AType:
     def wrapper(a: AType, **kwargs):
         if not rule:
             return NotImplemented
-        return rule.apply(method, a, reference=a, **kwargs)
+        return rule.apply(method, a, reference=a, **kwargs).format(type(a))
     wrapper.__name__ = f"__{method.__name__}__"
     wrapper.__doc__ = method.__doc__
     return wrapper
@@ -556,7 +556,7 @@ def forward(method, rule: Rule=None):
         except metric.UnitError as err:
             raise OperandError(err) from err
         else:
-            return result
+            return result.format(type(a))
     wrapper.__name__ = f"__{method.__name__}__"
     wrapper.__doc__ = method.__doc__
     return wrapper
@@ -572,7 +572,7 @@ def reverse(method, rule: Rule=None):
         except metric.UnitError as err:
             raise OperandError(err) from err
         else:
-            return result
+            return result.format(type(b))
     wrapper.__name__ = f"__r{method.__name__}__"
     wrapper.__doc__ = method.__doc__
     return wrapper
@@ -588,7 +588,7 @@ def inplace(method, rule: Rule=None):
         except metric.UnitError as err:
             raise OperandError(err) from err
         else:
-            return result
+            return result.format(a)
     wrapper.__name__ = f"__i{method.__name__}__"
     wrapper.__doc__ = method.__doc__
     return wrapper
@@ -605,16 +605,29 @@ def comparison(method, rule: Rule=None):
     return wrapper
 
 
-class Operation:
+class Implementation:
     """"""
 
-    def __init__(self, __definition, rule: Rule) -> None:
-        self._definition = __definition
-        self.rule = rule
+    def __init__(self, method, definition=None) -> None:
+        self.method = method
+        self._definition = definition
+        self._operator = None
 
-    def evaluate(self, *args, **kwargs):
+    @property
+    def definition(self):
         """"""
-        opr = self._definition
+        if self._definition is None:
+            self._definition = default
+        return self._definition
+
+    def apply(self, rule: Rule):
+        """Evaluate the arguments according to this operand rule."""
+        func = self.definition(self.method, rule)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        wrapper.__name__ = f"__{func.__name__}__"
+        wrapper.__doc__ = func.__doc__
+        return wrapper
 
 
 class Operator:
@@ -622,7 +635,7 @@ class Operator:
 
     def __init__(
         self,
-        __implementation,
+        __implementation: Implementation,
         rules: Rules,
     ) -> None:
         self._implementation = __implementation
@@ -634,23 +647,41 @@ class Operator:
         rule = self.rules.get(types)
         if not rule:
             return NotImplemented
+        operation = self._implementation.apply(rule)
+        return operation(*args, **kwargs)
 
 
 class Context:
-    """A context within which to define operations."""
+    """A general operation context."""
 
     def __init__(
         self,
-        __definition,
-        target: str=None,
-        nargs: int=None,
+        rules: Rules,
+        definition=None,
     ) -> None:
-        self.rules = Rules(target or '', nargs=nargs)
-        """The operand-update rules for this operator context."""
-        self._definition = __definition
+        self.rules = rules
+        """The operand-update rules for this context."""
+        self._definition = definition
+
+    @property
+    def definition(self):
+        """"""
+        if self._definition is None:
+            self._definition = default
+        return self._definition
 
     def implement(self, method):
         """"""
+        def operator(*args, **kwargs):
+            types = (type(arg) for arg in args)
+            rule = self.rules.get(types)
+            if not rule:
+                return NotImplemented
+            func = self._definition(method, rule)
+            return func(*args, **kwargs)
+        operator.__name__ = f"__{method.__name__}__"
+        operator.__doc__ = method.__doc__
+        return operator
 
 
 class Interface:
@@ -665,10 +696,87 @@ class Interface:
         self._type = __type
         self.target = target
         """The name of the data-like attribute."""
-        # This should probably be an aliased mapping that associates operators
-        # with categories by default.
-        self._implementations = aliased.MutableMapping()
-        self._implementations['unary'] = unary
+        # This should probably be an aliased mapping that associates
+        # operators with categories by default.
+        self._implementations = None
+        self._unary = None
+        self._cast = None
+        self._comparison = None
+        self._forward = None
+        self._reverse = None
+        self._inplace = None
+
+    @property
+    def unary(self):
+        """The implementation context for unary arithmetic operations."""
+        if self._unary is None:
+            rules = Rules(self.target, nargs=1)
+            rules.register(self._type)
+            self._unary = Context(unary, rules)
+        return self._unary
+
+    @property
+    def cast(self):
+        """The implementation context for unary casting operations."""
+        if self._cast is None:
+            rules = Rules(self.target, nargs=1)
+            rules.register(self._type)
+            self._cast = Context(cast, rules)
+        return self._cast
+
+    @property
+    def comparison(self):
+        """The implementation context for binary comparison operations."""
+        if self._comparison is None:
+            rules = Rules(self.target, nargs=2)
+            rules.register([self._type, self._type])
+            self._comparison = Context(comparison, rules)
+        return self._comparison
+
+    @property
+    def forward(self):
+        """The implementation context for standard numeric operations."""
+        if self._forward is None:
+            rules = Rules(self.target, nargs=2)
+            rules.register([self._type, self._type])
+            self._forward = Context(forward, rules)
+        return self._forward
+
+    @property
+    def reverse(self):
+        """The implementation context for reversed numeric operations."""
+        if self._reverse is None:
+            rules = Rules(self.target, nargs=2)
+            rules.register([self._type, self._type])
+            self._reverse = Context(reverse, rules)
+        return self._reverse
+
+    @property
+    def inplace(self):
+        """The implementation context for in-place numeric operations."""
+        if self._inplace is None:
+            rules = Rules(self.target, nargs=2)
+            rules.register([self._type, self._type])
+            self._inplace = Context(inplace, rules)
+        return self._inplace
+
+    _names = [
+        'unary',
+        'cast',
+        'comparison',
+        'forward',
+        'reverse',
+        'inplace',
+    ]
+
+    @property
+    def implementations(self):
+        """All available implementation contexts."""
+        if self._implementations is None:
+            self._implementations = aliased.MutableMapping()
+        contexts = {name: getattr(self, name) for name in self._names}
+        self._implementations.update(contexts)
+        return self._implementations
 
     # The user must be able to request an operation by name. If this instance
     # has an implementation for it, it should return that implementation; if
@@ -676,7 +784,10 @@ class Interface:
     # should operate on the numerical data and return the raw result.
     def find(self, __name: str) -> Context:
         """Get an appropriate implementation context for the named operator."""
-
+        if context := self._implementations.get(__name):
+            return context
+        rules = Rules(self.target)
+        return Context(default, rules)
 
 
 _operators = [
