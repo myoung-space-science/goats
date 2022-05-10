@@ -4,7 +4,6 @@ import collections.abc
 import contextlib
 import inspect
 import operator as standard
-import types
 import typing
 
 from goats.core import aliased
@@ -467,58 +466,6 @@ class Context:
         return self.rules.get(types)
 
 
-class Unary(Context):
-    """"""
-
-    def __init__(self, *parameters: str) -> None:
-        super().__init__(*parameters, nargs=1)
-
-    def interpret(self, *args):
-        rule = self.get_rule(*args)
-        reference = args[0]
-        form = type(reference)
-        return Operation(rule, reference=reference, form=form)
-
-
-class Numeric(Context):
-    """"""
-
-    def __init__(self, *parameters: str) -> None:
-        super().__init__(*parameters, nargs=2)
-
-    def interpret(self, *args):
-        rule = self.get_rule(*args)
-        reference = args[0]
-        form = type(reference)
-        return Operation(rule, reference=reference, form=form)
-
-
-class Reverse(Context):
-    """"""
-
-    def __init__(self, *parameters: str) -> None:
-        super().__init__(*parameters, nargs=2)
-
-    def interpret(self, *args):
-        rule = self.get_rule(*args)
-        reference = args[1]
-        form = type(reference)
-        return Operation(rule, reference=reference, form=form)
-
-
-class Inplace(Context):
-    """"""
-
-    def __init__(self, *parameters: str) -> None:
-        super().__init__(*parameters, nargs=2)
-
-    def interpret(self, *args):
-        rule = self.get_rule(*args)
-        reference = args[0]
-        form = reference
-        return Operation(rule, reference=reference, form=form)
-
-
 # Contexts
 # - default: return result of `method(*args, **kwargs)`
 # - cast: default
@@ -556,6 +503,156 @@ class Operator:
         return operation.apply(self.method, *args, **kwargs)
 
 
+# Functional implementations:
+
+class OperandError(Exception):
+    """Operands are incompatible with operator."""
+
+
+AType = typing.TypeVar('AType', bound=type)
+BType = typing.TypeVar('BType', bound=type)
+
+
+def default(method, rule: Rule=None):
+    """Create a default operation."""
+    def wrapper(*args, **kwargs):
+        if not rule:
+            return NotImplemented
+        return method(*args, **kwargs)
+    wrapper.__name__ = f"__{method.__name__}__"
+    wrapper.__doc__ = method.__doc__
+    return wrapper
+
+
+def unary(method, rule: Rule=None) -> AType:
+    """Create a unary arithmetic operation."""
+    def wrapper(a: AType, **kwargs):
+        if not rule:
+            return NotImplemented
+        return rule.apply(method, a, reference=a, **kwargs)
+    wrapper.__name__ = f"__{method.__name__}__"
+    wrapper.__doc__ = method.__doc__
+    return wrapper
+
+
+def cast(method, rule: Rule=None):
+    """Create a unary cast operation."""
+    def wrapper(a: AType):
+        if not rule:
+            return NotImplemented
+        return rule.apply(method, a)
+    wrapper.__name__ = f"__{method.__name__}__"
+    wrapper.__doc__ = method.__doc__
+    return wrapper
+
+
+def forward(method, rule: Rule=None):
+    """Create a forward binary arithmetic operation."""
+    def wrapper(a: AType, b: BType, **kwargs):
+        if not rule:
+            return NotImplemented
+        try:
+            result = rule.apply(method, a, b, reference=a, **kwargs)
+        except metric.UnitError as err:
+            raise OperandError(err) from err
+        else:
+            return result
+    wrapper.__name__ = f"__{method.__name__}__"
+    wrapper.__doc__ = method.__doc__
+    return wrapper
+
+
+def reverse(method, rule: Rule=None):
+    """Create a reverse binary arithmetic operation."""
+    def wrapper(b: BType, a: AType, **kwargs):
+        if not rule:
+            return NotImplemented
+        try:
+            result = rule.apply(method, a, b, reference=b, **kwargs)
+        except metric.UnitError as err:
+            raise OperandError(err) from err
+        else:
+            return result
+    wrapper.__name__ = f"__r{method.__name__}__"
+    wrapper.__doc__ = method.__doc__
+    return wrapper
+
+
+def inplace(method, rule: Rule=None):
+    """Create a inplace binary arithmetic operation."""
+    def wrapper(a: AType, b: BType, **kwargs):
+        if not rule:
+            return NotImplemented
+        try:
+            result = rule.apply(method, a, b, reference=a, **kwargs)
+        except metric.UnitError as err:
+            raise OperandError(err) from err
+        else:
+            return result
+    wrapper.__name__ = f"__i{method.__name__}__"
+    wrapper.__doc__ = method.__doc__
+    return wrapper
+
+
+def comparison(method, rule: Rule=None):
+    """Create a binary comparison operation."""
+    def wrapper(a: AType, b: BType, **kwargs):
+        if not rule:
+            return NotImplemented
+        return rule.apply(method, a, b, **kwargs)
+    wrapper.__name__ = f"__{method.__name__}__"
+    wrapper.__doc__ = method.__doc__
+    return wrapper
+
+
+class Operation:
+    """"""
+
+    def __init__(self, __definition, rule: Rule) -> None:
+        self._definition = __definition
+        self.rule = rule
+
+    def evaluate(self, *args, **kwargs):
+        """"""
+        opr = self._definition
+
+
+class Operator:
+    """"""
+
+    def __init__(
+        self,
+        __implementation,
+        rules: Rules,
+    ) -> None:
+        self._implementation = __implementation
+        self.rules = rules
+
+    def __call__(self, *args, **kwargs):
+        """"""
+        types = (type(arg) for arg in args)
+        rule = self.rules.get(types)
+        if not rule:
+            return NotImplemented
+
+
+class Context:
+    """A context within which to define operations."""
+
+    def __init__(
+        self,
+        __definition,
+        target: str=None,
+        nargs: int=None,
+    ) -> None:
+        self.rules = Rules(target or '', nargs=nargs)
+        """The operand-update rules for this operator context."""
+        self._definition = __definition
+
+    def implement(self, method):
+        """"""
+
+
 class Interface:
     """"""
 
@@ -571,28 +668,15 @@ class Interface:
         # This should probably be an aliased mapping that associates operators
         # with categories by default.
         self._implementations = aliased.MutableMapping()
+        self._implementations['unary'] = unary
 
-    def implement(self, method, key: str):
-        """Implement an operator with `method`."""
-        # The user must be able to request an operation by name (e.g., 'add').
-        # If this instance has an implementation for it, it should return that
-        # implementation; if not, it should return a default implementation. The
-        # default implementation should operate on the numerical data and return
-        # the raw result. The user can also request an implementation by
-        # category (e.g., 'comparison'). This will need to treat reverse and
-        # in-place operations as special cases of a corresponding forward
-        # numeric operation. It may also need to parse `name` to determine if it
-        # represents a reverse or in-place operation, but we could also
-        # circumvent that by adding them to `self._implementations`.
-        implementation = self._implementations[key]
-        return Operator(method, implementation)
+    # The user must be able to request an operation by name. If this instance
+    # has an implementation for it, it should return that implementation; if
+    # not, it should return a default implementation. The default implementation
+    # should operate on the numerical data and return the raw result.
+    def find(self, __name: str) -> Context:
+        """Get an appropriate implementation context for the named operator."""
 
-    def register(self, implementation, key: str):
-        """Associate `implementation` with `key`."""
-        # The given key may correspond to an operation or a category. This
-        # should work like `dict.update` in the sense that it either overwrites
-        # an existing implementation or adds a new one. We may want a boolean
-        # keyword argument that toggles overwriting versus raising an exception.
 
 
 _operators = [
