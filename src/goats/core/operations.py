@@ -448,33 +448,23 @@ class Context:
         return self
 
     def interpret(self, *args):
-        """Implement an operation based on argument types.
+        """Create an operation based on argument types.
         
         This method will determine the appropriate operand-update rule, if any,
         for `args`. If there is no rule appropriate to `args`, the corresponding
         operation will not be implemented.
         """
         rule = self.get_rule(*args)
-        reference = self.get_reference(*args)
-        form = self.get_form(*args)
-        return Operation(rule, reference=reference, form=form)
+        return Operation(rule)
 
     def supports(self, *args):
-        """"""
+        """True if this context has an operand-update rule for `args`."""
         return bool(self.get_rule(*args))
 
     def get_rule(self, *args):
-        """"""
+        """Retrieve an update-update rule for `args`, if possible."""
         types = tuple(type(i) for i in args)
         return self.rules.get(types)
-
-    def get_reference(self, *args):
-        """"""
-        return None
-
-    def get_form(self, *args):
-        """"""
-        return None
 
 
 class Unary(Context):
@@ -578,27 +568,31 @@ class Interface:
         self._type = __type
         self.target = target
         """The name of the data-like attribute."""
-        # This should probably be an aliased mapping with keys built from
-        # merging categories and operators (e.g., 'abs', 'pos', etc, and 'unary'
-        # all return the unary implementation).
+        # This should probably be an aliased mapping that associates operators
+        # with categories by default.
         self._implementations = aliased.MutableMapping()
 
-    # The user must be able to request an operation by name. If this instance
-    # has an implementation for it, it should return that implementation; if
-    # not, it should return a default implementation. The default implementation
-    # should operate on the numerical data and return the raw result.
-    def find(self, __name: str):
-        """Get an appropriate implementation context for the named operator."""
+    def implement(self, method, key: str):
+        """Implement an operator with `method`."""
+        # The user must be able to request an operation by name (e.g., 'add').
+        # If this instance has an implementation for it, it should return that
+        # implementation; if not, it should return a default implementation. The
+        # default implementation should operate on the numerical data and return
+        # the raw result. The user can also request an implementation by
+        # category (e.g., 'comparison'). This will need to treat reverse and
+        # in-place operations as special cases of a corresponding forward
+        # numeric operation. It may also need to parse `name` to determine if it
+        # represents a reverse or in-place operation, but we could also
+        # circumvent that by adding them to `self._implementations`.
+        implementation = self._implementations[key]
+        return Operator(method, implementation)
 
-    def implement(self, method, category: str):
-        """Implement `method` as a `category`-type operator."""
-
-    def register(self, implementation, category: str):
-        """Associate `implementation` with `category`."""
-        # This should work like `dict.update` in the sense that it either
-        # overwrites an existing implementation or adds a new one. We may want a
-        # boolean keyword argument that toggles overwriting versus raising an
-        # exception.
+    def register(self, implementation, key: str):
+        """Associate `implementation` with `key`."""
+        # The given key may correspond to an operation or a category. This
+        # should work like `dict.update` in the sense that it either overwrites
+        # an existing implementation or adds a new one. We may want a boolean
+        # keyword argument that toggles overwriting versus raising an exception.
 
 
 _operators = [
