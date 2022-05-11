@@ -36,8 +36,11 @@ class Operand(typing.Generic[T], iterables.ReprStrMixin):
     """A class representing a single operand."""
 
     def __init__(self, __object: T) -> None:
-        self._object = __object
-        self._type = type(__object)
+        self._object = (
+            __object._object if isinstance(__object, type(self))
+            else __object
+        )
+        self._type = type(self._object)
         self._parameters = None
         self._positional = None
         self._keyword = None
