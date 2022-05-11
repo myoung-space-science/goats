@@ -23,7 +23,7 @@ Parameters = typing.Union[str, typing.Collection[str]]
 T = typing.TypeVar('T')
 
 
-def prune(items: typing.Iterable[T]) -> typing.List[T]:
+def unique(items: typing.Iterable[T]) -> typing.List[T]:
     """Remove repeated items while preserving order."""
     collection = []
     for item in items:
@@ -247,7 +247,7 @@ class Rule:
     ) -> None:
         self._types = list(iterables.whole(__types))
         self._ntypes = len(self._types)
-        self.parameters = prune(parameters)
+        self.parameters = unique(parameters)
         """The parameters that this rule affects."""
         self.issuppressed = False
 
