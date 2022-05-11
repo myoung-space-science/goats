@@ -188,10 +188,22 @@ class Result(iterables.ReprStrMixin):
             return args.pop(0)
 
     def __eq__(self, other) -> bool:
-        """True iff two results have equal arguments."""
-        return isinstance(other, Result) and (
-            self.args == other.args and self.kwargs == other.kwargs
-        )
+        """Called for self == other.
+        
+        This method will return ``True`` if any of the following cases is true,
+        and will return ``False`` otherwise:
+
+        - `other` is an instance of this class or a subclass, and all its
+          arguments equal the corresponding arguments of this instance.
+        - this instance has a single argument that is equal to `other`.
+        - `other` is equal to this instance's arguments after converting both to
+          sorted lists.
+        """
+        if isinstance(other, Result):
+            return self.args == other.args and self.kwargs == other.kwargs
+        if len(self.args) == 1 and not self.kwargs:
+            return self.args[0] == other
+        return sorted(self.args) == sorted(other)
 
     def __str__(self) -> str:
         args = ', '.join(str(arg) for arg in self.args)
