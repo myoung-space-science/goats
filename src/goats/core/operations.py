@@ -32,7 +32,7 @@ def prune(items: typing.Iterable[T]) -> typing.List[T]:
     return collection
 
 
-class Operand(typing.Generic[T]):
+class Operand(typing.Generic[T], iterables.ReprStrMixin):
     """A class representing a single operand."""
 
     def __init__(self, __object: T) -> None:
@@ -94,9 +94,19 @@ class Operand(typing.Generic[T]):
         v1 = utilities.getattrval(that, name)
         return v0 == v1
 
+    def __eq__(self, other):
+        """Called for self == other."""
+        return (
+            self._object == other._object if isinstance(other, Operand)
+            else self._object == other
+        )
+
     def __getattr__(self, __name: str):
         """Retrieve an attribute from the underlying object."""
         return getattr(self._object, __name)
+
+    def __str__(self) -> str:
+        return str(self._object)
 
 
 class ComparisonError(TypeError):
