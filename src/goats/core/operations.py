@@ -35,15 +35,18 @@ def prune(items: typing.Iterable[T]) -> typing.List[T]:
 class Operand(typing.Generic[T], iterables.ReprStrMixin):
     """A class representing a single operand."""
 
-    def __init__(self, __object: T) -> None:
-        self._object = (
-            __object._object if isinstance(__object, type(self))
-            else __object
-        )
+    def __init__(self, __object: typing.Union[T, 'Operand']) -> None:
+        self._object = self._init_object(__object)
         self._type = type(self._object)
         self._parameters = None
         self._positional = None
         self._keyword = None
+
+    def _init_object(self, arg) -> T:
+        """Internal initialization helper."""
+        if isinstance(arg, type(self)):
+            return arg._object
+        return arg
 
     @property
     def parameters(self):
