@@ -424,7 +424,7 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
     """One or more algebraic operands."""
 
     def __new__(cls, *operands, **kwargs):
-        """"""
+        """Prevent empty instance."""
         if not operands:
             raise TypeError(
                 f"{cls.__qualname__} requires at least one operand"
@@ -436,18 +436,26 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
         *operands: typing.Any,
         reference=None,
     ) -> None:
-        self._operands = [Operand(o) for o in operands]
+        self._operands = [Operand(operand) for operand in operands]
         self.reference = Operand(reference or operands[0])
         """The reference operand."""
         self._types = None
+        self._args = None
 
     @property
     def types(self):
         """The operand(s) object type(s)."""
         if self._types is None:
-            t = (type(o._object) for o in self._operands)
-            self._types = tuple(t)
+            self._types = tuple(type(arg) for arg in self.args)
         return self._types
+
+    @property
+    def args(self):
+        """The equivalent argument(s)."""
+        if self._args is None:
+            args = (i._object for i in self._operands)
+            self._args = tuple(args)
+        return self._args
 
     def __getitem__(self, __i):
         """Access operands by index."""
@@ -461,23 +469,19 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
         return len(self._operands)
 
     def apply(self, context: Context, **kwargs):
-        """Evaluate these operands withing the given context."""
-        if context.method is None and context.rule is None:
-            return
-        if context.method is None:
-            pairs = zip(self.types, context.rule.types)
-            return all(issubclass(*pair) for pair in pairs)
-        args = [o._object for o in self._operands]
-        if not self.reference.parameters or context.rule is None:
-            return Result(context.method(*args, **kwargs))
-        if not self.reference.supports(*args):
+        """Evaluate these operands within the given context."""
+        if not context.supports(self.types):
             return NotImplemented
+        if not self.reference.parameters or context.rule is None:
+            return Result(context.method(*self.args, **kwargs))
+        if not self.consistent(context.rule):
+            raise OperandTypeError from None
         a = [
-            self._evaluate(name, context, *args, **kwargs)
+            self._evaluate(name, context, *self.args, **kwargs)
             for name in self.reference.positional
         ]
         k = {
-            name: self._evaluate(name, context, *args, **kwargs)
+            name: self._evaluate(name, context, *self.args, **kwargs)
             for name in self.reference.keyword
         }
         return Result(*a, **k)
@@ -492,8 +496,21 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
             else utilities.getattrval(self.reference, name)
         )
 
+    def consistent(self, rule: Rule=None):
+        """True if all operands are inter-operate."""
+        return all(self._isconsistent(i, rule=rule) for i in self)
+
+    def _isconsistent(self, operand: Operand, rule: Rule=None):
+        """True if `operand` inter-operates with the reference operand."""
+        names = set(self.reference.parameters) - set(rule.parameters)
+        return all(
+            hasattr(operand, name)
+            and getattr(operand, name) == getattr(self.reference, name)
+            for name in names
+        )
+
     def __str__(self) -> str:
-        return ', '.join(str(o) for o in self._operands)
+        return ', '.join(str(i) for i in self)
 
 
 class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
