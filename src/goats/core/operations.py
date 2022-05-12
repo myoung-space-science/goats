@@ -402,11 +402,18 @@ class Context:
 
     def __init__(
         self,
-        method: typing.Callable=None,
+        method: typing.Callable,
         rule: Rule=None,
     ) -> None:
         self.method = method
         self.rule = rule
+
+    def supports(self, __types: Types):
+        """True if this context supports the given operand types."""
+        if self.rule is None:
+            return True
+        pairs = zip(__types, self.rule.types)
+        return all(issubclass(*pair) for pair in pairs)
 
 
 class OperandTypeError(Exception):
