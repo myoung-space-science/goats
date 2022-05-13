@@ -85,29 +85,6 @@ class Operand(typing.Generic[T], iterables.ReprStrMixin):
             self._keyword = tuple(names)
         return self._keyword
 
-    def supports(self, *those):
-        """True if `those` are all valid co-operands."""
-        return all(self._supports(that) for that in those)
-
-    def _supports(self, that):
-        """Internal helper for `~supports`."""
-        # if not isinstance(that, self._type):
-        #     return # Indeterminate
-        for name in self.parameters:
-            okay = (
-                hasattr(that, name)
-                and getattr(that, name) == getattr(self, name)
-            )
-            if not okay:
-                # This method needs to ignore updatable parameters.
-                breakpoint()
-        return okay
-        # return all(
-        #     hasattr(that, name)
-        #     and getattr(that, name) == getattr(self, name)
-        #     for name in self.parameters
-        # )
-
     def __eq__(self, other):
         """Called for self == other."""
         return (
