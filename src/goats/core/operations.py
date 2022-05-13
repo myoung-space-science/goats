@@ -12,6 +12,29 @@ from goats.core import metric
 from goats.core import utilities
 
 
+# An operation is the result of applying an operator to operands.
+
+# Operation categories:
+# - cast
+#  - (a: T) -> r: Any
+#  - no reference
+# - unary
+#  - (a: T, **kwargs) -> r: T
+#  - reference is a
+# - comparison
+#  - (a: T, b: T | Any) -> r: Any
+#  - no reference
+# - forward
+#  - (a: T, b: T | Any, **kwargs) -> r: T
+#  - reference is a
+# - reverse
+#  - (a: T | Any, b: T, **kwargs) -> r: T
+#  - reference is b
+# - inplace
+#  - (a: T, b: T | Any, **kwargs) -> a: T
+#  - reference is a
+
+
 Types = typing.TypeVar('Types', type, tuple)
 Types = typing.Union[type, typing.Tuple[type, ...]]
 
@@ -213,17 +236,8 @@ class Suppressed(iterables.Singleton):
         return f"{types}: NotImplemented"
 
 
-# TODO: New `Rule` class:
-# - requires affected parameters
-# - does not require default parameters
-# - computes ignored parameters based on `reference` in `apply`
-# - passes ignored parameters to some version of `validate`, which may be in a
-#   different class (e.g., `measurable.same`)
-# - will require updates to `Rules`
-
-
 class Rule:
-    """"""
+    """A correspondence between operand types and affected parameters."""
 
     def __init__(
         self,
@@ -298,196 +312,10 @@ class Rule:
         self.issuppressed = True
         return self
 
-    # Operations:
-    # - cast
-    #  - (a: T) -> r: Any
-    #  - no reference
-    # - unary
-    #  - (a: T, **kwargs) -> r: T
-    #  - reference is a
-    # - comparison
-    #  - (a: T, b: T | Any) -> r: Any
-    #  - no reference
-    # - forward
-    #  - (a: T, b: T | Any, **kwargs) -> r: T
-    #  - reference is a
-    # - reverse
-    #  - (a: T | Any, b: T, **kwargs) -> r: T
-    #  - reference is b
-    # - inplace
-    #  - (a: T, b: T | Any, **kwargs) -> a: T
-    #  - reference is a
-
-    # NOTES:
-    # - This method proceeds as follows: For each of the target object's
-    #   positional parameters, apply `method` to the corresponding attribute
-    #   of each argument if the parameter is part of this rule; otherwise,
-    #   get the attribute value from the reference object. Next, do the same
-    #   for each of the target object's keyword parameters.
-    # - Cast operations:
-    #  - one positional argument
-    #  - no keyword arguments
-    #  - no reference
-    # - Unary operations:
-    #  - one positional argument
-    #  - possible keyword arguments
-    #  - sole argument is the reference
-    # - Comparison operations:
-    #  - two positional arguments
-    #  - no keyword arguments
-    #  - no reference
-    # - Numeric operations:
-    #  - two positional arguments
-    #  - possible keyword arguments
-    #  - reference is first argument for forward and in-place operations
-    #  - reference is second argument for reverse operations
-
-    # def apply(self, method, *args, reference=None, **kwargs):
-    #     """Call `method` on arguments within the context of this rule."""
-    #     target = Operand(reference or args[0])
-    #     if not target.parameters:
-    #         return Result(method(*args, **kwargs))
-    #     a = []
-    #     k = {}
-    #     for name in target.positional:
-    #         a.append(
-    #             method(
-    #                 *[utilities.getattrval(arg, name) for arg in args],
-    #                 **kwargs
-    #             ) if name in self.parameters
-    #             else utilities.getattrval(reference, name)
-    #         )
-    #     for name in target.keyword:
-    #         k[name] = (
-    #             method(
-    #                 *[utilities.getattrval(arg, name) for arg in args],
-    #                 **kwargs
-    #             ) if name in self.parameters
-    #             else utilities.getattrval(reference, name)
-    #         )
-    #     result = Result(*a, **k)
-    #     return result
-
     def __str__(self) -> str:
         names = [t.__qualname__ for t in self.types]
         types = names[0] if len(names) == 1 else tuple(names)
         return f"{types}: {list(self.parameters)}"
-
-
-class Context:
-    """A general operation context."""
-
-    def __init__(
-        self,
-        method: typing.Callable,
-        rule: Rule=None,
-    ) -> None:
-        self.method = method
-        self.rule = rule
-
-    def supports(self, __types: Types):
-        """True if this context supports the given operand types."""
-        if self.rule is None:
-            return True
-        pairs = zip(__types, self.rule.types)
-        return all(issubclass(*pair) for pair in pairs)
-
-
-class OperandTypeError(Exception):
-    """These operands are incompatible."""
-
-
-class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
-    """One or more algebraic operands."""
-
-    def __new__(cls, *operands, **kwargs):
-        """Prevent empty instance."""
-        if not operands:
-            raise TypeError(
-                f"{cls.__qualname__} requires at least one operand"
-            ) from None
-        return super().__new__(cls)
-
-    def __init__(
-        self,
-        *operands: typing.Any,
-        reference=None,
-    ) -> None:
-        self._operands = [Operand(operand) for operand in operands]
-        self.reference = Operand(reference or operands[0])
-        """The reference operand."""
-        self._types = None
-        self._args = None
-
-    @property
-    def types(self):
-        """The operand(s) object type(s)."""
-        if self._types is None:
-            self._types = tuple(type(arg) for arg in self.args)
-        return self._types
-
-    @property
-    def args(self):
-        """The equivalent argument(s)."""
-        if self._args is None:
-            args = (i._object for i in self._operands)
-            self._args = tuple(args)
-        return self._args
-
-    def __getitem__(self, __i):
-        """Access operands by index."""
-        index = int(__i)
-        if index < 0:
-            index += len(self)
-        return self._operands[index]
-
-    def __len__(self) -> int:
-        """The number of operands. Called for len(self)."""
-        return len(self._operands)
-
-    def apply(self, context: Context, **kwargs):
-        """Evaluate these operands within the given context."""
-        if not context.supports(self.types):
-            return NotImplemented
-        if not self.reference.parameters or context.rule is None:
-            return Result(context.method(*self.args, **kwargs))
-        if not self.consistent(context.rule):
-            raise OperandTypeError from None
-        a = [
-            self._evaluate(name, context, *self.args, **kwargs)
-            for name in self.reference.positional
-        ]
-        k = {
-            name: self._evaluate(name, context, *self.args, **kwargs)
-            for name in self.reference.keyword
-        }
-        return Result(*a, **k)
-
-    def _evaluate(self, name: str, context: Context, *args, **kwargs):
-        """Internal method for evaluating operands."""
-        return (
-            context.method(
-                *[utilities.getattrval(arg, name) for arg in args],
-                **kwargs
-            ) if name in context.rule.parameters
-            else utilities.getattrval(self.reference, name)
-        )
-
-    def consistent(self, rule: Rule=None):
-        """True if all operands are inter-operate."""
-        return all(self._isconsistent(i, rule=rule) for i in self)
-
-    def _isconsistent(self, operand: Operand, rule: Rule=None):
-        """True if `operand` inter-operates with the reference operand."""
-        names = set(self.reference.parameters) - set(rule.parameters)
-        return all(
-            hasattr(operand, name)
-            and getattr(operand, name) == getattr(self.reference, name)
-            for name in names
-        )
-
-    def __str__(self) -> str:
-        return ', '.join(str(i) for i in self)
 
 
 class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
@@ -571,70 +399,160 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
         return Rule(__types, *parameters)
 
 
-# An operation is the result of applying an operator to operands.
-class Operation:
-    """The application of an operator to one or more operand(s)."""
+class Context:
+    """A general operation context."""
 
     def __init__(
         self,
-        rule: Rule,
-        reference: typing.Any=None,
-        form: typing.Any=None,
+        method: typing.Callable,
+        rules: Rules=None,
     ) -> None:
-        self.rule = rule
-        self.reference = reference
-        self.form = form
+        self.method = method
+        self.rules = rules
 
-    def __bool__(self) -> bool:
-        """True if this operation has a defined rule."""
-        return bool(self.rule)
-
-    def apply(self, method: typing.Callable, *args, **kwargs):
-        """Apply `method` to the given arguments."""
-        result = self.rule.apply(
-            method,
-            *args,
-            reference=self.reference,
-            **kwargs
-        )
-        if self.form:
-            return result.format(self.form)
-        return result
-
-
-class XContext:
-    """The context of an operation."""
-
-    def __init__(
-        self,
-        *parameters: str,
-        nargs: int=None,
-    ) -> None:
-        self.rules = Rules(*parameters, nargs=nargs)
-
-    def rule(self, __types: Types, *parameters: str):
-        """Register an operand-update rule for this context."""
-        self.rules.register(__types, *parameters)
-        return self
-
-    def interpret(self, *args):
-        """Create an operation based on argument types.
-        
-        This method will determine the appropriate operand-update rule, if any,
-        for `args`. If there is no rule appropriate to `args`, the corresponding
-        operation will not be implemented.
-        """
-        rule = self.get_rule(*args)
-        return Operation(rule)
+    def rule(self, *args):
+        """Get the rule, if any, for the the given type(s)."""
+        types = (type(arg) for arg in args)
+        return self.rules.get(types)
 
     def supports(self, *args):
-        """True if this context has an operand-update rule for `args`."""
-        return bool(self.get_rule(*args))
+        """True if this context supports the given arguments."""
+        return bool(self.rule(*args))
 
-    def get_rule(self, *args):
-        """Retrieve an update-update rule for `args`, if possible."""
-        types = tuple(type(i) for i in args)
-        return self.rules.get(types)
+
+class OperandTypeError(Exception):
+    """These operands are incompatible."""
+
+
+class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
+    """One or more algebraic operands."""
+
+    def __new__(cls, *operands, **kwargs):
+        """Prevent empty instance."""
+        if not operands:
+            raise TypeError(
+                f"{cls.__qualname__} requires at least one operand"
+            ) from None
+        return super().__new__(cls)
+
+    def __init__(
+        self,
+        *operands: typing.Any,
+        reference=None,
+    ) -> None:
+        self._operands = [Operand(operand) for operand in operands]
+        self.reference = Operand(reference or operands[0])
+        """The reference operand."""
+        self._types = None
+        self._args = None
+
+    @property
+    def types(self):
+        """The operand(s) object type(s)."""
+        if self._types is None:
+            self._types = tuple(type(arg) for arg in self.args)
+        return self._types
+
+    @property
+    def args(self):
+        """The equivalent argument(s)."""
+        if self._args is None:
+            args = (i._object for i in self._operands)
+            self._args = tuple(args)
+        return self._args
+
+    def __getitem__(self, __i):
+        """Access operands by index."""
+        index = int(__i)
+        if index < 0:
+            index += len(self)
+        return self._operands[index]
+
+    def __len__(self) -> int:
+        """The number of operands. Called for len(self)."""
+        return len(self._operands)
+
+    def apply(self, context: Context, **kwargs):
+        """Evaluate these operands within the given context."""
+        if not context.supports(self.types):
+            return NotImplemented
+        rule = context.rule(self.types)
+        if not self.reference.parameters or rule is None:
+            return Result(context.method(*self.args, **kwargs))
+        if not self.consistent(rule):
+            raise OperandTypeError from None
+        a = [
+            self._evaluate(name, context, *self.args, **kwargs)
+            for name in self.reference.positional
+        ]
+        k = {
+            name: self._evaluate(name, context, *self.args, **kwargs)
+            for name in self.reference.keyword
+        }
+        return Result(*a, **k)
+
+    def _evaluate(self, name: str, context: Context, *args, **kwargs):
+        """Internal method for evaluating operands."""
+        rule = context.rule(*args)
+        return (
+            context.method(
+                *[utilities.getattrval(arg, name) for arg in args],
+                **kwargs
+            ) if name in rule.parameters
+            else utilities.getattrval(self.reference, name)
+        )
+
+    def consistent(self, rule: Rule=None):
+        """True if all operands are inter-operate."""
+        return all(self._isconsistent(i, rule=rule) for i in self)
+
+    def _isconsistent(self, operand: Operand, rule: Rule=None):
+        """True if `operand` inter-operates with the reference operand."""
+        names = set(self.reference.parameters) - set(rule.parameters)
+        return all(
+            hasattr(operand, name)
+            and getattr(operand, name) == getattr(self.reference, name)
+            for name in names
+        )
+
+    def __str__(self) -> str:
+        return ', '.join(str(i) for i in self)
+
+
+
+# class XContext:
+#     """The context of an operation."""
+
+#     def __init__(
+#         self,
+#         *parameters: str,
+#         nargs: int=None,
+#     ) -> None:
+#         self.rules = Rules(*parameters, nargs=nargs)
+
+#     def rule(self, __types: Types, *parameters: str):
+#         """Register an operand-update rule for this context."""
+#         self.rules.register(__types, *parameters)
+#         return self
+
+#     def interpret(self, *args):
+#         """Create an operation based on argument types.
+        
+#         This method will determine the appropriate operand-update rule, if any,
+#         for `args`. If there is no rule appropriate to `args`, the corresponding
+#         operation will not be implemented.
+#         """
+#         rule = self.get_rule(*args)
+#         return Operation(rule)
+
+#     def supports(self, *args):
+#         """True if this context has an operand-update rule for `args`."""
+#         return bool(self.get_rule(*args))
+
+#     def get_rule(self, *args):
+#         """Retrieve an update-update rule for `args`, if possible."""
+#         types = tuple(type(i) for i in args)
+#         return self.rules.get(types)
 
 
 # Contexts
@@ -649,32 +567,32 @@ class XContext:
 RT = typing.TypeVar('RT')
 
 
-class Operator:
-    """A generalized numerical operator."""
+# class Operator:
+#     """A generalized numerical operator."""
 
-    def __init__(
-        self,
-        method: typing.Callable,
-        context: Context,
-    ) -> None:
-        self.method = method
-        self.context = context
-        # Context will handle number of operands, return type, etc.
+#     def __init__(
+#         self,
+#         method: typing.Callable,
+#         context: Context,
+#     ) -> None:
+#         self.method = method
+#         self.context = context
+#         # Context will handle number of operands, return type, etc.
 
-    def support(self, __types: Types):
-        """Support operations on the given type(s)."""
-        self.context.rule(__types)
-        return self
+#     def support(self, __types: Types):
+#         """Support operations on the given type(s)."""
+#         self.context.rule(__types)
+#         return self
 
-    def __call__(self, *args, **kwargs):
-        """Evaluate the arguments within the given context."""
-        if not self.context.supports(*args):
-            return NotImplemented
-        operation = self.context.interpret(*args)
-        return operation.apply(self.method, *args, **kwargs)
+#     def __call__(self, *args, **kwargs):
+#         """Evaluate the arguments within the given context."""
+#         if not self.context.supports(*args):
+#             return NotImplemented
+#         operation = self.context.interpret(*args)
+#         return operation.apply(self.method, *args, **kwargs)
 
 
-# Functional implementations:
+# Functional operation implementations:
 
 class OperationError(Exception):
     """Operands are incompatible with operator."""
@@ -684,177 +602,159 @@ AType = typing.TypeVar('AType', bound=type)
 BType = typing.TypeVar('BType', bound=type)
 
 
-def default(method, rule: Rule=None):
-    """Create a default operation."""
-    def wrapper(*args, **kwargs):
-        if not rule:
-            return NotImplemented
-        return method(*args, **kwargs)
-    wrapper.__name__ = f"__{method.__name__}__"
-    wrapper.__doc__ = method.__doc__
-    return wrapper
+# def default(method, rule: Rule=None):
+#     """Create a default operation."""
+#     def wrapper(*args, **kwargs):
+#         if not rule:
+#             return NotImplemented
+#         return method(*args, **kwargs)
+#     wrapper.__name__ = f"__{method.__name__}__"
+#     wrapper.__doc__ = method.__doc__
+#     return wrapper
 
 
-def unary(method, rule: Rule=None) -> AType:
-    """Create a unary arithmetic operation."""
-    def wrapper(a: AType, **kwargs):
-        if not rule:
-            return NotImplemented
-        return rule.apply(method, a, reference=a, **kwargs).format(type(a))
-    wrapper.__name__ = f"__{method.__name__}__"
-    wrapper.__doc__ = method.__doc__
-    return wrapper
+# def unary(method, rule: Rule=None) -> AType:
+#     """Create a unary arithmetic operation."""
+#     def wrapper(a: AType, **kwargs):
+#         if not rule:
+#             return NotImplemented
+#         return rule.apply(method, a, reference=a, **kwargs).format(type(a))
+#     wrapper.__name__ = f"__{method.__name__}__"
+#     wrapper.__doc__ = method.__doc__
+#     return wrapper
 
 
-def cast(method, rule: Rule=None):
-    """Create a unary cast operation."""
-    def wrapper(a: AType):
-        if not rule:
-            return NotImplemented
-        return rule.apply(method, a)
-    wrapper.__name__ = f"__{method.__name__}__"
-    wrapper.__doc__ = method.__doc__
-    return wrapper
+# def cast(method, rule: Rule=None):
+#     """Create a unary cast operation."""
+#     def wrapper(a: AType):
+#         if not rule:
+#             return NotImplemented
+#         return rule.apply(method, a)
+#     wrapper.__name__ = f"__{method.__name__}__"
+#     wrapper.__doc__ = method.__doc__
+#     return wrapper
 
 
-def forward(method, rule: Rule=None):
-    """Create a forward binary arithmetic operation."""
-    def wrapper(a: AType, b: BType, **kwargs):
-        if not rule:
-            return NotImplemented
-        try:
-            result = rule.apply(method, a, b, reference=a, **kwargs)
-        except metric.UnitError as err:
-            raise OperationError(err) from err
-        else:
-            return result.format(type(a))
-    wrapper.__name__ = f"__{method.__name__}__"
-    wrapper.__doc__ = method.__doc__
-    return wrapper
+# def forward(method, rule: Rule=None):
+#     """Create a forward binary arithmetic operation."""
+#     def wrapper(a: AType, b: BType, **kwargs):
+#         if not rule:
+#             return NotImplemented
+#         try:
+#             result = rule.apply(method, a, b, reference=a, **kwargs)
+#         except metric.UnitError as err:
+#             raise OperationError(err) from err
+#         else:
+#             return result.format(type(a))
+#     wrapper.__name__ = f"__{method.__name__}__"
+#     wrapper.__doc__ = method.__doc__
+#     return wrapper
 
 
-def reverse(method, rule: Rule=None):
-    """Create a reversed binary arithmetic operation."""
-    def wrapper(b: BType, a: AType, **kwargs):
-        if not rule:
-            return NotImplemented
-        try:
-            result = rule.apply(method, a, b, reference=b, **kwargs)
-        except metric.UnitError as err:
-            raise OperationError(err) from err
-        else:
-            return result.format(type(b))
-    wrapper.__name__ = f"__r{method.__name__}__"
-    wrapper.__doc__ = method.__doc__
-    return wrapper
+# def reverse(method, rule: Rule=None):
+#     """Create a reversed binary arithmetic operation."""
+#     def wrapper(b: BType, a: AType, **kwargs):
+#         if not rule:
+#             return NotImplemented
+#         try:
+#             result = rule.apply(method, a, b, reference=b, **kwargs)
+#         except metric.UnitError as err:
+#             raise OperationError(err) from err
+#         else:
+#             return result.format(type(b))
+#     wrapper.__name__ = f"__r{method.__name__}__"
+#     wrapper.__doc__ = method.__doc__
+#     return wrapper
 
 
-def inplace(method, rule: Rule=None):
-    """Create an in-place binary arithmetic operation."""
-    def wrapper(a: AType, b: BType, **kwargs):
-        if not rule:
-            return NotImplemented
-        try:
-            result = rule.apply(method, a, b, reference=a, **kwargs)
-        except metric.UnitError as err:
-            raise OperationError(err) from err
-        else:
-            return result.format(a)
-    wrapper.__name__ = f"__i{method.__name__}__"
-    wrapper.__doc__ = method.__doc__
-    return wrapper
+# def inplace(method, rule: Rule=None):
+#     """Create an in-place binary arithmetic operation."""
+#     def wrapper(a: AType, b: BType, **kwargs):
+#         if not rule:
+#             return NotImplemented
+#         try:
+#             result = rule.apply(method, a, b, reference=a, **kwargs)
+#         except metric.UnitError as err:
+#             raise OperationError(err) from err
+#         else:
+#             return result.format(a)
+#     wrapper.__name__ = f"__i{method.__name__}__"
+#     wrapper.__doc__ = method.__doc__
+#     return wrapper
 
 
-def comparison(method, rule: Rule=None):
-    """Create a binary comparison operation."""
-    def wrapper(a: AType, b: BType, **kwargs):
-        if not rule:
-            return NotImplemented
-        return rule.apply(method, a, b, **kwargs)
-    wrapper.__name__ = f"__{method.__name__}__"
-    wrapper.__doc__ = method.__doc__
-    return wrapper
+# def comparison(method, rule: Rule=None):
+#     """Create a binary comparison operation."""
+#     def wrapper(a: AType, b: BType, **kwargs):
+#         if not rule:
+#             return NotImplemented
+#         return rule.apply(method, a, b, **kwargs)
+#     wrapper.__name__ = f"__{method.__name__}__"
+#     wrapper.__doc__ = method.__doc__
+#     return wrapper
+
+
+class Form:
+    def __init__(
+        self,
+        *args,
+        reference=None,
+        returned=None,
+        **kwargs
+    ) -> None:
+        self.operands = Operands(*args, reference=reference)
+        self.returned = returned
+        self.kwargs = kwargs
+
+    def apply(self, context: Context):
+        result = self.operands.apply(context, **self.kwargs)
+        return result.format(self.returned)
+
+    # Is it worth adapting the `Result.format` logic to this class and
+    # simplifying `Result`? That could also simplify the case of
+    # `NotImplemented` return value.
 
 
 class Implementation:
-    """The default operator implementation."""
+    def __init__(self, method, rules=None) -> None:
+        self.context = Context(method, rules)
 
-    def __init__(self, method) -> None:
-        self.method = method
+    def __call__(self, *args, **kwargs):
+        return self.process(Form(*args, **kwargs))
 
-    def operator(self, rule: Rule):
-        """The implemented operator."""
-        # Can `Rule.apply` take care of the `NotImplemented` check?
-        def wrapper(*args, **kwargs):
-            if not rule:
-                return NotImplemented
-            return rule.apply(self.method, *args, **kwargs)
-        return wrapper
+    def process(self, form: Form):
+        return form.apply(self.context)
 
 
 class Unary(Implementation):
-    """"""
-
-    def operator(self, rule: Rule):
-        def wrapper(a: AType, **kwargs):
-            if not rule:
-                return NotImplemented
-            result = rule.apply(self.method, a, reference=a, **kwargs)
-            return result.format(type(a))
-        return wrapper
-
-
-class Cast(Implementation):
-    """"""
-
-    def operator(self, rule: Rule):
-        def wrapper(a: AType):
-            if not rule:
-                return NotImplemented
-            return rule.apply(self.method, a)
-        return wrapper
+    def __call__(self, a, **kwargs):
+        form = Form(a, reference=a, returned=type(a), **kwargs)
+        return self.process(form)
 
 
 class Numeric(Implementation):
-    """"""
-
-    def operator(self, rule: Rule): # add `mode` keyword?
-        def wrapper(a: AType, b: BType, **kwargs):
-            if not rule:
-                return NotImplemented
-            result = rule.apply(self.method, a, b, reference=a, **kwargs)
-            return result.format(type(a))
-        return wrapper
+    def __call__(self, a, b, **kwargs):
+        form = Form(a, b, reference=a, returned=type(a), **kwargs)
+        return self.process(form)
 
 
-IType = typing.TypeVar('IType', bound=typing.Type[Implementation])
+IType = typing.TypeVar('IType', bound=Implementation)
 
 
-class XContext(typing.Generic[IType]):
-    """A general context for operator implementations."""
-
+class Operation(typing.Generic[IType]):
     def __init__(
         self,
-        rules: Rules,
-        definition: typing.Type[Implementation]=None,
+        __category: typing.Type[IType],
+        rules=None,
     ) -> None:
-        self.rules = rules
-        """The operand-update rules for this context."""
-        self._implement = definition or Implementation
+        self._implement = __category
+        self.rules = rules or Rules()
 
     def implement(self, method):
-        """Implement the required operator with this method."""
-        implemented = self._implement(method)
-        return
-
-    def supported(self, *args):
-        """True if this implementation supports these arguments."""
-        return bool(self.get_rule(*args))
-
-    def get_rule(self, *args):
-        """Get the operand-update rule for these arguments."""
-        types = (type(arg) for arg in args)
-        return self.rules.get(types)
+        operator = self._implement(method, self.rules)
+        operator.__name__ = f"__{method.__name__}__"
+        operator.__doc__ = method.__doc__
+        return operator
 
 
 # API:
@@ -889,66 +789,6 @@ class Interface:
         # This should probably be an aliased mapping that associates
         # operators with categories by default.
         self._implementations = None
-        self._unary = None
-        self._cast = None
-        self._comparison = None
-        self._forward = None
-        self._reverse = None
-        self._inplace = None
-
-    @property
-    def unary(self):
-        """The implementation context for unary arithmetic operations."""
-        if self._unary is None:
-            rules = Rules(self.target, nargs=1)
-            rules.register(self._type)
-            self._unary = Context(unary, rules)
-        return self._unary
-
-    @property
-    def cast(self):
-        """The implementation context for unary casting operations."""
-        if self._cast is None:
-            rules = Rules(self.target, nargs=1)
-            rules.register(self._type)
-            self._cast = Context(cast, rules)
-        return self._cast
-
-    @property
-    def comparison(self):
-        """The implementation context for binary comparison operations."""
-        if self._comparison is None:
-            rules = Rules(self.target, nargs=2)
-            rules.register([self._type, self._type])
-            self._comparison = Context(comparison, rules)
-        return self._comparison
-
-    @property
-    def forward(self):
-        """The implementation context for standard numeric operations."""
-        if self._forward is None:
-            rules = Rules(self.target, nargs=2)
-            rules.register([self._type, self._type])
-            self._forward = Context(forward, rules)
-        return self._forward
-
-    @property
-    def reverse(self):
-        """The implementation context for reversed numeric operations."""
-        if self._reverse is None:
-            rules = Rules(self.target, nargs=2)
-            rules.register([self._type, self._type])
-            self._reverse = Context(reverse, rules)
-        return self._reverse
-
-    @property
-    def inplace(self):
-        """The implementation context for in-place numeric operations."""
-        if self._inplace is None:
-            rules = Rules(self.target, nargs=2)
-            rules.register([self._type, self._type])
-            self._inplace = Context(inplace, rules)
-        return self._inplace
 
     _names = [
         'unary',
@@ -977,7 +817,7 @@ class Interface:
         if context := self._implementations.get(__name):
             return context
         rules = Rules(self.target)
-        return Context(default, rules)
+        raise NotImplementedError
 
 
 _operators = [
@@ -992,167 +832,4 @@ _categories = {
     'comparison': ['lt', 'le', 'gt', 'ge', 'eq', 'ne'],
     'numeric': ['add', 'sub', 'mul', 'truediv', 'floordiv', 'pow'],
 }
-
-
-
-# - `Operator` has a `method` and a `context`
-# - `Context` has rules and an `operation`
-# - `Operation` creates an `implementation`, given `method`
-# - `Implementation` applies a rule based on arguments to operator
-
-
-class Operator:
-    def __init__(self, method, rules: Rules) -> None:
-        self._method = method
-        self._rules = rules
-
-    def evaluate(self, *args, reference=None, **kwargs):
-        types = (type(arg) for arg in args)
-        rule = self._rules.get(types)
-        return
-
-
-class Operation:
-    def __init__(self, rules: Rules=None) -> None:
-        # These are what the user will update
-        self.rules = rules or Rules()
-
-    def implement(self, method):
-        # This is not how Context is currently defined
-        context = Context(method, self.rules)
-        # This is the type signature that the user will see
-        def implementation(*args, **kwargs):
-            return method(*args, **kwargs)
-        return implementation
-
-
-class Numeric(Operation):
-    def implement(self, method):
-        context = Context(method, self.rules)
-        def implementation(a, b, **kwargs):
-            result = Operands(a, b, reference=a).apply(context, **kwargs)
-            return result.format(type(a))
-        return implementation
-
-
-class Something: # I'm running out of names...
-    """"""
-
-    def __init__(self, method, rules: Rules) -> None:
-        self.method = method
-        self.rules = rules
-        self.operator = Operator(method, rules)
-
-    @property
-    def implementation(self):
-        """"""
-        def implementation(a, b, **kwargs):
-            operands = Operands(a, b, reference=a)
-            # operator = Operator(self.method, self.rules, result=type(a))
-            # return Operation(operands, result=type(a), **kwargs)
-            # return operands.apply(context, **kwargs)
-            return self.operator.evaluate(operands, result=t)
-        return implementation
-
-
-class Implementer:
-    def implement(self, method):
-        # return
-        # return self.operation(self.implementation, method)
-        # return Operator(method, self.rules, self.implementation)
-        # return self.operation(method)
-        # DEFAULT
-        # def implementation(*args, **kwargs):
-        #     return method(*args, **kwargs)
-        # return implementation
-        # NUMERIC
-        def implementation(a, b, **kwargs):
-            operands = Operands(a, b, reference=a)
-            # return Operation(a, b, **kwargs, reference=a, result=type(a))
-            # result = method(a, b, **kwargs)
-            return Operation(operands, result=type(a), **kwargs)
-        return implementation
-
-    @property
-    def implementation(self):
-        """"""
-        def implementation(a, b, **kwargs):
-            operands = Operands(a, b, reference=a)
-            # operator = Operator(self.method, self.rules, result=type(a))
-            return Operation(operands, result=type(a), **kwargs)
-        return implementation
-
-    def operation(self, method):
-        def wrapper(self, implementation):
-            return
-        return 
-
-
-# What I hacked out in `operations_idea*.py`:
-
-class Form:
-    def __init__(
-        self,
-        *args,
-        reference=None,
-        returned=None,
-        **kwargs
-    ) -> None:
-        self.args = args
-        self.reference = reference
-        self.returned = returned
-        self.kwargs = kwargs
-
-    def apply(self, context: Context):
-        # Notes:
-        # - context provides the method and rules
-        # Steps:
-        # - check rules
-        # - apply `operations.Operand.apply` logic
-        # - return the result of the operation
-        return
-
-
-class Implementation:
-    def __init__(self, method, rules=None) -> None:
-        self.context = Context(method, rules)
-
-    def __call__(self, *args, **kwargs):
-        return self.process(Form(*args, **kwargs))
-
-    def process(self, form: Form):
-        return form.apply(self.context)
-
-
-class Unary(Implementation):
-    def __call__(self, a, **kwargs):
-        form = Form(a, reference=a, returned=type(a), **kwargs)
-        return self.process(form)
-
-
-class Numeric(Implementation):
-    def __call__(self, a, b, **kwargs):
-        form = Form(a, b, reference=a, returned=type(a), **kwargs)
-        return self.process(form)
-
-
-T = typing.TypeVar('T', bound=Implementation)
-
-
-
-class Operation(typing.Generic[T]):
-    def __init__(
-        self,
-        __category: typing.Type[T],
-        rules=None,
-    ) -> None:
-        self.implement = __category
-        self.rules = rules
-
-    def apply(self, method):
-        operator = self.implement(method, self.rules)
-        operator.__name__ = f"__{method.__name__}__"
-        operator.__doc__ = method.__doc__
-        return operator
-
 
