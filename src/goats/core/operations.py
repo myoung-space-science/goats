@@ -594,49 +594,6 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
         return Rule(__types, *parameters)
 
 
-# # - `Operator` has a `method` and a `context`
-# # - `Context` has rules and an `operation`
-# # - `Operation` creates an `implementation`, given `method`
-# # - `Implementation` applies a rule based on arguments to operator
-
-
-# class Operator:
-#     def __init__(self, method, rules: Rules) -> None:
-#         self._method = method
-#         self._rules = rules
-
-#     def evaluate(self, *args, reference=None, **kwargs):
-#         types = (type(arg) for arg in args)
-#         rule = self._rules.get(types)
-#         return
-
-
-# class Operation:
-#     def __init__(self, rules: Rules=None) -> None:
-#         # These are what the user will update
-#         self.rules = rules or Rules()
-
-#     def implement(self, method):
-#         operator = Operator(method, self.rules)
-#         # This is the type signature that the user will see
-#         def implementation(*args, **kwargs):
-#             # return operator.evaluate(*args, **kwargs)
-#             return method(*args, **kwargs)
-#         return implementation
-
-
-# class Numeric(Operation):
-#     def implement(self, method):
-#         def implementation(a, b, **kwargs):
-#             # Compute `method(a, b) -> r` with `a` as reference
-#             # Format `r -> type(a)`
-#             return # `r`
-#         return implementation
-
-
-
-
-
 # An operation is the result of applying an operator to operands.
 class Operation:
     """The application of an operator to one or more operand(s)."""
@@ -1058,3 +1015,167 @@ _categories = {
     'comparison': ['lt', 'le', 'gt', 'ge', 'eq', 'ne'],
     'numeric': ['add', 'sub', 'mul', 'truediv', 'floordiv', 'pow'],
 }
+
+
+
+# - `Operator` has a `method` and a `context`
+# - `Context` has rules and an `operation`
+# - `Operation` creates an `implementation`, given `method`
+# - `Implementation` applies a rule based on arguments to operator
+
+
+class Operator:
+    def __init__(self, method, rules: Rules) -> None:
+        self._method = method
+        self._rules = rules
+
+    def evaluate(self, *args, reference=None, **kwargs):
+        types = (type(arg) for arg in args)
+        rule = self._rules.get(types)
+        return
+
+
+class Operation:
+    def __init__(self, rules: Rules=None) -> None:
+        # These are what the user will update
+        self.rules = rules or Rules()
+
+    def implement(self, method):
+        # This is not how Context is currently defined
+        context = Context(method, self.rules)
+        # This is the type signature that the user will see
+        def implementation(*args, **kwargs):
+            return method(*args, **kwargs)
+        return implementation
+
+
+class Numeric(Operation):
+    def implement(self, method):
+        context = Context(method, self.rules)
+        def implementation(a, b, **kwargs):
+            result = Operands(a, b, reference=a).apply(context, **kwargs)
+            return result.format(type(a))
+        return implementation
+
+
+class Something: # I'm running out of names...
+    """"""
+
+    def __init__(self, method, rules: Rules) -> None:
+        self.method = method
+        self.rules = rules
+        self.operator = Operator(method, rules)
+
+    @property
+    def implementation(self):
+        """"""
+        def implementation(a, b, **kwargs):
+            operands = Operands(a, b, reference=a)
+            # operator = Operator(self.method, self.rules, result=type(a))
+            # return Operation(operands, result=type(a), **kwargs)
+            # return operands.apply(context, **kwargs)
+            return self.operator.evaluate(operands, result=t)
+        return implementation
+
+
+class Implementer:
+    def implement(self, method):
+        # return
+        # return self.operation(self.implementation, method)
+        # return Operator(method, self.rules, self.implementation)
+        # return self.operation(method)
+        # DEFAULT
+        # def implementation(*args, **kwargs):
+        #     return method(*args, **kwargs)
+        # return implementation
+        # NUMERIC
+        def implementation(a, b, **kwargs):
+            operands = Operands(a, b, reference=a)
+            # return Operation(a, b, **kwargs, reference=a, result=type(a))
+            # result = method(a, b, **kwargs)
+            return Operation(operands, result=type(a), **kwargs)
+        return implementation
+
+    @property
+    def implementation(self):
+        """"""
+        def implementation(a, b, **kwargs):
+            operands = Operands(a, b, reference=a)
+            # operator = Operator(self.method, self.rules, result=type(a))
+            return Operation(operands, result=type(a), **kwargs)
+        return implementation
+
+    def operation(self, method):
+        def wrapper(self, implementation):
+            return
+        return 
+
+
+# What I hacked out in `operations_idea*.py`:
+
+class Form:
+    def __init__(
+        self,
+        *args,
+        reference=None,
+        returned=None,
+        **kwargs
+    ) -> None:
+        self.args = args
+        self.reference = reference
+        self.returned = returned
+        self.kwargs = kwargs
+
+    def apply(self, context: Context):
+        # Notes:
+        # - context provides the method and rules
+        # Steps:
+        # - check rules
+        # - apply `operations.Operand.apply` logic
+        # - return the result of the operation
+        return
+
+
+class Implementation:
+    def __init__(self, method, rules=None) -> None:
+        self.context = Context(method, rules)
+
+    def __call__(self, *args, **kwargs):
+        return self.process(Form(*args, **kwargs))
+
+    def process(self, form: Form):
+        return form.apply(self.context)
+
+
+class Unary(Implementation):
+    def __call__(self, a, **kwargs):
+        form = Form(a, reference=a, returned=type(a), **kwargs)
+        return self.process(form)
+
+
+class Numeric(Implementation):
+    def __call__(self, a, b, **kwargs):
+        form = Form(a, b, reference=a, returned=type(a), **kwargs)
+        return self.process(form)
+
+
+T = typing.TypeVar('T', bound=Implementation)
+
+
+
+class Operation(typing.Generic[T]):
+    def __init__(
+        self,
+        __category: typing.Type[T],
+        rules=None,
+    ) -> None:
+        self.implement = __category
+        self.rules = rules
+
+    def apply(self, method):
+        operator = self.implement(method, self.rules)
+        operator.__name__ = f"__{method.__name__}__"
+        operator.__doc__ = method.__doc__
+        return operator
+
+
