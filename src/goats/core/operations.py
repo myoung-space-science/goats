@@ -560,15 +560,13 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
 
 
 class Implementation:
+    """Base class for operation implementations."""
     def __init__(self, method, rules=None) -> None:
         self.method = method
         self.rules = rules
 
-    def __call__(self, *args, **kwargs):
-        operands = Operands(*args)
-        return self.process(operands, **kwargs)
-
-    def process(self, operands: Operands, **kwargs):
+    def __call__(self, operands: Operands, **kwargs):
+        """Compute the result of the operation."""
         operation = Operation(self.method, rules=self.rules, **kwargs)
         return operands.apply(operation)
 
@@ -576,25 +574,25 @@ class Implementation:
 class Cast(Implementation):
     def __call__(self, a):
         operands = Operands(a)
-        return self.process(operands)
+        return super().__call__(operands)
 
 
 class Unary(Implementation):
     def __call__(self, a, **kwargs):
         operands = Operands(a, reference=a)
-        return self.process(operands, result=type(a), **kwargs)
+        return super().__call__(operands, result=type(a), **kwargs)
 
 
 class Comparison(Implementation):
     def __call__(self, a, b):
         operands = Operands(a, b)
-        return self.process(operands)
+        return super().__call__(operands)
 
 
 class Numeric(Implementation):
     def __call__(self, a, b, **kwargs):
         operands = Operands(a, b, reference=a)
-        return self.process(operands, result=type(a), **kwargs)
+        return super().__call__(operands, result=type(a), **kwargs)
 
 
 IType = typing.TypeVar('IType', bound=Implementation)
