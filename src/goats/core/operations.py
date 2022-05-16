@@ -14,7 +14,7 @@ from goats.core import utilities
 
 # An operation is the result of applying an operator to operands.
 
-# Operation categories:
+# Categories:
 # - cast
 #  - (a: T) -> r: Any
 #  - no reference
@@ -55,12 +55,20 @@ def unique(items: typing.Iterable[T]) -> typing.List[T]:
     return collection
 
 
-class Operand(typing.Generic[T], iterables.ReprStrMixin):
-    """A class representing a single operand."""
+def get_parameters(__type: type):
+    """Determine the initialization parameters of this type, if possible."""
+    return (
+        {} if __type.__module__ == 'builtins'
+        else inspect.signature(__type).parameters
+    )
 
-    def __init__(self, __object: typing.Union[T, 'Operand']) -> None:
+class Object(typing.Generic[T], iterables.ReprStrMixin):
+    """A wrapper around a single object."""
+
+    def __init__(self, __object: typing.Union[T, 'Object']) -> None:
         self._object = self._init_object(__object)
         self._type = type(self._object)
+        self.isbuiltin = self._type.__module__ == 'builtins'
         self._parameters = None
         self._positional = None
         self._keyword = None
@@ -76,7 +84,7 @@ class Operand(typing.Generic[T], iterables.ReprStrMixin):
         """All parameters used to initialize this operand."""
         if self._parameters is None:
             self._parameters = (
-                {} if self._type.__module__ == 'builtins'
+                {} if self.isbuiltin
                 else inspect.signature(self._type).parameters
             )
         return self._parameters
@@ -111,7 +119,7 @@ class Operand(typing.Generic[T], iterables.ReprStrMixin):
     def __eq__(self, other):
         """Called for self == other."""
         return (
-            self._object == other._object if isinstance(other, Operand)
+            self._object == other._object if isinstance(other, Object)
             else self._object == other
         )
 
@@ -134,69 +142,45 @@ class ComparisonError(TypeError):
         return f"Can't compare {self.this!r} to {self.that!r}"
 
 
+def arg_or_kwarg(args: list, kwargs: dict, name: str):
+    """Get the value of a positional or keyword argument, if possible.
+    
+    This checks for the presence of `name` in `kwargs` rather than calling
+    `kwargs.get(name)` in order to avoid prematurely returning `None` before
+    trying to retrieve a value from `args`.
+    """
+    if name in kwargs:
+        return kwargs[name]
+    with contextlib.suppress(IndexError):
+        return args.pop(0)
+
+
 class Result(iterables.ReprStrMixin):
-    """The result of applying a rule to an operation."""
+    """The arguments returned by an operation."""
 
     def __init__(self, *args, **kwargs) -> None:
         self.args = list(args)
         self.kwargs = kwargs
 
-    def format(self, form):
-        """Convert this result into the appropriate object.
-        
-        Parameters
-        ----------
-        form : Any
-            The final form that will contain this result's data. See Returns for
-            details of how the type of `form` affects the result of this method.
-
-        Returns
-        -------
-        Any
-            If `form` is a ``type``, this method will return a new instance of
-            that type, initialized with this result's data. If `form` is an
-            instance of some type, this method will return the updated instance.
-        """
-        if isinstance(form, type):
-            parameters = inspect.signature(form).parameters
-            args, kwargs = self._get_args_kwargs(parameters)
-            return form(*args, **kwargs)
-        parameters = inspect.signature(type(form)).parameters
-        args, kwargs = self._get_args_kwargs(parameters)
-        for name in parameters:
-            value = self._arg_or_kwarg(args, kwargs, name)
-            utilities.setattrval(form, name, value)
-        return form
-
-    def _get_args_kwargs(self, signature: inspect.Signature):
+    def get_values(self, parameters: typing.Mapping[str, inspect.Parameter]):
         """Extract appropriate argument values.
         
         This method will attempt to build appropriate positional and keyword
-        arguments from this result, based on the parameters in `signature`.
+        arguments from this result, based on the given object signature.
         """
+        if not parameters:
+            return tuple(self.args), self.kwargs
         args = []
         kwargs = {}
-        for name, parameter in signature.parameters.items():
+        for name, parameter in parameters.items():
             kind = parameter.kind
             if kind is inspect.Parameter.POSITIONAL_ONLY:
                 args.append(self.args.pop(0))
             elif kind is inspect.Parameter.POSITIONAL_OR_KEYWORD:
-                args.append(self._arg_or_kwarg(args, kwargs, name))
+                args.append(arg_or_kwarg(args, kwargs, name))
             elif kind is inspect.Parameter.KEYWORD_ONLY:
                 kwargs[name] = self.kwargs.get(name)
         return tuple(args), kwargs
-
-    def _arg_or_kwarg(self, args: list, kwargs: dict, name: str):
-        """Get the value of a positional or keyword argument, if possible.
-        
-        This checks for the presence of `name` in `kwargs` rather than calling
-        `kwargs.get(name)` in order to avoid prematurely returning `None` before
-        trying to retrieve a value from `args`.
-        """
-        if name in kwargs:
-            return kwargs[name]
-        with contextlib.suppress(IndexError):
-            return args.pop(0)
 
     def __eq__(self, other) -> bool:
         """Called for self == other.
@@ -398,17 +382,25 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
         parameters = self.mapping.get(__types, self.default.copy())
         return Rule(__types, *parameters)
 
+    def get(self, key: Types, default: Rule=None):
+        """Like ``~typing.Mapping.get``, with a modified default value."""
+        return super().get(key, default or Rule(key))
 
-class Context:
+
+class Operation:
     """A general operation context."""
 
     def __init__(
         self,
-        method: typing.Callable,
+        method: typing.Callable[..., T],
         rules: Rules=None,
+        result: typing.Union[T, typing.Type[T]]=None,
+        **kwargs
     ) -> None:
         self.method = method
         self.rules = rules
+        self.result = result
+        self.kwargs = kwargs
 
     def rule(self, *args):
         """Get the rule, if any, for the the given type(s)."""
@@ -416,8 +408,52 @@ class Context:
         return self.rules.get(types)
 
     def supports(self, *args):
-        """True if this context supports the given arguments."""
+        """True if this operation supports the given arguments."""
         return bool(self.rule(*args))
+
+    # Developmental idea. Not in use.
+    def evaluate(self, name: str, *args, reference=None):
+        """Evaluating operands within the context of this operation."""
+        rule = self.rule(*args)
+        return (
+            self.method(
+                *[utilities.getattrval(arg, name) for arg in args],
+                **self.kwargs
+            ) if name in rule.parameters
+            else utilities.getattrval(reference, name)
+        )
+
+    def format(self, *args, **kwargs) -> T:
+        """Convert the result of an operation into the appropriate object.
+        
+        If `self.result` is a ``type``, this method will return a new instance
+        of that type, initialized with the given arguments. If `self.result` is
+        an instance of some type, this method will return the instance after
+        updating it based on the given arguments.
+
+        Parameters
+        ----------
+        *args
+            The positional arguments used to create the new object.
+
+        **kwargs
+            The keyword arguments used to create the new object.
+
+        Returns
+        -------
+        Any
+        """
+        reference = Object(self.result)
+        if not kwargs and len(args) == 1 and args[0] is NotImplemented:
+            return args[0]
+        result = Result(*args, **kwargs)
+        pos, kwd = result.get_values(reference.parameters)
+        if isinstance(self.result, type):
+            return self.result(*pos, **kwd)
+        for name in reference.parameters:
+            value = arg_or_kwarg(pos, kwd, name)
+            utilities.setattrval(self.result, name, value)
+        return self.result
 
 
 class OperandTypeError(Exception):
@@ -440,8 +476,8 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
         *operands: typing.Any,
         reference=None,
     ) -> None:
-        self._operands = [Operand(operand) for operand in operands]
-        self.reference = Operand(reference or operands[0])
+        self._operands = [Object(operand) for operand in operands]
+        self.reference = Object(reference or operands[0])
         """The reference operand."""
         self._types = None
         self._args = None
@@ -472,41 +508,45 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
         """The number of operands. Called for len(self)."""
         return len(self._operands)
 
-    def apply(self, context: Context, **kwargs):
-        """Evaluate these operands within the given context."""
-        if not context.supports(self.types):
+    def apply(self, operation: Operation):
+        """Evaluate these operands under the given operation."""
+        if not operation.supports(self.types):
             return NotImplemented
-        rule = context.rule(self.types)
-        if not self.reference.parameters or rule is None:
-            return Result(context.method(*self.args, **kwargs))
+        rule = operation.rule(self.types)
         if not self.consistent(rule):
             raise OperandTypeError from None
+        if (
+            not self.reference.parameters
+            or rule is None # will this ever happen?
+            or operation.result is None
+        ): return operation.method(*self.args, **operation.kwargs)
         a = [
-            self._evaluate(name, context, *self.args, **kwargs)
+            self._evaluate(name, operation)
             for name in self.reference.positional
         ]
         k = {
-            name: self._evaluate(name, context, *self.args, **kwargs)
+            name: self._evaluate(name, operation)
             for name in self.reference.keyword
         }
-        return Result(*a, **k)
+        return operation.format(Result(*a, **k))
 
-    def _evaluate(self, name: str, context: Context, *args, **kwargs):
+    def _evaluate(self, name: str, operation: Operation):
         """Internal method for evaluating operands."""
-        rule = context.rule(*args)
+        rule = operation.rule(*self.args)
         return (
-            context.method(
-                *[utilities.getattrval(arg, name) for arg in args],
-                **kwargs
+            operation.method(
+                *[utilities.getattrval(arg, name) for arg in self.args],
+                **operation.kwargs
             ) if name in rule.parameters
             else utilities.getattrval(self.reference, name)
         )
 
     def consistent(self, rule: Rule=None):
-        """True if all operands are inter-operate."""
+        """True if all operands are inter-operate under `rule`."""
+        rule = rule or Rule()
         return all(self._isconsistent(i, rule=rule) for i in self)
 
-    def _isconsistent(self, operand: Operand, rule: Rule=None):
+    def _isconsistent(self, operand: Object, rule: Rule):
         """True if `operand` inter-operates with the reference operand."""
         names = set(self.reference.parameters) - set(rule.parameters)
         return all(
@@ -518,6 +558,141 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
     def __str__(self) -> str:
         return ', '.join(str(i) for i in self)
 
+
+class Implementation:
+    def __init__(self, method, rules=None) -> None:
+        self.method = method
+        self.rules = rules
+
+    def __call__(self, *args, **kwargs):
+        operands = Operands(*args)
+        return self.process(operands, **kwargs)
+
+    def process(self, operands: Operands, **kwargs):
+        operation = Operation(self.method, rules=self.rules, **kwargs)
+        return operands.apply(operation)
+
+
+class Cast(Implementation):
+    def __call__(self, a):
+        operands = Operands(a)
+        return self.process(operands)
+
+
+class Unary(Implementation):
+    def __call__(self, a, **kwargs):
+        operands = Operands(a, reference=a)
+        return self.process(operands, result=type(a), **kwargs)
+
+
+class Comparison(Implementation):
+    def __call__(self, a, b):
+        operands = Operands(a, b)
+        return self.process(operands)
+
+
+class Numeric(Implementation):
+    def __call__(self, a, b, **kwargs):
+        operands = Operands(a, b, reference=a)
+        return self.process(operands, result=type(a), **kwargs)
+
+
+IType = typing.TypeVar('IType', bound=Implementation)
+
+
+class Application(typing.Generic[IType]):
+    """The general application of an operation."""
+
+    def __init__(
+        self,
+        __category: typing.Type[IType],
+        rules=None,
+    ) -> None:
+        self._implement = __category
+        self.rules = rules or Rules()
+
+    def implement(self, method):
+        operator = self._implement(method, self.rules)
+        operator.__name__ = f"__{method.__name__}__"
+        operator.__doc__ = method.__doc__
+        return operator
+
+
+# API:
+# - user provides an operation name or alias
+# - interface returns the appropriate operation context, which may be the
+#   default context
+# - user modifies operand rules, if necessary
+# - user implements the operator by providing a method
+# - the operator checks input arguments against operand rules; if there is no
+#   rule for the given argument types, the operator returns `NotImplemented`
+# - the default context simply passes all arguments to the given method
+#
+# NOTES:
+# - I would really like non-default operators to have a type signature more
+#   specific than `(*args, **kwargs) -> Any`
+# - does the interface need to know about the type of object or can that be
+#   optional?
+
+
+class Interface:
+    """"""
+
+    # The user provides the name of the attribute that contains numerical data.
+    # If absent, operations will treat (the) entire input argument(s) as the
+    # numerical data. This behavior will support for subclasses of
+    # `numbers.Number`. The user can add affected attributes for specific
+    # operators. The `Rules` class may need to change in order to accommodate.
+    def __init__(self, __type: type, target: str=None) -> None:
+        self._type = __type
+        self.target = target
+        """The name of the data-like attribute."""
+        # This should probably be an aliased mapping that associates
+        # operators with categories by default.
+        self._implementations = None
+
+    _names = [
+        'unary',
+        'cast',
+        'comparison',
+        'forward',
+        'reverse',
+        'inplace',
+    ]
+
+    @property
+    def implementations(self):
+        """All available implementation contexts."""
+        if self._implementations is None:
+            self._implementations = aliased.MutableMapping()
+        contexts = {name: getattr(self, name) for name in self._names}
+        self._implementations.update(contexts)
+        return self._implementations
+
+    # The user must be able to request an operation by name. If this instance
+    # has an implementation for it, it should return that implementation; if
+    # not, it should return a default implementation. The default implementation
+    # should operate on the numerical data and return the raw result.
+    def find(self, __name: str) -> Operation:
+        """Get an appropriate implementation context for the named operator."""
+        if operation := self._implementations.get(__name):
+            return operation
+        rules = Rules(self.target)
+        raise NotImplementedError
+
+
+_operators = [
+    ('add', '__add__', 'addition'),
+    ('sub', '__sub__', 'subtraction'),
+]
+
+
+_categories = {
+    'unary': ['abs', 'pos', 'neg', 'trunc', 'round', 'ceil', 'floor'],
+    'cast': ['int', 'float', 'complex'],
+    'comparison': ['lt', 'le', 'gt', 'ge', 'eq', 'ne'],
+    'numeric': ['add', 'sub', 'mul', 'truediv', 'floordiv', 'pow'],
+}
 
 
 # class XContext:
@@ -543,7 +718,7 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
 #         operation will not be implemented.
 #         """
 #         rule = self.get_rule(*args)
-#         return Operation(rule)
+#         return Context(rule)
 
 #     def supports(self, *args):
 #         """True if this context has an operand-update rule for `args`."""
@@ -573,11 +748,11 @@ RT = typing.TypeVar('RT')
 #     def __init__(
 #         self,
 #         method: typing.Callable,
-#         context: Context,
+#         context: Operation,
 #     ) -> None:
 #         self.method = method
 #         self.context = context
-#         # Context will handle number of operands, return type, etc.
+#         # Operation will handle number of operands, return type, etc.
 
 #     def support(self, __types: Types):
 #         """Support operations on the given type(s)."""
@@ -592,14 +767,7 @@ RT = typing.TypeVar('RT')
 #         return operation.apply(self.method, *args, **kwargs)
 
 
-# Functional operation implementations:
-
-class OperationError(Exception):
-    """Operands are incompatible with operator."""
-
-
-AType = typing.TypeVar('AType', bound=type)
-BType = typing.TypeVar('BType', bound=type)
+# # Functional operation implementations:
 
 
 # def default(method, rule: Rule=None):
@@ -693,143 +861,4 @@ BType = typing.TypeVar('BType', bound=type)
 #     wrapper.__doc__ = method.__doc__
 #     return wrapper
 
-
-class Form:
-    def __init__(
-        self,
-        *args,
-        reference=None,
-        returned=None,
-        **kwargs
-    ) -> None:
-        self.operands = Operands(*args, reference=reference)
-        self.returned = returned
-        self.kwargs = kwargs
-
-    def apply(self, context: Context):
-        result = self.operands.apply(context, **self.kwargs)
-        return result.format(self.returned)
-
-    # Is it worth adapting the `Result.format` logic to this class and
-    # simplifying `Result`? That could also simplify the case of
-    # `NotImplemented` return value.
-
-
-class Implementation:
-    def __init__(self, method, rules=None) -> None:
-        self.context = Context(method, rules)
-
-    def __call__(self, *args, **kwargs):
-        return self.process(Form(*args, **kwargs))
-
-    def process(self, form: Form):
-        return form.apply(self.context)
-
-
-class Unary(Implementation):
-    def __call__(self, a, **kwargs):
-        form = Form(a, reference=a, returned=type(a), **kwargs)
-        return self.process(form)
-
-
-class Numeric(Implementation):
-    def __call__(self, a, b, **kwargs):
-        form = Form(a, b, reference=a, returned=type(a), **kwargs)
-        return self.process(form)
-
-
-IType = typing.TypeVar('IType', bound=Implementation)
-
-
-class Operation(typing.Generic[IType]):
-    def __init__(
-        self,
-        __category: typing.Type[IType],
-        rules=None,
-    ) -> None:
-        self._implement = __category
-        self.rules = rules or Rules()
-
-    def implement(self, method):
-        operator = self._implement(method, self.rules)
-        operator.__name__ = f"__{method.__name__}__"
-        operator.__doc__ = method.__doc__
-        return operator
-
-
-# API:
-# - user provides an operation name or alias
-# - interface returns the appropriate operation context, which may be the
-#   default context
-# - user modifies operand rules, if necessary
-# - user implements the operator by providing a method
-# - the operator checks input arguments against operand rules; if there is no
-#   rule for the given argument types, the operator returns `NotImplemented`
-# - the default context simply passes all arguments to the given method
-#
-# NOTES:
-# - I would really like non-default operators to have a type signature more
-#   specific than `(*args, **kwargs) -> Any`
-# - does the interface need to know about the type of object or can that be
-#   optional?
-
-
-class Interface:
-    """"""
-
-    # The user provides the name of the attribute that contains numerical data.
-    # If absent, operations will treat (the) entire input argument(s) as the
-    # numerical data. This behavior will support for subclasses of
-    # `numbers.Number`. The user can add affected attributes for specific
-    # operators. The `Rules` class may need to change in order to accommodate.
-    def __init__(self, __type: type, target: str=None) -> None:
-        self._type = __type
-        self.target = target
-        """The name of the data-like attribute."""
-        # This should probably be an aliased mapping that associates
-        # operators with categories by default.
-        self._implementations = None
-
-    _names = [
-        'unary',
-        'cast',
-        'comparison',
-        'forward',
-        'reverse',
-        'inplace',
-    ]
-
-    @property
-    def implementations(self):
-        """All available implementation contexts."""
-        if self._implementations is None:
-            self._implementations = aliased.MutableMapping()
-        contexts = {name: getattr(self, name) for name in self._names}
-        self._implementations.update(contexts)
-        return self._implementations
-
-    # The user must be able to request an operation by name. If this instance
-    # has an implementation for it, it should return that implementation; if
-    # not, it should return a default implementation. The default implementation
-    # should operate on the numerical data and return the raw result.
-    def find(self, __name: str) -> Context:
-        """Get an appropriate implementation context for the named operator."""
-        if context := self._implementations.get(__name):
-            return context
-        rules = Rules(self.target)
-        raise NotImplementedError
-
-
-_operators = [
-    ('add', '__add__', 'addition'),
-    ('sub', '__sub__', 'subtraction'),
-]
-
-
-_categories = {
-    'unary': ['abs', 'pos', 'neg', 'trunc', 'round', 'ceil', 'floor'],
-    'cast': ['int', 'float', 'complex'],
-    'comparison': ['lt', 'le', 'gt', 'ge', 'eq', 'ne'],
-    'numeric': ['add', 'sub', 'mul', 'truediv', 'floordiv', 'pow'],
-}
 
