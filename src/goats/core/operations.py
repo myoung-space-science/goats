@@ -695,11 +695,15 @@ class Operation:
 
 
 class Implementation:
-    """Base class for operation implementations."""
+    """The default operation implementation."""
     def __init__(self, method, rules=None) -> None:
         self.operator = Operator(method, rules or Rules())
 
-    def __call__(self, *args, reference=None, **kwargs):
+    def __call__(self, *args, **kwargs):
+        """Apply this operation to the given arguments."""
+        return self._compute(*args, **kwargs)
+
+    def _compute(self, *args, reference=None, **kwargs):
         """Compute the result of the operation."""
         operands = Operands(*args, reference=reference)
         if not self.operator.supports(operands):
@@ -708,22 +712,30 @@ class Implementation:
 
 
 class Cast(Implementation):
+    """An implementation of a type-casting operator."""
     def __call__(self, a):
+        """Convert `a` to the appopriate type."""
         return super().__call__(a)
 
 
 class Unary(Implementation):
+    """An implementation of a unary arithmetic operator."""
     def __call__(self, a, **kwargs):
+        """Operate on `a` and return an object of the same type."""
         return super().__call__(a, out=type(a), **kwargs)
 
 
 class Comparison(Implementation):
+    """An implementation of a binary comparison operator."""
     def __call__(self, a, b):
+        """Compare `a` to `b` and return the unmodified result."""
         return super().__call__(a, b)
 
 
 class Numeric(Implementation):
+    """An implementation of a forward binary numeric operator."""
     def __call__(self, a, b, **kwargs):
+        """Operate on `a` and `b` and return an object of `a`'s type."""
         return super().__call__(a, b, reference=a, out=type(a), **kwargs)
 
 
