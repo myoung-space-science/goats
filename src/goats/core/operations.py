@@ -561,34 +561,41 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
         return ', '.join(str(i) for i in self)
 
 
-class Context:
-    """The context of an algebraic operation."""
+class Application:
+    """The application of an arithmetic operation."""
 
     def __init__(
         self,
-        rules: Rules,
+        method: typing.Callable[..., T],
+        rule: Rule,
+        reference: Object[T],
         result: typing.Union[T, typing.Type[T]]=None,
-        **kwargs
     ) -> None:
-        self.rules = rules
-        """The operand-update rules."""
+        self.method = method
+        self.rule = rule
+        self.reference = reference
         self.result = result
-        """The type or instance in which to store the result."""
-        self.kwargs = kwargs
-        """Keyword arguments to pass to the operator method."""
+        self.implemented = bool(self.rule)
 
-    def rule(self, *args):
-        """Get the rule, if any, for the the given type(s)."""
-        types = (type(arg) for arg in args)
-        return self.rules.get(types)
-
-    def supports(self, *args):
-        """True if this operation supports the given arguments."""
-        return bool(self.rule(*args))
+    def evaluate(self, *args, **kwargs):
+        """Apply this operation to the given arguments."""
+        if not self.result:
+            return self.method(*args, **kwargs)
+        def compute(__name: str):
+            return (
+                self.method(
+                    *[utilities.getattrval(arg, __name) for arg in args]
+                    **kwargs
+                ) if __name in self.rule.parameters
+                else utilities.getattrval(self.reference, __name)
+            )
+        pos = [compute(name) for name in self.reference.positional]
+        kwd = {name: compute(name) for name in self.reference.keyword}
+        # TODO: format and return result
 
 
 class Operator:
-    """An algebraic operator."""
+    """The default operator implementation."""
 
     def __init__(
         self,
@@ -596,40 +603,38 @@ class Operator:
         rules: Rules,
     ) -> None:
         self.method = method
-        """This operator's evaluation method."""
         self.rules = rules
-        """The type-signature rules for this operator."""
+        self.reference = None
+        self.result = None
 
-    def evaluate(self, operands: Operands, out=None, **kwargs):
-        """Call the operator method on these arguments."""
-        reference = operands.reference
-        if out is None or not reference.parameters:
-            return self.method(*operands.args, **kwargs)
-        rule = self.rule(*operands.args)
-        if not all(operands.agree(rule)):
-            raise OperandTypeError(*operands.args) from None
-        a = [
-            self.compute(name, **kwargs)
-            for name in reference.positional
-        ]
-        k = {
-            name: self.compute(name, **kwargs)
-            for name in reference.keyword
-        }
+    def __call__(self, *args, **kwargs):
+        """"""
+        # Possible results, not necessarily in order
+        # - The operator isn't implemented for the given arguments: return
+        #   `NotImplemented`.
+        # - The caller has not prescribed a target type or object: return
+        #   whatever `self.method(*args, **kwargs)` returns.
+        # - The given arguments are inconsistent with the reference argument, if
+        #   any. Two arguments are considered inconsistent if they have
+        #   different values for any attribute(s) that the operation does not
+        #   change under the corresponding rule: raise an exception.
+        # - The caller has prescribed a target type or object: operate on each
+        #   updatable attribute indicated by the current rule, collect values of
+        #   all other attributes from the reference argument, create an instance
+        #   of the target type or update the target object, and return the
+        #   result.
+        application = self.apply(*args)
+        if not application.implemented:
+            return NotImplemented
+        return application.evaluate(*args, **kwargs)
 
-    def compute(self, __name: str, **kwargs):
-        """Compute the value of the named attribute under this operation."""
-        # This is copied from an old class
-        # - `args` is `Operands.args`
-        # - `parameters` is `Rule.parameters`
-        # - `reference` is `Operands.reference`
-        return (
-            self.method(
-                *[utilities.getattrval(arg, __name) for arg in self.args],
-                **kwargs
-            ) if __name in self.parameters
-            else utilities.getattrval(self.reference, __name)
-        )
+    def apply(self, *args):
+        """Create an operational context from these arguments."""
+        rule = self.rule(*args)
+        reference = Object(self.reference or args[0])
+        if not all(reference.compatible(arg, rule) for arg in args):
+            raise OperandTypeError(*args) from None
+        return Application(self.method, rule, reference, result=self.result)
 
     def rule(self, *args):
         """Get the rule, if any, for the the given operands."""
@@ -637,157 +642,18 @@ class Operator:
         return self.rules.get(types)
 
     def supports(self, *args):
-        """True if this operation supports the given arguments."""
+        """True if this operator supports the given arguments."""
         return bool(self.rule(*args))
 
 
-class Operation:
-    """An algebraic operation."""
-
-    def __new__(cls, operator: Operator, operands: Operands):
-        """Prevent operations with incompatible operands."""
-        rule = operator.rule(*operands.args)
-        if not all(operands.agree(rule)):
-            raise OperandTypeError(*operands.args) from None
-        return super().__new__(cls)
-
-    def __init__(
-        self,
-        operator: Operator,
-        operands: Operands,
-        returned=None,
-    ) -> None:
-        self.operator = operator
-        self.operands = operands
-        self.returned = returned
-        self._args = None
-        self._reference = None
-        self._parameters = None
-
-    @property
-    def reference(self):
-        """The reference operand."""
-        if self._reference is None:
-            self._reference = self.operands.reference
-        return self._reference
-
-    @property
-    def args(self):
-        """The required arguments in this operation."""
-        if self._args is None:
-            self._args = self.operands.args
-        return self._args
-
-    @property
-    def parameters(self):
-        """The names of updatable attributes."""
-        if self._parameters is None:
-            rule = self.operator.rule(*self.args)
-            self._parameters = rule.parameters
-        return self._parameters
-
-    def compute(self, __name: str, **kwargs):
-        """Compute the value of the named attribute under this operation."""
-        return (
-            self.operator.evaluate(
-                *[utilities.getattrval(arg, __name) for arg in self.args],
-                **kwargs
-            ) if __name in self.parameters
-            else utilities.getattrval(self.reference, __name)
-        )
-
-
-class Implementation:
-    """The default operation implementation."""
-    def __init__(self, method, rules=None) -> None:
-        self.operator = Operator(method, rules or Rules())
-
-    def __call__(self, *args, **kwargs):
-        """Apply this operation to the given arguments."""
-        return self._compute(*args, **kwargs)
-
-    def _compute(self, *args, reference=None, **kwargs):
-        """Compute the result of the operation."""
-        operands = Operands(*args, reference=reference)
-        if not self.operator.supports(operands):
-            return NotImplemented
-        return self.operator.evaluate(operands, **kwargs)
-
-
-class Cast(Implementation):
-    """An implementation of a type-casting operator."""
-    def __call__(self, a):
-        """Convert `a` to the appopriate type."""
-        return super().__call__(a)
-
-
-class Unary(Implementation):
-    """An implementation of a unary arithmetic operator."""
-    def __call__(self, a, **kwargs):
-        """Operate on `a` and return an object of the same type."""
-        return super().__call__(a, out=type(a), **kwargs)
-
-
-class Comparison(Implementation):
-    """An implementation of a binary comparison operator."""
-    def __call__(self, a, b):
-        """Compare `a` to `b` and return the unmodified result."""
-        return super().__call__(a, b)
-
-
-class Numeric(Implementation):
-    """An implementation of a forward binary numeric operator."""
-    def __call__(self, a, b, **kwargs):
-        """Operate on `a` and `b` and return an object of `a`'s type."""
-        return super().__call__(a, b, reference=a, out=type(a), **kwargs)
-
-
-class Operation:
-    """"""
-
-    def __init__(
-        self,
-        operator: Operator,
-        operands: Operands,
-        result: typing.Union[T, typing.Type[T]]=None,
-    ) -> None:
-        self.operator = operator
-        self.operands = operands
-        self.result = result
-
-    def evaluate(self, *args, **kwargs):
-        """Apply this operation to the given arguments."""
-
-
-class Implementation:
-    """"""
-
-    def __init__(
-        self,
-        method: typing.Callable[..., T],
-        rules: Rules,
-    ) -> None:
-        self.operator = Operator(method, rules)
-        self.reference = None
-        self.result = None
-
-    def __call__(self, *args, **kwargs):
-        """"""
-        operands = Operands(*args, reference=self.reference)
-        if not self.operator.supports(operands):
-            return NotImplemented
-        operation = Operation(self.operator, operands, result=self.result)
-        return operation.evaluate(*args, **kwargs)
-
-
-class Cast(Implementation):
+class Cast(Operator):
     """"""
 
     def __call__(self, a, /):
         return super().__call__(a)
 
 
-class Unary(Implementation):
+class Unary(Operator):
     """"""
 
     def __call__(self, a, /, **kwargs):
@@ -796,14 +662,14 @@ class Unary(Implementation):
         return super().__call__(a, **kwargs)
 
 
-class Comparison(Implementation):
+class Comparison(Operator):
     """"""
 
     def __call__(self, a, b, /):
         return super().__call__(a, b)
 
 
-class Numeric(Implementation):
+class Numeric(Operator):
     """"""
 
     def __call__(self, a, b, /, **kwargs):
@@ -812,11 +678,11 @@ class Numeric(Implementation):
         return super().__call__(a, b, **kwargs)
 
 
-IType = typing.TypeVar('IType', bound=Implementation)
+IType = typing.TypeVar('IType', bound=Operator)
 
 
-class Application(typing.Generic[IType]):
-    """The general application of an operation."""
+class Operation(typing.Generic[IType]):
+    """A general arithmetic operation."""
 
     def __init__(
         self,
@@ -827,10 +693,7 @@ class Application(typing.Generic[IType]):
         self.rules = rules or Rules()
 
     def implement(self, method):
-        operator = self._implement(method, self.rules)
-        operator.__name__ = f"__{method.__name__}__"
-        operator.__doc__ = method.__doc__
-        return operator
+        return self._implement(method, self.rules)
 
 
 
