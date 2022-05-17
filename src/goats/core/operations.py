@@ -55,75 +55,6 @@ def unique(items: typing.Iterable[T]) -> typing.List[T]:
     return collection
 
 
-class Object(typing.Generic[T], iterables.ReprStrMixin):
-    """A wrapper around a single object."""
-
-    def __init__(self, __object: typing.Union[T, 'Object']) -> None:
-        self._object = self._init_object(__object)
-        self._type = type(self._object)
-        self.isbuiltin = self._type.__module__ == 'builtins'
-        self._parameters = None
-        self._positional = None
-        self._keyword = None
-
-    def _init_object(self, arg) -> T:
-        """Internal initialization helper."""
-        if isinstance(arg, type(self)):
-            return arg._object
-        return arg
-
-    @property
-    def parameters(self):
-        """All parameters used to initialize this operand."""
-        if self._parameters is None:
-            self._parameters = (
-                {} if self.isbuiltin
-                else inspect.signature(self._type).parameters
-            )
-        return self._parameters
-
-    _postypes = {
-        inspect.Parameter.POSITIONAL_ONLY,
-        inspect.Parameter.POSITIONAL_OR_KEYWORD,
-    }
-
-    @property
-    def positional(self):
-        """The names of positional arguments to this operand."""
-        if self._positional is None:
-            names = [
-                name for name, parameter in self.parameters.items()
-                if parameter.kind in self._postypes
-            ]
-            self._positional = tuple(names)
-        return self._positional
-
-    @property
-    def keyword(self):
-        """The names of keyword arguments to this operand."""
-        if self._keyword is None:
-            names = [
-                name for name, parameter in self.parameters.items()
-                if parameter.kind == inspect.Parameter.KEYWORD_ONLY
-            ]
-            self._keyword = tuple(names)
-        return self._keyword
-
-    def __eq__(self, other):
-        """Called for self == other."""
-        return (
-            self._object == other._object if isinstance(other, Object)
-            else self._object == other
-        )
-
-    def __getattr__(self, __name: str):
-        """Retrieve an attribute from the underlying object."""
-        return getattr(self._object, __name)
-
-    def __str__(self) -> str:
-        return str(self._object)
-
-
 class ComparisonError(TypeError):
     """Incomparable instances of the same type."""
 
@@ -378,6 +309,85 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
     def get(self, key: Types, default: Rule=None):
         """Like ``~typing.Mapping.get``, with a modified default value."""
         return super().get(key, default or Rule(key))
+
+
+class Object(typing.Generic[T], iterables.ReprStrMixin):
+    """A wrapper around a single object."""
+
+    def __init__(self, __object: typing.Union[T, 'Object']) -> None:
+        self._object = self._init_object(__object)
+        self._type = type(self._object)
+        self.isbuiltin = self._type.__module__ == 'builtins'
+        self._parameters = None
+        self._positional = None
+        self._keyword = None
+
+    def _init_object(self, arg) -> T:
+        """Internal initialization helper."""
+        if isinstance(arg, type(self)):
+            return arg._object
+        return arg
+
+    def compatible(self, other, rule: Rule):
+        """True if `other` inter-operates with self under `rule`."""
+        names = set(self.parameters) - set(rule.parameters)
+        that = Object(other)
+        return all(
+            hasattr(that, name)
+            and getattr(that, name) == getattr(self, name)
+            for name in names
+        )
+
+    @property
+    def parameters(self):
+        """All parameters used to initialize this operand."""
+        if self._parameters is None:
+            self._parameters = (
+                {} if self.isbuiltin
+                else inspect.signature(self._type).parameters
+            )
+        return self._parameters
+
+    _postypes = {
+        inspect.Parameter.POSITIONAL_ONLY,
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+    }
+
+    @property
+    def positional(self):
+        """The names of positional arguments to this operand."""
+        if self._positional is None:
+            names = [
+                name for name, parameter in self.parameters.items()
+                if parameter.kind in self._postypes
+            ]
+            self._positional = tuple(names)
+        return self._positional
+
+    @property
+    def keyword(self):
+        """The names of keyword arguments to this operand."""
+        if self._keyword is None:
+            names = [
+                name for name, parameter in self.parameters.items()
+                if parameter.kind == inspect.Parameter.KEYWORD_ONLY
+            ]
+            self._keyword = tuple(names)
+        return self._keyword
+
+    def __eq__(self, other):
+        """Called for self == other."""
+        return (
+            self._object == other._object if isinstance(other, Object)
+            else self._object == other
+        )
+
+    def __getattr__(self, __name: str):
+        """Retrieve an attribute from the underlying object."""
+        return getattr(self._object, __name)
+
+    def __str__(self) -> str:
+        return str(self._object)
 
 
 class Operation:
