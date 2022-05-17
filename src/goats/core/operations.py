@@ -739,6 +739,76 @@ class Numeric(Implementation):
         return super().__call__(a, b, reference=a, out=type(a), **kwargs)
 
 
+class Operation:
+    """"""
+
+    def __init__(
+        self,
+        operator: Operator,
+        operands: Operands,
+        result: typing.Union[T, typing.Type[T]]=None,
+    ) -> None:
+        self.operator = operator
+        self.operands = operands
+        self.result = result
+
+    def evaluate(self, *args, **kwargs):
+        """Apply this operation to the given arguments."""
+
+
+class Implementation:
+    """"""
+
+    def __init__(
+        self,
+        method: typing.Callable[..., T],
+        rules: Rules,
+    ) -> None:
+        self.operator = Operator(method, rules)
+        self.reference = None
+        self.result = None
+
+    def __call__(self, *args, **kwargs):
+        """"""
+        operands = Operands(*args, reference=self.reference)
+        if not self.operator.supports(operands):
+            return NotImplemented
+        operation = Operation(self.operator, operands, result=self.result)
+        return operation.evaluate(*args, **kwargs)
+
+
+class Cast(Implementation):
+    """"""
+
+    def __call__(self, a, /):
+        return super().__call__(a)
+
+
+class Unary(Implementation):
+    """"""
+
+    def __call__(self, a, /, **kwargs):
+        self.reference = a
+        self.result = type(a)
+        return super().__call__(a, **kwargs)
+
+
+class Comparison(Implementation):
+    """"""
+
+    def __call__(self, a, b, /):
+        return super().__call__(a, b)
+
+
+class Numeric(Implementation):
+    """"""
+
+    def __call__(self, a, b, /, **kwargs):
+        self.reference = a
+        self.result = type(a)
+        return super().__call__(a, b, **kwargs)
+
+
 IType = typing.TypeVar('IType', bound=Implementation)
 
 
@@ -758,6 +828,7 @@ class Application(typing.Generic[IType]):
         operator.__name__ = f"__{method.__name__}__"
         operator.__doc__ = method.__doc__
         return operator
+
 
 
 # API:
