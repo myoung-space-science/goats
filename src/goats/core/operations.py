@@ -55,13 +55,6 @@ def unique(items: typing.Iterable[T]) -> typing.List[T]:
     return collection
 
 
-def get_parameters(__type: type):
-    """Determine the initialization parameters of this type, if possible."""
-    return (
-        {} if __type.__module__ == 'builtins'
-        else inspect.signature(__type).parameters
-    )
-
 class Object(typing.Generic[T], iterables.ReprStrMixin):
     """A wrapper around a single object."""
 
