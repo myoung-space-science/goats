@@ -175,7 +175,7 @@ class Rule(iterables.ReprStrMixin):
         self._ntypes = len(self._types)
         self.parameters = unique(parameters)
         """The parameters that this rule affects."""
-        self.issuppressed = False
+        self.implemented = True
 
     @property
     def types(self):
@@ -235,20 +235,19 @@ class Rule(iterables.ReprStrMixin):
     """Called for self >= other."""
 
     def __bool__(self) -> bool:
-        """True unless this rule is suppressed."""
-        return not self.issuppressed
+        """True if this rule is implemented."""
+        return self.implemented
 
     # Consider letting this return `Suppressed` (see above).
     @property
     def suppress(self):
         """Suppress this operand rule.
         
-        Invoking this property will set the internal set of parameters to
-        ``None``, which will signal to operator implementations that they should
-        not implement the operator for these operand types.
+        Invoking this property will signal to operation implementations that
+        they should not implement the operator for these operand types.
         """
         self._parameters = None
-        self.issuppressed = True
+        self.implemented = False
         return self
 
     def __str__(self) -> str:
@@ -411,12 +410,8 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
         return super().get(__types, default or Rule(__types))
 
 
-class OperandTypeError(Exception):
-    """These operands are incompatible."""
-
-
-class Application:
-    """The application of an arithmetic operation."""
+class Implementation:
+    """A general implementation of an arithmetic operation."""
 
     def __init__(
         self,
@@ -429,10 +424,13 @@ class Application:
         self.rule = rule
         self.reference = reference
         self.result = result
-        self.implemented = bool(self.rule)
 
-    def evaluate(self, *args, **kwargs) -> T:
-        """Apply this operation to the given arguments."""
+    def __bool__(self):
+        """True iff the operand-update rule is implemented."""
+        return bool(self.rule.implemented)
+
+    def operator(self, *args, **kwargs) -> T:
+        """Evaluate the given arguments."""
         def compute(__name: str):
             return (
                 self.method(
@@ -505,34 +503,33 @@ class Application:
         return tuple(pos), kwd
 
 
-class Operator:
-    """The default operator implementation."""
+class OperandTypeError(Exception):
+    """These operands are incompatible."""
+
+
+class Context:
+    """The implementation context of an arithmetic operation."""
 
     def __init__(
         self,
         method: typing.Callable[..., T],
         rules: Rules,
+        reference: T=None,
+        result: typing.Union[T, typing.Type[T]]=None,
     ) -> None:
         self.method = method
         self.rules = rules
-        self.reference = None
-        self.result = None
-
-    def __call__(self, *args, **kwargs):
-        """Apply this operator's method to the arguments."""
-        application = self.apply(*args)
-        if not application.implemented: # Can we have `self.implemented`?
-            return NotImplemented
-        return application.evaluate(*args, **kwargs)
+        self.reference = reference
+        self.result = result
 
     def apply(self, *args):
-        """Create an operational context from these arguments."""
+        """Implement an operation based on these arguments."""
         objects = Objects(*args)
         types = objects.types
         rule = self.rules.get(types)
         reference = Object(self.reference or args[0])
         if objects.support(rule):
-            return Application(self.method, rule, reference, result=self.result)
+            return Implementation(self.method, rule, reference, self.result)
         self._raise(types, rule, reference)
 
     def _raise(
@@ -557,6 +554,37 @@ class Operator:
             f"Can't apply operator {method_string} to {types_string}"
             f" with different values of {attrs_string}"
         ) from None
+
+
+class Operator:
+    """The default operator implementation."""
+
+    def __init__(
+        self,
+        method: typing.Callable[..., T],
+        rules: Rules,
+    ) -> None:
+        self.method = method
+        self.rules = rules
+        self.reference = None
+        self.result = None
+
+    @property
+    def context(self):
+        """This operator's implementation context."""
+        return Context(
+            self.method,
+            self.rules,
+            reference=self.reference,
+            result=self.result,
+        )
+
+    def __call__(self, *args, **kwargs):
+        """Apply this operator's method to the arguments."""
+        implemented = self.context.apply(*args)
+        if not implemented:
+            return NotImplemented
+        return implemented.operator(*args, **kwargs)
 
 
 class Cast(Operator):
