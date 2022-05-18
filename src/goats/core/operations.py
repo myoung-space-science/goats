@@ -256,9 +256,15 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
         parameters = self.mapping.get(__types, self.default.copy())
         return Rule(__types, *parameters)
 
-    def get(self, key: Types, default: Rule=None):
-        """Like ``~typing.Mapping.get``, with a modified default value."""
-        return super().get(key, default or Rule(key))
+    def get(self, __types: Types, default: Rule=None):
+        """Get the rule for these types or a default rule.
+        
+        This method behaves like ``~typing.Mapping.get`` with a modified default
+        value: Instead of returning ``None`` when key-based look-up fails (i.e.,
+        there is no rule for the given types), this method returns a rule with
+        no constraints for the given types.
+        """
+        return super().get(__types, default or Rule(__types))
 
 
 class Object(typing.Generic[T], iterables.ReprStrMixin):
