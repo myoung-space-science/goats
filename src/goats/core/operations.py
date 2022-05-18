@@ -210,12 +210,24 @@ class Rule(iterables.ReprStrMixin):
         return tuple(self._types)
 
     def __len__(self) -> int:
-        """The number of operands in this rule."""
-        return self._ntypes
+        """The number of parameters affected by this rule."""
+        return len(self.parameters)
 
-    def __contains__(self, t: type) -> bool:
-        """True if `t` is one of the types in this rule."""
-        return t in self.types
+    def __contains__(self, __x: typing.Union[type, str]) -> bool:
+        """True if `__x` is part of this rule.
+        
+        Parameters
+        ----------
+        __x : type or string
+            If `__x` is a type, this method will report whether or not `__x` is
+            a type in this rule. If `__x` is a string, this method with report
+            whether or not `__x` is a parameter affected by this rule.
+        """
+        return (
+            __x in self.types if isinstance(__x, type)
+            else __x in self.parameters if isinstance(__x, str)
+            else False
+        )
 
     def __eq__(self, other) -> bool:
         """Called for self == other.
