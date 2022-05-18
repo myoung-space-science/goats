@@ -554,11 +554,21 @@ class Operator:
 
     def apply(self, *args):
         """Create an operational context from these arguments."""
-        types = [type(arg) for arg in args]
+        objects = Objects(*args)
+        types = objects.types
         rule = self.rules.get(types)
         reference = Object(self.reference or args[0])
-        if rule.compatible(*args):
+        if objects.support(rule):
             return Application(self.method, rule, reference, result=self.result)
+        self._raise(types, rule, reference)
+
+    def _raise(
+        self,
+        types: typing.Iterable[type],
+        rule: Rule,
+        reference: Object,
+    ) -> typing.NoReturn:
+        """Raise an exception due to the operand-update rule."""
         method_string = repr(self.method.__qualname__)
         types_string = (
             types[0].__qualname__ if len(types) == 1
