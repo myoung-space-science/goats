@@ -577,8 +577,8 @@ class Operation(typing.Generic[IType]):
         self._implement = __category
         self.rules = rules or Rules()
 
-    def implement(self, method):
-        return self._implement(method, self.rules)
+    def implement(self, __callable: typing.Callable[..., T]):
+        return self._implement(__callable, self.rules)
 
 
 
