@@ -94,7 +94,7 @@ class Suppressed(iterables.Singleton):
         return f"{types}: NotImplemented"
 
 
-class Rule:
+class Rule(iterables.ReprStrMixin):
     """A correspondence between operand types and affected parameters."""
 
     def __init__(
