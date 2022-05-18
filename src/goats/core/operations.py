@@ -284,6 +284,69 @@ class Rule(iterables.ReprStrMixin):
         return f"{types}: {list(self.parameters)}"
 
 
+class Objects(collections.abc.Sequence, iterables.ReprStrMixin):
+    """A sequence of `~operations.Object` instances."""
+
+    def __init__(self, *objects) -> None:
+        self._objects = [Object(i) for i in objects]
+        self._types = None
+
+    def support(self, rule: Rule):
+        """True if these objects inter-operate under the given rule.
+        
+        This method determines if all the attributes that are common to these
+        objects and that are not included in the given rule have the same value.
+        These are the attributes that the corresponding operation will ignore;
+        therefore, different values for the same attribute will lead to
+        ambiguity.
+        
+        Notes
+        -----
+        - Objects are always compatible if the given rule is unconstrained.
+        - A single object is trivially compatible with itself.
+        """
+        if not rule.parameters:
+            return True
+        sets = [set(obj.parameters) for obj in self]
+        parameters = set.intersection(*sets)
+        names = set(parameters) - set(rule.parameters)
+        reference = self[0]
+        return all(
+            getattr(obj, name) == getattr(reference, name)
+            for name in names for obj in self
+        )
+
+    @property
+    def types(self):
+        """The type of each object."""
+        if self._types is None:
+            self._types = tuple(i._type for i in self._objects)
+        return self._types
+
+    def __getitem__(self, __i):
+        """Access objects by index."""
+        if isinstance(__i, typing.SupportsIndex):
+            return Object(self._objects[__i])
+        return Objects(*self._objects[__i])
+
+    def __len__(self) -> int:
+        """The number of objects. Called for len(self)."""
+        return len(self._objects)
+
+    def __iter__(self) -> typing.Iterator[Object]:
+        """Iterate over objects. Called for iter(self)."""
+        yield from self._objects
+
+    def __eq__(self, other):
+        """Called for self == other."""
+        if not len(self) == len(other):
+            return False
+        return all(i in other for i in self)
+
+    def __str__(self) -> str:
+        return ', '.join(str(i) for i in self)
+
+
 class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
     """A class for managing operand-update rules."""
 
@@ -377,58 +440,6 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
 
 class OperandTypeError(Exception):
     """These operands are incompatible."""
-
-# Not currently in use.
-class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
-    """One or more algebraic operands."""
-
-    def __new__(cls, *operands, **kwargs):
-        """Prevent empty instance."""
-        if not operands:
-            raise TypeError(
-                f"{cls.__qualname__} requires at least one operand"
-            ) from None
-        return super().__new__(cls)
-
-    def __init__(
-        self,
-        *operands: typing.Any,
-        reference=None,
-    ) -> None:
-        self._operands = [Object(operand) for operand in operands]
-        self.reference = Object(reference or operands[0])
-        """The reference operand."""
-        self._types = None
-        self._args = None
-
-    @property
-    def types(self):
-        """The operand(s) object type(s)."""
-        if self._types is None:
-            self._types = tuple(type(arg) for arg in self.args)
-        return self._types
-
-    @property
-    def args(self):
-        """The equivalent argument(s)."""
-        if self._args is None:
-            args = (i._object for i in self._operands)
-            self._args = tuple(args)
-        return self._args
-
-    def __getitem__(self, __i):
-        """Access operands by index."""
-        index = int(__i)
-        if index < 0:
-            index += len(self)
-        return self._operands[index]
-
-    def __len__(self) -> int:
-        """The number of operands. Called for len(self)."""
-        return len(self._operands)
-
-    def __str__(self) -> str:
-        return ', '.join(str(i) for i in self)
 
 
 class Application:

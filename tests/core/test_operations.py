@@ -49,7 +49,6 @@ def test_rule_contains():
         assert this in rule
 
 
-
 def test_object_idempotence():
     """Create an `Object` instance from another instance."""
     a = operations.Object(1)
@@ -60,12 +59,18 @@ def test_object_idempotence():
     assert b.parameters == a.parameters
 
 
-def test_operands_init():
-    """Initialize an `Operands` instance in various ways."""
-    with pytest.raises(TypeError):
-        operations.Operands()
-    assert operations.Operands(1).reference == operations.Object(1)
-    assert operations.Operands(1, 2.3).types == (int, float)
+def test_objects():
+    """Test the `Objects` class."""
+    inputs = ['a', 1, 2.3]
+    objects = operations.Objects(*inputs)
+    assert objects.types == (str, int, float)
+    subset = objects[:]
+    assert isinstance(subset, operations.Objects)
+    assert subset == objects
+    for index in [-2, -1, 0, 1, 2]:
+        subset = objects[index]
+        assert isinstance(subset, operations.Object)
+        assert subset == inputs[index]
 
 
 CAST = {
@@ -124,10 +129,32 @@ class Class:
 def instances():
     """Reusable instances of the test class."""
     return {
-        'c0': Class(1, 'same'),
-        'c1': Class(3.3, 'same'),
-        'c2': Class(3.3, 'different'),
+        'c0': Class(1, 'A'),
+        'c1': Class(3.3, 'A'),
+        'c2': Class(3.3, 'B'),
     }
+
+
+def test_objects_support(instances: typing.Dict[str, Class]):
+    """Test the method that checks for object inter-operability."""
+    objects = operations.Objects(*instances.values())
+    types = [Class, Class]
+    cases = {
+        'value': { # `info` should be the same
+            (0, 1): True,
+            (0, 2): False,
+        },
+        'info': { # `value` should be the same
+            (1, 2): True,
+            (0, 2): False,
+        },
+    }
+    for name, tests in cases.items():
+        rule = operations.Rule(types, name)
+        for indices, expected in tests.items():
+            c = [objects[index] for index in indices]
+            these = operations.Objects(*c)
+            assert these.support(rule) == expected
 
 
 def test_cast_operation(instances: typing.Dict[str, Class]):
