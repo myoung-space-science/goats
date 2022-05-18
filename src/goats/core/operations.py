@@ -177,33 +177,6 @@ class Rule(iterables.ReprStrMixin):
         """The parameters that this rule affects."""
         self.issuppressed = False
 
-    def compatible(self, *args):
-        """True if the given arguments inter-operate under this rule.
-        
-        This method determines if all the attributes that are common to the
-        given arguments and that are not included in this rule have the same
-        value. These are the attributes that the corresponding operation will
-        ignore; therefore, different values for the same attribute will lead to
-        ambiguity.
-        
-        Notes
-        -----
-        - The given arguments will always be compatible (i.e., this method will
-          always return ``True``) if this rule is unconstrained.
-        - A single argument is trivially compatible with itself.
-        """
-        if not self.parameters:
-            return True
-        objects = [Object(arg) for arg in args]
-        sets = [set(obj.parameters) for obj in objects]
-        parameters = set.intersection(*sets)
-        names = set(parameters) - set(self.parameters)
-        reference = objects[0]
-        return all(
-            getattr(obj, name) == getattr(reference, name)
-            for name in names for obj in objects
-        )
-
     @property
     def types(self):
         """The operand types that define this rule."""
