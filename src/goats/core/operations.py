@@ -419,16 +419,46 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
         return ', '.join(str(i) for i in self)
 
 
-class Result:
-    """The expected result of an operation."""
+class Application:
+    """The application of an arithmetic operation."""
 
-    def __init__(self, form: typing.Union[T, typing.Type[T]]) -> None:
-        self.form = form
-        self.parameters = Object(form).parameters
+    def __init__(
+        self,
+        method: typing.Callable[..., T],
+        rule: Rule,
+        reference: Object[T],
+        result: typing.Union[T, typing.Type[T]]=None,
+    ) -> None:
+        self.method = method
+        self.rule = rule
+        self.reference = reference
+        self.result = result
+        self.implemented = bool(self.rule)
 
-    def __bool__(self) -> bool:
-        """True if the user can format this result."""
-        return self.form is not None and bool(self.parameters)
+    def evaluate(self, *args, **kwargs) -> T:
+        """Apply this operation to the given arguments."""
+        def compute(__name: str):
+            return (
+                self.method(
+                    *[utilities.getattrval(arg, __name) for arg in args],
+                    **kwargs
+                ) if __name in self.rule.parameters
+                else utilities.getattrval(self.reference, __name)
+            )
+        if not self.rule.parameters:
+            # We don't know which arguments to operate on, so we assume that the
+            # given objects implement this method in their class definitions.
+            return self.method(*args, **kwargs)
+        if self.result is None or self.reference.isbuiltin:
+            # We don't have enough information to create or update an instance
+            # of a custom type, so we compute the value of the first parameter
+            # listed in the given rule. This gives us what we want for cast and
+            # comparison operations, but it isn't explicit and may therefore
+            # introduce bugs in other cases.
+            return compute(self.rule.parameters[0])
+        pos = [compute(name) for name in self.reference.positional]
+        kwd = {name: compute(name) for name in self.reference.keyword}
+        return self.format(*pos, **kwd)
 
     def format(self, *args, **kwargs) -> T:
         """Convert the result of an operation into the appropriate object.
@@ -451,12 +481,12 @@ class Result:
         Any
         """
         pos, kwd = self.get_values(list(args), kwargs)
-        if isinstance(self.form, type):
-            return self.form(*pos, **kwd)
-        for name in self.parameters:
-            value = arg_or_kwarg(pos, kwd, name)
-            utilities.setattrval(self.form, name, value)
-        return self.form
+        if isinstance(self.result, type):
+            return self.result(*pos, **kwd)
+        for name in self.reference.parameters:
+            value = arg_or_kwarg(list(pos), kwd, name)
+            utilities.setattrval(self.result, name, value)
+        return self.result
 
     def get_values(self, args: list, kwargs: dict):
         """Extract appropriate argument values.
@@ -464,11 +494,11 @@ class Result:
         This method will attempt to build appropriate positional and keyword
         arguments from this result, based on the given object signature.
         """
-        if not self.parameters:
+        if not self.reference.parameters:
             return tuple(args), kwargs
         pos = []
         kwd = {}
-        for name, parameter in self.parameters.items():
+        for name, parameter in self.reference.parameters.items():
             kind = parameter.kind
             if kind is inspect.Parameter.POSITIONAL_ONLY:
                 pos.append(args.pop(0))
@@ -477,39 +507,6 @@ class Result:
             elif kind is inspect.Parameter.KEYWORD_ONLY:
                 kwd[name] = kwargs.get(name)
         return tuple(pos), kwd
-
-
-class Application:
-    """The application of an arithmetic operation."""
-
-    def __init__(
-        self,
-        method: typing.Callable[..., T],
-        rule: Rule,
-        reference: Object[T],
-        result: typing.Union[T, typing.Type[T]]=None,
-    ) -> None:
-        self.method = method
-        self.rule = rule
-        self.reference = reference
-        self.result = Result(result)
-        self.implemented = bool(self.rule)
-
-    def evaluate(self, *args, **kwargs) -> T:
-        """Apply this operation to the given arguments."""
-        if not self.result:
-            return self.method(*args, **kwargs)
-        def compute(__name: str):
-            return (
-                self.method(
-                    *[utilities.getattrval(arg, __name) for arg in args]
-                    **kwargs
-                ) if __name in self.rule.parameters
-                else utilities.getattrval(self.reference, __name)
-            )
-        pos = [compute(name) for name in self.reference.positional]
-        kwd = {name: compute(name) for name in self.reference.keyword}
-        return self.result.format(*pos, **kwd)
 
 
 class Operator:
@@ -528,26 +525,32 @@ class Operator:
     def __call__(self, *args, **kwargs):
         """Apply this operator's method to the arguments."""
         application = self.apply(*args)
-        if not application.implemented:
+        if not application.implemented: # Can we have `self.implemented`?
             return NotImplemented
         return application.evaluate(*args, **kwargs)
 
     def apply(self, *args):
         """Create an operational context from these arguments."""
-        rule = self.rule(*args)
+        types = [type(arg) for arg in args]
+        rule = self.rules.get(types)
         reference = Object(self.reference or args[0])
-        if not all(reference.compatible(arg, rule) for arg in args):
-            raise OperandTypeError(*args) from None
-        return Application(self.method, rule, reference, result=self.result)
-
-    def rule(self, *args):
-        """Get the rule, if any, for the the given operands."""
-        types = (type(arg) for arg in args)
-        return self.rules.get(types)
-
-    def supports(self, *args):
-        """True if this operator supports the given arguments."""
-        return bool(self.rule(*args))
+        if rule.compatible(*args):
+            return Application(self.method, rule, reference, result=self.result)
+        method_string = repr(self.method.__qualname__)
+        types_string = (
+            types[0].__qualname__ if len(types) == 1
+            else f"({', '.join(t.__qualname__ for t in types)})"
+        )
+        fixed = tuple(set(reference.parameters) - set(rule.parameters))
+        attrs_string = (
+            repr(fixed[0]) if len(fixed) == 1
+            else f"{fixed[0]!r} and {fixed[1]!r}" if len(fixed) == 2
+            else f"{', '.join(fixed[:-1])} and {fixed[-1]}"
+        )
+        raise OperandTypeError(
+            f"Can't apply operator {method_string} to {types_string}"
+            f" with different values of {attrs_string}"
+        ) from None
 
 
 class Cast(Operator):
