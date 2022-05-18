@@ -184,9 +184,13 @@ class Rule(iterables.ReprStrMixin):
         given arguments and that are not included in this rule have the same
         value. These are the attributes that the corresponding operation will
         ignore; therefore, different values for the same attribute will lead to
-        ambiguity. Note that the given arguments will always be compatible
-        (i.e., this method will always return ``True``) if this rule is
-        unconstrained.
+        ambiguity.
+        
+        Notes
+        -----
+        - The given arguments will always be compatible (i.e., this method will
+          always return ``True``) if this rule is unconstrained.
+        - A single argument is trivially compatible with itself.
         """
         if not self.parameters:
             return True
@@ -195,11 +199,10 @@ class Rule(iterables.ReprStrMixin):
         parameters = set.intersection(*sets)
         names = set(parameters) - set(self.parameters)
         reference = objects[0]
-        for obj in objects[1:]:
-            return all(
-                getattr(obj, name) == getattr(reference, name)
-                for name in names
-            )
+        return all(
+            getattr(obj, name) == getattr(reference, name)
+            for name in names for obj in objects
+        )
 
     @property
     def types(self):
