@@ -79,56 +79,6 @@ def arg_or_kwarg(args: list, kwargs: dict, name: str):
         return args.pop(0)
 
 
-class Result(iterables.ReprStrMixin):
-    """The arguments returned by an operation."""
-
-    def __init__(self, *args, **kwargs) -> None:
-        self.args = list(args)
-        self.kwargs = kwargs
-
-    def get_values(self, parameters: typing.Mapping[str, inspect.Parameter]):
-        """Extract appropriate argument values.
-        
-        This method will attempt to build appropriate positional and keyword
-        arguments from this result, based on the given object signature.
-        """
-        if not parameters:
-            return tuple(self.args), self.kwargs
-        args = []
-        kwargs = {}
-        for name, parameter in parameters.items():
-            kind = parameter.kind
-            if kind is inspect.Parameter.POSITIONAL_ONLY:
-                args.append(self.args.pop(0))
-            elif kind is inspect.Parameter.POSITIONAL_OR_KEYWORD:
-                args.append(arg_or_kwarg(args, kwargs, name))
-            elif kind is inspect.Parameter.KEYWORD_ONLY:
-                kwargs[name] = self.kwargs.get(name)
-        return tuple(args), kwargs
-
-    def __eq__(self, other) -> bool:
-        """Called for self == other.
-        
-        This method will return ``True`` if any of the following cases is true,
-        and will return ``False`` otherwise:
-
-        - `other` is an instance of this class or a subclass, and all its
-          arguments equal the corresponding arguments of this instance.
-        - this instance has a single argument that is equal to `other`.
-        """
-        if isinstance(other, Result):
-            return self.args == other.args and self.kwargs == other.kwargs
-        if len(self.args) == 1 and not self.kwargs:
-            return self.args[0] == other
-        return False
-
-    def __str__(self) -> str:
-        args = ', '.join(str(arg) for arg in self.args)
-        kwargs = ', '.join(f"{k}={v}" for k, v in self.kwargs.items())
-        parts = (args, kwargs)
-        return ', '.join(part for part in parts if part)
-
-
 # Possible specialized return type for `Rule.suppress`. Another option is that a
 # common ABC could require all the methods the `Rule` defines, and this class
 # could implement versions that raise exceptions with informative messages.
@@ -390,79 +340,10 @@ class Object(typing.Generic[T], iterables.ReprStrMixin):
         return str(self._object)
 
 
-class Operation:
-    """A general operation context."""
-
-    def __init__(
-        self,
-        method: typing.Callable[..., T],
-        rules: Rules=None,
-        result: typing.Union[T, typing.Type[T]]=None,
-        **kwargs
-    ) -> None:
-        self.method = method
-        self.rules = rules
-        self.result = result
-        self.kwargs = kwargs
-
-    def rule(self, *args):
-        """Get the rule, if any, for the the given type(s)."""
-        types = (type(arg) for arg in args)
-        return self.rules.get(types)
-
-    def supports(self, *args):
-        """True if this operation supports the given arguments."""
-        return bool(self.rule(*args))
-
-    # Developmental idea. Not in use.
-    def evaluate(self, name: str, *args, reference=None):
-        """Evaluating operands within the context of this operation."""
-        rule = self.rule(*args)
-        return (
-            self.method(
-                *[utilities.getattrval(arg, name) for arg in args],
-                **self.kwargs
-            ) if name in rule.parameters
-            else utilities.getattrval(reference, name)
-        )
-
-    def format(self, *args, **kwargs) -> T:
-        """Convert the result of an operation into the appropriate object.
-        
-        If `self.result` is a ``type``, this method will return a new instance
-        of that type, initialized with the given arguments. If `self.result` is
-        an instance of some type, this method will return the instance after
-        updating it based on the given arguments.
-
-        Parameters
-        ----------
-        *args
-            The positional arguments used to create the new object.
-
-        **kwargs
-            The keyword arguments used to create the new object.
-
-        Returns
-        -------
-        Any
-        """
-        reference = Object(self.result)
-        if not kwargs and len(args) == 1 and args[0] is NotImplemented:
-            return args[0]
-        result = Result(*args, **kwargs)
-        pos, kwd = result.get_values(reference.parameters)
-        if isinstance(self.result, type):
-            return self.result(*pos, **kwd)
-        for name in reference.parameters:
-            value = arg_or_kwarg(pos, kwd, name)
-            utilities.setattrval(self.result, name, value)
-        return self.result
-
-
 class OperandTypeError(Exception):
     """These operands are incompatible."""
 
-
+# Not currently in use.
 class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
     """One or more algebraic operands."""
 
@@ -511,54 +392,68 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
         """The number of operands. Called for len(self)."""
         return len(self._operands)
 
-    def apply(self, operation: Operation):
-        """Evaluate these operands under the given operation."""
-        if not operation.supports(self.types):
-            return NotImplemented
-        rule = operation.rule(self.types)
-        if not self.consistent(rule):
-            raise OperandTypeError from None
-        if (
-            not self.reference.parameters
-            or rule is None # will this ever happen?
-            or operation.result is None
-        ): return operation.method(*self.args, **operation.kwargs)
-        a = [
-            self._evaluate(name, operation)
-            for name in self.reference.positional
-        ]
-        k = {
-            name: self._evaluate(name, operation)
-            for name in self.reference.keyword
-        }
-        return operation.format(Result(*a, **k))
-
-    def _evaluate(self, name: str, operation: Operation):
-        """Internal method for evaluating operands."""
-        rule = operation.rule(*self.args)
-        return (
-            operation.method(
-                *[utilities.getattrval(arg, name) for arg in self.args],
-                **operation.kwargs
-            ) if name in rule.parameters
-            else utilities.getattrval(self.reference, name)
-        )
-
-    def agree(self, rule: Rule):
-        """True if all operands inter-operate under `rule`."""
-        return all(self.consistent(i, rule=rule) for i in self)
-
-    def consistent(self, operand: Object, rule: Rule):
-        """True if `operand` inter-operates with the reference operand."""
-        names = set(self.reference.parameters) - set(rule.parameters)
-        return all(
-            hasattr(operand, name)
-            and getattr(operand, name) == getattr(self.reference, name)
-            for name in names
-        )
-
     def __str__(self) -> str:
         return ', '.join(str(i) for i in self)
+
+
+class Result:
+    """The expected result of an operation."""
+
+    def __init__(self, form: typing.Union[T, typing.Type[T]]) -> None:
+        self.form = form
+        self.parameters = Object(form).parameters
+
+    def __bool__(self) -> bool:
+        """True if the user can format this result."""
+        return self.form is not None and bool(self.parameters)
+
+    def format(self, *args, **kwargs) -> T:
+        """Convert the result of an operation into the appropriate object.
+        
+        If `self.result` is a ``type``, this method will return a new instance
+        of that type, initialized with the given arguments. If `self.result` is
+        an instance of some type, this method will return the instance after
+        updating it based on the given arguments.
+
+        Parameters
+        ----------
+        *args
+            The positional arguments used to create the new object.
+
+        **kwargs
+            The keyword arguments used to create the new object.
+
+        Returns
+        -------
+        Any
+        """
+        pos, kwd = self.get_values(list(args), kwargs)
+        if isinstance(self.form, type):
+            return self.form(*pos, **kwd)
+        for name in self.parameters:
+            value = arg_or_kwarg(pos, kwd, name)
+            utilities.setattrval(self.form, name, value)
+        return self.form
+
+    def get_values(self, args: list, kwargs: dict):
+        """Extract appropriate argument values.
+        
+        This method will attempt to build appropriate positional and keyword
+        arguments from this result, based on the given object signature.
+        """
+        if not self.parameters:
+            return tuple(args), kwargs
+        pos = []
+        kwd = {}
+        for name, parameter in self.parameters.items():
+            kind = parameter.kind
+            if kind is inspect.Parameter.POSITIONAL_ONLY:
+                pos.append(args.pop(0))
+            elif kind is inspect.Parameter.POSITIONAL_OR_KEYWORD:
+                pos.append(arg_or_kwarg(args, kwargs, name))
+            elif kind is inspect.Parameter.KEYWORD_ONLY:
+                kwd[name] = kwargs.get(name)
+        return tuple(pos), kwd
 
 
 class Application:
@@ -574,10 +469,10 @@ class Application:
         self.method = method
         self.rule = rule
         self.reference = reference
-        self.result = result
+        self.result = Result(result)
         self.implemented = bool(self.rule)
 
-    def evaluate(self, *args, **kwargs):
+    def evaluate(self, *args, **kwargs) -> T:
         """Apply this operation to the given arguments."""
         if not self.result:
             return self.method(*args, **kwargs)
@@ -591,7 +486,7 @@ class Application:
             )
         pos = [compute(name) for name in self.reference.positional]
         kwd = {name: compute(name) for name in self.reference.keyword}
-        # TODO: format and return result
+        return self.result.format(*pos, **kwd)
 
 
 class Operator:
@@ -608,21 +503,7 @@ class Operator:
         self.result = None
 
     def __call__(self, *args, **kwargs):
-        """"""
-        # Possible results, not necessarily in order
-        # - The operator isn't implemented for the given arguments: return
-        #   `NotImplemented`.
-        # - The caller has not prescribed a target type or object: return
-        #   whatever `self.method(*args, **kwargs)` returns.
-        # - The given arguments are inconsistent with the reference argument, if
-        #   any. Two arguments are considered inconsistent if they have
-        #   different values for any attribute(s) that the operation does not
-        #   change under the corresponding rule: raise an exception.
-        # - The caller has prescribed a target type or object: operate on each
-        #   updatable attribute indicated by the current rule, collect values of
-        #   all other attributes from the reference argument, create an instance
-        #   of the target type or update the target object, and return the
-        #   result.
+        """Apply this operator's method to the arguments."""
         application = self.apply(*args)
         if not application.implemented:
             return NotImplemented
@@ -647,32 +528,36 @@ class Operator:
 
 
 class Cast(Operator):
-    """"""
+    """An implementation of a type-casting operator."""
 
     def __call__(self, a, /):
+        """Convert `a` to the appropriate type, if possible."""
         return super().__call__(a)
 
 
 class Unary(Operator):
-    """"""
+    """An implementation of a unary arithmetic operator."""
 
     def __call__(self, a, /, **kwargs):
+        """Apply this operator's method to `a`."""
         self.reference = a
         self.result = type(a)
         return super().__call__(a, **kwargs)
 
 
 class Comparison(Operator):
-    """"""
+    """An implementation of a binary comparison operator."""
 
     def __call__(self, a, b, /):
+        """Compare `a` to `b`."""
         return super().__call__(a, b)
 
 
 class Numeric(Operator):
-    """"""
+    """An implementation of a binary numeric operator."""
 
     def __call__(self, a, b, /, **kwargs):
+        """Apply this operator's method to `a` and `b`."""
         self.reference = a
         self.result = type(a)
         return super().__call__(a, b, **kwargs)
