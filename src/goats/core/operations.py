@@ -263,26 +263,15 @@ class Objects(collections.abc.Sequence, iterables.ReprStrMixin):
         self._objects = [Object(i) for i in objects]
         self._types = None
 
-    # Adapted to `Context`. Consider deprecating here.
-    def support(self, rule: Rule):
-        """True if these objects inter-operate under the given rule.
+    def agree(self, *names: str):
+        """True if these objects have equal attributes.
         
-        This method determines if all the attributes that are common to these
-        objects and that are not included in the given rule have the same value.
-        These are the attributes that the corresponding operation will ignore;
-        therefore, different values for the same attribute will lead to
-        ambiguity.
-        
-        Notes
-        -----
-        - Objects are always compatible if the given rule is unconstrained.
-        - A single object is trivially compatible with itself.
+        This method determines if all the named attributes have the same value.
+        The result is always ``True`` for an instance with length 1, since a
+        single object trivially agrees with itself.
         """
-        if not rule.parameters:
+        if len(self) == 1:
             return True
-        sets = [set(obj.parameters) for obj in self]
-        parameters = set.intersection(*sets)
-        names = set(parameters) - set(rule.parameters)
         reference = self[0]
         return all(
             getattr(obj, name) == getattr(reference, name)
@@ -473,68 +462,59 @@ class Operator:
     def __init__(
         self,
         method: typing.Callable[..., T],
-        rule: Rule,
-        reference: Object,
+        *parameters: str,
+        reference: Object=None,
+        target: T=None
     ) -> None:
         self.method = method
-        self.rule = rule
+        self.parameters = parameters
         self.reference = reference
+        self.target = target
 
     def __call__(self, *args, **kwargs):
         """Evaluate the given arguments."""
+        if not self.parameters:
+            # We don't know which arguments to operate on, so we hand execution
+            # over to the given objects, in case they implement this method in
+            # their class definitions.
+            return self.method(*args, **kwargs)
         def compute(__name: str):
             return (
                 self.method(
                     *[utilities.getattrval(arg, __name) for arg in args],
                     **kwargs
-                ) if __name in self.rule.parameters
+                ) if __name in self.parameters
                 else utilities.getattrval(self.reference, __name)
             )
         pos = [compute(name) for name in self.reference.positional]
         kwd = {name: compute(name) for name in self.reference.keyword}
-        return Arguments(self.reference, *pos, **kwd)
+        result = Arguments(self.reference, *pos, **kwd)
+        if self.target is None or self.reference.isbuiltin:
+            # We don't have enough information to create or update an instance
+            # of a custom type, so we return the value of the first positional
+            # parameter in the given rule. This gives us what we want for cast
+            # and comparison operations, but it isn't explicit and may therefore
+            # introduce bugs in other cases.
+            return result[0]
+        return result.format(self.target)
 
 
-class Context:
-    """The implementation context of an arithmetic operation."""
-
-    def __init__(
-        self,
-        *operands,
-        reference: T=None,
-    ) -> None:
-        self._args = operands
-        self.operands = Objects(*operands)
-        self.reference = Object(reference or operands[0])
-
-    def supports(self, rule: Rule):
-        """True if the operands are compatible under `rule`.
-        
-        This method determines if all the attributes that are common to these
-        objects and that are not included in the given rule have the same value.
-        These are the attributes that the corresponding operation will ignore;
-        therefore, different values for the same attribute will lead to
-        ambiguity.
-        
-        Notes
-        -----
-        - Objects are always compatible if the given rule is unconstrained.
-        - A single object is trivially compatible with itself.
-        """
-        if not rule.parameters:
-            return True
-        sets = [set(obj.parameters) for obj in self.operands]
-        parameters = set.intersection(*sets)
-        names = set(parameters) - set(rule.parameters)
-        reference = self.operands[0]
-        return all(
-            getattr(obj, name) == getattr(reference, name)
-            for name in names for obj in self.operands
-        )
-
-    def implement(self, method: typing.Callable[..., T], rule: Rule):
-        """Apply a method and rule to this context."""
-        return Operator(method, rule, self.reference)
+def compatible(*operands, rule: Rule=None):
+    """True if the operands are compatible under `rule`.
+    
+    This method determines if all the attributes that are common to these
+    objects and that are not included in the given rule have the same value.
+    These are the attributes that the corresponding operation will ignore;
+    therefore, different values for the same attribute will lead to ambiguity.
+    Objects are always compatible if the given rule is unconstrained.
+    """
+    if rule is not None and not rule.parameters:
+        return True
+    objects = Objects(*operands)
+    sets = [set(obj.parameters) for obj in objects]
+    parameters = set.intersection(*sets)
+    names = parameters if rule is None else parameters - set(rule.parameters)
+    return objects.agree(*names)
 
 
 class OperandTypeError(Exception):
@@ -558,36 +538,36 @@ class Implementation:
 
     def compute(self, *args, reference=None, target=None, **kwargs):
         """Compute the result of this operation."""
-        context = Context(*args, reference=reference)
-        # Alternative: pass `self.rules` to a method of `context` and let it
-        # compute `rule`.
-        types = context.operands.types
-        rule = self.rules.get(types)
-        if not context.supports(rule):
-            self._raise(types, rule, context.reference)
-        if not rule.parameters:
-            # We don't know which arguments to operate on, so we hand execution
-            # over to the given objects, in case they implement this method in
-            # their class definitions.
-            return self.method(*args, **kwargs)
-        operator = context.implement(self.method, rule)
+        operator = self.implement(*args, reference=reference, target=target)
         if not operator:
             return NotImplemented
-        result = operator(*args, **kwargs)
-        if target is None or context.reference.isbuiltin:
-            # We don't have enough information to create or update an instance
-            # of a custom type, so we return the value of the first positional
-            # parameter in the given rule. This gives us what we want for cast
-            # and comparison operations, but it isn't explicit and may therefore
-            # introduce bugs in other cases.
-            return result[0]
-        return result.format(target)
+        return operator(*args, **kwargs)
+
+    def implement(
+        self,
+        *operands,
+        reference: T=None,
+        target: typing.Union[T, typing.Type[T]]=None,
+    ) -> Operator:
+        """Create an operator for this operation."""
+        types = [type(operand) for operand in operands]
+        rule = self.rules.get(types)
+        refobj = Object(reference or operands[0])
+        if not compatible(*operands, rule=rule):
+            self._raise(rule, types, refobj)
+        if rule.implemented:
+            return Operator(
+                self.method,
+                *rule.parameters,
+                reference=refobj,
+                target=target,
+            )
 
     def _raise(
         self,
-        types: typing.Iterable[type],
         rule: Rule,
-        reference: Object,
+        types: typing.Sequence[type],
+        reference: Object[T],
     ) -> typing.NoReturn:
         """Raise an exception due to the operand-update rule."""
         method_string = repr(self.method.__qualname__)
