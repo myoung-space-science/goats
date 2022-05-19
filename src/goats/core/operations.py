@@ -576,10 +576,14 @@ class Operator:
         )
 
 
+A = typing.TypeVar('A')
+B = typing.TypeVar('B')
+
+
 class Cast(Operator):
     """An implementation of a type-casting operator."""
 
-    def __call__(self, a, /):
+    def __call__(self, a: A, /):
         """Convert `a` to the appropriate type, if possible."""
         return self.compute(a)
 
@@ -587,7 +591,7 @@ class Cast(Operator):
 class Unary(Operator):
     """An implementation of a unary arithmetic operator."""
 
-    def __call__(self, a, /, **kwargs):
+    def __call__(self, a: A, /, **kwargs):
         """Apply this operator's method to `a`."""
         return self.compute(a, reference=a, target=type(a), **kwargs)
 
@@ -595,7 +599,7 @@ class Unary(Operator):
 class Comparison(Operator):
     """An implementation of a binary comparison operator."""
 
-    def __call__(self, a, b, /):
+    def __call__(self, a: A, b: B, /):
         """Compare `a` to `b`."""
         return self.compute(a, b)
 
@@ -603,7 +607,7 @@ class Comparison(Operator):
 class Numeric(Operator):
     """An implementation of a binary numeric operator."""
 
-    def __call__(self, a, b, /, **kwargs):
+    def __call__(self, a: A, b: B, /, **kwargs):
         """Apply this operator's method to `a` and `b`."""
         return self.compute(a, b, reference=a, target=type(a), **kwargs)
 
