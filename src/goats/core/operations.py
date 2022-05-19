@@ -456,49 +456,6 @@ class Arguments:
         return tuple(pos), kwd
 
 
-class Operator:
-    """A generalized operator implementation."""
-
-    def __init__(
-        self,
-        method: typing.Callable[..., T],
-        *parameters: str,
-        reference: Object=None,
-        target: T=None
-    ) -> None:
-        self.method = method
-        self.parameters = parameters
-        self.reference = reference
-        self.target = target
-
-    def __call__(self, *args, **kwargs):
-        """Evaluate the given arguments."""
-        if not self.parameters:
-            # We don't know which arguments to operate on, so we hand execution
-            # over to the given objects, in case they implement this method in
-            # their class definitions.
-            return self.method(*args, **kwargs)
-        def compute(__name: str):
-            return (
-                self.method(
-                    *[utilities.getattrval(arg, __name) for arg in args],
-                    **kwargs
-                ) if __name in self.parameters
-                else utilities.getattrval(self.reference, __name)
-            )
-        pos = [compute(name) for name in self.reference.positional]
-        kwd = {name: compute(name) for name in self.reference.keyword}
-        result = Arguments(self.reference, *pos, **kwd)
-        if self.target is None or self.reference.isbuiltin:
-            # We don't have enough information to create or update an instance
-            # of a custom type, so we return the value of the first positional
-            # parameter in the given rule. This gives us what we want for cast
-            # and comparison operations, but it isn't explicit and may therefore
-            # introduce bugs in other cases.
-            return result[0]
-        return result.format(self.target)
-
-
 def compatible(*operands, rule: Rule=None):
     """True if the operands are compatible under `rule`.
     
@@ -517,11 +474,44 @@ def compatible(*operands, rule: Rule=None):
     return objects.agree(*names)
 
 
+class Operands(Objects):
+    """Objects that are part of an operation."""
+
+    def __init__(self, *objects, reference: T=None) -> None:
+        super().__init__(*objects)
+        self.reference = Object(reference or self[0])
+
+    def support(self, rule: Rule):
+        """True if these operands are compatible under `rule`."""
+        return compatible(*self, rule=rule)
+
+    def apply(self, method: typing.Callable[..., T], rule: Rule, **kwargs):
+        """Apply a method and rule to these operands."""
+        get = utilities.getattrval
+        default = {
+            name: get(self.reference, name)
+            for name in self.reference.parameters
+        }
+        pos = [
+            (
+                method(*[get(i, name) for i in self], **kwargs)
+                if name in rule else default[name]
+            ) for name in self.reference.positional
+        ]
+        kwd = {
+            name: (
+                method(*[get(i, name) for i in self], **kwargs)
+                if name in rule else default[name]
+            ) for name in self.reference.positional
+        }
+        return Arguments(self.reference, *pos, **kwd)
+
+
 class OperandTypeError(Exception):
     """These operands are incompatible."""
 
 
-class Implementation:
+class Operator:
     """The default operator implementation."""
 
     def __init__(
@@ -538,56 +528,55 @@ class Implementation:
 
     def compute(self, *args, reference=None, target=None, **kwargs):
         """Compute the result of this operation."""
-        operator = self.implement(*args, reference=reference, target=target)
-        if not operator:
+        rule = self.get_rule(*args)
+        if not rule.implemented:
             return NotImplemented
-        return operator(*args, **kwargs)
+        if not rule.parameters:
+            # We don't know which arguments to operate on, so we hand execution
+            # over to the given objects, in case they implement this method in
+            # their class definitions.
+            return self.method(*args, **kwargs)
+        operands = Operands(*args, reference=reference)
+        if not operands.support(rule):
+            errmsg = self._operand_errmsg(rule, operands)
+            raise OperandTypeError(errmsg) from None
+        result = operands.apply(self.method, rule, **kwargs)
+        if target is None or operands.reference.isbuiltin:
+            # We don't have enough information to create or update an instance
+            # of a custom type, so we return the value of the first positional
+            # parameter in the given rule. This gives us what we want for cast
+            # and comparison operations, but it isn't explicit and may therefore
+            # introduce bugs in other cases. Maybe this responsibility should
+            # fall to the subclasses.
+            return result[0]
+        return result.format(target)
 
-    def implement(
-        self,
-        *operands,
-        reference: T=None,
-        target: typing.Union[T, typing.Type[T]]=None,
-    ) -> Operator:
-        """Create an operator for this operation."""
+    def get_rule(self, *operands):
+        """Get the operation rule for these operands' types."""
         types = [type(operand) for operand in operands]
-        rule = self.rules.get(types)
-        refobj = Object(reference or operands[0])
-        if not compatible(*operands, rule=rule):
-            self._raise(rule, types, refobj)
-        if rule.implemented:
-            return Operator(
-                self.method,
-                *rule.parameters,
-                reference=refobj,
-                target=target,
-            )
+        return self.rules.get(types)
 
-    def _raise(
-        self,
-        rule: Rule,
-        types: typing.Sequence[type],
-        reference: Object[T],
-    ) -> typing.NoReturn:
-        """Raise an exception due to the operand-update rule."""
+    def _operand_errmsg(self, rule: Rule, operands: Operands):
+        """Build an error message based on `rule` and `operands`."""
         method_string = repr(self.method.__qualname__)
+        types = operands.types
         types_string = (
             types[0].__qualname__ if len(types) == 1
             else f"({', '.join(t.__qualname__ for t in types)})"
         )
-        fixed = tuple(set(reference.parameters) - set(rule.parameters))
+        fixed = tuple(set(operands.reference.parameters) - set(rule.parameters))
         attrs_string = (
             repr(fixed[0]) if len(fixed) == 1
             else f"{fixed[0]!r} and {fixed[1]!r}" if len(fixed) == 2
             else f"{', '.join(fixed[:-1])} and {fixed[-1]}"
         )
-        raise OperandTypeError(
+        return (
             f"Can't apply operator {method_string} to {types_string}"
             f" with different values of {attrs_string}"
-        ) from None
+        )
 
 
-class Cast(Implementation):
+class Cast(Operator):
     """An implementation of a type-casting operator."""
 
     def __call__(self, a, /):
@@ -595,7 +584,7 @@ class Cast(Implementation):
         return self.compute(a)
 
 
-class Unary(Implementation):
+class Unary(Operator):
     """An implementation of a unary arithmetic operator."""
 
     def __call__(self, a, /, **kwargs):
@@ -603,7 +592,7 @@ class Unary(Implementation):
         return self.compute(a, reference=a, target=type(a), **kwargs)
 
 
-class Comparison(Implementation):
+class Comparison(Operator):
     """An implementation of a binary comparison operator."""
 
     def __call__(self, a, b, /):
@@ -611,7 +600,7 @@ class Comparison(Implementation):
         return self.compute(a, b)
 
 
-class Numeric(Implementation):
+class Numeric(Operator):
     """An implementation of a binary numeric operator."""
 
     def __call__(self, a, b, /, **kwargs):
@@ -619,7 +608,7 @@ class Numeric(Implementation):
         return self.compute(a, b, reference=a, target=type(a), **kwargs)
 
 
-IType = typing.TypeVar('IType', bound=Implementation)
+IType = typing.TypeVar('IType', bound=Operator)
 
 
 class Operation(typing.Generic[IType]):
@@ -633,10 +622,6 @@ class Operation(typing.Generic[IType]):
         self._implement = __category
         self.rules = rules or Rules()
 
-    # One possible alternative is to initialize the implementation in
-    # `__init__`, then apply the callable here. That would probably mean that
-    # `Operator` has an `apply` method that creates an `Implementation` whose
-    # `__call__` method takes implementation-specific arguments.
     def implement(self, __callable: typing.Callable[..., T]):
         return self._implement(__callable, self.rules)
 
