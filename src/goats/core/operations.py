@@ -410,77 +410,40 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
         return super().get(__types, default or Rule(__types))
 
 
-class Implementation:
-    """A general implementation of an arithmetic operation."""
+class Arguments:
+    """Positional and keyword inputs to an object."""
 
-    def __init__(
-        self,
-        method: typing.Callable[..., T],
-        rule: Rule,
-        reference: Object[T],
-        result: typing.Union[T, typing.Type[T]]=None,
-    ) -> None:
-        self.method = method
-        self.rule = rule
+    def __init__(self, reference: Object, *positional, **keyword) -> None:
         self.reference = reference
-        self.result = result
+        self.positional = positional
+        self.keyword = keyword
 
-    def __bool__(self):
-        """True iff the operand-update rule is implemented."""
-        return bool(self.rule.implemented)
+    def __getitem__(self, __x):
+        """Get positional arguments by index or keyword arguments by name."""
+        if isinstance(__x, (typing.SupportsIndex, slice)):
+            return self.positional[__x]
+        if isinstance(__x, str):
+            return self.keyword[__x]
+        raise TypeError(__x)
 
-    def operator(self, *args, **kwargs) -> T:
-        """Evaluate the given arguments."""
-        def compute(__name: str):
-            return (
-                self.method(
-                    *[utilities.getattrval(arg, __name) for arg in args],
-                    **kwargs
-                ) if __name in self.rule.parameters
-                else utilities.getattrval(self.reference, __name)
-            )
-        if not self.rule.parameters:
-            # We don't know which arguments to operate on, so we assume that the
-            # given objects implement this method in their class definitions.
-            return self.method(*args, **kwargs)
-        if self.result is None or self.reference.isbuiltin:
-            # We don't have enough information to create or update an instance
-            # of a custom type, so we compute the value of the first parameter
-            # listed in the given rule. This gives us what we want for cast and
-            # comparison operations, but it isn't explicit and may therefore
-            # introduce bugs in other cases.
-            return compute(self.rule.parameters[0])
-        pos = [compute(name) for name in self.reference.positional]
-        kwd = {name: compute(name) for name in self.reference.keyword}
-        return self.format(*pos, **kwd)
-
-    def format(self, *args, **kwargs) -> T:
+    def format(self, target: typing.Union[T, typing.Type[T]]) -> T:
         """Convert the result of an operation into the appropriate object.
         
-        If `self.result` is a ``type``, this method will return a new instance
-        of that type, initialized with the given arguments. If `self.result` is
-        an instance of some type, this method will return the instance after
-        updating it based on the given arguments.
-
         Parameters
         ----------
-        *args
-            The positional arguments used to create the new object.
-
-        **kwargs
-            The keyword arguments used to create the new object.
-
-        Returns
-        -------
-        Any
+        target
+            If `target` is a ``type``, this method will return a new instance of
+            that type, initialized with the given arguments. If `target` is an
+            instance of some type, this method will return the instance after
+            updating it based on the given arguments.
         """
-        pos, kwd = self.get_values(list(args), kwargs)
-        if isinstance(self.result, type):
-            return self.result(*pos, **kwd)
+        args, kwargs = self.get_values(list(self.positional), self.keyword)
+        if isinstance(target, type):
+            return target(*args, **kwargs)
         for name in self.reference.parameters:
-            value = arg_or_kwarg(list(pos), kwd, name)
-            utilities.setattrval(self.result, name, value)
-        return self.result
+            value = arg_or_kwarg(list(args), kwargs, name)
+            utilities.setattrval(target, name, value)
+        return target
 
     def get_values(self, args: list, kwargs: dict):
         """Extract appropriate argument values.
@@ -507,30 +470,60 @@ class OperandTypeError(Exception):
     """These operands are incompatible."""
 
 
-class Context:
-    """The implementation context of an arithmetic operation."""
+class Operator:
+    """The default operator implementation."""
 
     def __init__(
         self,
         method: typing.Callable[..., T],
         rules: Rules,
-        reference: T=None,
-        result: typing.Union[T, typing.Type[T]]=None,
     ) -> None:
         self.method = method
         self.rules = rules
-        self.reference = reference
-        self.result = result
+        self.reference = None
+        self.result = None
 
-    def apply(self, *args):
-        """Implement an operation based on these arguments."""
+    def __call__(self, *args, **kwargs):
+        """Apply this operator's method to the arguments."""
         objects = Objects(*args)
         types = objects.types
         rule = self.rules.get(types)
         reference = Object(self.reference or args[0])
-        if objects.support(rule):
-            return Implementation(self.method, rule, reference, self.result)
-        self._raise(types, rule, reference)
+        if not objects.support(rule):
+            self._raise(types, rule, reference)
+        if not rule.implemented:
+            return
+        if not rule.parameters:
+            # We don't know which arguments to operate on, so we assume that the
+            # given objects implement this method in their class definitions.
+            return self.method(*args, **kwargs)
+        operator = self._implement(rule, reference)
+        result = operator(*args, **kwargs)
+        if self.result is None or reference.isbuiltin:
+            # We don't have enough information to create or update an instance
+            # of a custom type, so we return the value of the first positional
+            # parameter in the given rule. This gives us what we want for cast
+            # and comparison operations, but it isn't explicit and may therefore
+            # introduce bugs in other cases.
+            return result[0]
+        return result.format(self.result)
+
+    def _implement(self, rule: Rule, reference: Object):
+        """Implement the custom operator."""
+        def operator(*args, **kwargs):
+            """Evaluate the given arguments."""
+            def compute(__name: str):
+                return (
+                    self.method(
+                        *[utilities.getattrval(arg, __name) for arg in args],
+                        **kwargs
+                    ) if __name in rule.parameters
+                    else utilities.getattrval(reference, __name)
+                )
+            pos = [compute(name) for name in reference.positional]
+            kwd = {name: compute(name) for name in reference.keyword}
+            return Arguments(reference, *pos, **kwd)
+        return operator
 
     def _raise(
         self,
@@ -554,37 +547,6 @@ class Context:
             f"Can't apply operator {method_string} to {types_string}"
             f" with different values of {attrs_string}"
         ) from None
-
-
-class Operator:
-    """The default operator implementation."""
-
-    def __init__(
-        self,
-        method: typing.Callable[..., T],
-        rules: Rules,
-    ) -> None:
-        self.method = method
-        self.rules = rules
-        self.reference = None
-        self.result = None
-
-    @property
-    def context(self):
-        """This operator's implementation context."""
-        return Context(
-            self.method,
-            self.rules,
-            reference=self.reference,
-            result=self.result,
-        )
-
-    def __call__(self, *args, **kwargs):
-        """Apply this operator's method to the arguments."""
-        implemented = self.context.apply(*args)
-        if not implemented:
-            return NotImplemented
-        return implemented.operator(*args, **kwargs)
 
 
 class Cast(Operator):
@@ -637,6 +599,10 @@ class Operation(typing.Generic[IType]):
         self._implement = __category
         self.rules = rules or Rules()
 
+    # One possible alternative is to initialize the implementation in
+    # `__init__`, then apply the callable here. That would probably mean that
+    # `Implementation` has an `apply` method that creates an `Operator` whose
+    # `__call__` method takes implementation-specific arguments.
     def implement(self, __callable: typing.Callable[..., T]):
         return self._implement(__callable, self.rules)
 
