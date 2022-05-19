@@ -608,17 +608,13 @@ class Numeric(Operator):
         return self.compute(a, b, reference=a, target=type(a), **kwargs)
 
 
-IType = typing.TypeVar('IType', bound=Operator)
+OType = typing.TypeVar('OType', bound=Operator)
 
 
-class Operation(typing.Generic[IType]):
+class Operation(typing.Generic[OType]):
     """A general arithmetic operation."""
 
-    def __init__(
-        self,
-        __category: typing.Type[IType],
-        rules=None,
-    ) -> None:
+    def __init__(self, __category: typing.Type[OType], rules=None):
         self._implement = __category
         self.rules = rules or Rules()
 
