@@ -312,8 +312,8 @@ class Objects(collections.abc.Sequence, iterables.ReprStrMixin):
 class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
     """A class for managing operand-update rules."""
 
-    def __init__(self, *parameters: str, nargs: int=None) -> None:
-        self.default = list(parameters)
+    def __init__(self, *default: str, nargs: int=None) -> None:
+        self.default = list(default)
         """The default parameters to update for each rule."""
         self.nargs = nargs
         """The number of arguments in these rules."""
