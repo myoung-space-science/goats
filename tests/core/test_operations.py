@@ -135,9 +135,9 @@ def instances():
     }
 
 
-def test_objects_support(instances: typing.Dict[str, Class]):
-    """Test the method that checks for object inter-operability."""
-    objects = operations.Objects(*instances.values())
+def test_compatible(instances: typing.Dict[str, Class]):
+    """Test the function that checks for object inter-operability."""
+    objects = list(instances.values())
     types = [Class, Class]
     cases = {
         'value': { # `info` should be the same
@@ -152,9 +152,8 @@ def test_objects_support(instances: typing.Dict[str, Class]):
     for name, tests in cases.items():
         rule = operations.Rule(types, name)
         for indices, expected in tests.items():
-            c = [objects[index] for index in indices]
-            these = operations.Objects(*c)
-            assert these.support(rule) == expected
+            these = [objects[index] for index in indices]
+            assert operations.compatible(*these, rule=rule) == expected
 
 
 def test_cast_operation(instances: typing.Dict[str, Class]):
