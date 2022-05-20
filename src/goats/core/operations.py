@@ -491,31 +491,6 @@ class Operands(Objects):
         super().__init__(*objects)
         self.reference = Object(reference or self[0])
 
-    def support(self, rule: Rule):
-        """True if these operands are compatible under `rule`."""
-        return compatible(*self, rule=rule)
-
-    def apply(self, method: typing.Callable[..., T], rule: Rule, **kwargs):
-        """Apply a method and rule to these operands."""
-        get = utilities.getattrval
-        default = {
-            name: get(self.reference, name)
-            for name in self.reference.parameters
-        }
-        pos = [
-            (
-                method(*[get(i, name) for i in self], **kwargs)
-                if name in rule else default[name]
-            ) for name in self.reference.positional
-        ]
-        kwd = {
-            name: (
-                method(*[get(i, name) for i in self], **kwargs)
-                if name in rule else default[name]
-            ) for name in self.reference.keyword
-        }
-        return Arguments(self.reference, *pos, **kwd)
-
 
 class Context:
     """The implementation context for an operation."""
@@ -529,6 +504,10 @@ class Context:
         self.operands = Operands(*args, reference=reference)
         self.reference = Object(reference)
         self.target = target
+
+    def supports(self, rule: Rule):
+        """True if the operands are compatible under `rule`."""
+        return compatible(*self.operands, rule=rule)
 
     def apply(self, method: typing.Callable, rule: Rule, **kwargs):
         """Apply a method and rule to this context."""
@@ -638,7 +617,7 @@ class Operator(abc.ABC):
             # their class definitions.
             return self.method(*args, **kwargs)
         context = Context(*args, reference=reference, target=target)
-        if not context.operands.support(rule):
+        if not context.supports(rule):
             errmsg = self._operand_errmsg(rule, context.operands)
             raise OperandTypeError(errmsg) from None
         return context.apply(self.method, rule, **kwargs)
