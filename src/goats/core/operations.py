@@ -309,7 +309,14 @@ class Objects(collections.abc.Sequence, iterables.ReprStrMixin):
         return ', '.join(str(i) for i in self)
 
 
-class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
+class _RulesType(
+    typing.Mapping[Types, Rule],
+    collections.abc.Mapping,
+    iterables.ReprStrMixin,
+): ...
+
+
+class Rules(_RulesType):
     """A class for managing operand-update rules."""
 
     def __init__(self, *default: str, nargs: int=None) -> None:
@@ -398,6 +405,9 @@ class Rules(typing.Mapping[Types, Rule], collections.abc.Mapping):
         no constraints for the given types.
         """
         return super().get(__types, default or Rule(__types))
+
+    def __str__(self) -> str:
+        return ', '.join(str(rule) for rule in self)
 
 
 class Arguments:
