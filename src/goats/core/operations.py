@@ -637,37 +637,64 @@ class Numeric(Operator):
         return self.compute(a, b, reference=a, target=type(a), **kwargs)
 
 
-_categories = {
-    'unary': {
-        'implementation': Unary,
-        'nargs': 1,
-        'aliases': ['abs', 'pos', 'neg', 'trunc', 'round', 'ceil', 'floor'],
-    },
-    'cast': {
-        'implementation': Cast,
-        'nargs': 1,
-        'aliases': ['int', 'float', 'complex'],
-    },
-    'comparison': {
-        'implementation': Comparison,
-        'nargs': 2,
-        'aliases': ['lt', 'le', 'gt', 'ge', 'eq', 'ne'],
-    },
-    'numeric': {
-        'implementation': Numeric,
-        'nargs': 2,
-        'aliases': ['add', 'sub', 'mul', 'truediv', 'floordiv', 'pow'],
-    },
-}
-
-
 OType = typing.TypeVar('OType', bound=Operator)
+
+
+class Category(typing.Generic[OType]):
+    """Implementation context for an operation category."""
+
+    def __init__(
+        self,
+        __type: typing.Type[OType],
+        nargs: int=None,
+        aliases: typing.Sequence[str]=None,
+    ) -> None:
+        self._type = __type
+        self.nargs = nargs
+        self.aliases = list(aliases or [])
+
+
+default = Category(
+    Default,
+)
+unary = Category(
+    Unary,
+    nargs=1,
+    aliases=['abs', 'pos', 'neg', 'trunc', 'round', 'ceil', 'floor'],
+)
+cast = Category(
+    Cast,
+    nargs=1,
+    aliases=['int', 'float', 'complex'],
+)
+comparison = Category(
+    Comparison,
+    nargs=2,
+    aliases=['lt', 'le', 'gt', 'ge', 'eq', 'ne'],
+)
+numeric = Category(
+    Numeric,
+    nargs=2,
+    aliases=['add', 'sub', 'mul', 'truediv', 'floordiv', 'pow'],
+)
+
+_categories = {
+    'default': default,
+    'unary': unary,
+    'cast': cast,
+    'comparison': comparison,
+    'numeric': numeric,
+}
 
 
 class Operation(typing.Generic[OType]):
     """A general arithmetic operation."""
 
-    def __init__(self, __category: typing.Type[OType], rules=None):
+    def __init__(
+        self,
+        __category: typing.Type[OType],
+        rules: Rules=None,
+    ) -> None:
         self._implement = __category
         self.rules = rules or Rules()
 
@@ -676,80 +703,70 @@ class Operation(typing.Generic[OType]):
 
 
 
-# API:
-# - user provides an operation name or alias
-# - interface returns the appropriate operation context, which may be the
-#   default context
-# - user modifies operand rules, if necessary
-# - user implements the operator by providing a method
-# - the operator checks input arguments against operand rules; if there is no
-#   rule for the given argument types, the operator returns `NotImplemented`
-# - the default context simply passes all arguments to the given method
-#
-# NOTES:
-# - I would really like non-default operators to have a type signature more
-#   specific than `(*args, **kwargs) -> Any`
-# - does the interface need to know about the type of object or can that be
-#   optional?
-
-
 class Interface:
-    """"""
+    """Top-level interface to arithmetic operations."""
 
-    # The user provides the name of the attribute that contains numerical data.
-    # If absent, operations will treat (the) entire input argument(s) as the
-    # numerical data. This behavior will support for subclasses of
-    # `numbers.Number`. The user can add affected attributes for specific
-    # operators. The `Rules` class may need to change in order to accommodate.
-    def __init__(self, __type: type, target: str=None) -> None:
+    def __init__(self, __type: type, dataname: str=None) -> None:
         self._type = __type
-        self.target = target
+        self.dataname = dataname
         """The name of the data-like attribute."""
-        # This should probably be an aliased mapping that associates
-        # operators with categories by default.
         self._implementations = None
 
-    _names = [
-        'unary',
-        'cast',
-        'comparison',
-        'forward',
-        'reverse',
-        'inplace',
-    ]
-
+    _IT = typing.TypeVar('_IT', bound=typing.MutableMapping)
+    _IT = typing.MutableMapping[str, Category[OType]]
     @property
-    def implementations(self):
+    def implementations(self) -> _IT:
         """All available implementation contexts."""
         if self._implementations is None:
-            self._implementations = aliased.MutableMapping()
-        contexts = {name: getattr(self, name) for name in self._names}
-        self._implementations.update(contexts)
+            self._implementations = aliased.MutableMapping(_categories)
         return self._implementations
 
-    # The user must be able to request an operation by name. If this instance
-    # has an implementation for it, it should return that implementation; if
-    # not, it should return a default implementation. The default implementation
-    # should operate on the numerical data and return the raw result.
-    def find(self, __name: str) -> Operation:
-        """Get an appropriate implementation context for the named operator."""
-        if operation := self._implementations.get(__name):
-            return operation
-        rules = Rules(self.target)
-        raise NotImplementedError
+    @typing.overload
+    def create(
+        self,
+        __name: typing.Literal['cast'],
+    ) -> Operation[Cast]: ...
+
+    @typing.overload
+    def create(
+        self,
+        __name: typing.Literal['unary'],
+    ) -> Operation[Unary]: ...
+
+    @typing.overload
+    def create(
+        self,
+        __name: typing.Literal['comparison'],
+    ) -> Operation[Comparison]: ...
+
+    @typing.overload
+    def create(
+        self,
+        __name: typing.Literal['numeric'],
+    ) -> Operation[Numeric]: ...
+
+    @typing.overload
+    def create(self, __name: str) -> Operation[Default]: ...
+
+    def create(self, __name):
+        """Create an interface to an operation or operation category.
+        
+        Parameters
+        ----------
+        __name : str
+            The name of an operation or an operation category. If `__name` is
+        """
+        category = self.implementations.get(__name, default)
+        nargs = category.nargs
+        rules = Rules(self.dataname, nargs=nargs)
+        if nargs:
+            rules.register([self._type] * nargs)
+        return Operation(category._type, rules=rules)
 
 
 _operators = [
     ('add', '__add__', 'addition'),
     ('sub', '__sub__', 'subtraction'),
 ]
-
-
-_categories = {
-    'unary': ['abs', 'pos', 'neg', 'trunc', 'round', 'ceil', 'floor'],
-    'cast': ['int', 'float', 'complex'],
-    'comparison': ['lt', 'le', 'gt', 'ge', 'eq', 'ne'],
-    'numeric': ['add', 'sub', 'mul', 'truediv', 'floordiv', 'pow'],
-}
 
 

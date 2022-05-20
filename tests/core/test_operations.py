@@ -73,36 +73,6 @@ def test_objects():
         assert subset == inputs[index]
 
 
-CAST = {
-    'int': int,
-    'float': float,
-}
-UNARY = {
-    'abs': standard.abs,
-    'neg': standard.neg,
-    'pos': standard.pos,
-    'ceil': math.ceil,
-    'floor': math.floor,
-    'trunc': math.trunc,
-    'round': round,
-}
-NUMERIC = {
-    'add': standard.add,
-    'sub': standard.sub,
-    'mul': standard.mul,
-    'truediv': standard.truediv,
-    'pow': pow,
-}
-COMPARISON = {
-    'lt': standard.lt,
-    'le': standard.le,
-    'gt': standard.gt,
-    'ge': standard.ge,
-    'eq': standard.eq,
-    'ne': standard.ne,
-}
-
-
 class Class:
     """A test class."""
     def __init__(self, value: numbers.Real, info: str) -> None:
@@ -231,61 +201,83 @@ def test_numeric_operation(instances: typing.Dict[str, Class]):
         operator(instances['c0'], instances['c2'])
 
 
-def test_implementation():
-    """Test the ability to implement an operation."""
-    class Base:
-        def __init__(
-            self,
-            __value: numbers.Real,
-            unit: str,
-            axes: typing.Iterable[str]=None,
-        ) -> None:
-            self.value = __value
-            self.unit = unit
-            self.axes = axes or []
-            operators = operations.Interface(type(self), target='value')
-        def __repr__(self) -> str:
-            attrs = (
-                str(self.value),
-                str(self.unit),
-                f"axes={self.axes}",
-            )
-            return f"{self.__class__.__qualname__}({', '.join(attrs)})"
+CAST = {
+    'int': int,
+    'float': float,
+}
+UNARY = {
+    'abs': standard.abs,
+    'neg': standard.neg,
+    'pos': standard.pos,
+    'ceil': math.ceil,
+    'floor': math.floor,
+    'trunc': math.trunc,
+    'round': round,
+}
+NUMERIC = {
+    'add': standard.add,
+    'sub': standard.sub,
+    'mul': standard.mul,
+    'truediv': standard.truediv,
+    'pow': pow,
+}
+COMPARISON = {
+    'lt': standard.lt,
+    'le': standard.le,
+    'gt': standard.gt,
+    'ge': standard.ge,
+    'eq': standard.eq,
+    'ne': standard.ne,
+}
 
-    class OperatorsMixin:
-        """"""
 
-    class Empty(Base):
-        """"""
+def test_cast_interface(instances: typing.Dict[str, Class]):
+    """Test cast operations via the module interface."""
+    interface = operations.Interface(Class, dataname='value')
+    operation = interface.create('cast')
+    for builtin in CAST.values():
+        operator = operation.implement(builtin)
+        for instance in instances.values():
+            expected = builtin(instance.value)
+            assert operator(instance) == expected
 
-    class Filled(Base, OperatorsMixin):
-        """"""
 
-    empty = Empty(1.2, 'u')
-    value = 1.2
-    for method in CAST.values():
-        with pytest.raises(TypeError):
-            assert method(empty)
-    for method in UNARY.values():
-        with pytest.raises(TypeError):
-            assert method(empty)
-    for name, method in COMPARISON.items():
-        if name == 'eq':
-            assert not method(empty, value)
-        elif name == 'ne':
-            assert method(empty, value)
-        else:
-            with pytest.raises(TypeError):
-                assert method(empty, value)
-    for method in NUMERIC.values():
-        with pytest.raises(TypeError):
-            assert method(empty, value)
-        with pytest.raises(TypeError):
-            assert method(value, empty)
+def test_unary_interface(instances: typing.Dict[str, Class]):
+    """Test unary operations via the module interface."""
+    interface = operations.Interface(Class, dataname='value')
+    operation = interface.create('unary')
+    for builtin in UNARY.values():
+        operator = operation.implement(builtin)
+        for instance in instances.values():
+            expected = Class(builtin(instance.value), instance.info)
+            assert operator(instance) == expected
 
-    c0 = Filled(+1.2, 'u', axes=['x', 'y'])
-    c1 = Filled(-3.4, 'u', axes=['x', 'y'])
-    # assert c0 + c1 == Filled(c0.value + c1.value, 'u', axes=['x', 'y'])
 
+def test_comparison_interface(instances: typing.Dict[str, Class]):
+    """Test comparison operations via the module interface."""
+    interface = operations.Interface(Class, dataname='value')
+    operation = interface.create('comparison')
+    targets = instances['c0'], instances['c1']
+    for builtin in COMPARISON.values():
+        operator = operation.implement(builtin)
+        assert operator(*targets) == builtin(*[c.value for c in targets])
+        with pytest.raises(operations.OperandTypeError):
+            operator(instances['c0'], instances['c2'])
+
+
+def test_numeric_interface(instances: typing.Dict[str, Class]):
+    """Test numeric operations via the module interface."""
+    interface = operations.Interface(Class, dataname='value')
+    operation = interface.create('numeric')
+    targets = instances['c0'], instances['c1']
+    for builtin in NUMERIC.values():
+        operator = operation.implement(builtin)
+        expected = Class(
+            builtin(*[c.value for c in targets]),
+            targets[0].info,
+        )
+        assert operator(*targets) == expected
+        with pytest.raises(operations.OperandTypeError):
+            operator(instances['c0'], instances['c2'])
 
 
