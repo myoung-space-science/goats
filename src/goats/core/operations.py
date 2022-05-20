@@ -511,8 +511,8 @@ class OperandTypeError(Exception):
     """These operands are incompatible."""
 
 
-class Operator:
-    """The default operator implementation."""
+class Operator(abc.ABC):
+    """Abstract base class for operator implementations."""
 
     def __init__(
         self,
@@ -522,9 +522,16 @@ class Operator:
         self.method = method
         self.rules = rules
 
+    @abc.abstractmethod
     def __call__(self, *args, **kwargs):
-        """Apply this operation's method to the given arguments."""
-        return self.compute(*args, **kwargs)
+        """Call this operator.
+        
+        Concrete subclasses must implement this method. It should take arguments
+        appropriate to the specific operator or operator category and return
+        whatever a user could reasonably expect from the equivalent standard
+        operator.
+        """
+        pass
 
     def compute(self, *args, reference=None, target=None, **kwargs):
         """Compute the result of this operation."""
@@ -578,6 +585,14 @@ class Operator:
 
 A = typing.TypeVar('A')
 B = typing.TypeVar('B')
+
+
+class Default(Operator):
+    """The default operator implementation."""
+
+    def __call__(self, *args, **kwargs):
+        """Apply this operation's method to the given arguments."""
+        return self.compute(*args, **kwargs)
 
 
 class Cast(Operator):
