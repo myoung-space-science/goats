@@ -517,6 +517,90 @@ class Operands(Objects):
         return Arguments(self.reference, *pos, **kwd)
 
 
+class Context:
+    """The implementation context for an operation."""
+
+    def __init__(
+        self,
+        *args,
+        reference: T=None,
+        target: typing.Union[T, typing.Type[T]]=None,
+    ) -> None:
+        self.operands = Operands(*args, reference=reference)
+        self.reference = Object(reference)
+        self.target = target
+
+    def apply(self, method: typing.Callable, rule: Rule, **kwargs):
+        """Apply a method and rule to this context."""
+        if not self.reference.parameters:
+            values = [
+                method(*self.get(name), **kwargs)
+                for name in rule.parameters
+            ]
+            if self.target is None:
+                return values[0] if len(values) == 1 else values
+            return self.format(*values)
+        default = {
+            name: utilities.getattrval(self.reference, name)
+            for name in self.reference.parameters
+        }
+        pos = [
+            (
+                method(*self.get(name), **kwargs)
+                if name in rule else default[name]
+            ) for name in self.reference.positional
+        ]
+        if self.target is None:
+            return pos[0] if len(pos) == 1 else pos
+        kwd = {
+            name: (
+                method(*self.get(name), **kwargs)
+                if name in rule else default[name]
+            ) for name in self.reference.keyword
+        }
+        return self.format(*pos, **kwd)
+
+    def get(self, name: str):
+        """Get operand values for the named attribute."""
+        return [utilities.getattrval(i, name) for i in self.operands]
+
+    def format(self, *args, **kwargs) -> T:
+        """Convert the result of an operation into the appropriate object.
+        
+        If `self.target` is a ``type``, this method will return a new
+        instance of that type, initialized with the given arguments. If
+        `self.target` is an instance of some type, this method will return
+        the instance after updating it based on the given arguments.
+        """
+        pos, kwd = self.get_values(list(args), kwargs)
+        if isinstance(self.target, type):
+            return self.target(*pos, **kwd)
+        for name in self.reference.parameters:
+            value = arg_or_kwarg(list(pos), kwd, name)
+            utilities.setattrval(self.target, name, value)
+        return self.target
+
+    def get_values(self, args: list, kwargs: dict):
+        """Extract appropriate argument values.
+        
+        This method will attempt to build appropriate positional and keyword
+        arguments from this result, based on the given object signature.
+        """
+        if not self.reference.parameters:
+            return tuple(args), kwargs
+        pos = []
+        kwd = {}
+        for name, parameter in self.reference.parameters.items():
+            kind = parameter.kind
+            if kind is inspect.Parameter.POSITIONAL_ONLY:
+                pos.append(args.pop(0))
+            elif kind is inspect.Parameter.POSITIONAL_OR_KEYWORD:
+                pos.append(arg_or_kwarg(args, kwargs, name))
+            elif kind is inspect.Parameter.KEYWORD_ONLY:
+                kwd[name] = kwargs.get(name)
+        return tuple(pos), kwd
+
+
 class OperandTypeError(Exception):
     """These operands are incompatible."""
 
@@ -553,20 +637,11 @@ class Operator(abc.ABC):
             # over to the given objects, in case they implement this method in
             # their class definitions.
             return self.method(*args, **kwargs)
-        operands = Operands(*args, reference=reference)
-        if not operands.support(rule):
-            errmsg = self._operand_errmsg(rule, operands)
+        context = Context(*args, reference=reference, target=target)
+        if not context.operands.support(rule):
+            errmsg = self._operand_errmsg(rule, context.operands)
             raise OperandTypeError(errmsg) from None
-        result = operands.apply(self.method, rule, **kwargs)
-        if target is None or operands.reference.isbuiltin:
-            # We don't have enough information to create or update an instance
-            # of a custom type, so we return the value of the first positional
-            # parameter in the given rule. This gives us what we want for cast
-            # and comparison operations, but it isn't explicit and may therefore
-            # introduce bugs in other cases. Maybe this responsibility should
-            # fall to the subclasses.
-            return result[0]
-        return result.format(target)
+        return context.apply(self.method, rule, **kwargs)
 
     def get_rule(self, *operands):
         """Get the operation rule for these operands' types."""
