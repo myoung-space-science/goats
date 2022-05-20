@@ -377,7 +377,7 @@ class Rules(_RulesType):
     def __iter__(self) -> typing.Iterator[Rule]:
         """Iterate over rules. Called for iter(self)."""
         for types in self.mapping:
-            yield Rule(types, self.mapping[types])
+            yield Rule(types, *self.mapping[types])
 
     def __getitem__(self, key: Types):
         """Retrieve the operand-update rule for `types`."""
