@@ -253,7 +253,7 @@ class Rule(iterables.ReprStrMixin):
     def __str__(self) -> str:
         names = [t.__qualname__ for t in self.types]
         types = names[0] if len(names) == 1 else tuple(names)
-        return f"{types}: {list(self.parameters)}"
+        return f"{types}: {self.parameters}"
 
 
 class Objects(collections.abc.Sequence, iterables.ReprStrMixin):
