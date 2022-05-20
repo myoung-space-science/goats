@@ -637,6 +637,30 @@ class Numeric(Operator):
         return self.compute(a, b, reference=a, target=type(a), **kwargs)
 
 
+_categories = {
+    'unary': {
+        'implementation': Unary,
+        'nargs': 1,
+        'aliases': ['abs', 'pos', 'neg', 'trunc', 'round', 'ceil', 'floor'],
+    },
+    'cast': {
+        'implementation': Cast,
+        'nargs': 1,
+        'aliases': ['int', 'float', 'complex'],
+    },
+    'comparison': {
+        'implementation': Comparison,
+        'nargs': 2,
+        'aliases': ['lt', 'le', 'gt', 'ge', 'eq', 'ne'],
+    },
+    'numeric': {
+        'implementation': Numeric,
+        'nargs': 2,
+        'aliases': ['add', 'sub', 'mul', 'truediv', 'floordiv', 'pow'],
+    },
+}
+
+
 OType = typing.TypeVar('OType', bound=Operator)
 
 
