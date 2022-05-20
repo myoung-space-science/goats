@@ -512,7 +512,7 @@ class Operands(Objects):
             name: (
                 method(*[get(i, name) for i in self], **kwargs)
                 if name in rule else default[name]
-            ) for name in self.reference.positional
+            ) for name in self.reference.keyword
         }
         return Arguments(self.reference, *pos, **kwd)
 
