@@ -86,6 +86,7 @@ class Object(typing.Generic[T], iterables.ReprStrMixin):
         self._object = self._init_object(__object)
         self._type = type(self._object)
         self.isbuiltin = self._type.__module__ == 'builtins'
+        self._values = None
         self._parameters = None
         self._positional = None
         self._keyword = None
@@ -95,6 +96,16 @@ class Object(typing.Generic[T], iterables.ReprStrMixin):
         if isinstance(arg, type(self)):
             return arg._object
         return arg
+
+    @property
+    def values(self):
+        """All values used to initialize this object."""
+        if self._values is None:
+            self._values = {
+                name: utilities.getattrval(self._object, name)
+                for name in self.parameters
+            }
+        return self._values
 
     @property
     def parameters(self):
