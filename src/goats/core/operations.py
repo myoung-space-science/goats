@@ -502,8 +502,18 @@ class Context:
         target: typing.Union[T, typing.Type[T]]=None,
     ) -> None:
         self.operands = Operands(*args, reference=reference)
+        """The active and reference operands."""
         self.reference = Object(reference)
+        """The object that provides reference parameters and values.
+        
+        Note that this is different from the reference operand: The `reference`
+        attribute of an `Operands` instance defaults to the first argument used
+        to initialize that instance if the user doesn't provide a reference
+        object, whereas this class's `reference` attribute represents whatever
+        object the caller used to initialize this instance.
+        """
         self.target = target
+        """The object or type of object representing the operation result."""
 
     def supports(self, rule: Rule):
         """True if the operands are compatible under `rule`."""
