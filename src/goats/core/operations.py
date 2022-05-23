@@ -795,48 +795,51 @@ class Interface:
             self._implementations = aliased.MutableMapping(_categories)
         return self._implementations
 
-    @typing.overload
-    def create(
-        self,
-        __name: typing.Literal['cast'],
-    ) -> Operation[Cast]: ...
+    @property
+    def cast(self):
+        """Create an interface to a type-casting operation."""
+        return self._create(Cast, nargs=1)
 
-    @typing.overload
-    def create(
-        self,
-        __name: typing.Literal['unary'],
-    ) -> Operation[Unary]: ...
+    @property
+    def unary(self):
+        """Create an interface to a unary arithmetic operation."""
+        return self._create(Unary, nargs=1)
 
-    @typing.overload
-    def create(
-        self,
-        __name: typing.Literal['comparison'],
-    ) -> Operation[Comparison]: ...
+    @property
+    def comparison(self):
+        """Create an interface to a binary comparison operation."""
+        return self._create(Comparison, nargs=2)
 
-    @typing.overload
-    def create(
-        self,
-        __name: typing.Literal['numeric'],
-    ) -> Operation[Numeric]: ...
+    @property
+    def numeric(self):
+        """Create an interface to a binary arithmetic operation."""
+        return self._create(Numeric, nargs=2)
 
-    @typing.overload
-    def create(self, __name: str) -> Operation[Default]: ...
-
-    def create(self, __name):
-        """Create an interface to an operation or operation category.
+    def create(self, __name: str):
+        """Create an arbitrary operation interface.
         
         Parameters
         ----------
-        __name : str
-            The name of an operation or an operation category. If `__name` is
-        """
-        category = self.implementations.get(__name, default)
-        nargs = category.nargs
-        rules = Rules(self.dataname, nargs=nargs)
-        if nargs:
-            rules.register([self._type] * nargs)
-        return Operation(category._type, rules=rules)
+        __name : string
+            The name of an operation or operation category to implement.
 
+        Returns
+        -------
+        Operation
+        """
+        category = self.implementations(__name, Default)
+        return self._create(category)
+
+    def _create(
+        self,
+        __category: typing.Type[OType],
+        nargs: int=None,
+    ) -> Operation[OType]:
+        """Internal helper for creating operation interfaces."""
+        rules = Rules(self.dataname, nargs=nargs)
+        if nargs is not None:
+            rules.register([self._type] * nargs)
+        return Operation(__category, rules=rules)
 
 _operators = [
     ('add', '__add__', 'addition'),

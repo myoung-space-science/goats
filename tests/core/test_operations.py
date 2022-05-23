@@ -234,7 +234,7 @@ COMPARISON = {
 def test_cast_interface(instances: typing.Dict[str, Class]):
     """Test cast operations via the module interface."""
     interface = operations.Interface(Class, dataname='value')
-    operation = interface.create('cast')
+    operation = interface.cast
     for builtin in CAST.values():
         operator = operation.implement(builtin)
         for instance in instances.values():
@@ -245,7 +245,7 @@ def test_cast_interface(instances: typing.Dict[str, Class]):
 def test_unary_interface(instances: typing.Dict[str, Class]):
     """Test unary operations via the module interface."""
     interface = operations.Interface(Class, dataname='value')
-    operation = interface.create('unary')
+    operation = interface.unary
     for builtin in UNARY.values():
         operator = operation.implement(builtin)
         for instance in instances.values():
@@ -256,7 +256,7 @@ def test_unary_interface(instances: typing.Dict[str, Class]):
 def test_comparison_interface(instances: typing.Dict[str, Class]):
     """Test comparison operations via the module interface."""
     interface = operations.Interface(Class, dataname='value')
-    operation = interface.create('comparison')
+    operation = interface.comparison
     targets = instances['c0'], instances['c1']
     for builtin in COMPARISON.values():
         operator = operation.implement(builtin)
@@ -268,7 +268,7 @@ def test_comparison_interface(instances: typing.Dict[str, Class]):
 def test_numeric_interface(instances: typing.Dict[str, Class]):
     """Test numeric operations via the module interface."""
     interface = operations.Interface(Class, dataname='value')
-    operation = interface.create('numeric')
+    operation = interface.numeric
     targets = instances['c0'], instances['c1']
     for builtin in NUMERIC.values():
         operator = operation.implement(builtin)
