@@ -540,25 +540,24 @@ class Context:
             if self.target is None:
                 return values[0] if len(values) == 1 else values
             return self.format(*values)
-        default = {
-            name: utilities.getattrval(self.reference, name)
-            for name in self.reference.parameters
-        }
         pos = [
-            (
-                method(*self.get(name), **kwargs)
-                if name in rule else default[name]
-            ) for name in self.reference.positional
+            self.compute(name, method, rule, **kwargs)
+            for name in self.reference.positional
         ]
         if self.target is None:
             return pos[0] if len(pos) == 1 else pos
         kwd = {
-            name: (
-                method(*self.get(name), **kwargs)
-                if name in rule else default[name]
-            ) for name in self.reference.keyword
+            name: self.compute(name, method, rule, **kwargs)
+            for name in self.reference.keyword
         }
         return self.format(*pos, **kwd)
+
+    def compute(self, name: str, method, rule: Rule, **kwargs):
+        """Compute a value for name or get the default value."""
+        return (
+            method(*self.get(name), **kwargs)
+            if name in rule else self.reference.values.get(name)
+        )
 
     def get(self, name: str):
         """Get operand values for the named attribute."""
