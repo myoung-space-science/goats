@@ -502,6 +502,10 @@ class Operands(Objects):
         super().__init__(*objects)
         self.reference = Object(reference or self[0])
 
+    def get(self, name: str):
+        """Get operand values for the named attribute."""
+        return [utilities.getattrval(i, name) for i in self]
+
 
 class Context:
     """The implementation context for an operation."""
@@ -534,7 +538,7 @@ class Context:
         """Apply a method and rule to this context."""
         if not self.reference.parameters:
             values = [
-                method(*self.get(name), **kwargs)
+                self.compute(name, method, rule, **kwargs)
                 for name in rule.parameters
             ]
             if self.target is None:
@@ -555,13 +559,9 @@ class Context:
     def compute(self, name: str, method, rule: Rule, **kwargs):
         """Compute a value for name or get the default value."""
         return (
-            method(*self.get(name), **kwargs)
+            method(*self.operands.get(name), **kwargs)
             if name in rule else self.reference.values.get(name)
         )
-
-    def get(self, name: str):
-        """Get operand values for the named attribute."""
-        return [utilities.getattrval(i, name) for i in self.operands]
 
     def format(self, *args, **kwargs) -> T:
         """Convert the result of an operation into the appropriate object.
