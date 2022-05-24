@@ -421,62 +421,6 @@ class Rules(_RulesType):
         return ', '.join(str(rule) for rule in self)
 
 
-class Arguments:
-    """Positional and keyword inputs to an object."""
-
-    def __init__(self, reference: Object, *positional, **keyword) -> None:
-        self.reference = reference
-        self.positional = positional
-        self.keyword = keyword
-
-    def __getitem__(self, __x):
-        """Get positional arguments by index or keyword arguments by name."""
-        if isinstance(__x, (typing.SupportsIndex, slice)):
-            return self.positional[__x]
-        if isinstance(__x, str):
-            return self.keyword[__x]
-        raise TypeError(__x)
-
-    def format(self, target: typing.Union[T, typing.Type[T]]) -> T:
-        """Convert the result of an operation into the appropriate object.
-        
-        Parameters
-        ----------
-        target
-            If `target` is a ``type``, this method will return a new instance of
-            that type, initialized with the given arguments. If `target` is an
-            instance of some type, this method will return the instance after
-            updating it based on the given arguments.
-        """
-        args, kwargs = self.get_values(list(self.positional), self.keyword)
-        if isinstance(target, type):
-            return target(*args, **kwargs)
-        for name in self.reference.parameters:
-            value = arg_or_kwarg(list(args), kwargs, name)
-            utilities.setattrval(target, name, value)
-        return target
-
-    def get_values(self, args: list, kwargs: dict):
-        """Extract appropriate argument values.
-        
-        This method will attempt to build appropriate positional and keyword
-        arguments from this result, based on the given object signature.
-        """
-        if not self.reference.parameters:
-            return tuple(args), kwargs
-        pos = []
-        kwd = {}
-        for name, parameter in self.reference.parameters.items():
-            kind = parameter.kind
-            if kind is inspect.Parameter.POSITIONAL_ONLY:
-                pos.append(args.pop(0))
-            elif kind is inspect.Parameter.POSITIONAL_OR_KEYWORD:
-                pos.append(arg_or_kwarg(args, kwargs, name))
-            elif kind is inspect.Parameter.KEYWORD_ONLY:
-                kwd[name] = kwargs.get(name)
-        return tuple(pos), kwd
-
-
 def compatible(*operands, rule: Rule=None):
     """True if the operands are compatible under `rule`.
     
