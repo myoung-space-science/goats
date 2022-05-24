@@ -257,6 +257,39 @@ def test_declared_aliases():
     assert mapping.flat == expected
 
 
+def test_mapping_squeeze():
+    """Test the option to reduce singleton inner mappings to values."""
+    this = {
+        'a': {'aliases': ('A', 'a0'), 'name': 'Annabez'},
+        'b': {'aliases': 'B', 'nombre': 'Borb'},
+        'C': {'aliases': ('c',), 'name': 'Chrunk'}
+    }
+    mapping = aliased.Mapping(this)
+    expected = {
+        'a': {'name': 'Annabez'},
+        'A': {'name': 'Annabez'},
+        'a0': {'name': 'Annabez'},
+        'b': {'nombre': 'Borb'},
+        'B': {'nombre': 'Borb'},
+        'C': {'name': 'Chrunk'},
+        'c': {'name': 'Chrunk'},
+    }
+    assert mapping.flat == expected
+    squeezed = mapping.copy().squeeze()
+    expected = {
+        'a': 'Annabez',
+        'A': 'Annabez',
+        'a0': 'Annabez',
+        'b': 'Borb',
+        'B': 'Borb',
+        'C': 'Chrunk',
+        'c': 'Chrunk',
+    }
+    assert squeezed.flat == expected
+    with pytest.raises(TypeError):
+        mapping.copy().squeeze(strict=True)
+
+
 def test_mapping_fromkeys():
     """Test the class method that creates an aliased mapping from keys."""
     this = {
