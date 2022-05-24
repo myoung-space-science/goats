@@ -115,11 +115,15 @@ class Mixin:
     __neg__ = operators.unary.implement(standard.neg)
 
     __add__ = operators.numeric.implement(standard.add)
-    __radd__ = operators.numeric.implement(standard.add).reverse
+    __radd__ = operators.numeric.implement(standard.add, 'reverse')
     __sub__ = operators.numeric.implement(standard.sub)
-    __rsub__ = operators.numeric.implement(standard.sub).reverse
+    __rsub__ = operators.numeric.implement(standard.sub, 'reverse')
     __mul__ = operators.numeric.implement(standard.mul)
-    __rmul__ = operators.numeric.implement(standard.mul).reverse
+    __rmul__ = operators.numeric.implement(standard.mul, 'reverse')
+    __truediv__ = operators.numeric.implement(standard.truediv)
+    __rtruediv__ = operators.numeric.implement(standard.truediv, 'reverse')
+    __pow__ = operators.numeric.implement(pow)
+    __rpow__ = operators.numeric.implement(pow, 'reverse')
 
 
 class Simple(Base, Mixin):
@@ -171,7 +175,7 @@ def test_compatible(instances: Instances):
 def test_cast_operation(instances: Instances):
     """Test the implementation of a type-cast operation."""
     builtin = int
-    operation = operations.Operation(operations.Cast)
+    operation = operations.Cast()
     operator = operation.implement(builtin)
     value = 3.3
     result = operator(value)
@@ -179,21 +183,21 @@ def test_cast_operation(instances: Instances):
     assert operator(value) == builtin(value)
     with pytest.raises(TypeError):
         operator(instances['base'][0])
-    operator.rules.register(Base, 'value')
+    operation.rules.register(Base, 'value')
     for instance in instances['base']:
         assert operator(instance) == builtin(instance.value)
 
 
 def test_unary_operation(instances: Instances):
     """Test the implementation of a unary arithmetic operation."""
-    operation = operations.Operation(operations.Unary)
+    operation = operations.Unary()
     builtin = round
     operator = operation.implement(builtin)
     value = 3.3
     assert operator(value) == builtin(value)
     with pytest.raises(TypeError):
         operator(instances['base'][0])
-    operator.rules.register(Base, 'value')
+    operation.rules.register(Base, 'value')
     for instance in instances['base']:
         expected = Base(builtin(instance.value), instance.info)
         assert operator(instance) == expected
@@ -201,14 +205,14 @@ def test_unary_operation(instances: Instances):
 
 def test_comparison_operation(instances: Instances):
     """Test the implementation of a binary comparison operation."""
-    operation = operations.Operation(operations.Comparison)
+    operation = operations.Comparison()
     builtin = standard.lt
     operator = operation.implement(builtin)
     values = 2, 4
     assert operator(*values) == builtin(*values)
     with pytest.raises(TypeError):
         operator(instances['base'][0], instances['base'][1])
-    operator.rules.register([Base, Base], 'value')
+    operation.rules.register([Base, Base], 'value')
     assert operator(instances['base'][0], instances['base'][1])
     assert not operator(instances['base'][1], instances['base'][0])
     with pytest.raises(operations.OperandTypeError):
@@ -217,7 +221,7 @@ def test_comparison_operation(instances: Instances):
 
 def test_numeric_operation(instances: Instances):
     """Test the implementation of a binary numeric operation."""
-    operation = operations.Operation(operations.Numeric)
+    operation = operations.Numeric()
     builtin = standard.add
     operator = operation.implement(builtin)
     values = 2, 4
@@ -233,7 +237,7 @@ def test_numeric_operation(instances: Instances):
         assert result == builtin(*inputs)
     with pytest.raises(TypeError):
         operator(instances['base'][0], instances['base'][1])
-    operator.rules.register([Base, Base], 'value')
+    operation.rules.register([Base, Base], 'value')
     expected = Base(
         builtin(instances['base'][0].value, instances['base'][1].value),
         instances['base'][0].info,
@@ -323,7 +327,6 @@ def test_numeric_interface(instances: Instances):
             operator(instances['base'][0], instances['base'][2])
 
 
-@pytest.mark.xfail
 def test_numeric_mixin(instances: Instances):
     """Test the use of the mixin numeric operators."""
     targets = instances['simple'][0], instances['simple'][1]

@@ -615,17 +615,6 @@ class Operator(abc.ABC):
         self.method = method
         self.rules = rules
 
-    @abc.abstractmethod
-    def __call__(self, *args, **kwargs):
-        """Call this operator.
-        
-        Concrete subclasses must implement this method. It should take arguments
-        appropriate to the specific operator or operator category and return
-        whatever a user could reasonably expect from the equivalent standard
-        operator.
-        """
-        pass
-
     def compute(self, *args, reference=None, target=None, **kwargs):
         """Compute the result of this operation."""
         rule = self.get_rule(*args)
@@ -667,59 +656,90 @@ class Operator(abc.ABC):
         )
 
 
+Caller = typing.TypeVar('Caller', bound=typing.Callable)
+Caller = typing.Callable[..., T]
+
+
+class Operation:
+    """A general arithmetic operation."""
+
+    def __init__(self, rules: Rules=None) -> None:
+        self.rules = rules or Rules()
+
+    def implement(self, __caller: Caller):
+        """Implement this operation with the given callable object."""
+        operator = Operator(__caller, self.rules)
+        def operate(*args, **kwargs):
+            """Apply this operation to the given arguments."""
+            return operator.compute(*args, **kwargs)
+        return operate
+
+
 A = typing.TypeVar('A')
 B = typing.TypeVar('B')
 
 
-class Default(Operator):
-    """The default operator implementation."""
-
-    def __call__(self, *args, **kwargs):
-        """Apply this operation's method to the given arguments."""
-        return self.compute(*args, **kwargs)
+OType = typing.TypeVar('OType', bound=Operation)
 
 
-class Cast(Operator):
-    """An implementation of a type-casting operator."""
+class Cast(Operation):
+    """An implementation of a type-casting operation."""
 
-    def __call__(self, a: A, /):
-        """Convert `a` to the appropriate type, if possible."""
-        return self.compute(a)
-
-
-class Unary(Operator):
-    """An implementation of a unary arithmetic operator."""
-
-    def __call__(self, a: A, /, **kwargs) -> A:
-        """Apply this operator's method to `a`."""
-        return self.compute(a, reference=a, target=type(a), **kwargs)
+    def implement(self, __caller: Caller):
+        """Implement this operation with the given callable object."""
+        operator = Operator(__caller, self.rules)
+        def operate(a: A):
+            """Convert `a` to the appropriate type, if possible."""
+            return operator.compute(a)
+        return operate
 
 
-class Comparison(Operator):
-    """An implementation of a binary comparison operator."""
+class Unary(Operation):
+    """An implementation of a unary arithmetic operation."""
 
-    def __call__(self, a: A, b: B, /):
-        """Compare `a` to `b`."""
-        return self.compute(a, b)
-
-
-class Numeric(Operator):
-    """An implementation of a binary numeric operator."""
-
-    def __call__(self, a: A, b: B, /, **kwargs) -> A:
-        """Apply this operator to `a` and `b`."""
-        return self.compute(a, b, reference=a, target=type(a), **kwargs)
-
-    def reverse(self, a: A, b: B, /, **kwargs) -> B:
-        """Apply this operator to `a` and `b` with reflected operands."""
-        return self.compute(a, b, reference=b, target=type(b), **kwargs)
-
-    def inplace(self, a: A, b: B, /, **kwargs) -> A:
-        """Apply this operator to `a` and `b` in-place."""
-        return self.compute(a, b, reference=a, target=a, **kwargs)
+    def implement(self, __caller: Caller):
+        """Implement this operation with the given callable object."""
+        operator = Operator(__caller, self.rules)
+        def operate(a: A, /, **kwargs) -> A:
+            """Apply this operation to `a`."""
+            return operator.compute(a, reference=a, target=type(a), **kwargs)
+        return operate
 
 
-OType = typing.TypeVar('OType', bound=Operator)
+class Comparison(Operation):
+    """An implementation of a binary comparison operation."""
+
+    def implement(self, __caller: Caller):
+        """Implement this operation with the given callable object."""
+        operator = Operator(__caller, self.rules)
+        def operate(a: A, b: B, /):
+            """Compare `a` to `b`."""
+            return operator.compute(a, b)
+        return operate
+
+
+class Numeric(Operation):
+    """An implementation of a binary numeric operation."""
+
+    def implement(self, __caller: Caller, mode: str='forward'):
+        """Implement this operation with the given callable object."""
+        operator = Operator(__caller, self.rules)
+        def forward(a: A, b: B, /, **kwargs) -> A:
+            """Apply this operation to `a` and `b`."""
+            return operator.compute(a, b, reference=a, target=type(a), **kwargs)
+        def reverse(a: A, b: B, /, **kwargs) -> B:
+            """Apply this operation to `a` and `b` with reflected operands."""
+            return operator.compute(a, b, reference=b, target=type(b), **kwargs)
+        def inplace(a: A, b: B, /, **kwargs) -> A:
+            """Apply this operation to `a` and `b` in-place."""
+            return operator.compute(a, b, reference=a, target=a, **kwargs)
+        if mode == 'forward':
+            return forward
+        if mode == 'reverse':
+            return reverse
+        if mode == 'inplace':
+            return inplace
+        raise ValueError(f"Unknown implementation mode {mode!r}") from None
 
 
 _categories = {
@@ -742,21 +762,6 @@ _categories = {
 }
 
 
-class Operation(typing.Generic[OType]):
-    """A general arithmetic operation."""
-
-    def __init__(
-        self,
-        __category: typing.Type[OType],
-        rules: Rules=None,
-    ) -> None:
-        self._implement = __category
-        self.rules = rules or Rules()
-
-    def implement(self, __callable: typing.Callable[..., T]):
-        return self._implement(__callable, self.rules)
-
-
 class Interface:
     """Top-level interface to arithmetic operations."""
 
@@ -765,6 +770,14 @@ class Interface:
         self.dataname = dataname
         """The name of the data-like attribute."""
         self._implementations = None
+        self.cast = self._create(Cast, nargs=1)
+        """An interface to type-casting operations."""
+        self.unary = self._create(Unary, nargs=1)
+        """An interface to a unary arithmetic operations."""
+        self.comparison = self._create(Comparison, nargs=2)
+        """An interface to a binary comparison operations."""
+        self.numeric = self._create(Numeric, nargs=2)
+        """An interface to a binary arithmetic operations."""
 
     @property
     def implementations(self) -> typing.MutableMapping[str, OType]:
@@ -773,26 +786,6 @@ class Interface:
             mapping = aliased.MutableMapping(_categories, 'operations')
             self._implementations = mapping.squeeze()
         return self._implementations
-
-    @property
-    def cast(self):
-        """Create an interface to a type-casting operation."""
-        return self._create(Cast, nargs=1)
-
-    @property
-    def unary(self):
-        """Create an interface to a unary arithmetic operation."""
-        return self._create(Unary, nargs=1)
-
-    @property
-    def comparison(self):
-        """Create an interface to a binary comparison operation."""
-        return self._create(Comparison, nargs=2)
-
-    @property
-    def numeric(self):
-        """Create an interface to a binary arithmetic operation."""
-        return self._create(Numeric, nargs=2)
 
     def create(self, __name: str):
         """Create an arbitrary operation interface.
@@ -806,19 +799,18 @@ class Interface:
         -------
         Operation
         """
-        category = self.implementations(__name, Default)
-        return self._create(category)
+        return self._create(self.implementations.get(__name, Operation))
 
     def _create(
         self,
         __category: typing.Type[OType],
         nargs: int=None,
-    ) -> Operation[OType]:
+    ) -> OType:
         """Internal helper for creating operation interfaces."""
         rules = Rules(self.dataname, nargs=nargs)
         if nargs is not None:
             rules.register([self._type] * nargs)
-        return Operation(__category, rules=rules)
+        return __category(rules=rules)
 
 _operators = [
     ('add', '__add__', 'addition'),
