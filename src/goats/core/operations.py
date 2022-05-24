@@ -604,12 +604,16 @@ class OperandTypeError(Exception):
     """These operands are incompatible."""
 
 
-class Operator(abc.ABC):
-    """Abstract base class for operator implementations."""
+Caller = typing.TypeVar('Caller', bound=typing.Callable)
+Caller = typing.Callable[..., T]
+
+
+class Operator:
+    """Base class for operator implementations."""
 
     def __init__(
         self,
-        method: typing.Callable[..., T],
+        method: Caller,
         rules: Rules,
     ) -> None:
         self.method = method
@@ -656,17 +660,13 @@ class Operator(abc.ABC):
         )
 
 
-Caller = typing.TypeVar('Caller', bound=typing.Callable)
-Caller = typing.Callable[..., T]
-
-
 class Operation:
     """A general arithmetic operation."""
 
     def __init__(self, rules: Rules=None) -> None:
         self.rules = rules or Rules()
 
-    def implement(self, __caller: Caller):
+    def implement(self, __caller: Caller) -> typing.Any:
         """Implement this operation with the given callable object."""
         operator = Operator(__caller, self.rules)
         def operate(*args, **kwargs):
@@ -685,10 +685,10 @@ OType = typing.TypeVar('OType', bound=Operation)
 class Cast(Operation):
     """An implementation of a type-casting operation."""
 
-    def implement(self, __caller: Caller):
+    def implement(self, __caller: typing.Type[T]):
         """Implement this operation with the given callable object."""
         operator = Operator(__caller, self.rules)
-        def operate(a: A):
+        def operate(a: A) -> T:
             """Convert `a` to the appropriate type, if possible."""
             return operator.compute(a)
         return operate
@@ -712,7 +712,7 @@ class Comparison(Operation):
     def implement(self, __caller: Caller):
         """Implement this operation with the given callable object."""
         operator = Operator(__caller, self.rules)
-        def operate(a: A, b: B, /):
+        def operate(a: A, b: B, /) -> T:
             """Compare `a` to `b`."""
             return operator.compute(a, b)
         return operate
