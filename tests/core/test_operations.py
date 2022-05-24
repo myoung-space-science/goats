@@ -73,8 +73,8 @@ def test_objects():
         assert subset == inputs[index]
 
 
-class Class:
-    """A test class."""
+class Base:
+    """A base for test classes."""
     def __init__(self, value: numbers.Real, info: str) -> None:
         self.value = value
         """A numerical value."""
@@ -95,20 +95,62 @@ class Class:
         return f"{self.__class__.__qualname__}({self.value}, {self.info})"
 
 
+class Mixin:
+    """A mixin class that provides operator implementations."""
+
+    operators = operations.Interface(Base, dataname='value')
+
+    __int__ = operators.cast.implement(int)
+    __float__ = operators.cast.implement(float)
+
+    __lt__ = operators.comparison.implement(standard.lt)
+    __le__ = operators.comparison.implement(standard.le)
+    __gt__ = operators.comparison.implement(standard.gt)
+    __ge__ = operators.comparison.implement(standard.ge)
+    __eq__ = operators.comparison.implement(standard.eq)
+    __ne__ = operators.comparison.implement(standard.ne)
+
+    __abs__ = operators.unary.implement(standard.abs)
+    __pos__ = operators.unary.implement(standard.pos)
+    __neg__ = operators.unary.implement(standard.neg)
+
+    __add__ = operators.numeric.implement(standard.add)
+    __radd__ = operators.numeric.implement(standard.add).reverse
+    __sub__ = operators.numeric.implement(standard.sub)
+    __rsub__ = operators.numeric.implement(standard.sub).reverse
+    __mul__ = operators.numeric.implement(standard.mul)
+    __rmul__ = operators.numeric.implement(standard.mul).reverse
+
+
+class Simple(Base, Mixin):
+    """A test class with default mixin operators."""
+
+
+Instances = typing.TypeVar('Instances', bound=dict)
+Instances = typing.Dict[str, typing.List[Base]]
+
+
 @pytest.fixture
 def instances():
     """Reusable instances of the test class."""
     return {
-        'c0': Class(1, 'A'),
-        'c1': Class(3.3, 'A'),
-        'c2': Class(3.3, 'B'),
+        'base': [
+            Base(1, 'A'),
+            Base(3.3, 'A'),
+            Base(3.3, 'B'),
+        ],
+        'simple': [
+            Simple(1, 'A'),
+            Simple(3.3, 'A'),
+            Simple(3.3, 'B'),
+        ],
     }
 
 
-def test_compatible(instances: typing.Dict[str, Class]):
+def test_compatible(instances: Instances):
     """Test the function that checks for object inter-operability."""
-    objects = list(instances.values())
-    types = [Class, Class]
+    objects = instances['base']
+    types = [Base, Base]
     cases = {
         'value': { # `info` should be the same
             (0, 1): True,
@@ -126,8 +168,8 @@ def test_compatible(instances: typing.Dict[str, Class]):
             assert operations.compatible(*these, rule=rule) == expected
 
 
-def test_cast_operation(instances: typing.Dict[str, Class]):
-    """Test the implementation of type-cast operations."""
+def test_cast_operation(instances: Instances):
+    """Test the implementation of a type-cast operation."""
     builtin = int
     operation = operations.Operation(operations.Cast)
     operator = operation.implement(builtin)
@@ -136,45 +178,45 @@ def test_cast_operation(instances: typing.Dict[str, Class]):
     assert isinstance(result, builtin)
     assert operator(value) == builtin(value)
     with pytest.raises(TypeError):
-        operator(instances['c0'])
-    operator.rules.register(Class, 'value')
-    for instance in instances.values():
+        operator(instances['base'][0])
+    operator.rules.register(Base, 'value')
+    for instance in instances['base']:
         assert operator(instance) == builtin(instance.value)
 
 
-def test_unary_operation(instances: typing.Dict[str, Class]):
-    """Test the implementation of unary arithmetic operations."""
+def test_unary_operation(instances: Instances):
+    """Test the implementation of a unary arithmetic operation."""
     operation = operations.Operation(operations.Unary)
     builtin = round
     operator = operation.implement(builtin)
     value = 3.3
     assert operator(value) == builtin(value)
     with pytest.raises(TypeError):
-        operator(instances['c0'])
-    operator.rules.register(Class, 'value')
-    for instance in instances.values():
-        expected = Class(builtin(instance.value), instance.info)
+        operator(instances['base'][0])
+    operator.rules.register(Base, 'value')
+    for instance in instances['base']:
+        expected = Base(builtin(instance.value), instance.info)
         assert operator(instance) == expected
 
 
-def test_comparison_operation(instances: typing.Dict[str, Class]):
-    """Test the implementation of binary comparison operations."""
+def test_comparison_operation(instances: Instances):
+    """Test the implementation of a binary comparison operation."""
     operation = operations.Operation(operations.Comparison)
     builtin = standard.lt
     operator = operation.implement(builtin)
     values = 2, 4
     assert operator(*values) == builtin(*values)
     with pytest.raises(TypeError):
-        operator(instances['c0'], instances['c1'])
-    operator.rules.register([Class, Class], 'value')
-    assert operator(instances['c0'], instances['c1'])
-    assert not operator(instances['c1'], instances['c0'])
+        operator(instances['base'][0], instances['base'][1])
+    operator.rules.register([Base, Base], 'value')
+    assert operator(instances['base'][0], instances['base'][1])
+    assert not operator(instances['base'][1], instances['base'][0])
     with pytest.raises(operations.OperandTypeError):
-        operator(instances['c0'], instances['c2'])
+        operator(instances['base'][0], instances['base'][2])
 
 
-def test_numeric_operation(instances: typing.Dict[str, Class]):
-    """Test the implementation of binary numeric operations."""
+def test_numeric_operation(instances: Instances):
+    """Test the implementation of a binary numeric operation."""
     operation = operations.Operation(operations.Numeric)
     builtin = standard.add
     operator = operation.implement(builtin)
@@ -190,15 +232,15 @@ def test_numeric_operation(instances: typing.Dict[str, Class]):
         assert isinstance(result, rtype)
         assert result == builtin(*inputs)
     with pytest.raises(TypeError):
-        operator(instances['c0'], instances['c1'])
-    operator.rules.register([Class, Class], 'value')
-    expected = Class(
-        builtin(instances['c0'].value, instances['c1'].value),
-        instances['c0'].info,
+        operator(instances['base'][0], instances['base'][1])
+    operator.rules.register([Base, Base], 'value')
+    expected = Base(
+        builtin(instances['base'][0].value, instances['base'][1].value),
+        instances['base'][0].info,
     )
-    assert operator(instances['c0'], instances['c1']) == expected
+    assert operator(instances['base'][0], instances['base'][1]) == expected
     with pytest.raises(operations.OperandTypeError):
-        operator(instances['c0'], instances['c2'])
+        operator(instances['base'][0], instances['base'][2])
 
 
 CAST = {
@@ -231,53 +273,65 @@ COMPARISON = {
 }
 
 
-def test_cast_interface(instances: typing.Dict[str, Class]):
+def test_cast_interface(instances: Instances):
     """Test cast operations via the module interface."""
-    interface = operations.Interface(Class, dataname='value')
+    interface = operations.Interface(Base, dataname='value')
     operation = interface.cast
     for builtin in CAST.values():
         operator = operation.implement(builtin)
-        for instance in instances.values():
+        for instance in instances['base']:
             expected = builtin(instance.value)
             assert operator(instance) == expected
 
 
-def test_unary_interface(instances: typing.Dict[str, Class]):
+def test_unary_interface(instances: Instances):
     """Test unary operations via the module interface."""
-    interface = operations.Interface(Class, dataname='value')
+    interface = operations.Interface(Base, dataname='value')
     operation = interface.unary
     for builtin in UNARY.values():
         operator = operation.implement(builtin)
-        for instance in instances.values():
-            expected = Class(builtin(instance.value), instance.info)
+        for instance in instances['base']:
+            expected = Base(builtin(instance.value), instance.info)
             assert operator(instance) == expected
 
 
-def test_comparison_interface(instances: typing.Dict[str, Class]):
+def test_comparison_interface(instances: Instances):
     """Test comparison operations via the module interface."""
-    interface = operations.Interface(Class, dataname='value')
+    interface = operations.Interface(Base, dataname='value')
     operation = interface.comparison
-    targets = instances['c0'], instances['c1']
+    targets = instances['base'][0], instances['base'][1]
     for builtin in COMPARISON.values():
         operator = operation.implement(builtin)
         assert operator(*targets) == builtin(*[c.value for c in targets])
         with pytest.raises(operations.OperandTypeError):
-            operator(instances['c0'], instances['c2'])
+            operator(instances['base'][0], instances['base'][2])
 
 
-def test_numeric_interface(instances: typing.Dict[str, Class]):
+def test_numeric_interface(instances: Instances):
     """Test numeric operations via the module interface."""
-    interface = operations.Interface(Class, dataname='value')
+    interface = operations.Interface(Base, dataname='value')
     operation = interface.numeric
-    targets = instances['c0'], instances['c1']
+    targets = instances['base'][0], instances['base'][1]
     for builtin in NUMERIC.values():
         operator = operation.implement(builtin)
-        expected = Class(
+        expected = Base(
             builtin(*[c.value for c in targets]),
             targets[0].info,
         )
         assert operator(*targets) == expected
         with pytest.raises(operations.OperandTypeError):
-            operator(instances['c0'], instances['c2'])
+            operator(instances['base'][0], instances['base'][2])
 
 
+@pytest.mark.xfail
+def test_numeric_mixin(instances: Instances):
+    """Test the use of the mixin numeric operators."""
+    targets = instances['simple'][0], instances['simple'][1]
+    for builtin in NUMERIC.values():
+        expected = Simple(
+            builtin(*[c.value for c in targets]),
+            targets[0].info,
+        )
+        assert builtin(*targets) == expected
+        with pytest.raises(operations.OperandTypeError):
+            builtin(instances['simple'][0], instances['simple'][2])
