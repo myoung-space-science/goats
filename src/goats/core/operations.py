@@ -722,50 +722,23 @@ class Numeric(Operator):
 OType = typing.TypeVar('OType', bound=Operator)
 
 
-class Category(typing.Generic[OType]):
-    """Implementation context for an operation category."""
-
-    def __init__(
-        self,
-        __type: typing.Type[OType],
-        nargs: int=None,
-        aliases: typing.Sequence[str]=None,
-    ) -> None:
-        self._type = __type
-        self.nargs = nargs
-        self.aliases = list(aliases or [])
-
-
-default = Category(
-    Default,
-)
-unary = Category(
-    Unary,
-    nargs=1,
-    aliases=['abs', 'pos', 'neg', 'trunc', 'round', 'ceil', 'floor'],
-)
-cast = Category(
-    Cast,
-    nargs=1,
-    aliases=['int', 'float', 'complex'],
-)
-comparison = Category(
-    Comparison,
-    nargs=2,
-    aliases=['lt', 'le', 'gt', 'ge', 'eq', 'ne'],
-)
-numeric = Category(
-    Numeric,
-    nargs=2,
-    aliases=['add', 'sub', 'mul', 'truediv', 'floordiv', 'pow'],
-)
-
 _categories = {
-    'default': default,
-    'unary': unary,
-    'cast': cast,
-    'comparison': comparison,
-    'numeric': numeric,
+    'cast': {
+        'operations': ['int', 'float', 'complex'],
+        'implementation': Cast,
+    },
+    'unary': {
+        'operations': ['abs', 'pos', 'neg', 'trunc', 'round', 'ceil', 'floor'],
+        'implementation': Unary,
+    },
+    'comparison': {
+        'operations': ['lt', 'le', 'gt', 'ge', 'eq', 'ne'],
+        'implementation': Comparison,
+    },
+    'numeric': {
+        'operations': ['add', 'sub', 'mul', 'truediv', 'floordiv', 'pow'],
+        'implementation': Numeric,
+    },
 }
 
 
@@ -784,7 +757,6 @@ class Operation(typing.Generic[OType]):
         return self._implement(__callable, self.rules)
 
 
-
 class Interface:
     """Top-level interface to arithmetic operations."""
 
@@ -794,13 +766,12 @@ class Interface:
         """The name of the data-like attribute."""
         self._implementations = None
 
-    _IT = typing.TypeVar('_IT', bound=typing.MutableMapping)
-    _IT = typing.MutableMapping[str, Category[OType]]
     @property
-    def implementations(self) -> _IT:
+    def implementations(self) -> typing.MutableMapping[str, OType]:
         """All available implementation contexts."""
         if self._implementations is None:
-            self._implementations = aliased.MutableMapping(_categories)
+            mapping = aliased.MutableMapping(_categories, 'operations')
+            self._implementations = mapping.squeeze()
         return self._implementations
 
     @property
