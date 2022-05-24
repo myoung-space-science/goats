@@ -113,6 +113,10 @@ class Mixin:
     __abs__ = operators.unary.implement(standard.abs)
     __pos__ = operators.unary.implement(standard.pos)
     __neg__ = operators.unary.implement(standard.neg)
+    __ceil__ = operators.unary.implement(math.ceil)
+    __floor__ = operators.unary.implement(math.floor)
+    __trunc__ = operators.unary.implement(math.trunc)
+    __round__ = operators.unary.implement(round)
 
     __add__ = operators.numeric.implement(standard.add)
     __radd__ = operators.numeric.implement(standard.add, 'reverse')
