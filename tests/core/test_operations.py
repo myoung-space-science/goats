@@ -130,7 +130,7 @@ class Mixin:
     __rpow__ = operators.numeric.implement(pow, 'reverse')
 
 
-class Simple(Base, Mixin):
+class Simple(Mixin, Base):
     """A test class with default mixin operators."""
 
 
@@ -292,6 +292,13 @@ def test_cast_interface(instances: Instances):
             assert operator(instance) == expected
 
 
+def test_cast_mixin(instances: Instances):
+    """Test the use of the mixin cast operators."""
+    for builtin in CAST.values():
+        for instance in instances['simple']:
+            assert builtin(instance) == builtin(instance.value)
+
+
 def test_unary_interface(instances: Instances):
     """Test unary operations via the module interface."""
     interface = operations.Interface(Base, dataname='value')
@@ -301,6 +308,14 @@ def test_unary_interface(instances: Instances):
         for instance in instances['base']:
             expected = Base(builtin(instance.value), instance.info)
             assert operator(instance) == expected
+
+
+def test_unary_mixin(instances: Instances):
+    """Test the use of the mixin unary operators."""
+    for builtin in UNARY.values():
+        for instance in instances['simple']:
+            expected = Simple(builtin(instance.value), instance.info)
+            assert builtin(instance) == expected
 
 
 def test_comparison_interface(instances: Instances):
@@ -313,6 +328,15 @@ def test_comparison_interface(instances: Instances):
         assert operator(*targets) == builtin(*[c.value for c in targets])
         with pytest.raises(operations.OperandTypeError):
             operator(instances['base'][0], instances['base'][2])
+
+
+def test_comparison_interface(instances: Instances):
+    """Test the use of the mixin comparison operators."""
+    targets = instances['simple'][0], instances['simple'][1]
+    for builtin in COMPARISON.values():
+        assert builtin(*targets) == builtin(*[c.value for c in targets])
+        with pytest.raises(operations.OperandTypeError):
+            builtin(instances['simple'][0], instances['simple'][2])
 
 
 def test_numeric_interface(instances: Instances):
