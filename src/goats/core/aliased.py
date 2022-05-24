@@ -348,6 +348,31 @@ class Mapping(collections.abc.Mapping):
         ]
         return dict(zip(keys, values))
 
+    def squeeze(self, strict: bool=False):
+        """Reduce singleton interior mappings, if possible.
+        
+        If this aliased mapping contains a single key-value pair for every
+        aliased key, this method will replace each interior mapping with its
+        values.
+        """
+        interior = tuple(self._aliased.values())
+        if all(len(mapping) == 1 for mapping in interior):
+            if strict:
+                errmsg = (
+                    "Can't squeeze interior mappings with different keys"
+                    " when strict == True"
+                )
+                k0 = tuple(interior[0].keys())[0]
+                for mapping in interior[1:]:
+                    k = tuple(mapping.keys())[0]
+                    if k != k0:
+                        raise TypeError(errmsg) from None
+            new = {
+                k: tuple(v.values())[0] for k, v in self._aliased.items()
+            }
+            self._aliased = new.copy()
+        return self
+
     @classmethod
     def fromkeys(
         cls,
