@@ -690,7 +690,7 @@ class Cast(Operator):
 class Unary(Operator):
     """An implementation of a unary arithmetic operator."""
 
-    def __call__(self, a: A, /, **kwargs):
+    def __call__(self, a: A, /, **kwargs) -> A:
         """Apply this operator's method to `a`."""
         return self.compute(a, reference=a, target=type(a), **kwargs)
 
@@ -706,9 +706,17 @@ class Comparison(Operator):
 class Numeric(Operator):
     """An implementation of a binary numeric operator."""
 
-    def __call__(self, a: A, b: B, /, **kwargs):
-        """Apply this operator's method to `a` and `b`."""
+    def __call__(self, a: A, b: B, /, **kwargs) -> A:
+        """Apply this operator to `a` and `b`."""
         return self.compute(a, b, reference=a, target=type(a), **kwargs)
+
+    def reverse(self, a: A, b: B, /, **kwargs) -> B:
+        """Apply this operator to `a` and `b` with reflected operands."""
+        return self.compute(a, b, reference=b, target=type(b), **kwargs)
+
+    def inplace(self, a: A, b: B, /, **kwargs) -> A:
+        """Apply this operator to `a` and `b` in-place."""
+        return self.compute(a, b, reference=a, target=a, **kwargs)
 
 
 OType = typing.TypeVar('OType', bound=Operator)
