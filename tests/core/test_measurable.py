@@ -17,13 +17,15 @@ class Quantity(measurable.OperatorMixin, measurable.Quantity):
 class Scalar(Quantity):
     """Concrete scalar quantity for testing."""
 
-    __float__ = measurable.cast.operator(float).implement()
-    __int__ = measurable.cast.operator(int).implement()
+    operators = Quantity.operators
 
-    __round__ = measurable.unary.operator(round).implement()
-    __ceil__ = measurable.unary.operator(math.ceil).implement()
-    __floor__ = measurable.unary.operator(math.floor).implement()
-    __trunc__ = measurable.unary.operator(math.trunc).implement()
+    __float__ = operators.cast.implement(float)
+    __int__ = operators.cast.implement(int)
+
+    __round__ = operators.unary.implement(round)
+    __ceil__ = operators.unary.implement(math.ceil)
+    __floor__ = operators.unary.implement(math.floor)
+    __trunc__ = operators.unary.implement(math.trunc)
 
 
 @pytest.mark.quantity
