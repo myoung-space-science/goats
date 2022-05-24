@@ -6,7 +6,7 @@ import pytest
 from goats.core import aliased
 
 
-def test_aliased_key():
+def test_key():
     """Test the object that represents aliased mapping keys."""
     assert len(aliased.MappingKey('t0')) == 1
     assert len(aliased.MappingKey(('t0', 't1', 't2'))) == 3
@@ -20,7 +20,7 @@ def test_aliased_key():
     assert not aliased.MappingKey('')
 
 
-def test_alias_map():
+def test_keymap():
     """Test the collection that groups aliases."""
     original = [('a', 'A'), 'b', ['c', 'C']]
     converted = aliased.KeyMap(original)
@@ -31,7 +31,7 @@ def test_alias_map():
     assert converted['C'] == aliased.MappingKey('c', 'C')
 
 
-def test_aliased_mapping():
+def test_mapping():
     """Test the object that represents a mapping with aliased keys."""
     # Set up mappings.
     _standard = {
@@ -102,7 +102,7 @@ def test_aliased_mapping():
 
 
 def _check_aliased_keys(mapping: aliased.Mapping, n_keys: int):
-    """Helper function for `test_aliased_mapping`."""
+    """Helper function for `test_mapping`."""
     assert len(mapping) == n_keys
     assert len(mapping.keys()) == n_keys
     assert len(mapping.values()) == n_keys
@@ -136,7 +136,7 @@ def test_repeated_key():
     assert sorted(amap.keys(aliased=True)) == aliased_keys
 
 
-def test_aliased_mutable_mapping():
+def test_mutable_mapping():
     """Test the mutable version of an aliased mapping."""
     # Set up mappings.
     _basic = {
@@ -209,7 +209,7 @@ def test_immutable_from_mutable():
         del immutable['this']
 
 
-def test_aliased_mapping_idempotence():
+def test_mapping_idempotence():
     """Make sure we can create an aliased mapping from an aliased mapping."""
     user = {
         ('this', 'first'): 1,
@@ -257,7 +257,7 @@ def test_declared_aliases():
     assert mapping.flat == expected
 
 
-def test_aliased_mapping_fromkeys():
+def test_mapping_fromkeys():
     """Test the class method that creates an aliased mapping from keys."""
     this = {
         'a': {'aliases': ('A', 'a0'), 'name': 'Annabez', 'k': ['Ka']},
@@ -288,7 +288,7 @@ def test_aliased_mapping_fromkeys():
     assert mapping.flat == expected
 
 
-def test_aliased_mapping_extract_keys():
+def test_mapping_extract_keys():
     """Test the class method that extracts aliased keys."""
     this = {
         'a': {'aliases': ('A', 'a0'), 'name': 'Annabez', 'k': ['Ka']},
@@ -304,7 +304,7 @@ def test_aliased_mapping_extract_keys():
     assert keys == [aliased.MappingKey(k) for k in expected]
 
 
-def test_aliased_keysview():
+def test_keysview():
     """Test the custom keys view for aliased mappings."""
     d1 = {
         ('this', 'first'): 1,
@@ -337,7 +337,7 @@ def test_aliased_keysview():
         assert aliased_key in a3.keys(aliased=True)
 
 
-def test_aliased_itemsview():
+def test_itemsview():
     """Test the custom items view for aliased mappings."""
     d1 = {
         ('this', 'first'): 1,
@@ -357,7 +357,7 @@ def test_aliased_itemsview():
         assert value in a1.values(aliased=True)
 
 
-def test_aliased_mapping_copy():
+def test_mapping_copy():
     """Test the copy method of an aliased mapping."""
     d1 = {
         ('this', 'first'): 1,
@@ -370,7 +370,7 @@ def test_aliased_mapping_copy():
     assert a1 is not a2
 
 
-def test_aliased_mapping_merge():
+def test_mapping_merge():
     """Test the merge operator on aliased mappings."""
     d1 = {
         ('this', 'first'): 1,
