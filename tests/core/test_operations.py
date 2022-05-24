@@ -49,6 +49,20 @@ def test_rule_contains():
         assert this in rule
 
 
+def test_rules():
+    """Test the class that handles multiple rules."""
+    default = ['a', 'b', 'c']
+    rules = operations.Rules(*default)
+    assert rules.nargs is None
+    rules.register([int, float], 'a', 'b')
+    assert rules.nargs == 2
+    assert rules[(int, float)].parameters == ['a', 'b']
+    rules.register([float, float])
+    assert rules[(float, float)].parameters == default
+    rules.register([int, int], None)
+    assert not rules[(int, int)].parameters
+
+
 def test_object_idempotence():
     """Create an `Object` instance from another instance."""
     a = operations.Object(1)
