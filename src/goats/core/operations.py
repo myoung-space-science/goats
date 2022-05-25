@@ -384,17 +384,15 @@ class Rules(_RulesType):
             raise KeyError(f"Rule for {types!r} does not exist") from None
         self.mapping[key] = self._resolve(*parameters)
 
-    def register(self, key: Types, *parameters: typing.Optional[str]):
-        """Add an update rule to the collection."""
-        types = tuple(key) if isinstance(key, typing.Iterable) else (key,)
-        ntypes = len(types)
+    def register(self, types: Types, *parameters: typing.Optional[str]):
+        """Add a rule to the collection."""
+        key = tuple(iterables.whole(types))
+        ntypes = len(key)
         self._check_ntypes(ntypes)
-        if types not in self.mapping:
-            self.mapping[types] = self._resolve(*parameters)
+        if key not in self.mapping:
+            self.mapping[key] = self._resolve(*parameters)
             return self
-        raise KeyError(
-            f"{key!r} is already in the collection."
-        ) from None
+        raise KeyError(f"{types!r} is already in the collection") from None
 
     def _resolve(self, *parameters) -> typing.List[str]:
         """Determine the affected parameters based on input."""
@@ -439,7 +437,7 @@ class Rules(_RulesType):
 
     def __getitem__(self, __k: Types):
         """Retrieve the operand-update rule for `types`."""
-        types = tuple(__k) if isinstance(__k, typing.Iterable) else (__k,)
+        types = tuple(iterables.whole(__k))
         if types in self.mapping:
             return self._from(types)
         for t in self.mapping:
@@ -453,7 +451,7 @@ class Rules(_RulesType):
         return Rule(types, *parameters)
 
     def get(self, __types: Types, default: Rule=None):
-        """Get the rule for these types or a default rule.
+        """Get the rule for these types, or a default rule.
         
         This method behaves like ``~typing.Mapping.get`` with a modified default
         value: Instead of returning ``None`` when key-based look-up fails (i.e.,
