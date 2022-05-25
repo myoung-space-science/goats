@@ -649,7 +649,7 @@ class Operator:
             types[0].__qualname__ if len(types) == 1
             else f"({', '.join(t.__qualname__ for t in types)})"
         )
-        fixed = tuple(set(operands.reference.parameters) - set(rule.parameters))
+        fixed = tuple(set(self.rules.default) - set(rule.parameters))
         attrs_string = (
             repr(fixed[0]) if len(fixed) == 1
             else f"{fixed[0]!r} and {fixed[1]!r}" if len(fixed) == 2
