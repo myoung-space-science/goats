@@ -91,7 +91,7 @@ def test_rules_constrain():
     rules = operations.Rules(*default)
     rules.register([float, float])
     rules.constrain([float, float], 'a', mode='exclude')
-    assert rules[(float, float)].parameters == ['b', 'c']
+    assert sorted(rules[(float, float)].parameters) == sorted(['b', 'c'])
 
 
 def test_object_idempotence():
@@ -140,115 +140,95 @@ class Base:
         return f"{self.__class__.__qualname__}({self.value}, {self.info})"
 
 
-class Mixin:
-    """A mixin class that provides operator implementations."""
-
-    operators = operations.Interface(Base, dataname='value')
-
-    __int__ = operators.cast.implement(int)
-    __float__ = operators.cast.implement(float)
-
-    __lt__ = operators.comparison.implement(standard.lt)
-    __le__ = operators.comparison.implement(standard.le)
-    __gt__ = operators.comparison.implement(standard.gt)
-    __ge__ = operators.comparison.implement(standard.ge)
-    __eq__ = operators.comparison.implement(standard.eq)
-    __ne__ = operators.comparison.implement(standard.ne)
-
-    __abs__ = operators.unary.implement(standard.abs)
-    __pos__ = operators.unary.implement(standard.pos)
-    __neg__ = operators.unary.implement(standard.neg)
-    __ceil__ = operators.unary.implement(math.ceil)
-    __floor__ = operators.unary.implement(math.floor)
-    __trunc__ = operators.unary.implement(math.trunc)
-    __round__ = operators.unary.implement(round)
-
-    __add__ = operators.numeric.implement(standard.add)
-    __radd__ = operators.numeric.implement(standard.add, 'reverse')
-    __sub__ = operators.numeric.implement(standard.sub)
-    __rsub__ = operators.numeric.implement(standard.sub, 'reverse')
-    __mul__ = operators.numeric.implement(standard.mul)
-    __rmul__ = operators.numeric.implement(standard.mul, 'reverse')
-    __truediv__ = operators.numeric.implement(standard.truediv)
-    __rtruediv__ = operators.numeric.implement(standard.truediv, 'reverse')
-    __pow__ = operators.numeric.implement(pow)
-    __rpow__ = operators.numeric.implement(pow, 'reverse')
+T = typing.TypeVar('T')
 
 
-class Simple(Mixin, Base):
-    """A test class with default mixin operators."""
+def build(__type: typing.Type[T]) -> typing.List[T]:
+    """Create and initialize instances of a class for tests."""
+    inputs = [
+        (1, 'A'),
+        (2, 'A'),
+        (2, 'B'),
+    ]
+    return [__type(*args) for args in inputs]
 
 
-Instances = typing.TypeVar('Instances', bound=dict)
-Instances = typing.Dict[str, typing.List[Base]]
-
-
-@pytest.fixture
-def instances():
-    """Reusable instances of the test class."""
-    return {
-        'base': [
-            Base(1, 'A'),
-            Base(3.3, 'A'),
-            Base(3.3, 'B'),
-        ],
-        'simple': [
-            Simple(1, 'A'),
-            Simple(3.3, 'A'),
-            Simple(3.3, 'B'),
-        ],
-    }
-
-
-def test_cast_operation(instances: Instances):
-    """Test the implementation of a type-cast operation."""
-    builtin = int
+def test_cast_builtin():
+    """Test a type-cast operation on a built-in object."""
     operation = operations.Cast()
+    builtin = int
     operator = operation.implement(builtin)
     value = 3.3
     result = operator(value)
     assert isinstance(result, builtin)
-    assert operator(value) == builtin(value)
+    assert result == builtin(value)
+
+
+def test_cast_custom():
+    """Test a type-cast operation on a custom object."""
+    rules = operations.Rules('value', 'info')
+    operation = operations.Cast(rules)
+    builtin = int
+    operator = operation.implement(builtin)
+    instances = build(Base)
     with pytest.raises(TypeError):
-        operator(instances['base'][0])
+        operator(instances[0])
     operation.rules.register(Base, 'value')
-    for instance in instances['base']:
+    for instance in instances:
         assert operator(instance) == builtin(instance.value)
 
 
-def test_unary_operation(instances: Instances):
-    """Test the implementation of a unary arithmetic operation."""
+def test_unary_builtin():
+    """Test a unary arithmetic operation on a built-in object."""
     operation = operations.Unary()
     builtin = round
     operator = operation.implement(builtin)
     value = 3.3
     assert operator(value) == builtin(value)
+
+
+def test_unary_custom():
+    """Test a unary arithmetic operation on a custom object."""
+    rules = operations.Rules('value', 'info')
+    operation = operations.Unary(rules)
+    builtin = round
+    operator = operation.implement(builtin)
+    instances = build(Base)
     with pytest.raises(TypeError):
-        operator(instances['base'][0])
+        operator(instances[0])
     operation.rules.register(Base, 'value')
-    for instance in instances['base']:
+    for instance in instances:
         expected = Base(builtin(instance.value), instance.info)
         assert operator(instance) == expected
 
 
-def test_comparison_operation(instances: Instances):
-    """Test the implementation of a binary comparison operation."""
+def test_comparison_builtin():
+    """Test a binary comparison operation on a built-in object."""
     operation = operations.Comparison()
     builtin = standard.lt
     operator = operation.implement(builtin)
     values = 2, 4
     assert operator(*values) == builtin(*values)
+
+
+def test_comparison_custom():
+    """Test a binary comparison operation on a custom object."""
+    rules = operations.Rules('value', 'info')
+    operation = operations.Comparison(rules)
+    builtin = standard.lt
+    operator = operation.implement(builtin)
+    instances = build(Base)
     with pytest.raises(TypeError):
-        operator(instances['base'][0], instances['base'][1])
+        operator(instances[0], instances[1])
     operation.rules.register([Base, Base], 'value')
-    assert operator(instances['base'][0], instances['base'][1])
-    assert not operator(instances['base'][1], instances['base'][0])
+    assert operator(instances[0], instances[1])
+    assert not operator(instances[1], instances[0])
     with pytest.raises(operations.OperandTypeError):
-        operator(instances['base'][0], instances['base'][2])
+        operator(instances[0], instances[2])
 
 
-def test_numeric_operation(instances: Instances):
-    """Test the implementation of a binary numeric operation."""
+def test_numeric_builtin():
+    """Test a binary numeric operation on a built-in object."""
     operation = operations.Numeric()
     builtin = standard.add
     operator = operation.implement(builtin)
@@ -263,16 +243,25 @@ def test_numeric_operation(instances: Instances):
         result = operator(*inputs)
         assert isinstance(result, rtype)
         assert result == builtin(*inputs)
+
+
+def test_numeric_custom():
+    """Test a binary numeric operation on a built-in object."""
+    rules = operations.Rules('value', 'info')
+    operation = operations.Numeric(rules)
+    builtin = standard.add
+    operator = operation.implement(builtin)
+    instances = build(Base)
     with pytest.raises(TypeError):
-        operator(instances['base'][0], instances['base'][1])
+        operator(instances[0], instances[1])
     operation.rules.register([Base, Base], 'value')
     expected = Base(
-        builtin(instances['base'][0].value, instances['base'][1].value),
-        instances['base'][0].info,
+        builtin(instances[0].value, instances[1].value),
+        instances[0].info,
     )
-    assert operator(instances['base'][0], instances['base'][1]) == expected
+    assert operator(instances[0], instances[1]) == expected
     with pytest.raises(operations.OperandTypeError):
-        operator(instances['base'][0], instances['base'][2])
+        operator(instances[0], instances[2])
 
 
 CAST = {
@@ -305,69 +294,53 @@ COMPARISON = {
 }
 
 
-def test_cast_interface(instances: Instances):
+def test_cast_interface():
     """Test cast operations via the module interface."""
-    interface = operations.Interface(Base, dataname='value')
+    interface = operations.Interface(Base, 'value', 'info')
     operation = interface.cast
+    operation.rules.constrain(Base, 'value')
+    instances = build(Base)
     for builtin in CAST.values():
         operator = operation.implement(builtin)
-        for instance in instances['base']:
+        for instance in instances:
             expected = builtin(instance.value)
             assert operator(instance) == expected
 
 
-def test_cast_mixin(instances: Instances):
-    """Test the use of the mixin cast operators."""
-    for builtin in CAST.values():
-        for instance in instances['simple']:
-            assert builtin(instance) == builtin(instance.value)
-
-
-def test_unary_interface(instances: Instances):
+def test_unary_interface():
     """Test unary operations via the module interface."""
-    interface = operations.Interface(Base, dataname='value')
+    interface = operations.Interface(Base, 'value', 'info')
     operation = interface.unary
+    operation.rules.constrain(Base, 'value')
+    instances = build(Base)
     for builtin in UNARY.values():
         operator = operation.implement(builtin)
-        for instance in instances['base']:
+        for instance in instances:
             expected = Base(builtin(instance.value), instance.info)
             assert operator(instance) == expected
 
 
-def test_unary_mixin(instances: Instances):
-    """Test the use of the mixin unary operators."""
-    for builtin in UNARY.values():
-        for instance in instances['simple']:
-            expected = Simple(builtin(instance.value), instance.info)
-            assert builtin(instance) == expected
-
-
-def test_comparison_interface(instances: Instances):
+def test_comparison_interface():
     """Test comparison operations via the module interface."""
-    interface = operations.Interface(Base, dataname='value')
+    interface = operations.Interface(Base, 'value', 'info')
     operation = interface.comparison
-    targets = instances['base'][0], instances['base'][1]
+    operation.rules.constrain([Base, Base], 'value')
+    instances = build(Base)
+    targets = instances[0], instances[1]
     for builtin in COMPARISON.values():
         operator = operation.implement(builtin)
         assert operator(*targets) == builtin(*[c.value for c in targets])
         with pytest.raises(operations.OperandTypeError):
-            operator(instances['base'][0], instances['base'][2])
+            operator(instances[0], instances[2])
 
 
-def test_comparison_interface(instances: Instances):
-    """Test the use of the mixin comparison operators."""
-    targets = instances['simple'][0], instances['simple'][1]
-    for builtin in COMPARISON.values():
-        assert builtin(*targets) == builtin(*[c.value for c in targets])
-        with pytest.raises(operations.OperandTypeError):
-            builtin(instances['simple'][0], instances['simple'][2])
-
-
-def test_numeric_interface(instances: Instances):
+def test_numeric_interface():
     """Test numeric operations via the module interface."""
-    interface = operations.Interface(Base, dataname='value')
+    interface = operations.Interface(Base, 'value', 'info')
     operation = interface.numeric
-    targets = instances['base'][0], instances['base'][1]
+    operation.rules.constrain([Base, Base], 'value')
+    instances = build(Base)
+    targets = instances[0], instances[1]
     for builtin in NUMERIC.values():
         operator = operation.implement(builtin)
         expected = Base(
@@ -376,17 +349,180 @@ def test_numeric_interface(instances: Instances):
         )
         assert operator(*targets) == expected
         with pytest.raises(operations.OperandTypeError):
-            operator(instances['base'][0], instances['base'][2])
+            operator(instances[0], instances[2])
 
 
-def test_numeric_mixin(instances: Instances):
+class Mixin:
+    """A mixin class that provides operator implementations."""
+
+    operators = operations.Interface(Base, 'value', 'info')
+
+    cast = operators.cast
+    cast.rules.constrain(Base, 'value')
+
+    comparison = operators.comparison
+    comparison.rules.constrain([Base, Base], 'value')
+
+    unary = operators.unary
+    unary.rules.constrain(Base, 'value')
+
+    numeric = operators.numeric
+    numeric.rules.constrain([Base, Base], 'value')
+
+    __int__ = cast.implement(int)
+    __float__ = cast.implement(float)
+    __lt__ = comparison.implement(standard.lt)
+    __le__ = comparison.implement(standard.le)
+    __gt__ = comparison.implement(standard.gt)
+    __ge__ = comparison.implement(standard.ge)
+    __eq__ = comparison.implement(standard.eq)
+    __ne__ = comparison.implement(standard.ne)
+    __abs__ = unary.implement(standard.abs)
+    __pos__ = unary.implement(standard.pos)
+    __neg__ = unary.implement(standard.neg)
+    __ceil__ = unary.implement(math.ceil)
+    __floor__ = unary.implement(math.floor)
+    __trunc__ = unary.implement(math.trunc)
+    __round__ = unary.implement(round)
+    __add__ = numeric.implement(standard.add)
+    __radd__ = numeric.implement(standard.add, 'reverse')
+    __sub__ = numeric.implement(standard.sub)
+    __rsub__ = numeric.implement(standard.sub, 'reverse')
+    __mul__ = numeric.implement(standard.mul)
+    __rmul__ = numeric.implement(standard.mul, 'reverse')
+    __truediv__ = numeric.implement(standard.truediv)
+    __rtruediv__ = numeric.implement(standard.truediv, 'reverse')
+    __pow__ = numeric.implement(pow)
+    __rpow__ = numeric.implement(pow, 'reverse')
+
+
+class MixedIn(Mixin, Base):
+    """A test class that uses mixin custom operators."""
+
+
+def test_cast_mixin():
+    """Test the use of the mixin cast operators."""
+    instances = build(MixedIn)
+    for builtin in CAST.values():
+        for instance in instances:
+            assert builtin(instance) == builtin(instance.value)
+
+
+def test_unary_mixin():
+    """Test the use of the mixin unary operators."""
+    instances = build(MixedIn)
+    for builtin in UNARY.values():
+        for instance in instances:
+            expected = MixedIn(builtin(instance.value), instance.info)
+            assert builtin(instance) == expected
+
+
+def test_comparison_mixin():
+    """Test the use of the mixin comparison operators."""
+    instances = build(MixedIn)
+    targets = instances[0], instances[1]
+    for builtin in COMPARISON.values():
+        assert builtin(*targets) == builtin(*[c.value for c in targets])
+        with pytest.raises(operations.OperandTypeError):
+            builtin(instances[0], instances[2])
+
+
+def test_numeric_mixin():
     """Test the use of the mixin numeric operators."""
-    targets = instances['simple'][0], instances['simple'][1]
+    instances = build(MixedIn)
+    targets = instances[0], instances[1]
     for builtin in NUMERIC.values():
-        expected = Simple(
+        expected = MixedIn(
             builtin(*[c.value for c in targets]),
             targets[0].info,
         )
         assert builtin(*targets) == expected
         with pytest.raises(operations.OperandTypeError):
-            builtin(instances['simple'][0], instances['simple'][2])
+            builtin(instances[0], instances[2])
+
+
+operators = operations.Interface(Base, 'value', 'info')
+
+cast = operators.cast
+cast.rules.constrain(Base, 'value')
+
+comparison = operators.comparison
+comparison.rules.constrain([Base, Base], 'value')
+
+unary = operators.unary
+unary.rules.constrain(Base, 'value')
+
+numeric = operators.numeric
+numeric.rules.constrain([Base, Base], 'value')
+
+
+class Defined(Base):
+    """A test class that defines custom operators."""
+
+    __int__ = cast.implement(int)
+    __float__ = cast.implement(float)
+    __lt__ = comparison.implement(standard.lt)
+    __le__ = comparison.implement(standard.le)
+    __gt__ = comparison.implement(standard.gt)
+    __ge__ = comparison.implement(standard.ge)
+    __eq__ = comparison.implement(standard.eq)
+    __ne__ = comparison.implement(standard.ne)
+    __abs__ = unary.implement(standard.abs)
+    __pos__ = unary.implement(standard.pos)
+    __neg__ = unary.implement(standard.neg)
+    __ceil__ = unary.implement(math.ceil)
+    __floor__ = unary.implement(math.floor)
+    __trunc__ = unary.implement(math.trunc)
+    __round__ = unary.implement(round)
+    __add__ = numeric.implement(standard.add)
+    __radd__ = numeric.implement(standard.add, 'reverse')
+    __sub__ = numeric.implement(standard.sub)
+    __rsub__ = numeric.implement(standard.sub, 'reverse')
+    __mul__ = numeric.implement(standard.mul)
+    __rmul__ = numeric.implement(standard.mul, 'reverse')
+    __truediv__ = numeric.implement(standard.truediv)
+    __rtruediv__ = numeric.implement(standard.truediv, 'reverse')
+    __pow__ = numeric.implement(pow)
+    __rpow__ = numeric.implement(pow, 'reverse')
+
+
+def test_cast_defined():
+    """Test the use of the defined cast operators."""
+    instances = build(Defined)
+    for builtin in CAST.values():
+        for instance in instances:
+            assert builtin(instance) == builtin(instance.value)
+
+
+def test_unary_defined():
+    """Test the use of the defined unary operators."""
+    instances = build(Defined)
+    for builtin in UNARY.values():
+        for instance in instances:
+            expected = Defined(builtin(instance.value), instance.info)
+            assert builtin(instance) == expected
+
+
+def test_comparison_defined():
+    """Test the use of the defined comparison operators."""
+    instances = build(Defined)
+    targets = instances[0], instances[1]
+    for builtin in COMPARISON.values():
+        assert builtin(*targets) == builtin(*[c.value for c in targets])
+        with pytest.raises(operations.OperandTypeError):
+            builtin(instances[0], instances[2])
+
+
+def test_numeric_defined():
+    """Test the use of the defined numeric operators."""
+    instances = build(Defined)
+    targets = instances[0], instances[1]
+    for builtin in NUMERIC.values():
+        expected = Defined(
+            builtin(*[c.value for c in targets]),
+            targets[0].info,
+        )
+        assert builtin(*targets) == expected
+        with pytest.raises(operations.OperandTypeError):
+            builtin(instances[0], instances[2])
+
