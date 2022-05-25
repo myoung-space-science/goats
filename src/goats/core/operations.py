@@ -329,6 +329,10 @@ class Objects(collections.abc.Sequence, iterables.ReprStrMixin):
         return ', '.join(str(i) for i in self)
 
 
+class NTypesError(Exception):
+    """Inconsistent number of types in a new rule."""
+
+
 class _RulesType(
     typing.Mapping[Types, Rule],
     collections.abc.Mapping,
@@ -339,18 +343,45 @@ class _RulesType(
 class Rules(_RulesType):
     """A class for managing operand-update rules."""
 
-    def __init__(self, *default: str, nargs: int=None) -> None:
+    def __init__(
+        self,
+        *default: str,
+        rules: typing.Iterable[Rule]=None,
+    ) -> None:
+        """Initialize this instance.
+        
+        Parameters
+        ----------
+        *default : str
+            Zero or more names of attributes for each rule to update unless
+            explicity registered otherwise.
+
+        rules : iterable of `~operations.Rule`, optional
+            Existing rules with which to initialize the internal collection.
+
+        Notes
+        -----
+        Providing the names of all possibly updatable attributes via `*default`
+        protects against bugs that arise from naive use of
+        ``inspect.signature``. For example, a class's ``__init__`` method may
+        accept generic `*args` and `**kwargs`, which it then parses into
+        specific attributes. In that case, ``inspect.signature`` will not
+        discover the correct names of attributes necessary to initialize a new
+        instance after applying a given rule.
+        """
         self.default = list(default)
         """The default parameters to update for each rule."""
-        self.nargs = nargs
-        """The number of arguments in these rules."""
+        self.ntypes = None
+        """The number of argument types in these rules."""
         self._rulemap = None
+        for rule in rules or []:
+            self.register(rule.types, *rule.parameters)
 
     def register(self, key: Types, *parameters: typing.Optional[str]):
         """Add an update rule to the collection."""
         types = tuple(key) if isinstance(key, typing.Iterable) else (key,)
-        nargs = len(types)
-        self._check_nargs(nargs)
+        ntypes = len(types)
+        self._check_ntypes(ntypes)
         if types not in self.mapping:
             self.mapping[types] = self._resolve(*parameters)
             return self
@@ -373,7 +404,7 @@ class Rules(_RulesType):
             self._rulemap = {}
         return self._rulemap
 
-    def _check_nargs(self, __nargs: int):
+    def _check_ntypes(self, ntypes: int):
         """Helper for enforcing consistency in number of types.
         
         If the internal attribute that keeps track of how many arguments are
@@ -381,13 +412,13 @@ class Rules(_RulesType):
         time through. After that, it will raise an exception if the user tries
         to register a rule with a different number of types.
         """
-        if self.nargs is None:
-            self.nargs = __nargs
+        if self.ntypes is None:
+            self.ntypes = ntypes
             return
-        if __nargs != self.nargs:
-            raise ValueError(
-                f"Can't add {__nargs} type(s) to collection"
-                f" of length-{self.nargs} items."
+        if ntypes != self.ntypes:
+            raise NTypesError(
+                f"Can't add a length-{ntypes} rule to a collection"
+                f" of length-{self.ntypes} rules."
             ) from None
 
     def __len__(self) -> int:
@@ -399,22 +430,20 @@ class Rules(_RulesType):
         for types in self.mapping:
             yield Rule(types, *self.mapping[types])
 
-    def __getitem__(self, key: Types):
+    def __getitem__(self, __k: Types):
         """Retrieve the operand-update rule for `types`."""
-        types = tuple(key) if isinstance(key, typing.Iterable) else (key,)
+        types = tuple(__k) if isinstance(__k, typing.Iterable) else (__k,)
         if types in self.mapping:
             return self._from(types)
         for t in self.mapping:
             if all(issubclass(i, j) for i, j in zip(types, t)):
                 return self._from(t)
-        raise KeyError(
-            f"No rule for operand type(s) {key!r}"
-        ) from None
+        raise KeyError(f"No rule for operand type(s) {__k!r}") from None
 
-    def _from(self, __types: Types):
+    def _from(self, types: Types):
         """Build a rule from the given types."""
-        parameters = self.mapping.get(__types, self.default.copy())
-        return Rule(__types, *parameters)
+        parameters = self.mapping.get(types, self.default.copy())
+        return Rule(types, *parameters)
 
     def get(self, __types: Types, default: Rule=None):
         """Get the rule for these types or a default rule.

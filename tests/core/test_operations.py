@@ -61,14 +61,18 @@ def test_rules():
     """Test the class that handles multiple rules."""
     default = ['a', 'b', 'c']
     rules = operations.Rules(*default)
-    assert rules.nargs is None
+    assert not rules
+    assert rules.ntypes is None
     rules.register([int, float], 'a', 'b')
-    assert rules.nargs == 2
+    assert rules
+    assert rules.ntypes == 2
     assert rules[(int, float)].parameters == ['a', 'b']
     rules.register([float, float])
     assert rules[(float, float)].parameters == default
     rules.register([int, int], None)
     assert not rules[(int, int)].parameters
+    with pytest.raises(operations.NTypesError):
+        rules.register(int, 'a')
 
 
 def test_object_idempotence():
