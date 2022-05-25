@@ -377,6 +377,13 @@ class Rules(_RulesType):
         for rule in rules or []:
             self.register(rule.types, *rule.parameters)
 
+    def constrain(self, types: Types, *parameters):
+        """Restrict the parameters of an existing rule."""
+        key = tuple(iterables.whole(types))
+        if key not in self.mapping:
+            raise KeyError(f"Rule for {types!r} does not exist") from None
+        self.mapping[key] = self._resolve(*parameters)
+
     def register(self, key: Types, *parameters: typing.Optional[str]):
         """Add an update rule to the collection."""
         types = tuple(key) if isinstance(key, typing.Iterable) else (key,)

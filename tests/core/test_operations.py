@@ -69,6 +69,8 @@ def test_rules():
     assert rules[(int, float)].parameters == ['a', 'b']
     rules.register([float, float])
     assert rules[(float, float)].parameters == default
+    rules.constrain([float, float], 'a')
+    assert rules[(float, float)].parameters == ['a']
     rules.register([int, int], None)
     assert not rules[(int, int)].parameters
     with pytest.raises(operations.NTypesError):
