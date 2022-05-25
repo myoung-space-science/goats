@@ -765,10 +765,10 @@ _categories = {
 class Interface:
     """Top-level interface to arithmetic operations."""
 
-    def __init__(self, __type: type, dataname: str=None) -> None:
+    def __init__(self, __type: type, *parameters) -> None:
         self._type = __type
-        self.dataname = dataname
-        """The name of the data-like attribute."""
+        self.parameters = parameters
+        """The names of all updatable attributes."""
         self._implementations = None
         self.cast = self._create(Cast, nargs=1)
         """An interface to type-casting operations."""
@@ -807,7 +807,7 @@ class Interface:
         nargs: int=None,
     ) -> OType:
         """Internal helper for creating operation interfaces."""
-        rules = Rules(self.dataname, nargs=nargs)
+        rules = Rules(*self.parameters)
         if nargs is not None:
             rules.register([self._type] * nargs)
         return __category(rules=rules)
