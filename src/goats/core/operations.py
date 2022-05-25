@@ -184,9 +184,18 @@ class Rule(iterables.ReprStrMixin):
     ) -> None:
         self._types = list(iterables.whole(__types))
         self._ntypes = len(self._types)
-        self.parameters = unique(parameters)
-        """The parameters that this rule affects."""
+        self._parameters = parameters
         self.implemented = True
+
+    def ignore(self, *parameters: str):
+        """Ignore these parameters when updating operands."""
+        self._parameters = set(self.parameters) - set(parameters)
+        return self
+
+    @property
+    def parameters(self):
+        """The parameters that this rule affects."""
+        return unique(self._parameters)
 
     @property
     def types(self):

@@ -49,6 +49,14 @@ def test_rule_contains():
         assert this in rule
 
 
+def test_rule_ignore():
+    """Allow a rule to ignore certain parameters."""
+    rule = operations.Rule([int, float], 'a', 'b', 'c')
+    assert rule.parameters == ['a', 'b', 'c']
+    rule.ignore('b')
+    assert sorted(rule.parameters) == sorted(['a', 'c'])
+
+
 def test_rules():
     """Test the class that handles multiple rules."""
     default = ['a', 'b', 'c']
