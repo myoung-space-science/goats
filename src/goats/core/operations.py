@@ -642,7 +642,7 @@ class Operation:
     """A general arithmetic operation."""
 
     def __init__(self, rules: Rules=None) -> None:
-        self.rules = rules or Rules()
+        self.rules = Rules() if rules is None else rules
 
     def implement(self, __caller: Caller) -> typing.Any:
         """Implement this operation with the given callable object."""
