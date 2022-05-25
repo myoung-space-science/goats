@@ -459,24 +459,6 @@ class Rules(_RulesType):
         return ', '.join(str(rule) for rule in self)
 
 
-def compatible(*operands, rule: Rule=None):
-    """True if the operands are compatible under `rule`.
-    
-    This method determines if all the attributes that are common to these
-    objects and that are not included in the given rule have the same value.
-    These are the attributes that the corresponding operation will ignore;
-    therefore, different values for the same attribute will lead to ambiguity.
-    Objects are always compatible if the given rule is unconstrained.
-    """
-    if rule is not None and not rule.parameters:
-        return True
-    objects = Objects(*operands)
-    sets = [set(obj.parameters) for obj in objects]
-    parameters = set.intersection(*sets)
-    names = parameters if rule is None else parameters - set(rule.parameters)
-    return objects.agree(*names)
-
-
 class Operands(Objects):
     """Objects that are part of an operation."""
 
@@ -511,10 +493,6 @@ class Context:
         """
         self.target = target
         """The object or type of object representing the operation result."""
-
-    def supports(self, rule: Rule):
-        """True if the operands are compatible under `rule`."""
-        return compatible(*self.operands, rule=rule)
 
     def apply(self, method: typing.Callable, rule: Rule, **kwargs):
         """Apply a method and rule to this context."""
@@ -612,7 +590,7 @@ class Operator:
             # their class definitions.
             return self.method(*args, **kwargs)
         context = Context(*args, reference=reference, target=target)
-        if not context.supports(rule):
+        if not self.consistent(context, rule):
             errmsg = self._operand_errmsg(rule, context.operands)
             raise OperandTypeError(errmsg) from None
         return context.apply(self.method, rule, **kwargs)
@@ -621,6 +599,19 @@ class Operator:
         """Get the operation rule for these operands' types."""
         types = [type(operand) for operand in operands]
         return self.rules.get(types)
+
+    def consistent(self, context: Context, rule: Rule):
+        """True if `context` is consistent with `rule`
+        
+        This method determines if all the attributes that are common to the
+        current operands, and that are not included in the given rule, have the
+        same value. These are the attributes that the corresponding operation
+        will ignore; therefore, different values for the same attribute
+        represent an ambiguity.
+        """
+        operands = context.operands
+        fixed = tuple(set(self.rules.default) - set(rule.parameters))
+        return operands.agree(*fixed)
 
     def _operand_errmsg(self, rule: Rule, operands: Operands):
         """Build an error message based on `rule` and `operands`."""

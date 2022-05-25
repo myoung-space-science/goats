@@ -181,27 +181,6 @@ def instances():
     }
 
 
-def test_compatible(instances: Instances):
-    """Test the function that checks for object inter-operability."""
-    objects = instances['base']
-    types = [Base, Base]
-    cases = {
-        'value': { # `info` should be the same
-            (0, 1): True,
-            (0, 2): False,
-        },
-        'info': { # `value` should be the same
-            (1, 2): True,
-            (0, 2): False,
-        },
-    }
-    for name, tests in cases.items():
-        rule = operations.Rule(types, name)
-        for indices, expected in tests.items():
-            these = [objects[index] for index in indices]
-            assert operations.compatible(*these, rule=rule) == expected
-
-
 def test_cast_operation(instances: Instances):
     """Test the implementation of a type-cast operation."""
     builtin = int
