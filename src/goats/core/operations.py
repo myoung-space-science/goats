@@ -293,9 +293,10 @@ class Objects(collections.abc.Sequence, iterables.ReprStrMixin):
         if len(self) == 1:
             return True
         reference = self[0]
+        value = utilities.getattrval
         return all(
-            getattr(obj, name) == getattr(reference, name)
-            for name in names for obj in self
+            value(obj, name) == value(reference, name)
+            for name in names for obj in self[1:]
         )
 
     @property
