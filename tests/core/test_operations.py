@@ -57,8 +57,8 @@ def test_rule_ignore():
     assert sorted(rule.parameters) == sorted(['a', 'c'])
 
 
-def test_rules():
-    """Test the class that handles multiple rules."""
+def test_rules_register():
+    """Test the ability to register operand rules."""
     default = ['a', 'b', 'c']
     rules = operations.Rules(*default)
     assert not rules
@@ -69,12 +69,29 @@ def test_rules():
     assert rules[(int, float)].parameters == ['a', 'b']
     rules.register([float, float])
     assert rules[(float, float)].parameters == default
-    rules.constrain([float, float], 'a')
-    assert rules[(float, float)].parameters == ['a']
     rules.register([int, int], None)
     assert not rules[(int, int)].parameters
     with pytest.raises(operations.NTypesError):
         rules.register(int, 'a')
+
+
+def test_rules_constrain():
+    """Test the ability to restrict parameters in a rule."""
+    default = ['a', 'b', 'c']
+    rules = operations.Rules(*default)
+    rules.register([float, float])
+    rules.constrain([float, float], 'a')
+    assert rules[(float, float)].parameters == ['a']
+    default = ['a', 'b', 'c']
+    rules = operations.Rules(*default)
+    rules.register([float, float])
+    rules.constrain([float, float], 'a', mode='include')
+    assert rules[(float, float)].parameters == ['a']
+    default = ['a', 'b', 'c']
+    rules = operations.Rules(*default)
+    rules.register([float, float])
+    rules.constrain([float, float], 'a', mode='exclude')
+    assert rules[(float, float)].parameters == ['b', 'c']
 
 
 def test_object_idempotence():

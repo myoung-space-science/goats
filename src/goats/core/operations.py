@@ -377,12 +377,34 @@ class Rules(_RulesType):
         for rule in rules or []:
             self.register(rule.types, *rule.parameters)
 
-    def constrain(self, types: Types, *parameters):
-        """Restrict the parameters of an existing rule."""
+    def constrain(self, types: Types, *parameters: str, mode: str='include'):
+        """Restrict the parameters of an existing rule.
+        
+        Parameters
+        ----------
+        types : type or tuple of types
+            The argument type(s) in the target rule.
+
+        *parameters : str
+            Zero or more parameters to include or exclude, depending on `mode`.
+
+        mode : {'include', 'exclude'}
+            How to handle the given parameters. If `mode == 'include'` (the
+            default), this method will restrict the target rule's parameters to
+            `parameters`. If `mode == 'exclude'`, this method will remove
+            `parameters` from the target rule's parameters.
+        """
         key = tuple(iterables.whole(types))
         if key not in self.mapping:
             raise KeyError(f"Rule for {types!r} does not exist") from None
-        self.mapping[key] = self._resolve(*parameters)
+        if mode == 'include':
+            new = parameters
+        elif mode == 'exclude':
+            rule = self[key]
+            new = set(rule.parameters) - set(parameters)
+        else:
+            raise ValueError(f"Unknown mode {mode!r}")
+        self.mapping[key] = self._resolve(*new)
 
     def register(self, types: Types, *parameters: typing.Optional[str]):
         """Add a rule to the collection."""
