@@ -299,6 +299,10 @@ class Objects(collections.abc.Sequence, iterables.ReprStrMixin):
             for name in names for obj in self[1:]
         )
 
+    def get(self, name: str):
+        """Get operand values for the named attribute."""
+        return [utilities.getattrval(i, name) for i in self]
+
     @property
     def types(self):
         """The type of each object."""
@@ -493,10 +497,6 @@ class Operands(Objects):
     def __init__(self, *objects, reference: T=None) -> None:
         super().__init__(*objects)
         self.reference = Object(reference or self[0])
-
-    def get(self, name: str):
-        """Get operand values for the named attribute."""
-        return [utilities.getattrval(i, name) for i in self]
 
 
 class Context:
