@@ -79,6 +79,22 @@ def arg_or_kwarg(args: list, kwargs: dict, name: str):
         return args.pop(0)
 
 
+# Bringing this back as an alternative casting to `Object`.
+def get_parameters(__type: type):
+    """Determine the initialization parameters of this type, if possible."""
+    return (
+        {} if __type.__module__ == 'builtins'
+        else inspect.signature(__type).parameters
+    )
+
+
+# NOTE: This class relies heavily on the ability to get an accurate signature
+# from the underlying object. However, some classes define their `__init__`
+# method in terms of variable positional and keyword arguments, which breaks
+# that functionality. An alternative could be to define a function that attempts
+# to parse parameters and values, and either returns a named tuple with the
+# results or raises a `TypeError` if it encounters variable arguments. See
+# `get_parameters`, above.
 class Object(typing.Generic[T], iterables.ReprStrMixin):
     """A wrapper around a single object."""
 
