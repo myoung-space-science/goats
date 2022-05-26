@@ -1083,25 +1083,60 @@ class Factory(typing.Generic[OT]):
     ) -> None:
         self._class = __class
         self.rules = Rules() if rules is None else rules
+        """This category's collection of operation rules."""
+
+    def implement(self, __callable: typing.Callable[..., T]):
+        """Create an operator within this category."""
+        # return self._class(self.rules).implement(__callable)
+        category: OT = self._class(self.rules)
+        return category.implement(__callable)
+
+
+# Let Interface, Category, and Operator have an `implement` method.
+# - `Operator.implement` does the actual work (same as current)
+# - `Category.implement` creates an instance of the category-specific `Operator`
+#   subclass and passes the callable to its `implement` method.
+# - `Interface.implement` creates an instance of `Operator` and passes the
+#   callable to its `implement` method.
+
+
+class Interface:
+    """Top-level interface to arithmetic operations."""
+
+    def __init__(self, __type: type, *parameters) -> None:
+        self._type = __type
+        self.parameters = parameters
+        """The names of all updatable attributes"""
+        self.rules = Rules(*parameters)
+        """The interface-wide collection of operation rules."""
 
     @property
-    def operation(self):
-        """Create an operation with this category's rules."""
-        return self._class(self.rules)
+    def cast(self):
+        """An interface to type-casting operations."""
+        return Factory(Cast, self.rules)
+
+    @property
+    def unary(self):
+        """An interface to a unary arithmetic operations."""
+        return Factory(Unary, self.rules)
+
+    @property
+    def comparison(self):
+        """An interface to a binary comparison operations."""
+        return Factory(Comparison, self.rules)
+
+    @property
+    def numeric(self):
+        """An interface to a binary arithmetic operations."""
+        return Factory(Numeric, self.rules)
 
 
-# Notes:
-# - Design Interface for algorithmic use (e.g., `datatypes.Array`).
-# - Design Factory for explicit use (e.g., `measurable.Quantity`).
-
-
+# Demos just to introspect signatures.
 unary = Factory(Unary)
-_abs = unary.operation
-func = _abs.implement(standard.abs)
-r = func(3.4)
+_abs = unary.implement(standard.abs)
+r = _abs(3.4)
 
 numeric = Factory(Numeric)
-_add = numeric.operation
-func = _add.implement(standard.add)
-r = func(2, 5.0)
+_add = numeric.implement(standard.add)
+r = _add(2, 5)
 
