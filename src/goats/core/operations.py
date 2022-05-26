@@ -822,8 +822,58 @@ _operators = [
 ]
 
 
+
+class Context:
+    """The implementation context for an operation."""
+
+    def __init__(
+        self,
+        *args,
+        defaults: typing.Dict[str, typing.Any]=None,
+        target: typing.Union[T, typing.Type[T]]=None,
+    ) -> None:
+        self.operands = Operands(*args)
+        """The active and reference operands."""
+        self.defaults = defaults or {}
+        self.target = target
+        """The object or type of object representing the operation result."""
+
+    def apply(self, method: typing.Callable, rule: Rule, **kwargs):
+        """Apply a method and rule to this context."""
+        values = self._compute(method, rule, **kwargs)
+        if self.target is None:
+            return values[0] if len(values) == 1 else values
+        if isinstance(self.target, type):
+            return self.target(*values)
+        zipped = zip(self.defaults, values)
+        for name, value in zipped:
+            utilities.setattrval(self.target, name, value)
+        return self.target
+
+    def _compute(self, method, rule: Rule, **kwargs):
+        """Compute values based on parameters."""
+        if not self.defaults:
+            return [
+                method(*self.operands.get(name), **kwargs)
+                for name in rule.parameters
+            ]
+        return [
+            method(*self.operands.get(name), **kwargs)
+            if name in rule else value
+            for name, value in self.defaults.items()
+        ]
+
+
 class Operation:
     """"""
+
+    def __init__(
+        self,
+        method: typing.Callable[..., T],
+        rules: Rules,
+    ) -> None:
+        self.method = method
+        self.rules = rules
 
     def compute(self, *args, reference=None, target=None, **kwargs):
         """"""
@@ -835,11 +885,44 @@ class Operation:
             # over to the given objects, in case they implement this method in
             # their class definitions.
             return self.method(*args, **kwargs)
+        operands = Operands(*args, reference=reference)
+        fixed = tuple(set(self.rules.default) - set(rule.parameters))
+        if not operands.agree(*fixed):
+            errmsg = self._operand_errmsg(rule, operands)
+            raise OperandTypeError(errmsg) from None
+        # TODO:
+        # - Where does Context fit?
+        # - We need to get the names of all parameters from `self.rules`, then
+        #   extract a default attribute value corresponding to each parameter
+        #   from `reference`.
+        # - Maybe this class only does some of the work and sends the rest back
+        #   to `Operator.apply`.
+        # - Note that `Operator` knows about the same set of rules, so some of
+        #   this may be redundant.
 
     def get_rule(self, *operands):
         """Get the operation rule for these operands' types."""
         types = [type(operand) for operand in operands]
         return self.rules.get(types)
+
+    def _operand_errmsg(self, rule: Rule, operands: Operands):
+        """Build an error message based on `rule` and `operands`."""
+        method_string = repr(self.method.__qualname__)
+        types = operands.types
+        types_string = (
+            types[0].__qualname__ if len(types) == 1
+            else f"({', '.join(t.__qualname__ for t in types)})"
+        )
+        fixed = tuple(set(self.rules.default) - set(rule.parameters))
+        attrs_string = (
+            repr(fixed[0]) if len(fixed) == 1
+            else f"{fixed[0]!r} and {fixed[1]!r}" if len(fixed) == 2
+            else f"{', '.join(fixed[:-1])} and {fixed[-1]}"
+        )
+        return (
+            f"Can't apply operator {method_string} to {types_string}"
+            f" with different values of {attrs_string}"
+        )
 
 
 class Operator:
@@ -847,21 +930,56 @@ class Operator:
 
     def __init__(
         self,
-        __implementer: typing.Callable[[typing.Callable], Operation],
         rules: Rules=None,
     ) -> None:
-        self._implementer = __implementer
         self.rules = Rules() if rules is None else rules
 
     def implement(self, __callable: typing.Callable[..., T]):
         """Implement this operation with the given callable object."""
-        operation = self._implementer(__callable)
+        operation = Operation(__callable, self.rules)
         def operator(*args, **kwargs) -> T:
-            return operation.compute(*args, **kwargs)
+            return self.apply(operation, *args, **kwargs)
         return operator
 
-    def apply(self):
+    def apply(self, operation: Operation, *args, **kwargs):
         """"""
+        rule = self.get_rule(*args)
+        if not rule.implemented:
+            return NotImplemented
+        if not rule.parameters:
+            # We don't know which arguments to operate on, so we hand execution
+            # over to the given objects, in case they implement this method in
+            # their class definitions.
+            return operation.method(*args, **kwargs)
+        operands = Operands(*args, reference=reference)
+        fixed = tuple(set(self.rules.default) - set(rule.parameters))
+        if not operands.agree(*fixed):
+            errmsg = self._operand_errmsg(rule, operands)
+            raise OperandTypeError(errmsg) from None
+
+    def get_rule(self, *operands):
+        """Get the operation rule for these operands' types."""
+        types = [type(operand) for operand in operands]
+        return self.rules.get(types)
+
+    def _operand_errmsg(self, rule: Rule, operands: Operands):
+        """Build an error message based on `rule` and `operands`."""
+        method_string = repr(self.method.__qualname__)
+        types = operands.types
+        types_string = (
+            types[0].__qualname__ if len(types) == 1
+            else f"({', '.join(t.__qualname__ for t in types)})"
+        )
+        fixed = tuple(set(self.rules.default) - set(rule.parameters))
+        attrs_string = (
+            repr(fixed[0]) if len(fixed) == 1
+            else f"{fixed[0]!r} and {fixed[1]!r}" if len(fixed) == 2
+            else f"{', '.join(fixed[:-1])} and {fixed[-1]}"
+        )
+        return (
+            f"Can't apply operator {method_string} to {types_string}"
+            f" with different values of {attrs_string}"
+        )
 
 
 class Cast(Operator):
@@ -869,10 +987,10 @@ class Cast(Operator):
 
     def implement(self, __callable: typing.Type[T]):
         """Implement this operation with the given callable object."""
-        operation = self._implementer(__callable)
+        operation = Operation(__callable, self.rules)
         def operator(a: A) -> T:
             """Convert `a` to the appropriate type, if possible."""
-            return operation.compute(a)
+            return self.apply(operation, a)
         return operator
 
 
@@ -883,9 +1001,10 @@ class Unary(Operator):
     CType = typing.Callable[[A], A]
 
     def implement(self, __callable: CType):
-        operation = self._implementer(__callable)
+        """Apply this operation to `a`."""
+        operation = Operation(__callable, self.rules)
         def operator(a: A, /, **kwargs) -> A:
-            return operation.compute(a, reference=a, target=type(a), **kwargs)
+            return self.apply(operation, a, **kwargs)
         return operator
 
 
@@ -897,10 +1016,10 @@ class Comparison(Operator):
 
     def implement(self, __callable: CType):
         """Implement this operation with the given callable object."""
-        operation = self._implementer(__callable)
+        operation = Operation(__callable, self.rules)
         def operator(a: A, b: B, /) -> T:
             """Compare `a` to `b`."""
-            return operation.compute(a, b)
+            return self.apply(operation, a, b)
         return operator
 
 
@@ -912,16 +1031,16 @@ class Numeric(Operator):
 
     def implement(self, __callable: CType, mode: str='forward'):
         """Implement this operation with the given callable object."""
-        operation = self._implementer(__callable)
+        operation = Operation(__callable, self.rules)
         def forward(a: A, b: B, /, **kwargs) -> A:
             """Apply this operation to `a` and `b`."""
-            return operation.compute(a, b, reference=a, target=type(a), **kwargs)
+            return self.apply(operation, a, b, **kwargs)
         def reverse(a: A, b: B, /, **kwargs) -> B:
             """Apply this operation to `a` and `b` with reflected operands."""
-            return operation.compute(a, b, reference=b, target=type(b), **kwargs)
+            return self.apply(operation, a, b, **kwargs)
         def inplace(a: A, b: B, /, **kwargs) -> A:
             """Apply this operation to `a` and `b` in-place."""
-            return operation.compute(a, b, reference=a, target=a, **kwargs)
+            return self.apply(operation, a, b, **kwargs)
         if mode == 'forward':
             return forward
         if mode == 'reverse':
@@ -935,30 +1054,25 @@ OT = typing.TypeVar('OT', bound=Operator)
 
 
 class Category(typing.Generic[OT]):
-    """"""
+    """A factory for creating operations of a given type."""
 
     def __init__(
         self,
         __class: typing.Type[OT],
-        implementer: typing.Callable[[typing.Callable], Operation],
         rules: Rules=None,
     ) -> None:
         self._class = __class
-        self._implementer = implementer
         self.rules = Rules() if rules is None else rules
 
     @property
-    def operator(self):
-        """"""
-        return self._class(self._implementer, self.rules)
+    def operation(self):
+        """Create an operation with this category's rules."""
+        return self._class(self.rules)
 
 
 
-def unary_implementer(method) -> Operation:
-    """"""
-
-unary = Category(Unary, unary_implementer)
-_abs = unary.operator
+unary = Category(Unary)
+_abs = unary.operation
 func = _abs.implement(standard.abs)
 r = func(3.4)
 
