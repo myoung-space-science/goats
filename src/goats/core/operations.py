@@ -901,7 +901,7 @@ class Operator:
         self,
         rules: Rules=None,
     ) -> None:
-        self.rules = Rules() if rules is None else rules
+        self.rules = Rules() if rules is None else rules.copy()
 
     def implement(self, __callable: typing.Callable[..., T]):
         """Implement this operation with the given callable object."""
@@ -927,12 +927,9 @@ class Operator:
         operands = Objects(*args)
         fixed = tuple(set(self.rules.default) - set(rule.parameters))
         if not operands.agree(*fixed):
-            errmsg = self._operand_errmsg(rule, operands)
+            errmsg = self._operand_errmsg(method, rule, operands)
             raise OperandTypeError(errmsg) from None
-        defaults = {
-            name: utilities.getattrval(reference, name)
-            for name in self.rules.default
-        }
+        defaults = self._get_defaults(reference)
         values = self._compute(method, operands, rule, defaults=defaults, **kwargs)
         if target is None:
             return values[0] if len(values) == 1 else values
@@ -966,6 +963,27 @@ class Operator:
             f"Can't apply operator {method_string} to {types_string}"
             f" with different values of {attrs_string}"
         )
+
+    def _get_defaults(self, reference=None):
+        """Get default values for initialization arguments."""
+        if reference is None:
+            return {}
+        parameters = get_parameters(type(reference))
+        if not parameters:
+            return {}
+        kinds = {parameter.kind for parameter in parameters.values()}
+        if kinds == {
+            inspect.Parameter.VAR_KEYWORD,
+            inspect.Parameter.VAR_POSITIONAL,
+        }: return {
+            name: utilities.getattrval(reference, name)
+            for name in self.rules.default
+        }
+        return {
+            name: utilities.getattrval(reference, name)
+            for name in parameters
+        }
+
 
     def _compute(
         self,
