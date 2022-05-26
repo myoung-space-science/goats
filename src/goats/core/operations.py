@@ -417,7 +417,7 @@ class Rules(_RulesType):
             `parameters` from the target rule's parameters.
         """
         key = tuple(iterables.whole(types))
-        if key not in self.mapping:
+        if key not in self:
             raise KeyError(f"Rule for {types!r} does not exist") from None
         if mode == 'include':
             new = parameters
