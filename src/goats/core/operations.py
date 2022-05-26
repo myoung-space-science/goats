@@ -222,13 +222,14 @@ class Rule(iterables.ReprStrMixin):
             else False
         )
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, __o) -> bool:
         """Called for self == other.
         
-        This method return ``True`` iff each type in `other` is strictly equal
-        to the corresponding type in `self` under element-wise comparison.
+        This method returns ``True`` iff each type in the other object is
+        strictly equal to the corresponding type in this object under
+        element-wise comparison.
         """
-        return self._compare(other, standard.eq)
+        return self._compare(__o, standard.eq)
 
     def _subtypes(self, other) -> bool:
         """Helper for self > other and self >= other.
