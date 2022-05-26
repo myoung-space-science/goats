@@ -1011,7 +1011,7 @@ class Operation:
 
     def __init__(self, method, rules: Rules) -> None:
         self.method = method
-        self.rules = rules
+        self.rules = rules.copy()
 
     def compute(self, *args, reference=None, target=None, **kwargs):
         """Evaluate arguments within this operational context."""
