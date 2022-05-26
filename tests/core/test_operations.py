@@ -167,7 +167,7 @@ def test_cast_builtin():
     """Test a type-cast operation on a built-in object."""
     operation = operations.Cast()
     builtin = int
-    operator = operation.implement(builtin)
+    operator = operation.apply(builtin)
     value = 3.3
     result = operator(value)
     assert isinstance(result, builtin)
@@ -179,7 +179,7 @@ def test_cast_custom():
     rules = operations.Rules('value', 'info')
     operation = operations.Cast(rules)
     builtin = int
-    operator = operation.implement(builtin)
+    operator = operation.apply(builtin)
     instances = build(Base)
     with pytest.raises(TypeError):
         operator(instances[0])
@@ -192,7 +192,7 @@ def test_unary_builtin():
     """Test a unary arithmetic operation on a built-in object."""
     operation = operations.Unary()
     builtin = round
-    operator = operation.implement(builtin)
+    operator = operation.apply(builtin)
     value = 3.3
     assert operator(value) == builtin(value)
 
@@ -202,7 +202,7 @@ def test_unary_custom():
     rules = operations.Rules('value', 'info')
     operation = operations.Unary(rules)
     builtin = round
-    operator = operation.implement(builtin)
+    operator = operation.apply(builtin)
     instances = build(Base)
     with pytest.raises(TypeError):
         operator(instances[0])
@@ -216,7 +216,7 @@ def test_comparison_builtin():
     """Test a binary comparison operation on a built-in object."""
     operation = operations.Comparison()
     builtin = standard.lt
-    operator = operation.implement(builtin)
+    operator = operation.apply(builtin)
     values = 2, 4
     assert operator(*values) == builtin(*values)
 
@@ -226,7 +226,7 @@ def test_comparison_custom():
     rules = operations.Rules('value', 'info')
     operation = operations.Comparison(rules)
     builtin = standard.lt
-    operator = operation.implement(builtin)
+    operator = operation.apply(builtin)
     instances = build(Base)
     with pytest.raises(TypeError):
         operator(instances[0], instances[1])
@@ -241,7 +241,7 @@ def test_numeric_builtin():
     """Test a binary numeric operation on a built-in object."""
     operation = operations.Numeric()
     builtin = standard.add
-    operator = operation.implement(builtin)
+    operator = operation.apply(builtin)
     values = 2, 4
     types = {
         (int, int): int,
@@ -260,7 +260,7 @@ def test_numeric_custom():
     rules = operations.Rules('value', 'info')
     operation = operations.Numeric(rules)
     builtin = standard.add
-    operator = operation.implement(builtin)
+    operator = operation.apply(builtin)
     instances = build(Base)
     with pytest.raises(TypeError):
         operator(instances[0], instances[1])
@@ -311,7 +311,7 @@ def test_cast_interface():
     operation.rules.constrain(Base, 'value')
     instances = build(Base)
     for builtin in CAST.values():
-        operator = operation.implement(builtin)
+        operator = operation.apply(builtin)
         for instance in instances:
             expected = builtin(instance.value)
             assert operator(instance) == expected
@@ -324,7 +324,7 @@ def test_unary_interface():
     operation.rules.constrain(Base, 'value')
     instances = build(Base)
     for builtin in UNARY.values():
-        operator = operation.implement(builtin)
+        operator = operation.apply(builtin)
         for instance in instances:
             expected = Base(builtin(instance.value), instance.info)
             assert operator(instance) == expected
@@ -338,7 +338,7 @@ def test_comparison_interface():
     instances = build(Base)
     targets = instances[0], instances[1]
     for builtin in COMPARISON.values():
-        operator = operation.implement(builtin)
+        operator = operation.apply(builtin)
         assert operator(*targets) == builtin(*[c.value for c in targets])
         with pytest.raises(operations.OperandTypeError):
             operator(instances[0], instances[2])
@@ -352,7 +352,7 @@ def test_numeric_interface():
     instances = build(Base)
     targets = instances[0], instances[1]
     for builtin in NUMERIC.values():
-        operator = operation.implement(builtin)
+        operator = operation.apply(builtin)
         expected = Base(
             builtin(*[c.value for c in targets]),
             targets[0].info,
@@ -365,45 +365,45 @@ def test_numeric_interface():
 class Mixin:
     """A mixin class that provides operator implementations."""
 
-    operators = operations.Interface(Base, 'value', 'info')
+    rules = operations.Rules('value', 'info')
 
-    cast = operators.cast
-    cast.rules.constrain(Base, 'value')
+    cast = operations.Cast(rules)
+    cast.rules.register(Base, 'value')
 
-    comparison = operators.comparison
-    comparison.rules.constrain([Base, Base], 'value')
+    comparison = operations.Comparison(rules)
+    comparison.rules.register([Base, Base], 'value')
 
-    unary = operators.unary
-    unary.rules.constrain(Base, 'value')
+    unary = operations.Unary(rules)
+    unary.rules.register(Base, 'value')
 
-    numeric = operators.numeric
-    numeric.rules.constrain([Base, Base], 'value')
+    numeric = operations.Numeric(rules)
+    numeric.rules.register([Base, Base], 'value')
 
-    __int__ = cast.implement(int)
-    __float__ = cast.implement(float)
-    __lt__ = comparison.implement(standard.lt)
-    __le__ = comparison.implement(standard.le)
-    __gt__ = comparison.implement(standard.gt)
-    __ge__ = comparison.implement(standard.ge)
-    __eq__ = comparison.implement(standard.eq)
-    __ne__ = comparison.implement(standard.ne)
-    __abs__ = unary.implement(standard.abs)
-    __pos__ = unary.implement(standard.pos)
-    __neg__ = unary.implement(standard.neg)
-    __ceil__ = unary.implement(math.ceil)
-    __floor__ = unary.implement(math.floor)
-    __trunc__ = unary.implement(math.trunc)
-    __round__ = unary.implement(round)
-    __add__ = numeric.implement(standard.add)
-    __radd__ = numeric.implement(standard.add, 'reverse')
-    __sub__ = numeric.implement(standard.sub)
-    __rsub__ = numeric.implement(standard.sub, 'reverse')
-    __mul__ = numeric.implement(standard.mul)
-    __rmul__ = numeric.implement(standard.mul, 'reverse')
-    __truediv__ = numeric.implement(standard.truediv)
-    __rtruediv__ = numeric.implement(standard.truediv, 'reverse')
-    __pow__ = numeric.implement(pow)
-    __rpow__ = numeric.implement(pow, 'reverse')
+    __int__ = cast.apply(int)
+    __float__ = cast.apply(float)
+    __lt__ = comparison.apply(standard.lt)
+    __le__ = comparison.apply(standard.le)
+    __gt__ = comparison.apply(standard.gt)
+    __ge__ = comparison.apply(standard.ge)
+    __eq__ = comparison.apply(standard.eq)
+    __ne__ = comparison.apply(standard.ne)
+    __abs__ = unary.apply(standard.abs)
+    __pos__ = unary.apply(standard.pos)
+    __neg__ = unary.apply(standard.neg)
+    __ceil__ = unary.apply(math.ceil)
+    __floor__ = unary.apply(math.floor)
+    __trunc__ = unary.apply(math.trunc)
+    __round__ = unary.apply(round)
+    __add__ = numeric.apply(standard.add)
+    __radd__ = numeric.apply(standard.add, 'reverse')
+    __sub__ = numeric.apply(standard.sub)
+    __rsub__ = numeric.apply(standard.sub, 'reverse')
+    __mul__ = numeric.apply(standard.mul)
+    __rmul__ = numeric.apply(standard.mul, 'reverse')
+    __truediv__ = numeric.apply(standard.truediv)
+    __rtruediv__ = numeric.apply(standard.truediv, 'reverse')
+    __pow__ = numeric.apply(pow)
+    __rpow__ = numeric.apply(pow, 'reverse')
 
 
 class MixedIn(Mixin, Base):
@@ -451,49 +451,49 @@ def test_numeric_mixin():
             builtin(instances[0], instances[2])
 
 
-operators = operations.Interface(Base, 'value', 'info')
+rules = operations.Rules('value', 'info')
 
-cast = operators.cast
-cast.rules.constrain(Base, 'value')
+cast = operations.Cast(rules)
+cast.rules.register(Base, 'value')
 
-comparison = operators.comparison
-comparison.rules.constrain([Base, Base], 'value')
+comparison = operations.Comparison(rules)
+comparison.rules.register([Base, Base], 'value')
 
-unary = operators.unary
-unary.rules.constrain(Base, 'value')
+unary = operations.Unary(rules)
+unary.rules.register(Base, 'value')
 
-numeric = operators.numeric
-numeric.rules.constrain([Base, Base], 'value')
+numeric = operations.Numeric(rules)
+numeric.rules.register([Base, Base], 'value')
 
 
 class Defined(Base):
     """A test class that defines custom operators."""
 
-    __int__ = cast.implement(int)
-    __float__ = cast.implement(float)
-    __lt__ = comparison.implement(standard.lt)
-    __le__ = comparison.implement(standard.le)
-    __gt__ = comparison.implement(standard.gt)
-    __ge__ = comparison.implement(standard.ge)
-    __eq__ = comparison.implement(standard.eq)
-    __ne__ = comparison.implement(standard.ne)
-    __abs__ = unary.implement(standard.abs)
-    __pos__ = unary.implement(standard.pos)
-    __neg__ = unary.implement(standard.neg)
-    __ceil__ = unary.implement(math.ceil)
-    __floor__ = unary.implement(math.floor)
-    __trunc__ = unary.implement(math.trunc)
-    __round__ = unary.implement(round)
-    __add__ = numeric.implement(standard.add)
-    __radd__ = numeric.implement(standard.add, 'reverse')
-    __sub__ = numeric.implement(standard.sub)
-    __rsub__ = numeric.implement(standard.sub, 'reverse')
-    __mul__ = numeric.implement(standard.mul)
-    __rmul__ = numeric.implement(standard.mul, 'reverse')
-    __truediv__ = numeric.implement(standard.truediv)
-    __rtruediv__ = numeric.implement(standard.truediv, 'reverse')
-    __pow__ = numeric.implement(pow)
-    __rpow__ = numeric.implement(pow, 'reverse')
+    __int__ = cast.apply(int)
+    __float__ = cast.apply(float)
+    __lt__ = comparison.apply(standard.lt)
+    __le__ = comparison.apply(standard.le)
+    __gt__ = comparison.apply(standard.gt)
+    __ge__ = comparison.apply(standard.ge)
+    __eq__ = comparison.apply(standard.eq)
+    __ne__ = comparison.apply(standard.ne)
+    __abs__ = unary.apply(standard.abs)
+    __pos__ = unary.apply(standard.pos)
+    __neg__ = unary.apply(standard.neg)
+    __ceil__ = unary.apply(math.ceil)
+    __floor__ = unary.apply(math.floor)
+    __trunc__ = unary.apply(math.trunc)
+    __round__ = unary.apply(round)
+    __add__ = numeric.apply(standard.add)
+    __radd__ = numeric.apply(standard.add, 'reverse')
+    __sub__ = numeric.apply(standard.sub)
+    __rsub__ = numeric.apply(standard.sub, 'reverse')
+    __mul__ = numeric.apply(standard.mul)
+    __rmul__ = numeric.apply(standard.mul, 'reverse')
+    __truediv__ = numeric.apply(standard.truediv)
+    __rtruediv__ = numeric.apply(standard.truediv, 'reverse')
+    __pow__ = numeric.apply(pow)
+    __rpow__ = numeric.apply(pow, 'reverse')
 
 
 def test_cast_defined():

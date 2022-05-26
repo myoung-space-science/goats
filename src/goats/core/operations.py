@@ -1103,13 +1103,36 @@ class Operation:
         ]
 
 
-class Category:
-    """A general operation category."""
+class Context(abc.ABC):
+    """Abstract base class for operation-related contexts."""
 
     def __init__(self, rules: Rules=None) -> None:
         self.rules = Rules() if rules is None else rules.copy()
+        """This application's operand-update rules."""
 
-    def implement(self, __callable: typing.Callable[..., T]):
+    @abc.abstractmethod
+    def apply(self, __callable: typing.Callable):
+        """Apply the given callable object to this context."""
+        pass
+
+
+class Category(Context):
+    """The operator-category context.
+    
+    All operators within a category have similarities related to call signature,
+    reference attributes, and return object.
+    """
+
+    @property
+    def child(self):
+        """Spawn a new instance of this context with the current rules."""
+        return type(self)(self.rules)
+
+
+class Default(Category):
+    """A factory for generalized operators."""
+
+    def apply(self, __callable: typing.Callable[..., T]):
         """Implement this operation with the given callable object."""
         operation = Operation(__callable, self.rules)
         def operator(*args, **kwargs) -> T:
@@ -1117,12 +1140,10 @@ class Category:
         return operator
 
 
-
 class Cast(Category):
     """A factory for type-casting operators."""
 
-    def implement(self, __callable: typing.Type[T]):
-        """Implement this operation with the given callable object."""
+    def apply(self, __callable: typing.Type[T]):
         operation = Operation(__callable, self.rules)
         def operator(a: A) -> T:
             """Convert `a` to the appropriate type, if possible."""
@@ -1131,42 +1152,40 @@ class Cast(Category):
 
 
 class Unary(Category):
-    """An implementation of a unary arithmetic operator."""
+    """A factory for unary arithmetic operators."""
 
     CType = typing.TypeVar('CType', bound=typing.Callable)
     CType = typing.Callable[[A], A]
 
-    def implement(self, __callable: CType):
-        """Apply this operation to `a`."""
+    def apply(self, __callable: CType):
         operation = Operation(__callable, self.rules)
         def operator(a: A, /, **kwargs) -> A:
+            """Apply this operator to `a`."""
             return operation.compute(a, reference=a, target=type(a), **kwargs)
         return operator
 
 
 class Comparison(Category):
-    """An implementation of a binary comparison operator."""
+    """A factory for binary comparison operators."""
 
     CType = typing.TypeVar('CType', bound=typing.Callable)
     CType = typing.Callable[[A, B], T]
 
-    def implement(self, __callable: CType):
-        """Implement this operation with the given callable object."""
+    def apply(self, __callable: CType):
         operation = Operation(__callable, self.rules)
         def operator(a: A, b: B, /) -> T:
             """Compare `a` to `b`."""
-            return operation.compute(__callable, a, b)
+            return operation.compute(a, b)
         return operator
 
 
 class Numeric(Category):
-    """An implementation of a binary numeric operator."""
+    """A factory for binary numeric operators."""
 
     CType = typing.TypeVar('CType', bound=typing.Callable)
     CType = typing.Callable[[A, B], T]
 
-    def implement(self, __callable: CType, mode: str='forward'):
-        """Implement this operation with the given callable object."""
+    def apply(self, __callable: CType, mode: str='forward'):
         operation = Operation(__callable, self.rules)
         def forward(a: A, b: B, /, **kwargs) -> A:
             """Apply this operation to `a` and `b`."""
@@ -1186,44 +1205,44 @@ class Numeric(Category):
         raise ValueError(f"Unknown implementation mode {mode!r}") from None
 
 
-CT = typing.TypeVar('CT', bound=Category)
-
-
-# Let Interface, Category, and Operator have an `implement` method.
-# - `Operator.implement` does the actual work (same as current)
-# - `Category.implement` creates an instance of the category-specific `Operator`
-#   subclass and passes the callable to its `implement` method.
-# - `Interface.implement` creates an instance of `Operator` and passes the
-#   callable to its `implement` method.
-
-
-class Interface:
+class Interface(Context):
     """Top-level interface to arithmetic operations."""
 
     def __init__(self, __type: type, *parameters) -> None:
         self._type = __type
         self.parameters = parameters
         """The names of all updatable attributes"""
-        self.rules = Rules(*parameters)
-        """The interface-wide collection of operation rules."""
+        super().__init__(Rules(*parameters))
 
     @property
     def cast(self):
         """An interface to type-casting operations."""
-        return Cast(self.rules)
+        rules = self.rules.copy()
+        rules.register(self._type)
+        return Cast(rules)
 
     @property
     def unary(self):
         """An interface to a unary arithmetic operations."""
-        return Unary(self.rules)
+        rules = self.rules.copy()
+        rules.register(self._type)
+        return Unary(rules)
 
     @property
     def comparison(self):
         """An interface to a binary comparison operations."""
-        return Comparison(self.rules)
+        rules = self.rules.copy()
+        rules.register([self._type, self._type])
+        return Comparison(rules)
 
     @property
     def numeric(self):
         """An interface to a binary arithmetic operations."""
-        return Numeric(self.rules)
+        rules = self.rules.copy()
+        rules.register([self._type, self._type])
+        return Numeric(rules)
+
+    def apply(self, __callable: typing.Callable):
+        """Create a default operation from this callable object."""
+        return Default(self.rules).apply(__callable)
 
