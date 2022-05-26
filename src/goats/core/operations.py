@@ -532,6 +532,9 @@ class Context:
             if self.target is None:
                 return values[0] if len(values) == 1 else values
             return self.format(*values)
+        # BUG: `Object.parameters` finds variable args/kwargs instead of
+        # specific required arguments. Should use default parameters from
+        # `Rules`, which means moving this method.
         pos = [
             self.compute(name, method, rule, **kwargs)
             for name in self.reference.positional
@@ -818,4 +821,144 @@ _operators = [
     ('sub', '__sub__', 'subtraction'),
 ]
 
+
+class Operation:
+    """"""
+
+    def compute(self, *args, reference=None, target=None, **kwargs):
+        """"""
+        rule = self.get_rule(*args)
+        if not rule.implemented:
+            return NotImplemented
+        if not rule.parameters:
+            # We don't know which arguments to operate on, so we hand execution
+            # over to the given objects, in case they implement this method in
+            # their class definitions.
+            return self.method(*args, **kwargs)
+
+    def get_rule(self, *operands):
+        """Get the operation rule for these operands' types."""
+        types = [type(operand) for operand in operands]
+        return self.rules.get(types)
+
+
+class Operator:
+    """The default operator implementation."""
+
+    def __init__(
+        self,
+        __implementer: typing.Callable[[typing.Callable], Operation],
+        rules: Rules=None,
+    ) -> None:
+        self._implementer = __implementer
+        self.rules = Rules() if rules is None else rules
+
+    def implement(self, __callable: typing.Callable[..., T]):
+        """Implement this operation with the given callable object."""
+        operation = self._implementer(__callable)
+        def operator(*args, **kwargs) -> T:
+            return operation.compute(*args, **kwargs)
+        return operator
+
+    def apply(self):
+        """"""
+
+
+class Cast(Operator):
+    """An implementation of a type-casting operator."""
+
+    def implement(self, __callable: typing.Type[T]):
+        """Implement this operation with the given callable object."""
+        operation = self._implementer(__callable)
+        def operator(a: A) -> T:
+            """Convert `a` to the appropriate type, if possible."""
+            return operation.compute(a)
+        return operator
+
+
+class Unary(Operator):
+    """An implementation of a unary arithmetic operator."""
+
+    CType = typing.TypeVar('CType', bound=typing.Callable)
+    CType = typing.Callable[[A], A]
+
+    def implement(self, __callable: CType):
+        operation = self._implementer(__callable)
+        def operator(a: A, /, **kwargs) -> A:
+            return operation.compute(a, reference=a, target=type(a), **kwargs)
+        return operator
+
+
+class Comparison(Operator):
+    """An implementation of a binary comparison operator."""
+
+    CType = typing.TypeVar('CType', bound=typing.Callable)
+    CType = typing.Callable[[A, B], T]
+
+    def implement(self, __callable: CType):
+        """Implement this operation with the given callable object."""
+        operation = self._implementer(__callable)
+        def operator(a: A, b: B, /) -> T:
+            """Compare `a` to `b`."""
+            return operation.compute(a, b)
+        return operator
+
+
+class Numeric(Operator):
+    """An implementation of a binary numeric operator."""
+
+    CType = typing.TypeVar('CType', bound=typing.Callable)
+    CType = typing.Callable[[A, B], T]
+
+    def implement(self, __callable: CType, mode: str='forward'):
+        """Implement this operation with the given callable object."""
+        operation = self._implementer(__callable)
+        def forward(a: A, b: B, /, **kwargs) -> A:
+            """Apply this operation to `a` and `b`."""
+            return operation.compute(a, b, reference=a, target=type(a), **kwargs)
+        def reverse(a: A, b: B, /, **kwargs) -> B:
+            """Apply this operation to `a` and `b` with reflected operands."""
+            return operation.compute(a, b, reference=b, target=type(b), **kwargs)
+        def inplace(a: A, b: B, /, **kwargs) -> A:
+            """Apply this operation to `a` and `b` in-place."""
+            return operation.compute(a, b, reference=a, target=a, **kwargs)
+        if mode == 'forward':
+            return forward
+        if mode == 'reverse':
+            return reverse
+        if mode == 'inplace':
+            return inplace
+        raise ValueError(f"Unknown implementation mode {mode!r}") from None
+
+
+OT = typing.TypeVar('OT', bound=Operator)
+
+
+class Category(typing.Generic[OT]):
+    """"""
+
+    def __init__(
+        self,
+        __class: typing.Type[OT],
+        implementer: typing.Callable[[typing.Callable], Operation],
+        rules: Rules=None,
+    ) -> None:
+        self._class = __class
+        self._implementer = implementer
+        self.rules = Rules() if rules is None else rules
+
+    @property
+    def operator(self):
+        """"""
+        return self._class(self._implementer, self.rules)
+
+
+
+def unary_implementer(method) -> Operation:
+    """"""
+
+unary = Category(Unary, unary_implementer)
+_abs = unary.operator
+func = _abs.implement(standard.abs)
+r = func(3.4)
 
