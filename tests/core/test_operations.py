@@ -310,9 +310,9 @@ COMPARISON = {
 
 def test_cast_interface():
     """Test cast operations via the module interface."""
-    interface = operations.Interface(Base, 'value', 'info')
+    interface = operations.Interface('value', 'info')
     operation = interface.cast
-    operation.rules.constrain(Base, 'value')
+    operation.rules.register(Base, 'value')
     instances = build(Base)
     for builtin in CAST.values():
         operator = operation.apply(builtin)
@@ -323,9 +323,9 @@ def test_cast_interface():
 
 def test_unary_interface():
     """Test unary operations via the module interface."""
-    interface = operations.Interface(Base, 'value', 'info')
+    interface = operations.Interface('value', 'info')
     operation = interface.unary
-    operation.rules.constrain(Base, 'value')
+    operation.rules.register(Base, 'value')
     instances = build(Base)
     for builtin in UNARY.values():
         operator = operation.apply(builtin)
@@ -336,9 +336,9 @@ def test_unary_interface():
 
 def test_comparison_interface():
     """Test comparison operations via the module interface."""
-    interface = operations.Interface(Base, 'value', 'info')
+    interface = operations.Interface('value', 'info')
     operation = interface.comparison
-    operation.rules.constrain([Base, Base], 'value')
+    operation.rules.register([Base, Base], 'value')
     instances = build(Base)
     targets = instances[0], instances[1]
     for builtin in COMPARISON.values():
@@ -350,9 +350,9 @@ def test_comparison_interface():
 
 def test_numeric_interface():
     """Test numeric operations via the module interface."""
-    interface = operations.Interface(Base, 'value', 'info')
+    interface = operations.Interface('value', 'info')
     operation = interface.numeric
-    operation.rules.constrain([Base, Base], 'value')
+    operation.rules.register([Base, Base], 'value')
     instances = build(Base)
     targets = instances[0], instances[1]
     for builtin in NUMERIC.values():

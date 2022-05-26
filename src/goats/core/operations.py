@@ -1208,8 +1208,7 @@ class Numeric(Category):
 class Interface(Context):
     """Top-level interface to arithmetic operations."""
 
-    def __init__(self, __type: type, *parameters) -> None:
-        self._type = __type
+    def __init__(self, *parameters) -> None:
         self.parameters = parameters
         """The names of all updatable attributes"""
         super().__init__(Rules(*parameters))
@@ -1217,30 +1216,22 @@ class Interface(Context):
     @property
     def cast(self):
         """An interface to type-casting operations."""
-        rules = self.rules.copy()
-        rules.register(self._type)
-        return Cast(rules)
+        return Cast(self.rules)
 
     @property
     def unary(self):
         """An interface to a unary arithmetic operations."""
-        rules = self.rules.copy()
-        rules.register(self._type)
-        return Unary(rules)
+        return Unary(self.rules)
 
     @property
     def comparison(self):
         """An interface to a binary comparison operations."""
-        rules = self.rules.copy()
-        rules.register([self._type, self._type])
-        return Comparison(rules)
+        return Comparison(self.rules)
 
     @property
     def numeric(self):
         """An interface to a binary arithmetic operations."""
-        rules = self.rules.copy()
-        rules.register([self._type, self._type])
-        return Numeric(rules)
+        return Numeric(self.rules)
 
     def apply(self, __callable: typing.Callable):
         """Create a default operation from this callable object."""
