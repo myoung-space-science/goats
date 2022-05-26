@@ -178,12 +178,13 @@ def test_cast_custom():
     """Test a type-cast operation on a custom object."""
     rules = operations.Rules('value', 'info')
     operation = operations.Cast(rules)
+    instances = build(Base)
     builtin = int
     operator = operation.apply(builtin)
-    instances = build(Base)
     with pytest.raises(TypeError):
         operator(instances[0])
     operation.rules.register(Base, 'value')
+    operator = operation.apply(builtin)
     for instance in instances:
         assert operator(instance) == builtin(instance.value)
 
@@ -201,12 +202,13 @@ def test_unary_custom():
     """Test a unary arithmetic operation on a custom object."""
     rules = operations.Rules('value', 'info')
     operation = operations.Unary(rules)
+    instances = build(Base)
     builtin = round
     operator = operation.apply(builtin)
-    instances = build(Base)
     with pytest.raises(TypeError):
         operator(instances[0])
     operation.rules.register(Base, 'value')
+    operator = operation.apply(builtin)
     for instance in instances:
         expected = Base(builtin(instance.value), instance.info)
         assert operator(instance) == expected
@@ -226,11 +228,12 @@ def test_comparison_custom():
     rules = operations.Rules('value', 'info')
     operation = operations.Comparison(rules)
     builtin = standard.lt
-    operator = operation.apply(builtin)
     instances = build(Base)
+    operator = operation.apply(builtin)
     with pytest.raises(TypeError):
         operator(instances[0], instances[1])
     operation.rules.register([Base, Base], 'value')
+    operator = operation.apply(builtin)
     assert operator(instances[0], instances[1])
     assert not operator(instances[1], instances[0])
     with pytest.raises(operations.OperandTypeError):
@@ -260,11 +263,12 @@ def test_numeric_custom():
     rules = operations.Rules('value', 'info')
     operation = operations.Numeric(rules)
     builtin = standard.add
-    operator = operation.apply(builtin)
     instances = build(Base)
+    operator = operation.apply(builtin)
     with pytest.raises(TypeError):
         operator(instances[0], instances[1])
     operation.rules.register([Base, Base], 'value')
+    operator = operation.apply(builtin)
     expected = Base(
         builtin(instances[0].value, instances[1].value),
         instances[0].info,
