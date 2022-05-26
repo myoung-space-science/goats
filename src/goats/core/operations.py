@@ -1026,7 +1026,7 @@ class Numeric(Operator):
 OT = typing.TypeVar('OT', bound=Operator)
 
 
-class Category(typing.Generic[OT]):
+class Factory(typing.Generic[OT]):
     """A factory for creating operations of a given type."""
 
     def __init__(
@@ -1043,13 +1043,17 @@ class Category(typing.Generic[OT]):
         return self._class(self.rules)
 
 
+# Notes:
+# - Design Interface for algorithmic use (e.g., `datatypes.Array`).
+# - Design Factory for explicit use (e.g., `measurable.Quantity`).
 
-unary = Category(Unary)
+
+unary = Factory(Unary)
 _abs = unary.operation
 func = _abs.implement(standard.abs)
 r = func(3.4)
 
-numeric = Category(Numeric)
+numeric = Factory(Numeric)
 _add = numeric.operation
 func = _add.implement(standard.add)
 r = func(2, 5.0)
