@@ -94,6 +94,16 @@ def test_rules_constrain():
     assert sorted(rules[(float, float)].parameters) == sorted(['b', 'c'])
 
 
+def test_rules_copy():
+    """Test the ability to copy an instance."""
+    default = ['a', 'b', 'c']
+    init = [operations.Rule(int, 'a'), operations.Rule(float, 'a', 'b')]
+    rules = operations.Rules(*default, rules=init)
+    copied = rules.copy()
+    assert copied == rules
+    assert copied is not rules
+
+
 def test_object_idempotence():
     """Create an `Object` instance from another instance."""
     a = operations.Object(1)

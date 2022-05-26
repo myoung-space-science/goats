@@ -488,6 +488,18 @@ class Rules(_RulesType):
         """
         return super().get(__types, default or Rule(__types))
 
+    def copy(self):
+        """Create a shallow copy of this instance."""
+        return Rules(*self.default, rules=iter(self))
+
+    def __eq__(self, __o) -> bool:
+        """True iff two instances have the same default parameters and rules."""
+        return (
+            isinstance(__o, Rules)
+            and __o.default == self.default
+            and __o.mapping == self.mapping
+        )
+
     def __str__(self) -> str:
         return ', '.join(str(rule) for rule in self)
 
