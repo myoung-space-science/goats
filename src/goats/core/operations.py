@@ -526,7 +526,7 @@ class Operation:
             # over to the given operands, in case they implement this method in
             # their class definitions.
             return self.method(*args, **kwargs)
-        operands = Operands(*args)
+        operands = Operands(*args, reference=reference)
         fixed = tuple(set(self.rules.default) - set(rule.parameters))
         if not operands.agree(*fixed):
             errmsg = self._operand_errmsg(rule, operands)
