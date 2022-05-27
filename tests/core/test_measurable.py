@@ -4,6 +4,7 @@ import operator
 import pytest
 
 from goats.core import measurable
+from goats.core import operations
 
 
 class Quantified(measurable.OperatorMixin, measurable.Quantifiable):
@@ -17,15 +18,16 @@ class Quantity(measurable.OperatorMixin, measurable.Quantity):
 class Scalar(Quantity):
     """Concrete scalar quantity for testing."""
 
-    operators = Quantity.operators
+    cast = Quantity.factory.cast
+    cast.rules.register(Quantity, 'data')
+    __int__ = cast.apply(int)
+    __float__ = cast.apply(float)
 
-    __float__ = operators.cast.implement(float)
-    __int__ = operators.cast.implement(int)
-
-    __round__ = operators.unary.implement(round)
-    __ceil__ = operators.unary.implement(math.ceil)
-    __floor__ = operators.unary.implement(math.floor)
-    __trunc__ = operators.unary.implement(math.trunc)
+    unary = Quantity.unary
+    __round__ = unary.apply(round)
+    __ceil__ = unary.apply(math.ceil)
+    __floor__ = unary.apply(math.floor)
+    __trunc__ = unary.apply(math.trunc)
 
 
 @pytest.mark.quantity
@@ -49,7 +51,7 @@ def test_quantity_comparisons():
         result = opr(scalar, Quantity(v, unit))
         assert isinstance(result, bool)
         assert result
-        with pytest.raises(TypeError):
+        with pytest.raises(operations.OperandTypeError):
             opr(scalar, Quantity(v, 'J'))
 
 
@@ -105,7 +107,7 @@ def test_quantities_diff_unit():
         operator.sub,
     ]
     for opr in oprs:
-        with pytest.raises(measurable.OperandError):
+        with pytest.raises(operations.OperandTypeError):
             opr(*quantities)
 
     # MULTIPLICATION

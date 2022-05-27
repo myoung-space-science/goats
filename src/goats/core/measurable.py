@@ -11,6 +11,8 @@ import numpy.typing
 from goats.core import algebraic
 from goats.core import iterables
 from goats.core import metric
+from goats.core import operations
+from goats.core import utilities
 
 
 Self = typing.TypeVar('Self', bound='SupportsNeg')
@@ -112,7 +114,9 @@ class Operand:
 
     def _comparable(self, that, name: str) -> bool:
         """Determine whether the instances are comparable."""
-        return getattrval(self.operand, name) == getattrval(that, name)
+        return utilities.getattrval(
+            self.operand, name
+        ) == utilities.getattrval(that, name)
 
 
 class same:
@@ -284,420 +288,6 @@ class Quantity(Quantifiable):
         return self
 
 
-def getattrval(
-    __object: T,
-    __name: str,
-    *args,
-    **kwargs
-) -> typing.Union[typing.Any, T]:
-    """Get an appropriate value based on the given object type.
-    
-    Parameters
-    ----------
-    __object : Any
-        The object from which to retrieve the target attribute, if available.
-
-    __name : string
-        The name of the target attribute.
-
-    *args
-        Optional positional arguments to pass to the target attribute, if it is
-        callable.
-
-    **kwargs
-        Optional keyword arguments to pass to the target attribute, if it is
-        callable.
-
-    Returns
-    -------
-    Any
-        The value of the attribute on the given object, or the object itself.
-        See Notes for further explanation.
-
-    Notes
-    -----
-    This function will attempt to retrieve the named attribute from the given
-    object. If the attribute exists and is callable (e.g., a class method), this
-    function will call the attribute with `*args` and `**kwargs`, and return the
-    result. If the attribute exists and is not callable, this function will
-    return it as-is. If the attribute does not exist, this function will return
-    the given object. This case supports programmatic use when the calling code
-    does not know the type of object until runtime.
-
-    Examples
-    --------
-    TODO
-    """
-    attr = getattr(__object, __name, __object)
-    return attr(*args, **kwargs) if callable(attr) else attr
-
-
-@typing.overload
-def setattrval(__object: T, __name: str, __value) -> None: ...
-
-
-@typing.overload
-def setattrval(__object: T, __name: str, __value, *args, **kwargs) -> None: ...
-
-
-@typing.overload
-def setattrval(__object: T, __name: str, *args, **kwargs) -> None: ...
-
-
-def setattrval(*args, **kwargs):
-    """Set an appropriate value based on the given object type.
-    
-    Parameters
-    ----------
-    __object : Any
-        The object on which to set the target attribute.
-
-    __name : string
-        The name of the target attribute.
-
-    __value : Any
-        The new value of the target attribute.
-
-    *args
-        Positional arguments to pass the target attribute, if it is callable.
-        See Notes for further explanation.
-
-    **kwargs
-        Keyword arguments to pass to the target attribute, if it is callable.
-        See Notes for further explanation.
-
-    Returns
-    -------
-    None
-
-    Notes
-    -----
-    This function will attempt to set the named attribute on the given object.
-    If the attribute exists and is callable (e.g., a class method), this
-    function will call the attribute with all positional arguments after
-    `__object` and `__name`, as well as any given keyword arguments. The user
-    may pass the new value as the first positional argument or as a keyword
-    argument, in order to support as many forms of callable attributes as
-    possible. If the attribute exists and is not callable, this function will
-    set the new value from the first positional argument after `__object` and
-    `__name`. If the attribute does not exist, this function will raise an
-    ``AttributeError``.
-
-    Examples
-    --------
-    TODO
-    """
-    obj, name, *args = args
-    attr = getattr(obj, name)
-    if callable(attr):
-        attr(*args, **kwargs)
-    else:
-        setattr(obj, name, args[0])
-
-
-Signature = typing.TypeVar('Signature', bound=tuple)
-Signature = typing.Tuple[type, type]
-
-
-Rules = typing.TypeVar('Rules', bound=typing.Mapping)
-Rules = typing.Mapping[Signature, typing.Collection[str]]
-
-
-class Updater(collections.abc.Mapping):
-    """A mapping from type signature to updatable attributes."""
-
-    def __init__(self, rules: Rules) -> None:
-        self.rules = rules or {}
-        self._names = None
-        self._fixed = None
-
-    @property
-    def names(self):
-        """The (unordered) names of all known attributes."""
-        if self._names is None:
-            names = {name for names in self.rules.values() for name in names}
-            self._names = tuple(names) + self.fixed
-        return self._names
-
-    @property
-    def fixed(self):
-        """The names of immutable attributes."""
-        if self._fixed is None:
-            self._fixed = tuple(self.rules.get(None, ()))
-        return self._fixed
-
-    def __len__(self) -> int:
-        return len(self.rules)
-
-    def __iter__(self) -> typing.Iterator:
-        return iter(self.rules)
-
-    def __getitem__(self, types: Signature):
-        """The updatable attributes for the given arguments types."""
-        if types in self.rules:
-            return self.rules[types]
-        for rule, attributes in self.rules.items():
-            if isinstance(rule, type) and issubclass(types[0], rule):
-                return attributes
-            if all(issubclass(t, r) for t, r in zip(types, rule)):
-                return attributes
-        raise KeyError(
-            f"No updatable attributes for types {types!r}"
-        ) from None
-
-
-class OperandError(Exception):
-    """Operands are incompatible with operator."""
-
-
-class Implementation:
-    """A generalized operator implementation."""
-
-    def __init__(self, rules: Rules):
-        self.attributes = Updater(rules)
-
-    def apply(self, method: Method):
-        @same(*self.attributes.fixed)
-        def func(*args):
-            try:
-                return self._apply(method, *args)
-            except metric.UnitError as err:
-                raise OperandError(err) from err
-        return func
-
-    def _apply(self, method: Method, *args):
-        """Internal method-application logic."""
-        types = tuple(type(i) for i in args)
-        if types not in self.attributes:
-            return NotImplemented
-        updatable = list(self.attributes[types])
-        reference = self._get_reference(*args)
-        # NOTE: This uses a `dict` because we can't guarantee that
-        # `self.attribute.names` will be in the correct order. An alternate
-        # approach could be to get parameter order from `inspect.signature`.
-        return {
-            name: method(*[getattrval(arg, name) for arg in args])
-            if name in updatable
-            else getattrval(reference, name)
-            for name in self.attributes.names
-        }
-
-    def _get_reference(self, *args):
-        """Get a reference quantity.
-        
-        This method relies on the assuption that at least one operand in any
-        operation that this class handles is an instance of a
-        `~measurable.Quantity` or a subclass.
-        """
-        instance = (arg for arg in args if isinstance(arg, Quantity))
-        return next(instance)
-
-
-class Operator(abc.ABC):
-    """Abstract base class for operators."""
-
-    def __init__(self, method: Method, rules: Rules=None) -> None:
-        self.method = method
-        self.implementation = Implementation(rules)
-
-    def evaluate(
-        self,
-        *args,
-        out: typing.Union[type, typing.Any]=None,
-        **kwargs
-    ) -> typing.Any:
-        """Call the implemented method."""
-        operator = self.implementation.apply(self.method)
-        result = operator(*args, **kwargs)
-        if not out:
-            return result['data']
-        if isinstance(result, typing.Mapping):
-            if isinstance(out, type):
-                return out(**result)
-            for name in self.implementation.attributes.names: # YIKES
-                setattrval(out, name, result.get(name))
-            return out
-        return result
-
-    @abc.abstractmethod
-    def implement(self, *args, **kwargs):
-        """Implement the instance method."""
-        pass
-
-    def suppress(self, *args, **kwargs):
-        """Suppress the instance method."""
-        implemented = self.implement(*args, **kwargs)
-        def func(*a, **k):
-            return NotImplemented
-        func.__name__ = implemented.__name__
-        func.__doc__ = implemented.__doc__
-        return func
-
-
-class Unary(Operator):
-    """A concrete implementation of a unary arithmetic operator."""
-
-    def implement(self) -> typing.Callable:
-        def operator(a: Quantity):
-            return self.evaluate(a, out=type(a))
-        return operator
-
-
-class Cast(Operator):
-    """A concrete implementation of a unary type-casting operator."""
-
-    def implement(self):
-        def operator(a: Quantity):
-            return self.evaluate(a)
-        return operator
-
-
-class Numeric(Operator):
-    """A concrete implementation of a binary numeric operator."""
-
-    @property
-    def forward(self):
-        """The standard version of this operator."""
-        def operator(a: Quantity, b):
-            return self.evaluate(a, b, out=type(a))
-        operator.__name__ = f"__{self.method.__name__}__"
-        operator.__doc__ = self.method.__doc__
-        return operator
-
-    @property
-    def reverse(self):
-        """The version of this operator with reflected operands."""
-        def operator(b: Quantity, a):
-            return self.evaluate(a, b, out=type(b))
-        operator.__name__ = f"__r{self.method.__name__}__"
-        operator.__doc__ = self.method.__doc__
-        return operator
-
-    @property
-    def inplace(self):
-        """The version of this operator for augmented assignments."""
-        def operator(a: Quantity, b):
-            return self.evaluate(a, b, out=a)
-        operator.__name__ = f"__i{self.method.__name__}__"
-        operator.__doc__ = self.method.__doc__
-        return operator
-
-    def implement(self, mode: str='forward') -> typing.Callable:
-        if mode == 'forward':
-            return self.forward
-        if mode == 'reverse':
-            return self.reverse
-        if mode == 'inplace':
-            return self.inplace
-        raise ValueError(
-            f"Unknown implementation mode {mode!r}"
-        ) from None
-
-
-class Comparison(Operator):
-    """A concrete implementation of a binary comparison operator."""
-
-    def implement(self) -> typing.Callable:
-        def operator(a: Quantity, b):
-            return self.evaluate(a, b)
-        return operator
-
-
-GT = typing.TypeVar('GT', bound=Operator)
-
-
-class OperatorFactory(typing.Generic[GT]):
-    """A factory for creating generic operators."""
-
-    def __init__(self, __type: typing.Type[GT], rules: Rules=None) -> None:
-        self._implement = __type
-        init = dict(rules or {})
-        self.rules = {
-            signature: list(attributes)
-            for signature, attributes in init.items()
-        }
-
-    def implement(self, method: Method):
-        """Create an operator from the given method."""
-        implementation = self._implement(method, rules=self.rules)
-        def operator(*args, **kwargs):
-            return implementation.evaluate(*args, **kwargs)
-        operator.__name__ = f"__{method.__name__}__"
-        operator.__doc__ = method.__doc__
-        return operator
-
-    def operator(self, method: Method):
-        """Initialize an operator implementation."""
-        return self._implement(method, rules=self.rules)
-
-    def add_rules(self, rules: Rules):
-        """Add one or more implementation rule(s).
-        
-        This method will insert the given rules into the current dictionary of
-        rules, overwriting existing rules if necessary.
-        """
-        self.rules.update(rules)
-        return self
-
-    def update_rules(self, rules: Rules):
-        """Update one or more implementation rule(s).
-        
-        This method will append the attributes in each of the given rules to the
-        current attributes in that rule. The rule must exist.
-        """
-        for signature, attributes in rules.items():
-            self.rules[signature].extend(attributes)
-        return self
-
-
-RULES = {
-    'unary': {
-        Quantity: ['data'],
-        None: ['unit'],
-    },
-    'cast': {
-        Quantity: ['data'],
-        None: ['unit'],
-    },
-    'comparison': {
-        (Quantity, Quantity): ['data'],
-        (Quantity, algebraic.Orderable): ['data'],
-        None: ['unit'],
-    },
-    'additive': {
-        (Quantity, Quantity): ['data', 'unit'],
-        (Quantity, Real): ['data'],
-        (Real, Quantity): ['data'],
-    },
-    'multiplicative': {
-        (Quantity, Quantity): ['data', 'unit'],
-        (Quantity, Real): ['data'],
-        (Real, Quantity): ['data'],
-    },
-    'exponential': {
-        (Quantity, Real): ['data', 'unit'],
-        (Real, Quantity): ['data', 'unit'],
-    },
-}
-
-
-# An operator requires three things:
-# - a callable object
-# - an algorithm for evaluating arguments via the callable object
-# - rules that declare allowed types of operands and which attributes to update
-#
-# The final two define an operator category (e.g., binary comparison operators),
-# so we could equivalently say that an operator requires a callable object and a
-# category.
-
-comparison = OperatorFactory(Comparison, RULES['comparison'])
-cast = OperatorFactory(Cast, RULES['cast'])
-unary = OperatorFactory(Unary, RULES['unary'])
-additive = OperatorFactory(Numeric, RULES['additive'])
-multiplicative = OperatorFactory(Numeric, RULES['multiplicative'])
-exponential = OperatorFactory(Numeric, RULES['exponential'])
-
-
 class OperatorMixin:
     """A mixin class that defines operators for quantifiable objects.
     
@@ -723,41 +313,46 @@ class OperatorMixin:
           not at all obvious what the unit or dimensions should be.
     """
 
-    __lt__ = comparison.implement(standard.lt)
-    __le__ = comparison.implement(standard.le)
-    __gt__ = comparison.implement(standard.gt)
-    __ge__ = comparison.implement(standard.ge)
-    __eq__ = comparison.implement(standard.eq)
-    __ne__ = comparison.implement(standard.ne)
+    factory = operations.Interface('data', 'unit')
+    # factory.guarantee(Quantity, 'data')
 
-    __abs__ = unary.implement(standard.abs)
-    __neg__ = unary.implement(standard.neg)
-    __pos__ = unary.implement(standard.pos)
+    unary = factory.unary
+    unary.rules.register(Quantity, 'data')
+    __abs__ = unary.apply(standard.abs)
+    __pos__ = unary.apply(standard.pos)
+    __neg__ = unary.apply(standard.neg)
 
-    addition = additive.operator(standard.add)
-    __add__ = addition.implement('forward')
-    __radd__ = addition.implement('reverse')
-    __iadd__ = addition.implement('inplace')
+    comparison = factory.comparison
+    comparison.rules.register([Quantity, Quantity], 'data')
+    comparison.rules.register([Quantity, Real], 'data')
+    comparison.rules.register([Real, Quantity], 'data')
+    __lt__ = comparison.apply(standard.lt)
+    __le__ = comparison.apply(standard.le)
+    __gt__ = comparison.apply(standard.gt)
+    __ge__ = comparison.apply(standard.ge)
+    __eq__ = comparison.apply(standard.eq)
+    __ne__ = comparison.apply(standard.ne)
 
-    subtraction = additive.operator(standard.sub)
-    __sub__ = subtraction.implement('forward')
-    __rsub__ = subtraction.implement('reverse')
-    __isub__ = subtraction.implement('inplace')
-
-    multiplication = multiplicative.operator(standard.mul)
-    __mul__ = multiplication.implement('forward')
-    __rmul__ = multiplication.implement('reverse')
-    __imul__ = multiplication.implement('inplace')
-
-    division = multiplicative.operator(standard.truediv)
-    __truediv__ = division.implement('forward')
-    __rtruediv__ = division.suppress('reverse')
-    __itruediv__ = division.implement('inplace')
-
-    exponentiation = exponential.operator(standard.pow)
-    __pow__ = exponentiation.implement('forward')
-    __rpow__ = exponentiation.suppress('reverse')
-    __ipow__ = exponentiation.implement('inplace')
+    numeric = factory.numeric
+    numeric.rules.register([Quantity, Quantity], 'data', 'unit')
+    numeric.rules.register([Quantity, Real], 'data')
+    numeric.rules.register([Real, Quantity], 'data')
+    __add__ = numeric.apply(standard.add)
+    __radd__ = numeric.apply(standard.add, 'reverse')
+    __sub__ = numeric.apply(standard.sub)
+    __rsub__ = numeric.apply(standard.sub, 'reverse')
+    __mul__ = numeric.apply(standard.mul)
+    __rmul__ = numeric.apply(standard.mul, 'reverse')
+    _truediv = numeric.child
+    _truediv.rules.suppress([Real, Quantity])
+    __truediv__ = _truediv.apply(standard.truediv)
+    __rtruediv__ = _truediv.apply(standard.truediv, 'reverse')
+    _pow = numeric.child
+    _pow.rules.modify([Quantity, Real], 'data', 'unit')
+    _pow.rules.suppress([Real, Quantity])
+    _pow.rules.suppress([Quantity, Quantity])
+    __pow__ = _pow.apply(pow)
+    __rpow__ = _pow.apply(pow, 'reverse')
 
 
 class Scalar(Quantity):
