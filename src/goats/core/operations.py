@@ -1245,7 +1245,7 @@ class Numeric(Category):
         def reverse(a: A, b: B, /, **kwargs) -> B:
             """Apply this operation to `a` and `b` with reflected operands."""
             try:
-                result = operation.compute(a, b, reference=b, target=type(b), **kwargs)
+                result = operation.compute(b, a, reference=b, target=type(b), **kwargs)
             except metric.UnitError as err:
                 raise OperandTypeError(err) from err
             else:
