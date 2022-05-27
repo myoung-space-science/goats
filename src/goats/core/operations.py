@@ -220,7 +220,15 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
 
     @property
     def reference(self):
-        """The reference object."""
+        """The reference object.
+        
+        Notes
+        -----
+        - The default reference object is the first argument used to initialize
+          this instance.
+        - The reference object is not part of the sequence of operands and
+          therefore will not explicitly appear when iterating over an instance.
+        """
         if self._reference is None:
             self._reference = self[0]
         return self._reference
@@ -228,19 +236,18 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
     def agree(self, *names: str):
         """Compare values of named attribute(s) across operands.
         
-        This method determines if all the named attributes have the same value.
-        The result is always ``True`` for an instance with length 1, since a
-        single object trivially agrees with itself.
+        This method determines if all the named attributes have the same value
+        when present in an operand. The result is trivially ``True`` for a
+        single operand
         """
         if len(self) == 1:
             return True
         if not all(hasattr(self.reference, name) for name in names):
             return False
-        others = [obj for obj in self for name in names if hasattr(obj, name)]
+        others = self.find(*names)
         value = utilities.getattrval
         return all(
-            hasattr(target, name)
-            and value(target, name) == value(self.reference, name)
+            value(target, name) == value(self.reference, name)
             for name in names for target in others
         )
 
