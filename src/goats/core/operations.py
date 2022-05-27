@@ -813,16 +813,7 @@ class Interface(Context):
         super().__init__(Rules(*parameters))
         self.parameters = parameters
         """The names of all updatable attributes"""
-        self._categories = None
         self.cache = {}
-
-    @property
-    def categories(self) -> typing.MutableMapping[str, Category]:
-        """All available implementation categories."""
-        if self._categories is None:
-            mapping = aliased.MutableMapping(_categories, 'operators')
-            self._categories = mapping.squeeze()
-        return self._categories
 
     @property
     def cast(self):
@@ -889,3 +880,8 @@ _categories = {
         ],
     },
 }
+
+
+CATEGORIES = aliased.MutableMapping(_categories, 'operators').squeeze()
+"""An aliased mapping of operators and categories to context."""
+
