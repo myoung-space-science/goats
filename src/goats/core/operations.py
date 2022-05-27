@@ -798,14 +798,31 @@ class Numeric(Category):
         raise ValueError(f"Unknown implementation mode {mode!r}") from None
 
 
+# It could be useful (after all) to pass a target type to Interface.__init__ and
+# add a feature to Rules that updates a named attribute by default when the
+# target type shows up. We would need make sure Rules.register doesn't raise an
+# error if a caller attempts to register a rule that includes the target type;
+# that may be as simple as not storing the target type in an explicit rule. We
+# would also probably want to change `*parameters` below to `primary,
+# *secondary`, to force the user to explicitly indicate which attribute to
+# always update when the target type appears.
 class Interface(Context):
     """Top-level interface to arithmetic operations."""
 
     def __init__(self, *parameters) -> None:
+        super().__init__(Rules(*parameters))
         self.parameters = parameters
         """The names of all updatable attributes"""
-        super().__init__(Rules(*parameters))
+        self._categories = None
         self.cache = {}
+
+    @property
+    def categories(self) -> typing.MutableMapping[str, Category]:
+        """All available implementation categories."""
+        if self._categories is None:
+            mapping = aliased.MutableMapping(_categories, 'operators')
+            self._categories = mapping.squeeze()
+        return self._categories
 
     @property
     def cast(self):
@@ -839,3 +856,36 @@ class Interface(Context):
         """Create a default operation from this callable object."""
         return Default(self.rules).apply(__callable)
 
+    @property
+    def mixin(self):
+        """Generate a mixin operator class from the current state."""
+
+
+_categories = {
+    'cast': {
+        'context': Cast,
+        'operators': ['__int__', '__float__'],
+    },
+    'unary': {
+        'context': Unary,
+        'operators': ['__abs__', '__pos__', '__neg__'],
+    },
+    'comparison': {
+        'context': Comparison,
+        'operators': [
+            '__lt__', '__le__',
+            '__gt__', '__ge__',
+            '__eq__', '__ne__',
+        ],
+    },
+    'numeric': {
+        'context': Numeric,
+        'operators': [
+            '__add__', '__radd__',
+            '__sub__', '__rsub__',
+            '__mul__', '__rmul__',
+            '__truediv__', '__rtruediv__',
+            '__pow__', '__rpow__',
+        ],
+    },
+}
