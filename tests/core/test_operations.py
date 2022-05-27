@@ -129,9 +129,7 @@ def test_objects():
     assert isinstance(subset, operations.Objects)
     assert subset == objects
     for index in [-2, -1, 0, 1, 2]:
-        subset = objects[index]
-        assert isinstance(subset, operations.Object)
-        assert subset == inputs[index]
+        assert objects[index] == inputs[index]
 
 
 class Base:
