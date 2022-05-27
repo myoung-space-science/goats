@@ -2,6 +2,7 @@ import abc
 import collections
 import collections.abc
 import contextlib
+import functools
 import inspect
 import operator as standard
 import typing
@@ -295,6 +296,38 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         return ', '.join(str(i) for i in self)
+
+
+class same:
+    """A callable class that enforces object consistency.
+
+    When used to decorate a method that takes two arguments, this class will
+    ensure that the arguments have equal values of a named attribute. This may
+    be useful when writing binary comparison methods that are only valid for two
+    objects of the same kind (e.g., physical objects with the same dimension).
+    """
+
+    def __init__(
+        self,
+        *names: str,
+    ) -> None:
+        self.names = names
+
+    def __call__(self, func: typing.Callable) -> typing.Callable:
+        """Ensure argument consistency before calling `func`."""
+        if not self.names:
+            return func
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            if len(args) == 1:
+                return func(*args, **kwargs)
+            operands = Operands(*args)
+            if not operands.consistent(*self.names):
+                return NotImplemented
+            if operands.agree(*self.names):
+                return func(*args, **kwargs)
+            raise OperandTypeError(*args)
+        return wrapper
 
 
 class NTypesError(Exception):
