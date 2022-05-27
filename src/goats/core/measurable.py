@@ -232,7 +232,6 @@ class OperatorMixin:
     """
 
     factory = operations.Interface('data', 'unit')
-    # factory.guarantee(Quantity, 'data')
 
     unary = factory.unary
     unary.rules.register(Quantity, 'data')
