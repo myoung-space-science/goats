@@ -157,6 +157,24 @@ def build(__type: typing.Type[T]) -> typing.List[T]:
     return [__type(*args) for args in inputs]
 
 
+def test_operands_find():
+    """Test the ability to collect operands with named attributes."""
+    instances = build(Base)
+    operands = operations.Operands(*instances)
+    assert operands.find('value', 'info') == instances
+    operands = operations.Operands(instances[0], 0.0)
+    assert operands.find('value', 'info') == [instances[0]]
+
+
+def test_operands_consistent():
+    """Test the ability to check for named attributes across operands."""
+    instances = build(Base)
+    operands = operations.Operands(*instances)
+    assert operands.consistent('value', 'info')
+    operands = operations.Operands(instances[0], 0.0)
+    assert not operands.consistent('value', 'info')
+
+
 def test_operands_agree():
     """Users should be able to check consistency of object attributes."""
     instances = build(Base)

@@ -244,6 +244,17 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
             for name in names for target in others
         )
 
+    def find(self, *names: str):
+        """Get all operands with the named attributes."""
+        return [
+            obj for obj in self
+            if all(hasattr(obj, name) for name in names)
+        ]
+
+    def consistent(self, *names: str):
+        """Determine if all operands have the named attributes."""
+        return all(hasattr(obj, name) for obj in self for name in names)
+
     def get(self, name: str):
         """Get operand values for the named attribute."""
         return [utilities.getattrval(i, name) for i in self]
