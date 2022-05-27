@@ -167,6 +167,33 @@ def build(__type: typing.Type[T]) -> typing.List[T]:
     return [__type(*args) for args in inputs]
 
 
+def test_objects_agree():
+    """Users should be able to check consistency of object attributes."""
+    instances = build(Base)
+    same = {
+        'value': [
+            [instances[1], instances[2]],
+            [instances[1], 0.0], # trivial: nothing to compare
+        ],
+        'info': [
+            [instances[0], instances[1]],
+            [instances[0], 0.0], # trivial: nothing to compare
+        ],
+    }
+    for name, inputs in same.items():
+        for args in inputs:
+            operands = operations.Objects(*args)
+            assert operands.agree(name)
+    for instance in instances: # single object trivially agrees with itself
+        assert operations.Objects(instance).agree(same.keys())
+    different = {
+        'value': [instances[0], instances[1]],
+        'info': [instances[1], instances[2]],
+    }
+    for name, args in different.items():
+        assert not operations.Objects(*args).agree(name)
+
+
 def test_cast_builtin():
     """Test a type-cast operation on a built-in object."""
     operation = operations.Cast()
