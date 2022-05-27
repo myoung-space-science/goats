@@ -814,17 +814,17 @@ class Interface(Context):
 
     @property
     def unary(self):
-        """An interface to a unary arithmetic operations."""
+        """An interface to unary arithmetic operations."""
         return self._create(Unary, 'unary')
 
     @property
     def comparison(self):
-        """An interface to a binary comparison operations."""
+        """An interface to binary comparison operations."""
         return self._create(Comparison, 'comparison')
 
     @property
     def numeric(self):
-        """An interface to a binary arithmetic operations."""
+        """An interface to binary arithmetic operations."""
         return self._create(Numeric, 'numeric')
 
     def _create(self, category: typing.Type[Category], key: str):
