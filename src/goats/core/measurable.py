@@ -251,7 +251,7 @@ class OperatorMixin:
     __ne__ = comparison.apply(standard.ne)
 
     numeric = factory.numeric
-    numeric.rules.register([Quantity, Quantity], 'data', 'unit')
+    numeric.rules.register([Quantity, Quantity])
     numeric.rules.register([Quantity, Real], 'data')
     numeric.rules.register([Real, Quantity], 'data')
     __add__ = numeric.apply(standard.add)
@@ -265,7 +265,7 @@ class OperatorMixin:
     __truediv__ = _truediv.apply(standard.truediv)
     __rtruediv__ = _truediv.apply(standard.truediv, 'reverse')
     _pow = numeric.child
-    _pow.rules.modify([Quantity, Real], 'data', 'unit')
+    _pow.rules.modify([Quantity, Real])
     _pow.rules.suppress([Real, Quantity])
     _pow.rules.suppress([Quantity, Quantity])
     __pow__ = _pow.apply(pow)
