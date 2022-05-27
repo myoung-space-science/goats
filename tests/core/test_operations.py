@@ -110,16 +110,6 @@ def test_rules_copy():
     assert copied is not rules
 
 
-def test_object_idempotence():
-    """Create an `Object` instance from another instance."""
-    a = operations.Object(1)
-    b = operations.Object(a)
-    assert isinstance(b, operations.Object)
-    assert b is not a
-    assert b == a
-    assert b.parameters == a.parameters
-
-
 def test_objects():
     """Test the `Objects` class."""
     inputs = ['a', 1, 2.3]
