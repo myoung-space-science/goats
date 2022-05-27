@@ -805,26 +805,35 @@ class Interface(Context):
         self.parameters = parameters
         """The names of all updatable attributes"""
         super().__init__(Rules(*parameters))
+        self.cache = {}
 
     @property
     def cast(self):
         """An interface to type-casting operations."""
-        return Cast(self.rules)
+        return self._create(Cast, 'cast')
 
     @property
     def unary(self):
         """An interface to a unary arithmetic operations."""
-        return Unary(self.rules)
+        return self._create(Unary, 'unary')
 
     @property
     def comparison(self):
         """An interface to a binary comparison operations."""
-        return Comparison(self.rules)
+        return self._create(Comparison, 'comparison')
 
     @property
     def numeric(self):
         """An interface to a binary arithmetic operations."""
-        return Numeric(self.rules)
+        return self._create(Numeric, 'numeric')
+
+    def _create(self, category: typing.Type[Category], key: str):
+        """Create and store a category instance."""
+        context = category(self.rules)
+        if key not in self.cache:
+            self.cache[key] = context
+            return context
+        return self.cache[key]
 
     def apply(self, __callable: typing.Callable):
         """Create a default operation from this callable object."""

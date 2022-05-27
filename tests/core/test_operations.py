@@ -477,6 +477,19 @@ def test_numeric_interface():
             operator(instances[0], instances[2])
 
 
+def test_interface():
+    """Test global functionality of the operator interface."""
+    interface = operations.Interface('value', 'info')
+    for category in {interface.cast, interface.unary}:
+        assert len(category.rules) == 0
+        category.rules.register(Base, 'value')
+        assert len(category.rules) == 1
+    for category in {interface.comparison, interface.numeric}:
+        assert len(category.rules) == 0
+        category.rules.register([Base, Base], 'value')
+        assert len(category.rules) == 1
+
+
 class Mixin:
     """A mixin class that provides operator implementations."""
 
