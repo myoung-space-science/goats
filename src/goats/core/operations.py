@@ -301,7 +301,7 @@ class Objects(collections.abc.Sequence, iterables.ReprStrMixin):
         self._types = None
 
     def agree(self, *names: str):
-        """True if these objects have equal attributes.
+        """Compare values of named attribute(s) across objects.
         
         This method determines if all the named attributes have the same value.
         The result is always ``True`` for an instance with length 1, since a
@@ -310,10 +310,14 @@ class Objects(collections.abc.Sequence, iterables.ReprStrMixin):
         if len(self) == 1:
             return True
         reference = self[0]
+        if not all(hasattr(reference, name) for name in names):
+            return False
+        others = [obj for obj in self for name in names if hasattr(obj, name)]
         value = utilities.getattrval
         return all(
-            value(obj, name) == value(reference, name)
-            for name in names for obj in self[1:]
+            hasattr(target, name)
+            and value(target, name) == value(reference, name)
+            for name in names for target in others
         )
 
     def get(self, name: str):
