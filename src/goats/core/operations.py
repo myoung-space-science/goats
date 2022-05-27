@@ -664,7 +664,7 @@ class Context:
 
 
 class OperandTypeError(Exception):
-    """These operands are incompatible."""
+    """Operands are incompatible for a given operation."""
 
 
 Caller = typing.TypeVar('Caller', bound=typing.Callable)
