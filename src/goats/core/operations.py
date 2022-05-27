@@ -234,14 +234,13 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
         """
         if len(self) == 1:
             return True
-        reference = self[0]
-        if not all(hasattr(reference, name) for name in names):
+        if not all(hasattr(self.reference, name) for name in names):
             return False
         others = [obj for obj in self for name in names if hasattr(obj, name)]
         value = utilities.getattrval
         return all(
             hasattr(target, name)
-            and value(target, name) == value(reference, name)
+            and value(target, name) == value(self.reference, name)
             for name in names for target in others
         )
 
