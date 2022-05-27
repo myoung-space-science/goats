@@ -110,16 +110,16 @@ def test_rules_copy():
     assert copied is not rules
 
 
-def test_objects():
-    """Test the `Objects` class."""
+def test_operands():
+    """Test the `Operands` class."""
     inputs = ['a', 1, 2.3]
-    objects = operations.Objects(*inputs)
-    assert objects.types == (str, int, float)
-    subset = objects[:]
-    assert isinstance(subset, operations.Objects)
-    assert subset == objects
+    operands = operations.Operands(*inputs)
+    assert operands.types == (str, int, float)
+    subset = operands[:]
+    assert isinstance(subset, operations.Operands)
+    assert subset == operands
     for index in [-2, -1, 0, 1, 2]:
-        assert objects[index] == inputs[index]
+        assert operands[index] == inputs[index]
 
 
 class Base:
@@ -157,7 +157,7 @@ def build(__type: typing.Type[T]) -> typing.List[T]:
     return [__type(*args) for args in inputs]
 
 
-def test_objects_agree():
+def test_operands_agree():
     """Users should be able to check consistency of object attributes."""
     instances = build(Base)
     same = {
@@ -172,16 +172,16 @@ def test_objects_agree():
     }
     for name, inputs in same.items():
         for args in inputs:
-            operands = operations.Objects(*args)
+            operands = operations.Operands(*args)
             assert operands.agree(name)
     for instance in instances: # single object trivially agrees with itself
-        assert operations.Objects(instance).agree(same.keys())
+        assert operations.Operands(instance).agree(same.keys())
     different = {
         'value': [instances[0], instances[1]],
         'info': [instances[1], instances[2]],
     }
     for name, args in different.items():
-        assert not operations.Objects(*args).agree(name)
+        assert not operations.Operands(*args).agree(name)
 
 
 def test_cast_builtin():

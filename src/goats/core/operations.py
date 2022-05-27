@@ -210,11 +210,11 @@ class Rule(iterables.ReprStrMixin):
         return f"{types}: {self.parameters}"
 
 
-class Objects(collections.abc.Sequence, iterables.ReprStrMixin):
+class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
     """A sequence of operands."""
 
-    def __init__(self, *objects: T, reference: T=None) -> None:
-        self._objects = list(objects)
+    def __init__(self, *args: T, reference: T=None) -> None:
+        self._args = list(args)
         self._reference = reference
         self._types = None
 
@@ -226,7 +226,7 @@ class Objects(collections.abc.Sequence, iterables.ReprStrMixin):
         return self._reference
 
     def agree(self, *names: str):
-        """Compare values of named attribute(s) across objects.
+        """Compare values of named attribute(s) across operands.
         
         This method determines if all the named attributes have the same value.
         The result is always ``True`` for an instance with length 1, since a
@@ -257,18 +257,18 @@ class Objects(collections.abc.Sequence, iterables.ReprStrMixin):
         return self._types
 
     def __getitem__(self, __i):
-        """Access objects by index."""
+        """Access operands by index."""
         if isinstance(__i, typing.SupportsIndex):
-            return self._objects[__i]
-        return Objects(*self._objects[__i])
+            return self._args[__i]
+        return Operands(*self._args[__i])
 
     def __len__(self) -> int:
-        """The number of objects. Called for len(self)."""
-        return len(self._objects)
+        """The number of operands. Called for len(self)."""
+        return len(self._args)
 
     def __iter__(self):
-        """Iterate over objects. Called for iter(self)."""
-        yield from self._objects
+        """Iterate over operands. Called for iter(self)."""
+        yield from self._args
 
     def __eq__(self, other):
         """Called for self == other."""
@@ -524,10 +524,10 @@ class Operation:
             return NotImplemented
         if not rule.parameters:
             # We don't know which arguments to operate on, so we hand execution
-            # over to the given objects, in case they implement this method in
+            # over to the given operands, in case they implement this method in
             # their class definitions.
             return self.method(*args, **kwargs)
-        operands = Objects(*args)
+        operands = Operands(*args)
         fixed = tuple(set(self.rules.default) - set(rule.parameters))
         if not operands.agree(*fixed):
             errmsg = self._operand_errmsg(rule, operands)
@@ -548,7 +548,7 @@ class Operation:
         types = [type(operand) for operand in operands]
         return self.rules.get(types)
 
-    def _operand_errmsg(self, rule: Rule, operands: Objects):
+    def _operand_errmsg(self, rule: Rule, operands: Operands):
         """Build an error message based on `rule` and `operands`."""
         method_string = repr(self.method.__qualname__)
         types = operands.types
@@ -589,7 +589,7 @@ class Operation:
 
     def _compute(
         self,
-        operands: Objects,
+        operands: Operands,
         rule: Rule,
         defaults: dict=None,
         **kwargs
