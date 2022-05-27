@@ -1236,13 +1236,28 @@ class Numeric(Category):
         operation = Operation(__callable, self.rules)
         def forward(a: A, b: B, /, **kwargs) -> A:
             """Apply this operation to `a` and `b`."""
-            return operation.compute(a, b, reference=a, target=type(a), **kwargs)
+            try:
+                result = operation.compute(a, b, reference=a, target=type(a), **kwargs)
+            except metric.UnitError as err:
+                raise OperandTypeError(err) from err
+            else:
+                return result
         def reverse(a: A, b: B, /, **kwargs) -> B:
             """Apply this operation to `a` and `b` with reflected operands."""
-            return operation.compute(a, b, reference=b, target=type(b), **kwargs)
+            try:
+                result = operation.compute(a, b, reference=b, target=type(b), **kwargs)
+            except metric.UnitError as err:
+                raise OperandTypeError(err) from err
+            else:
+                return result
         def inplace(a: A, b: B, /, **kwargs) -> A:
             """Apply this operation to `a` and `b` in-place."""
-            return operation.compute(a, b, reference=a, target=a, **kwargs)
+            try:
+                result = operation.compute(a, b, reference=a, target=a, **kwargs)
+            except metric.UnitError as err:
+                raise OperandTypeError(err) from err
+            else:
+                return result
         if mode == 'forward':
             return forward
         if mode == 'reverse':
