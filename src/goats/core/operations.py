@@ -739,7 +739,31 @@ class Numeric(Category):
     CType = typing.TypeVar('CType', bound=typing.Callable)
     CType = typing.Callable[[A, B], T]
 
-    def apply(self, __callable: CType, mode: str='forward'):
+    @typing.overload
+    def apply(self, __callable: CType) -> typing.Callable[[A, B], A]: ...
+
+    @typing.overload
+    def apply(
+        self,
+        __callable: CType,
+        mode: typing.Literal['forward'],
+    ) -> typing.Callable[[A, B], A]: ...
+
+    @typing.overload
+    def apply(
+        self,
+        __callable: CType,
+        mode: typing.Literal['reverse'],
+    ) -> typing.Callable[[B, A], B]: ...
+
+    @typing.overload
+    def apply(
+        self,
+        __callable: CType,
+        mode: typing.Literal['inplace'],
+    ) -> typing.Callable[[A, B], A]: ...
+
+    def apply(self, __callable, mode: str='forward'):
         operation = Operation(__callable, self.rules)
         def forward(a: A, b: B, /, **kwargs) -> A:
             """Apply this operation to `a` and `b`."""
