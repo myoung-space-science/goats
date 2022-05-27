@@ -399,8 +399,8 @@ class Rules(_RulesType):
         for rule in rules or []:
             self.register(rule.types, *rule.parameters)
 
-    def constrain(self, types: Types, *parameters: str, mode: str='include'):
-        """Restrict the parameters of an existing rule.
+    def register(self, types: Types, *parameters: typing.Optional[str]):
+        """Add a rule to the collection.
         
         Parameters
         ----------
@@ -408,28 +408,17 @@ class Rules(_RulesType):
             The argument type(s) in the target rule.
 
         *parameters : str
-            Zero or more parameters to include or exclude, depending on `mode`.
+            Zero or more parameters to update based on `types`.
 
-        mode : {'include', 'exclude'}
-            How to handle the given parameters. If `mode == 'include'` (the
-            default), this method will restrict the target rule's parameters to
-            `parameters`. If `mode == 'exclude'`, this method will remove
-            `parameters` from the target rule's parameters.
+        Raises
+        ------
+        KeyError
+            There is already a rule in the collection corresponding to `types`.
+
+        See Also
+        --------
+        `~modify`: Update, restrict, or remove an existing rule's parameters.
         """
-        key = tuple(iterables.whole(types))
-        if key not in self:
-            raise KeyError(f"Rule for {types!r} does not exist") from None
-        if mode == 'include':
-            new = parameters
-        elif mode == 'exclude':
-            rule = self[key]
-            new = set(rule.parameters) - set(parameters)
-        else:
-            raise ValueError(f"Unknown mode {mode!r}")
-        self.mapping[key] = self._resolve(*new)
-
-    def register(self, types: Types, *parameters: typing.Optional[str]):
-        """Add a rule to the collection."""
         key = tuple(iterables.whole(types))
         ntypes = len(key)
         self._check_ntypes(ntypes)
@@ -437,6 +426,60 @@ class Rules(_RulesType):
             self.mapping[key] = self._resolve(*parameters)
             return self
         raise KeyError(f"{types!r} is already in the collection") from None
+
+    def suppress(self, types: Types):
+        """Suppress the rule for these types."""
+        self.modify(types, None)
+
+    def modify(self, types: Types, *parameters: str, mode: str='update'):
+        """Modify the parameters of an existing rule.
+        
+        Parameters
+        ----------
+        types : type or tuple of types
+            The argument type(s) in the target rule.
+
+        *parameters : str
+            Zero or more parameters with which to modify the rule. The use of
+            the given parameters depends on `mode`.
+
+        mode : {'update', 'restrict', 'remove'}
+            How to handle the given parameters::
+        - update (default): Replace the existing parameters with the given
+          parameters.
+        - restrict: Restrict the target rule's parameters to the given
+          parameters, and raise an exception if a parameter is not in the rule.
+        - remove: Remove the given parameters from the target rule's parameters.
+
+        Raises
+        ------
+        KeyError
+            There is not an existing rule corresponding to `types`.
+
+        See Also
+        --------
+        `~register`: Create a rule for `types`.
+        """
+        key = tuple(iterables.whole(types))
+        if key not in self:
+            raise KeyError(f"Rule for {types!r} does not exist") from None
+        if mode == 'update':
+            new = parameters
+        elif mode == 'restrict':
+            rule = self[key]
+            for parameter in parameters:
+                if parameter not in rule.parameters:
+                    raise ValueError(
+                        "Can't restrict rule with non-existent parameter"
+                        f" {parameter}"
+                    ) from None
+            new = parameters
+        elif mode == 'remove':
+            rule = self[key]
+            new = set(rule.parameters) - set(parameters)
+        else:
+            raise ValueError(f"Unknown mode {mode!r}")
+        self.mapping[key] = self._resolve(*new)
 
     def _resolve(self, *parameters) -> typing.List[str]:
         """Determine the affected parameters based on input."""

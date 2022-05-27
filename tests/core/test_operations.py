@@ -75,23 +75,29 @@ def test_rules_register():
         rules.register(int, 'a')
 
 
-def test_rules_constrain():
-    """Test the ability to restrict parameters in a rule."""
+def test_rules_modify():
+    """Test the ability to modify parameters in a rule."""
+    rules = operations.Rules()
+    rules.register([float, float], 'd', 'e', 'f')
+    assert sorted(rules[(float, float)].parameters) == sorted(['d', 'e', 'f'])
+    rules.modify([float, float], 'a', 'b', 'c')
+    assert sorted(rules[(float, float)].parameters) == sorted(['a', 'b', 'c'])
+    rules.modify([float, float], 'a', 'b', mode='restrict')
+    assert sorted(rules[(float, float)].parameters) == sorted(['a', 'b'])
+    rules.modify([float, float], 'a', mode='remove')
+    assert rules[(float, float)].parameters == ['b']
+    with pytest.raises(ValueError):
+        rules.modify([float, float], 'a', mode='restrict')
+
+
+def test_rules_suppress():
+    """Test the ability to suppress a given rule."""
     default = ['a', 'b', 'c']
     rules = operations.Rules(*default)
     rules.register([float, float])
-    rules.constrain([float, float], 'a')
-    assert rules[(float, float)].parameters == ['a']
-    default = ['a', 'b', 'c']
-    rules = operations.Rules(*default)
-    rules.register([float, float])
-    rules.constrain([float, float], 'a', mode='include')
-    assert rules[(float, float)].parameters == ['a']
-    default = ['a', 'b', 'c']
-    rules = operations.Rules(*default)
-    rules.register([float, float])
-    rules.constrain([float, float], 'a', mode='exclude')
-    assert sorted(rules[(float, float)].parameters) == sorted(['b', 'c'])
+    assert rules[(float, float)].parameters == rules.default
+    rules.suppress([float, float])
+    assert rules[(float, float)].parameters == []
 
 
 def test_rules_copy():
