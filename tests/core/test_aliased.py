@@ -98,7 +98,7 @@ def test_mapping():
     assert mixed.alias('that') == ('second',)
     assert mixed.alias('that', include=True) == ('that', 'second')
     with pytest.raises(TypeError):
-        mixed.alias(this='THIS')
+        mixed.alias('this', 'THIS')
 
 
 def _check_aliased_keys(mapping: aliased.Mapping, n_keys: int):
@@ -174,22 +174,14 @@ def test_mutable_mapping():
         assert key not in basic
 
     # The caller should be able to register new aliases.
-    mixed.alias(this='THIS')
-    mixed.alias(this=['a0', 'a1'])
+    mixed.alias('this', 'THIS')
+    mixed.alias('this', 'a0', 'a1')
     for alias in ('THIS', 'a0', 'a1'):
         assert alias in mixed and mixed['this'] == mixed[alias]
-    with pytest.raises(TypeError):
-        mixed.alias('this', that='new alias')
-    with pytest.raises(ValueError):
-        mixed.alias('this', 'that')
 
     # Attempting to assign an existing alias should be an error.
     with pytest.raises(KeyError):
-        basic.alias(that='third')
-
-    # Assigning no aliases should leave the key unchanged.
-    mixed.alias(this=())
-    assert 'this' in mixed
+        mixed.alias('this', 'that')
 
 
 def test_immutable_from_mutable():

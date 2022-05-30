@@ -449,17 +449,20 @@ class Mapping(collections.abc.Mapping):
             for k, v in mapping.items()
         ]
 
-    def alias(self, *current, include=False):
-        """Get the alias for an existing key."""
-        if current:
-            if len(current) > 1:
-                raise ValueError(
-                    "Can only get one aliased key at a time"
-                ) from None
-            key = current[0]
-            if include:
-                return self._resolve(key)
-            return self._resolve(key) - key
+    def alias(self, key: str, *, include=False):
+        """Get the alias for an existing key.
+        
+        Parameters
+        ----------
+        key : string
+            An existing key for which to return aliases.
+
+        include : bool, default=False
+            If true, include the current key in the returned aliases.
+        """
+        if include:
+            return self._resolve(key)
+        return self._resolve(key) - [key]
 
     def __eq__(self, other: typing.Mapping) -> bool:
         """Define equality between this and another object."""
@@ -616,36 +619,35 @@ class MutableMapping(Mapping, collections.abc.MutableMapping):
             alias: key for key in self._aliased for alias in key
         }
 
-    def alias(self, *current: str, include=False, **new: str):
-        """Get the alias for an existing key or register new ones."""
-        if current and new:
-            raise TypeError(
-                "Can't get and set aliases at the same time"
-            ) from None
-        if current:
-            if len(current) > 1:
-                raise ValueError(
-                    "Can only get one aliased key at a time"
-                ) from None
-            key = current[0]
-            if include:
-                return self._resolve(key)
-            return self._resolve(key) - key
-        for key, alias in new.items():
-            if alias:
-                if alias in self._flat_keys():
-                    raise self._not_available(alias) from None
-                updated = self._resolve(key) | alias
-                self._aliased[updated] = self[key]
-                del self[key]
+    def alias(self, key: str, *aliases: str, include=False):
+        """Get the alias for an existing key.
+        
+        Parameters
+        ----------
+        key : string
+            An existing key for which to return aliases.
 
-    def _not_available(self, key: str) -> typing.NoReturn:
-        """True if this key is not currently in use."""
-        aliases = self.alias(key)
-        this = ", ".join(f'{a}' for a in aliases)
-        if len(aliases) > 1:
-            this = f"({this})"
-        return KeyError(f"'{key}' is already an alias for {this!r}")
+        aliases : iterable of string
+            Zero or more aliases to associate with `key`, if they are not
+            already in use.
+
+        include : bool, default=False
+            If true, include the current key in the returned aliases.
+        """
+        if not aliases:
+            return super().alias(key, include=include)
+        for alias in (a for a in aliases if a != key):
+            if alias in self._flat_keys():
+                current = super().alias(key)
+                this = ", ".join(str(a) for a in current)
+                if len(current) > 1:
+                    this = f'({this})'
+                raise KeyError(
+                    f"'{key}' is already an alias for {this!r}"
+                ) from None
+            updated = self._resolve(key) | alias
+            self._aliased[updated] = self[key]
+            del self[key]
 
 
 class NameMap(iterables.MappingBase):
@@ -715,7 +717,8 @@ class NameMap(iterables.MappingBase):
         identity = {name: name for name in names}
         namemap = MutableMapping(identity)
         updates = self._get_aliases(names, aliases, key)
-        namemap.alias(**updates)
+        for current, new in updates.items():
+            namemap.alias(current, *new)
         return Mapping(namemap)
 
     def _get_aliases(self, names, defs: AliasDefinitions, key):
