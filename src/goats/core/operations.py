@@ -835,6 +835,11 @@ class Interface(Context):
         """An interface to binary arithmetic operations."""
         return self._create(Numeric, 'numeric')
 
+    def implement(self, __k: str):
+        """Implement the named operation."""
+        category = OPERATIONS[__k]['category'] if __k in OPERATIONS else Default
+        return self._create(category, __k)
+
     def _create(self, category: typing.Type[Category], key: str):
         """Create and store a category instance."""
         context = category(self.rules)
@@ -850,38 +855,95 @@ class Interface(Context):
     @property
     def mixin(self):
         """Generate a mixin operator class from the current state."""
+        ops = {} # dunder-method implementations from OPERATIONS
+        return type('Mixin', (), ops)
 
 
-_categories = {
-    'cast': {
-        'context': Cast,
-        'operators': ['__int__', '__float__'],
+_operations = {
+    'int': {
+        'category': Cast,
+        'aliases': [],
     },
-    'unary': {
-        'context': Unary,
-        'operators': ['__abs__', '__pos__', '__neg__'],
+    'float': {
+        'category': Cast,
+        'aliases': [],
     },
-    'comparison': {
-        'context': Comparison,
-        'operators': [
-            '__lt__', '__le__',
-            '__gt__', '__ge__',
-            '__eq__', '__ne__',
-        ],
+    'abs': {
+        'category': Unary,
+        'aliases': [],
     },
-    'numeric': {
-        'context': Numeric,
-        'operators': [
-            '__add__', '__radd__',
-            '__sub__', '__rsub__',
-            '__mul__', '__rmul__',
-            '__truediv__', '__rtruediv__',
-            '__pow__', '__rpow__',
-        ],
+    'neg': {
+        'category': Unary,
+        'aliases': [],
+    },
+    'pos': {
+        'category': Unary,
+        'aliases': [],
+    },
+    'ceil': {
+        'category': Unary,
+        'aliases': [],
+    },
+    'floor': {
+        'category': Unary,
+        'aliases': [],
+    },
+    'trunc': {
+        'category': Unary,
+        'aliases': [],
+    },
+    'round': {
+        'category': Unary,
+        'aliases': [],
+    },
+    'lt': {
+        'category': Comparison,
+        'aliases': [],
+    },
+    'le': {
+        'category': Comparison,
+        'aliases': [],
+    },
+    'gt': {
+        'category': Comparison,
+        'aliases': [],
+    },
+    'ge': {
+        'category': Comparison,
+        'aliases': [],
+    },
+    'eq': {
+        'category': Comparison,
+        'aliases': [],
+    },
+    'ne': {
+        'category': Comparison,
+        'aliases': [],
+    },
+    'add': {
+        'category': Numeric,
+        'aliases': [],
+    },
+    'sub': {
+        'category': Numeric,
+        'aliases': [],
+    },
+    'mul': {
+        'category': Numeric,
+        'aliases': [],
+    },
+    'truediv': {
+        'category': Numeric,
+        'aliases': [],
+    },
+    'pow': {
+        'category': Numeric,
+        'aliases': [],
     },
 }
 
-
-CATEGORIES = aliased.MutableMapping(_categories, 'operators').squeeze()
-"""An aliased mapping of operators and categories to context."""
+OPERATIONS = aliased.MutableMapping(_operations)
+"""An aliased mapping of operation name to category."""
+for key in OPERATIONS:
+    OPERATIONS.alias(key, f'__{key}__')
 

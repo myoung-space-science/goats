@@ -419,13 +419,57 @@ COMPARISON = {
 }
 
 
+CATEGORIES = {
+    'cast': {
+        'context': operations.Cast,
+        'operations': {
+            'int': int,
+            'float': float,
+        },
+    },
+    'unary': {
+        'context': operations.Unary,
+        'operations': {
+            'abs': standard.abs,
+            'neg': standard.neg,
+            'pos': standard.pos,
+            'ceil': math.ceil,
+            'floor': math.floor,
+            'trunc': math.trunc,
+            'round': round,
+        },
+    },
+    'comparison': {
+        'context': operations.Comparison,
+        'operations': {
+            'lt': standard.lt,
+            'le': standard.le,
+            'gt': standard.gt,
+            'ge': standard.ge,
+            'eq': standard.eq,
+            'ne': standard.ne,
+        },
+    },
+    'numeric': {
+        'context': operations.Numeric,
+        'operations': {
+            'add': standard.add,
+            'sub': standard.sub,
+            'mul': standard.mul,
+            'truediv': standard.truediv,
+            'pow': pow,
+        },
+    },
+}
+
+
 def test_cast_interface():
     """Test cast operations via the module interface."""
     interface = operations.Interface('value', 'info')
     operation = interface.cast
     operation.rules.register(Base, 'value')
     instances = build(Base)
-    for builtin in CAST.values():
+    for builtin in CATEGORIES['cast']['operations'].values():
         operator = operation.apply(builtin)
         for instance in instances:
             expected = builtin(instance.value)
@@ -438,7 +482,7 @@ def test_unary_interface():
     operation = interface.unary
     operation.rules.register(Base, 'value')
     instances = build(Base)
-    for builtin in UNARY.values():
+    for builtin in CATEGORIES['unary']['operations'].values():
         operator = operation.apply(builtin)
         for instance in instances:
             expected = Base(builtin(instance.value), instance.info)
@@ -452,7 +496,7 @@ def test_comparison_interface():
     operation.rules.register([Base, Base], 'value')
     instances = build(Base)
     targets = instances[0], instances[1]
-    for builtin in COMPARISON.values():
+    for builtin in CATEGORIES['comparison']['operations'].values():
         operator = operation.apply(builtin)
         assert operator(*targets) == builtin(*[c.value for c in targets])
         with pytest.raises(operations.OperandTypeError):
@@ -466,7 +510,7 @@ def test_numeric_interface():
     operation.rules.register([Base, Base], 'value')
     instances = build(Base)
     targets = instances[0], instances[1]
-    for builtin in NUMERIC.values():
+    for builtin in CATEGORIES['numeric']['operations'].values():
         operator = operation.apply(builtin)
         expected = Base(
             builtin(*[c.value for c in targets]),
@@ -488,6 +532,10 @@ def test_interface():
         assert len(category.rules) == 0
         category.rules.register([Base, Base], 'value')
         assert len(category.rules) == 1
+    for defined in CATEGORIES.values():
+        context = defined['context']
+        for k in defined['operations']:
+            assert isinstance(interface.implement(k), context)
 
 
 class Mixin:
