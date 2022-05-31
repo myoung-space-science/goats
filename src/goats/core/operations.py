@@ -806,6 +806,16 @@ class Numeric(Category):
         raise ValueError(f"Unknown implementation mode {mode!r}") from None
 
 
+CATEGORIES: typing.Dict[str, typing.Type[Category]] = {
+    'default': Default,
+    'cast': Cast,
+    'unary': Unary,
+    'comparison': Comparison,
+    'numeric': Numeric,
+}
+"""The canonical operation-category implementations."""
+
+
 # It could be useful (after all) to pass a target type to Interface.__init__ and
 # add a feature to Rules that updates a named attribute by default when the
 # target type shows up. We would need make sure Rules.register doesn't raise an
@@ -868,90 +878,28 @@ class Interface(Context):
 
 
 _operations = {
-    'int': {
-        'category': Cast,
-        'aliases': [],
-    },
-    'float': {
-        'category': Cast,
-        'aliases': [],
-    },
-    'abs': {
-        'category': Unary,
-        'aliases': [],
-    },
-    'neg': {
-        'category': Unary,
-        'aliases': [],
-    },
-    'pos': {
-        'category': Unary,
-        'aliases': [],
-    },
-    'ceil': {
-        'category': Unary,
-        'aliases': [],
-    },
-    'floor': {
-        'category': Unary,
-        'aliases': [],
-    },
-    'trunc': {
-        'category': Unary,
-        'aliases': [],
-    },
-    'round': {
-        'category': Unary,
-        'aliases': [],
-    },
-    'lt': {
-        'category': Comparison,
-        'aliases': [],
-    },
-    'le': {
-        'category': Comparison,
-        'aliases': [],
-    },
-    'gt': {
-        'category': Comparison,
-        'aliases': [],
-    },
-    'ge': {
-        'category': Comparison,
-        'aliases': [],
-    },
-    'eq': {
-        'category': Comparison,
-        'aliases': [],
-    },
-    'ne': {
-        'category': Comparison,
-        'aliases': [],
-    },
-    'add': {
-        'category': Numeric,
-        'aliases': [],
-    },
-    'sub': {
-        'category': Numeric,
-        'aliases': [],
-    },
-    'mul': {
-        'category': Numeric,
-        'aliases': [],
-    },
-    'truediv': {
-        'category': Numeric,
-        'aliases': [],
-    },
-    'pow': {
-        'category': Numeric,
-        'aliases': [],
-    },
+    'int': {'category': 'cast'},
+    'float': {'category': 'cast'},
+    'abs': {'category': 'unary'},
+    'neg': {'category': 'unary'},
+    'pos': {'category': 'unary'},
+    'ceil': {'category': 'unary'},
+    'floor': {'category': 'unary'},
+    'trunc': {'category': 'unary'},
+    'round': {'category': 'unary'},
+    'lt': {'category': 'comparison'},
+    'le': {'category': 'comparison'},
+    'gt': {'category': 'comparison'},
+    'ge': {'category': 'comparison'},
+    'eq': {'category': 'comparison'},
+    'ne': {'category': 'comparison'},
+    'add': {'category': 'numeric'},
+    'sub': {'category': 'numeric'},
+    'mul': {'category': 'numeric'},
+    'truediv': {'category': 'numeric'},
+    'pow': {'category': 'numeric'},
 }
-
 OPERATIONS = aliased.MutableMapping(_operations)
-"""An aliased mapping of operation name to category."""
-for key in OPERATIONS:
-    OPERATIONS.alias(key, f'__{key}__')
+"""An aliased mapping of operation name to metadata."""
+[OPERATIONS.alias(key, f'__{key}__') for key in OPERATIONS]
 
