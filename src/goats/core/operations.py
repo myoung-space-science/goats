@@ -835,22 +835,22 @@ class Interface(Context):
         self._operations = {}
 
     @property
-    def cast(self):
+    def cast(self) -> Cast:
         """An interface to type-casting operations."""
         return self._create_category('cast')
 
     @property
-    def unary(self):
+    def unary(self) -> Unary:
         """An interface to unary arithmetic operations."""
         return self._create_category('unary')
 
     @property
-    def comparison(self):
+    def comparison(self) -> Comparison:
         """An interface to binary comparison operations."""
         return self._create_category('comparison')
 
     @property
-    def numeric(self):
+    def numeric(self) -> Numeric:
         """An interface to binary arithmetic operations."""
         return self._create_category('numeric')
 
