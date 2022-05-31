@@ -111,15 +111,8 @@ class Suppressed(iterables.Singleton):
 class Rule(iterables.ReprStrMixin):
     """A correspondence between operand types and affected parameters."""
 
-    def __init__(
-        self,
-        __types: Types,
-        *parameters: str,
-    ) -> None:
-        self._types = list(iterables.whole(__types))
-        self._ntypes = len(self._types)
+    def __init__(self, *parameters: str) -> None:
         self._parameters = parameters
-        self.implemented = True
 
     def ignore(self, *parameters: str):
         """Ignore these parameters when updating operands."""
@@ -127,14 +120,14 @@ class Rule(iterables.ReprStrMixin):
         return self
 
     @property
+    def implemented(self):
+        """True if this rule's set of parameters is not ``None``."""
+        return not (len(self.parameters) == 1 and self.parameters[0] is None)
+
+    @property
     def parameters(self):
         """The parameters that this rule affects."""
         return unique(self._parameters)
-
-    @property
-    def types(self):
-        """The operand types that define this rule."""
-        return tuple(self._types)
 
     def __len__(self) -> int:
         """The number of parameters affected by this rule."""
@@ -150,11 +143,7 @@ class Rule(iterables.ReprStrMixin):
             a type in this rule. If `__x` is a string, this method with report
             whether or not `__x` is a parameter affected by this rule.
         """
-        return (
-            __x in self.types if isinstance(__x, type)
-            else __x in self.parameters if isinstance(__x, str)
-            else False
-        )
+        return __x in self.parameters
 
     def __eq__(self, __o) -> bool:
         """Called for self == other.
@@ -163,31 +152,11 @@ class Rule(iterables.ReprStrMixin):
         strictly equal to the corresponding type in this object under
         element-wise comparison.
         """
-        return self._compare(__o, standard.eq)
-
-    def _subtypes(self, other) -> bool:
-        """Helper for self > other and self >= other.
-        
-        This method return ``True`` iff each type in `other` is a subtype (i.e.,
-        subclass) of the corresponding type in `self` under element-wise
-        comparison.
-        """
-        return self._compare(other, issubclass)
-
-    def _compare(self, other, method):
-        """Compare `other` to `self` via `method`, if possible."""
-        equivalent = iterables.allinstance(other, type)
-        supported = isinstance(other, Rule) or equivalent
-        if not supported:
-            return NotImplemented
-        types = other._types if isinstance(other, Rule) else other
-        return all(method(i, j) for i, j in zip(types, self._types))
-
-    __gt__ = _subtypes
-    """Called for self > other."""
-
-    __ge__ = _subtypes
-    """Called for self >= other."""
+        return (
+            __o.parameters == self.parameters
+            if isinstance(__o, Rule)
+            else __o == self.parameters
+        )
 
     def __bool__(self) -> bool:
         """True if this rule is implemented."""
@@ -206,9 +175,7 @@ class Rule(iterables.ReprStrMixin):
         return self
 
     def __str__(self) -> str:
-        names = [t.__qualname__ for t in self.types]
-        types = names[0] if len(names) == 1 else tuple(names)
-        return f"{types}: {self.parameters}"
+        return str(self.parameters)
 
 
 class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
@@ -344,39 +311,52 @@ class _RulesType(
 class Rules(_RulesType):
     """A class for managing operand-update rules."""
 
-    def __init__(
-        self,
-        *default: str,
-        rules: typing.Iterable[Rule]=None,
-    ) -> None:
+    def __init__(self, *parameters: str) -> None:
         """Initialize this instance.
         
         Parameters
         ----------
-        *default : str
+        *parameters : type or string
             Zero or more names of attributes for each rule to update unless
             explicity registered otherwise.
 
-        rules : iterable of `~operations.Rule`, optional
-            Existing rules with which to initialize the internal collection.
-
         Notes
         -----
-        Providing the names of all possibly updatable attributes via `*default`
-        protects against bugs that arise from naive use of
+        Providing the names of all possibly updatable attributes via
+        `*parameters` protects against bugs that arise from naive use of
         ``inspect.signature``. For example, a class's ``__init__`` method may
         accept generic `*args` and `**kwargs`, which it then parses into
         specific attributes. In that case, ``inspect.signature`` will not
         discover the correct names of attributes necessary to initialize a new
         instance after applying a given rule.
         """
-        self.default = list(default)
+        self.parameters = list(parameters)
         """The default parameters to update for each rule."""
         self.ntypes = None
         """The number of argument types in these rules."""
+        self._type = None
+        self._implied = []
         self._rulemap = None
-        for rule in rules or []:
-            self.register(rule.types, *rule.parameters)
+
+    def _parse(self, *default):
+        """Parse initialization arguments."""
+        if not default:
+            return None, []
+        if isinstance(default[0], type):
+            return default[0], list(default[1:])
+        return None, list(default)
+
+    def imply(self, __type: type, *parameters: str):
+        """Declare the implicit type and parameters."""
+        self._type = __type
+        self._implied = list(parameters)
+        return self
+
+    @property
+    def implicit(self):
+        """The implicit update rule."""
+        if self._type is not None:
+            return Rule(*self._implied.copy())
 
     def register(self, types: Types, *parameters: typing.Optional[str]):
         """Add a rule to the collection.
@@ -441,6 +421,8 @@ class Rules(_RulesType):
         """
         key = tuple(iterables.whole(types))
         if key not in self:
+            if self._type in key:
+                self.register(types)
             raise KeyError(f"Rule for {types!r} does not exist") from None
         if mode == 'update':
             new = parameters
@@ -449,7 +431,7 @@ class Rules(_RulesType):
             for parameter in parameters:
                 if parameter not in rule.parameters:
                     raise ValueError(
-                        "Can't restrict rule with non-existent parameter"
+                        "Can't restrict rule with new parameter"
                         f" {parameter}"
                     ) from None
             new = parameters
@@ -465,7 +447,7 @@ class Rules(_RulesType):
         if len(parameters) == 1 and parameters[0] is None:
             return []
         if not parameters:
-            return self.default.copy()
+            return self.parameters.copy()
         return list(parameters)
 
     @property
@@ -499,7 +481,11 @@ class Rules(_RulesType):
     def __iter__(self) -> typing.Iterator[Rule]:
         """Iterate over rules. Called for iter(self)."""
         for types in self.mapping:
-            yield Rule(types, *self.mapping[types])
+            yield (types, Rule(*self.mapping[types]))
+
+    def __contains__(self, __o: Types) -> bool:
+        """True if there is an explicit rule for these types."""
+        return __o in self.mapping
 
     def __getitem__(self, __k: Types):
         """Retrieve the operand-update rule for `types`."""
@@ -509,12 +495,14 @@ class Rules(_RulesType):
         for t in self.mapping:
             if all(issubclass(i, j) for i, j in zip(types, t)):
                 return self._from(t)
+        if self._type in types:
+            return self.implicit
         raise KeyError(f"No rule for operand type(s) {__k!r}") from None
 
     def _from(self, types: Types):
         """Build a rule from the given types."""
-        parameters = self.mapping.get(types, self.default.copy())
-        return Rule(types, *parameters)
+        parameters = self.mapping.get(types, self.parameters.copy())
+        return Rule(*parameters)
 
     def get(self, __types: Types, default: Rule=None):
         """Get the rule for these types, or a default rule.
@@ -524,22 +512,32 @@ class Rules(_RulesType):
         there is no rule for the given types), this method returns a rule with
         no constraints for the given types.
         """
-        return super().get(__types, default or Rule(__types))
+        return super().get(__types, default or Rule())
 
-    def copy(self):
-        """Create a shallow copy of this instance."""
-        return Rules(*self.default, rules=iter(self))
+    def copy(self, implicit: bool=True):
+        """Create a shallow copy of this instance.
+        
+        Parameters
+        ----------
+        implicit : bool, default=True
+            If ``True``, also copy this instance's implict rule.
+        """
+        new = Rules(*self.parameters)
+        new.mapping.update(self.mapping.copy())
+        if implicit:
+            new.imply(self._type, *self._implied)
+        return new
 
     def __eq__(self, __o) -> bool:
         """True iff two instances have the same default parameters and rules."""
         return (
             isinstance(__o, Rules)
-            and __o.default == self.default
+            and __o.parameters == self.parameters
             and __o.mapping == self.mapping
         )
 
     def __str__(self) -> str:
-        return ', '.join(str(rule) for rule in self)
+        return ', '.join(f"{t[0]}: {t[1]}" for t in self)
 
 
 class OperandTypeError(Exception):
@@ -578,7 +576,7 @@ class Operation:
             # their class definitions.
             return self.method(*args, **kwargs)
         operands = Operands(*args, reference=reference)
-        fixed = tuple(set(self.rules.default) - set(rule.parameters))
+        fixed = tuple(set(self.rules.parameters) - set(rule.parameters))
         if not operands.agree(*fixed):
             errmsg = self._operand_errmsg(rule, operands)
             raise OperandTypeError(errmsg) from None
@@ -606,7 +604,7 @@ class Operation:
             types[0].__qualname__ if len(types) == 1
             else f"({', '.join(t.__qualname__ for t in types)})"
         )
-        fixed = tuple(set(self.rules.default) - set(rule.parameters))
+        fixed = tuple(set(self.rules.parameters) - set(rule.parameters))
         attrs_string = (
             repr(fixed[0]) if len(fixed) == 1
             else f"{fixed[0]!r} and {fixed[1]!r}" if len(fixed) == 2
@@ -630,7 +628,7 @@ class Operation:
             inspect.Parameter.VAR_POSITIONAL,
         }: return {
             name: utilities.getattrval(reference, name)
-            for name in self.rules.default
+            for name in self.rules.parameters
         }
         return {
             name: utilities.getattrval(reference, name)
@@ -827,8 +825,12 @@ CATEGORIES: typing.Dict[str, typing.Type[Category]] = {
 class Interface(Context):
     """Top-level interface to arithmetic operations."""
 
-    def __init__(self, *parameters) -> None:
-        super().__init__(Rules(*parameters))
+    def __init__(self, primary: str, *secondary: str, target: type=None):
+        parameters = primary, *secondary
+        rules = Rules(*parameters)
+        if target is not None:
+            rules.imply(target, primary)
+        super().__init__(rules)
         self.parameters = parameters
         """The names of all updatable attributes"""
         self._categories = {k: v(self.rules) for k, v in CATEGORIES.items()}

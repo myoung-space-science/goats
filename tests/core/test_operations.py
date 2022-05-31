@@ -8,50 +8,22 @@ import pytest
 from goats.core import operations
 
 
-def test_rule_comparison():
-    """Test comparisons between operand-update rules."""
-    rule = operations.Rule((numbers.Complex, numbers.Real))
-    true = [
-        [standard.ne, (complex, float)],
-        [standard.gt, (complex, float)],
-        [standard.ge, (complex, float)],
-        [standard.gt, (float, float)],
-        [standard.ge, (float, float)],
-        [standard.gt, (float, int)],
-        [standard.ge, (float, int)],
-        [standard.gt, (numbers.Complex, numbers.Real)],
-        [standard.ge, (numbers.Complex, numbers.Real)],
-        [standard.eq, (numbers.Complex, numbers.Real)],
-    ]
-    for method, types in true:
-        assert method(rule, types)
-    false = [
-        [standard.eq, (complex, float)],
-        [standard.eq, (numbers.Real, numbers.Real)]
-    ]
-    for method, types in false:
-        assert not method(rule, types)
-
-
 def test_rule_len():
     """Test the length of an operator rule."""
-    for types in (int, [int, float]):
-        for parameters in ([], ['a'], ['a', 'b'], ['a', 'b', 'c']):
-            assert len(operations.Rule(types, *parameters)) == len(parameters)
+    for parameters in ([], ['a'], ['a', 'b'], ['a', 'b', 'c']):
+        assert len(operations.Rule(*parameters)) == len(parameters)
 
 
 def test_rule_contains():
     """Check for a type in an operator rule."""
-    assert int in operations.Rule(int)
-    assert float not in operations.Rule(int)
-    rule = operations.Rule([int, float], 'a', 'b')
-    for this in [int, float, 'a', 'b']:
-        assert this in rule
+    rule = operations.Rule('a', 'b')
+    for name in ['a', 'b']:
+        assert name in rule
 
 
 def test_rule_ignore():
     """Allow a rule to ignore certain parameters."""
-    rule = operations.Rule([int, float], 'a', 'b', 'c')
+    rule = operations.Rule('a', 'b', 'c')
     assert rule.parameters == ['a', 'b', 'c']
     rule.ignore('b')
     assert sorted(rule.parameters) == sorted(['a', 'c'])
@@ -95,7 +67,7 @@ def test_rules_suppress():
     default = ['a', 'b', 'c']
     rules = operations.Rules(*default)
     rules.register([float, float])
-    assert rules[(float, float)].parameters == rules.default
+    assert rules[(float, float)].parameters == rules.parameters
     rules.suppress([float, float])
     assert rules[(float, float)].parameters == []
 
@@ -103,8 +75,9 @@ def test_rules_suppress():
 def test_rules_copy():
     """Test the ability to copy an instance."""
     default = ['a', 'b', 'c']
-    init = [operations.Rule(int, 'a'), operations.Rule(float, 'a', 'b')]
-    rules = operations.Rules(*default, rules=init)
+    rules = operations.Rules(*default)
+    rules.register(int, 'a')
+    rules.register(float, 'a', 'b')
     copied = rules.copy()
     assert copied == rules
     assert copied is not rules
@@ -149,6 +122,19 @@ class Score:
         self.points = points
         self.kind = kind
         self.name = name
+
+
+def test_rules_implicit():
+    """Allow the user to specify an implicit default rule."""
+    rules = operations.Rules('a', 'b', 'c')
+    rules.imply(Base, 'a')
+    assert len(rules) == 0
+    assert rules[Base, Base].parameters == ['a']
+    assert rules[Base, float].parameters == ['a']
+    rules.register([Base, Base], 'b')
+    assert len(rules) == 1
+    assert rules[Base, Base].parameters == ['b']
+    assert rules[Base, float].parameters == ['a']
 
 
 T = typing.TypeVar('T')
@@ -469,9 +455,8 @@ CATEGORIES = {
 
 def test_cast_interface():
     """Test cast operations via the module interface."""
-    interface = operations.Interface('value', 'info')
+    interface = operations.Interface('value', 'info', target=Base)
     operation = interface.cast
-    operation.rules.register(Base, 'value')
     instances = build(Base)
     for builtin in CATEGORIES['cast']['operations'].values():
         operator = operation.apply(builtin)
@@ -482,9 +467,8 @@ def test_cast_interface():
 
 def test_unary_interface():
     """Test unary operations via the module interface."""
-    interface = operations.Interface('value', 'info')
+    interface = operations.Interface('value', 'info', target=Base)
     operation = interface.unary
-    operation.rules.register(Base, 'value')
     instances = build(Base)
     for builtin in CATEGORIES['unary']['operations'].values():
         operator = operation.apply(builtin)
@@ -495,9 +479,8 @@ def test_unary_interface():
 
 def test_comparison_interface():
     """Test comparison operations via the module interface."""
-    interface = operations.Interface('value', 'info')
+    interface = operations.Interface('value', 'info', target=Base)
     operation = interface.comparison
-    operation.rules.register([Base, Base], 'value')
     instances = build(Base)
     targets = instances[0], instances[1]
     for builtin in CATEGORIES['comparison']['operations'].values():
@@ -509,9 +492,8 @@ def test_comparison_interface():
 
 def test_numeric_interface():
     """Test numeric operations via the module interface."""
-    interface = operations.Interface('value', 'info')
+    interface = operations.Interface('value', 'info', target=Base)
     operation = interface.numeric
-    operation.rules.register([Base, Base], 'value')
     instances = build(Base)
     targets = instances[0], instances[1]
     for builtin in CATEGORIES['numeric']['operations'].values():
@@ -528,7 +510,7 @@ def test_numeric_interface():
 def test_interface_categories():
     """Test the ability to access and update category contexts."""
     # Create the interface.
-    interface = operations.Interface('value', 'info')
+    interface = operations.Interface('value', 'info', target=Base)
     # Make sure it caches category-level contexts.
     for name, current in CATEGORIES.items():
         category: operations.Category = getattr(interface, name)
@@ -546,10 +528,7 @@ def test_interface_categories():
 def test_interface_operations():
     """Test the ability to implement and cache operations."""
     # Create the interface.
-    interface = operations.Interface('value', 'info')
-    for name, current in CATEGORIES.items():
-        category: operations.Category = getattr(interface, name)
-        category.rules.register([Base] * current['ntypes'], 'value')
+    interface = operations.Interface('value', 'info', target=Base)
     # Make sure it caches operation-level contexts.
     assert 'add' not in interface
     add = interface.implement('add')
@@ -557,9 +536,9 @@ def test_interface_operations():
     assert add.rules == interface.numeric.rules
     add.rules.register([Base, float], 'value')
     assert interface.numeric.rules[Base, Base].parameters == ['value']
-    # Make sure implementation returns a context object.
-    assert len(interface['add'].rules) == 2
+    assert len(interface['add'].rules) == 1
     assert interface['add'].rules[Base, float].parameters == ['value']
+    # Make sure implementation returns a context object.
     for defined in CATEGORIES.values():
         context = defined['context']
         for k in defined['operations']:
