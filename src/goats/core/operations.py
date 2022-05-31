@@ -4,6 +4,7 @@ import collections.abc
 import contextlib
 import functools
 import inspect
+import math
 import operator as standard
 import typing
 
@@ -814,14 +815,91 @@ CATEGORIES: typing.Dict[str, typing.Type[Category]] = {
 """The canonical operation-category implementations."""
 
 
-# It could be useful (after all) to pass a target type to Interface.__init__ and
-# add a feature to Rules that updates a named attribute by default when the
-# target type shows up. We would need make sure Rules.register doesn't raise an
-# error if a caller attempts to register a rule that includes the target type;
-# that may be as simple as not storing the target type in an explicit rule. We
-# would also probably want to change `*parameters` below to `primary,
-# *secondary`, to force the user to explicitly indicate which attribute to
-# always update when the target type appears.
+OPERATIONS = {
+    'int': {
+        'category': 'cast',
+        'default': int,
+    },
+    'float': {
+        'category': 'cast',
+        'default': float,
+    },
+    'abs': {
+        'category': 'unary',
+        'default': abs,
+    },
+    'neg': {
+        'category': 'unary',
+        'default': standard.neg,
+    },
+    'pos': {
+        'category': 'unary',
+        'default': standard.pos,
+    },
+    'ceil': {
+        'category': 'unary',
+        'default': math.ceil,
+    },
+    'floor': {
+        'category': 'unary',
+        'default': math.floor,
+    },
+    'trunc': {
+        'category': 'unary',
+        'default': math.trunc,
+    },
+    'round': {
+        'category': 'unary',
+        'default': round,
+    },
+    'lt': {
+        'category': 'comparison',
+        'default': standard.lt,
+    },
+    'le': {
+        'category': 'comparison',
+        'default': standard.le,
+    },
+    'gt': {
+        'category': 'comparison',
+        'default': standard.gt,
+    },
+    'ge': {
+        'category': 'comparison',
+        'default': standard.ge,
+    },
+    'eq': {
+        'category': 'comparison',
+        'default': standard.eq,
+    },
+    'ne': {
+        'category': 'comparison',
+        'default': standard.ne,
+    },
+    'add': {
+        'category': 'numeric',
+        'default': standard.add,
+    },
+    'sub': {
+        'category': 'numeric',
+        'default': standard.sub,
+    },
+    'mul': {
+        'category': 'numeric',
+        'default': standard.mul,
+    },
+    'truediv': {
+        'category': 'numeric',
+        'default': standard.truediv,
+    },
+    'pow': {
+        'category': 'numeric',
+        'default': pow,
+    },
+}
+"""A mapping of operation name to metadata."""
+
+
 class Interface(Context):
     """Top-level interface to arithmetic operations."""
 
@@ -834,7 +912,51 @@ class Interface(Context):
         self.parameters = parameters
         """The names of all updatable attributes"""
         self._categories = {k: v(self.rules) for k, v in CATEGORIES.items()}
-        self._operations = {}
+        self._operations = None
+
+    def implement(self, __k: str) -> Category:
+        """Implement the named operation."""
+        if __k in self:
+            return self[__k]
+        return self._categories['default'].spawn()
+
+    def __getitem__(self, __k: str) -> Category:
+        """Retrieve a defined operation context."""
+        keys = (__k, f'__{__k}__')
+        for key in keys:
+            if key in self.operations:
+                return self.operations[key]
+        raise KeyError(f"No operation for {__k!r}") from None
+
+    def __contains__(self, __k: str) -> bool:
+        """True if this interface has implemented the named operation."""
+        return any(key in self.operations for key in (__k, f'__{__k}__'))
+
+    def spawn(self, mode: str=None):
+        """Generate a mixin operator class from the current state."""
+        if not mode:
+            return super().spawn()
+        ops = {
+            f'__{k}__': self[k].apply(v['default'])
+            for k, v in OPERATIONS.items()
+        }
+        reflected = {
+            f'__r{k}__': self[k].apply(v['default'], 'reverse')
+            for k, v in OPERATIONS.items()
+            if v['category'] == 'numeric'
+        }
+        ops.update(reflected)
+        return type('OperatorsMixin', (), ops)
+
+    @property
+    def operations(self) -> typing.Dict[str, Category]:
+        """The standard operation contexts defined here."""
+        if self._operations is None:
+            self._operations = {
+                k: self._categories[v['category']].spawn()
+                for k, v in OPERATIONS.items()
+            }
+        return self._operations
 
     @property
     def cast(self) -> Cast:
@@ -864,84 +986,4 @@ class Interface(Context):
             self._categories[name] = context
             return context
         return self._categories[name]
-
-    def implement(self, __k: str) -> Category:
-        """Implement the named operation."""
-        operation = OPERATIONS.get(__k, {})
-        category = operation.get('category', 'default')
-        context = self._categories[category].spawn()
-        self._operations[__k] = context
-        return context
-
-    def __getitem__(self, __k: str) -> Category:
-        """Retrieve a cached operation."""
-        if __k in self._operations:
-            return self._operations[__k]
-        raise KeyError(f"No operation for {__k!r}") from None
-
-    def __contains__(self, __k: str) -> bool:
-        """True if this interface has implemented the named operation."""
-        return __k in self._operations
-
-    def spawn(self, mode: str=None):
-        """Generate a mixin operator class from the current state."""
-        if not mode:
-            return super().spawn()
-        ops = {} # dunder-method implementations from OPERATIONS
-        return type('OperatorsMixin', (), ops)
-
-# def operators(primary: str, *secondary):
-#     """"""
-#     interface = Interface(primary, *secondary)
-#     opr = {
-#         '__int__': interface.cast.apply(int),
-#         '__float__': interface.cast.apply(float),
-#         '__abs__': interface.unary.apply(abs),
-#         '__pos__': interface.unary.apply(standard.pos),
-#         '__neg__': interface.unary.apply(standard.neg),
-#         '__lt__': interface.comparison.apply(standard.lt),
-#         '__le__': interface.comparison.apply(standard.le),
-#         '__gt__': interface.comparison.apply(standard.gt),
-#         '__ge__': interface.comparison.apply(standard.ge),
-#         '__eq__': interface.comparison.apply(standard.eq),
-#         '__ne__': interface.comparison.apply(standard.ne),
-#         '__add__': interface.numeric.apply(standard.add),
-#         '__radd__': interface.numeric.apply(standard.add, 'reverse'),
-#         '__sub__': interface.numeric.apply(standard.sub),
-#         '__rsub__': interface.numeric.apply(standard.sub, 'reverse'),
-#         '__mul__': interface.numeric.apply(standard.mul),
-#         '__rmul__': interface.numeric.apply(standard.mul, 'reverse'),
-#         '__truediv__': interface.numeric.apply(standard.truediv),
-#         '__rtruediv__': interface.numeric.apply(standard.truediv, 'reverse'),
-#         '__pow__': interface.numeric.apply(pow),
-#         '__rpow__': interface.numeric.apply(pow, 'reverse'),
-#     }
-#     return type('Operators', (), opr)
-
-
-_operations = {
-    'int': {'category': 'cast'},
-    'float': {'category': 'cast'},
-    'abs': {'category': 'unary'},
-    'neg': {'category': 'unary'},
-    'pos': {'category': 'unary'},
-    'ceil': {'category': 'unary'},
-    'floor': {'category': 'unary'},
-    'trunc': {'category': 'unary'},
-    'round': {'category': 'unary'},
-    'lt': {'category': 'comparison'},
-    'le': {'category': 'comparison'},
-    'gt': {'category': 'comparison'},
-    'ge': {'category': 'comparison'},
-    'eq': {'category': 'comparison'},
-    'ne': {'category': 'comparison'},
-    'add': {'category': 'numeric'},
-    'sub': {'category': 'numeric'},
-    'mul': {'category': 'numeric'},
-    'truediv': {'category': 'numeric'},
-    'pow': {'category': 'numeric'},
-}
-OPERATIONS = aliased.MutableMapping(_operations)
-"""An aliased mapping of operation name to metadata."""
-[OPERATIONS.alias(key, f'__{key}__') for key in OPERATIONS]
 
