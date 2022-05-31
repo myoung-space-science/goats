@@ -260,11 +260,11 @@ class OperatorMixin:
     __rsub__ = numeric.apply(standard.sub, 'reverse')
     __mul__ = numeric.apply(standard.mul)
     __rmul__ = numeric.apply(standard.mul, 'reverse')
-    _truediv = numeric.child
+    _truediv = numeric.spawn()
     _truediv.rules.suppress([Real, Quantity])
     __truediv__ = _truediv.apply(standard.truediv)
     __rtruediv__ = _truediv.apply(standard.truediv, 'reverse')
-    _pow = numeric.child
+    _pow = numeric.spawn()
     _pow.rules.modify([Quantity, Real])
     _pow.rules.suppress([Real, Quantity])
     _pow.rules.suppress([Quantity, Quantity])
