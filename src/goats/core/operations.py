@@ -663,26 +663,9 @@ class Context(abc.ABC):
         self.rules = Rules() if rules is None else rules.copy()
         """This application's operand-update rules."""
 
-    @abc.abstractmethod
-    def spawn(self):
-        """Create a sub-context.
-        
-        Concrete subclasses must define this method. The default implementation
-        returns a new instance with the current rules.
-        """
-        return type(self)(self.rules)
-
-
-class Category(Context):
-    """The operator-category context.
-    
-    All operators within a category have similarities related to call signature,
-    reference attributes, and return object.
-    """
-
     def spawn(self):
         """Create a new instance of this context with the current rules."""
-        return super().spawn()
+        return type(self)(self.rules)
 
     @abc.abstractmethod
     def apply(self, __callable: typing.Callable):
@@ -690,7 +673,7 @@ class Category(Context):
         pass
 
 
-class Default(Category):
+class Default(Context):
     """A factory for generalized operators."""
 
     def apply(self, __callable: typing.Callable[..., T]):
@@ -701,7 +684,7 @@ class Default(Category):
         return operator
 
 
-class Cast(Category):
+class Cast(Context):
     """A factory for type-casting operators."""
 
     def apply(self, __callable: typing.Type[T]):
@@ -712,7 +695,7 @@ class Cast(Category):
         return operator
 
 
-class Unary(Category):
+class Unary(Context):
     """A factory for unary arithmetic operators."""
 
     CType = typing.TypeVar('CType', bound=typing.Callable)
@@ -726,7 +709,7 @@ class Unary(Category):
         return operator
 
 
-class Comparison(Category):
+class Comparison(Context):
     """A factory for binary comparison operators."""
 
     CType = typing.TypeVar('CType', bound=typing.Callable)
@@ -740,7 +723,7 @@ class Comparison(Category):
         return operator
 
 
-class Numeric(Category):
+class Numeric(Context):
     """A factory for binary numeric operators."""
 
     CType = typing.TypeVar('CType', bound=typing.Callable)
@@ -805,7 +788,7 @@ class Numeric(Category):
         raise ValueError(f"Unknown implementation mode {mode!r}") from None
 
 
-CATEGORIES: typing.Dict[str, typing.Type[Category]] = {
+CATEGORIES: typing.Dict[str, typing.Type[Context]] = {
     'default': Default,
     'cast': Cast,
     'unary': Unary,
@@ -900,27 +883,26 @@ OPERATIONS = {
 """A mapping of operation name to metadata."""
 
 
-class Interface(Context):
+class Interface(collections.abc.Mapping):
     """Top-level interface to arithmetic operations."""
 
     def __init__(self, primary: str, *secondary: str, target: type=None):
         parameters = primary, *secondary
-        rules = Rules(*parameters)
+        self.rules = Rules(*parameters)
         if target is not None:
-            rules.imply(target, primary)
-        super().__init__(rules)
+            self.rules.imply(target, primary)
         self.parameters = parameters
         """The names of all updatable attributes"""
         self._categories = {k: v(self.rules) for k, v in CATEGORIES.items()}
         self._operations = None
 
-    def implement(self, __k: str) -> Category:
+    def implement(self, __k: str) -> Context:
         """Implement the named operation."""
         if __k in self:
             return self[__k]
         return self._categories['default'].spawn()
 
-    def __getitem__(self, __k: str) -> Category:
+    def __getitem__(self, __k: str) -> Context:
         """Retrieve a defined operation context."""
         keys = (__k, f'__{__k}__')
         for key in keys:
@@ -928,14 +910,16 @@ class Interface(Context):
                 return self.operations[key]
         raise KeyError(f"No operation for {__k!r}") from None
 
-    def __contains__(self, __k: str) -> bool:
-        """True if this interface has implemented the named operation."""
-        return any(key in self.operations for key in (__k, f'__{__k}__'))
+    def __len__(self) -> int:
+        """The number of defined operations."""
+        return len(self.operations)
 
-    def spawn(self, mode: str=None):
+    def __iter__(self):
+        """Iterate over operation contexts."""
+        return iter(self.operations)
+
+    def mixin(self):
         """Generate a mixin operator class from the current state."""
-        if not mode:
-            return super().spawn()
         ops = {
             f'__{k}__': self[k].apply(v['default'])
             for k, v in OPERATIONS.items()
@@ -949,7 +933,7 @@ class Interface(Context):
         return type('OperatorsMixin', (), ops)
 
     @property
-    def operations(self) -> typing.Dict[str, Category]:
+    def operations(self) -> typing.Dict[str, Context]:
         """The standard operation contexts defined here."""
         if self._operations is None:
             self._operations = {

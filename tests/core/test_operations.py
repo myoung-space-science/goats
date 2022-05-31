@@ -423,6 +423,18 @@ CATEGORIES = {
 }
 
 
+METHODS = [
+    f'__{i}__' for v in CATEGORIES.values() for i in v['operations']
+]
+METHODS.extend(
+    [
+        f'__r{i}__'
+        for v in CATEGORIES.values() for i in v['operations']
+        if v['context'] == 'numeric'
+    ]
+)
+
+
 def test_cast_interface():
     """Test cast operations via the module interface."""
     interface = operations.Interface('value', 'info', target=Base)
@@ -483,7 +495,7 @@ def test_interface_categories():
     interface = operations.Interface('value', 'info', target=Base)
     # Make sure it caches category-level contexts.
     for name, current in CATEGORIES.items():
-        category: operations.Category = getattr(interface, name)
+        category: operations.Context = getattr(interface, name)
         assert isinstance(category, current['context'])
         assert len(category.rules) == 0
         category.rules.register([Base] * current['ntypes'], 'value')
@@ -513,38 +525,13 @@ def test_interface_operations():
             assert isinstance(interface.implement(k), context)
 
 
-DUNDER = [
-    '__int__',
-    '__float__',
-    '__abs__',
-    '__pos__',
-    '__neg__',
-    '__lt__',
-    '__le__',
-    '__gt__',
-    '__ge__',
-    '__eq__',
-    '__ne__',
-    '__add__',
-    '__radd__',
-    '__sub__',
-    '__rsub__',
-    '__mul__',
-    '__rmul__',
-    '__truediv__',
-    '__rtruediv__',
-    '__pow__',
-    '__rpow__',
-]
-
-
 def test_interface_mixin():
     """Test the ability to create a mixin class instance."""
     interface = operations.Interface('value', 'info', target=Base)
-    add = interface.implement('add')
-    add.rules.register([Base, float], 'value')
-    mixin = interface.spawn('mixin')
-    for name in DUNDER:
+    assert len(interface) == len(METHODS)
+    interface['add'].rules.register([Base, float], 'value')
+    mixin = interface.mixin()
+    for name in METHODS:
         assert name in dir(mixin)
     instances = build(Base)
     instance = instances[0]
