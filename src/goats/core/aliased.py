@@ -354,6 +354,12 @@ class Mapping(collections.abc.Mapping):
         If this aliased mapping contains a single key-value pair for every
         aliased key, this method will replace each interior mapping with its
         values.
+
+        Parameters
+        ----------
+        strict : bool, default=False
+            If true, raise an exception when attempting to remove singleton
+            interior mappings with different keys.
         """
         interior = tuple(self._aliased.values())
         if all(len(mapping) == 1 for mapping in interior):
