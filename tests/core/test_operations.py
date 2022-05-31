@@ -421,6 +421,7 @@ COMPARISON = {
 
 CATEGORIES = {
     'cast': {
+        'ntypes': 1,
         'context': operations.Cast,
         'operations': {
             'int': int,
@@ -428,6 +429,7 @@ CATEGORIES = {
         },
     },
     'unary': {
+        'ntypes': 1,
         'context': operations.Unary,
         'operations': {
             'abs': standard.abs,
@@ -440,6 +442,7 @@ CATEGORIES = {
         },
     },
     'comparison': {
+        'ntypes': 2,
         'context': operations.Comparison,
         'operations': {
             'lt': standard.lt,
@@ -451,6 +454,7 @@ CATEGORIES = {
         },
     },
     'numeric': {
+        'ntypes': 2,
         'context': operations.Numeric,
         'operations': {
             'add': standard.add,
@@ -521,24 +525,31 @@ def test_numeric_interface():
             operator(instances[0], instances[2])
 
 
-def test_interface():
-    """Test global functionality of the operator interface."""
+def test_interface_categories():
+    """Test the ability to access and update category contexts."""
     # Create the interface.
     interface = operations.Interface('value', 'info')
     # Make sure it caches category-level contexts.
-    for category in {interface.cast, interface.unary}:
+    for name, current in CATEGORIES.items():
+        category: operations.Category = getattr(interface, name)
+        assert isinstance(category, current['context'])
         assert len(category.rules) == 0
-        category.rules.register(Base, 'value')
-        assert len(category.rules) == 1
-    for category in {interface.comparison, interface.numeric}:
-        assert len(category.rules) == 0
-        category.rules.register([Base, Base], 'value')
+        category.rules.register([Base] * current['ntypes'], 'value')
         assert len(category.rules) == 1
     # Make sure we can directly access the cached categories.
     assert interface.cast.rules[Base].parameters == ['value']
     assert interface.unary.rules[Base].parameters == ['value']
     assert interface.comparison.rules[Base, Base].parameters == ['value']
     assert interface.numeric.rules[Base, Base].parameters == ['value']
+
+
+def test_interface_operations():
+    """Test the ability to implement and cache operations."""
+    # Create the interface.
+    interface = operations.Interface('value', 'info')
+    for name, current in CATEGORIES.items():
+        category: operations.Category = getattr(interface, name)
+        category.rules.register([Base] * current['ntypes'], 'value')
     # Make sure it caches operation-level contexts.
     assert 'add' not in interface
     add = interface.implement('add')
