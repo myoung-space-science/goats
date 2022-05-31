@@ -665,9 +665,13 @@ class Context(abc.ABC):
         """This application's operand-update rules."""
 
     @abc.abstractmethod
-    def apply(self, __callable: typing.Callable):
-        """Apply the given callable object to this context."""
-        pass
+    def spawn(self):
+        """Create a sub-context.
+        
+        Concrete subclasses must define this method. The default implementation
+        returns a new instance with the current rules.
+        """
+        return type(self)(self.rules)
 
 
 class Category(Context):
@@ -677,10 +681,14 @@ class Category(Context):
     reference attributes, and return object.
     """
 
-    @property
-    def child(self):
-        """Spawn a new instance of this context with the current rules."""
-        return type(self)(self.rules)
+    def spawn(self):
+        """Create a new instance of this context with the current rules."""
+        return super().spawn()
+
+    @abc.abstractmethod
+    def apply(self, __callable: typing.Callable):
+        """Use the given callable object within this context."""
+        pass
 
 
 class Default(Category):
