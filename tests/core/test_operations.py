@@ -523,7 +523,9 @@ def test_numeric_interface():
 
 def test_interface():
     """Test global functionality of the operator interface."""
+    # Create the interface.
     interface = operations.Interface('value', 'info')
+    # Make sure it caches category-level contexts.
     for category in {interface.cast, interface.unary}:
         assert len(category.rules) == 0
         category.rules.register(Base, 'value')
@@ -532,6 +534,21 @@ def test_interface():
         assert len(category.rules) == 0
         category.rules.register([Base, Base], 'value')
         assert len(category.rules) == 1
+    # Make sure we can directly access the cached categories.
+    assert interface.cast.rules[Base].parameters == ['value']
+    assert interface.unary.rules[Base].parameters == ['value']
+    assert interface.comparison.rules[Base, Base].parameters == ['value']
+    assert interface.numeric.rules[Base, Base].parameters == ['value']
+    # Make sure it caches operation-level contexts.
+    assert 'add' not in interface
+    add = interface.implement('add')
+    assert 'add' in interface
+    assert add.rules == interface.numeric.rules
+    add.rules.register([Base, float], 'value')
+    assert interface.numeric.rules[Base, Base].parameters == ['value']
+    # Make sure implementation returns a context object.
+    assert len(interface['add'].rules) == 2
+    assert interface['add'].rules[Base, float].parameters == ['value']
     for defined in CATEGORIES.values():
         context = defined['context']
         for k in defined['operations']:

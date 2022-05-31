@@ -831,50 +831,90 @@ class Interface(Context):
         super().__init__(Rules(*parameters))
         self.parameters = parameters
         """The names of all updatable attributes"""
-        self.cache = {}
+        self._categories = {k: v(self.rules) for k, v in CATEGORIES.items()}
+        self._operations = {}
 
     @property
     def cast(self):
         """An interface to type-casting operations."""
-        return self._create(Cast, 'cast')
+        return self._create_category('cast')
 
     @property
     def unary(self):
         """An interface to unary arithmetic operations."""
-        return self._create(Unary, 'unary')
+        return self._create_category('unary')
 
     @property
     def comparison(self):
         """An interface to binary comparison operations."""
-        return self._create(Comparison, 'comparison')
+        return self._create_category('comparison')
 
     @property
     def numeric(self):
         """An interface to binary arithmetic operations."""
-        return self._create(Numeric, 'numeric')
+        return self._create_category('numeric')
 
-    def implement(self, __k: str):
-        """Implement the named operation."""
-        category = OPERATIONS[__k]['category'] if __k in OPERATIONS else Default
-        return self._create(category, __k)
-
-    def _create(self, category: typing.Type[Category], key: str):
-        """Create and store a category instance."""
+    def _create_category(self, name: str):
+        """Update the named category context from the current rules."""
+        category = CATEGORIES[name]
         context = category(self.rules)
-        if key not in self.cache:
-            self.cache[key] = context
+        if name not in self._categories:
+            self._categories[name] = context
             return context
-        return self.cache[key]
+        return self._categories[name]
 
-    def apply(self, __callable: typing.Callable):
-        """Create a default operation from this callable object."""
-        return Default(self.rules).apply(__callable)
+    def implement(self, __k: str) -> Category:
+        """Implement the named operation."""
+        operation = OPERATIONS.get(__k, {})
+        category = operation.get('category', 'default')
+        context = self._categories[category].spawn()
+        self._operations[__k] = context
+        return context
 
-    @property
-    def mixin(self):
+    def __getitem__(self, __k: str) -> Category:
+        """Retrieve a cached operation."""
+        if __k in self._operations:
+            return self._operations[__k]
+        raise KeyError(f"No operation for {__k!r}") from None
+
+    def __contains__(self, __k: str) -> bool:
+        """True if this interface has implemented the named operation."""
+        return __k in self._operations
+
+    def spawn(self, mode: str=None):
         """Generate a mixin operator class from the current state."""
+        if not mode:
+            return super().spawn()
         ops = {} # dunder-method implementations from OPERATIONS
-        return type('Mixin', (), ops)
+        return type('OperatorsMixin', (), ops)
+
+# def operators(primary: str, *secondary):
+#     """"""
+#     interface = Interface(primary, *secondary)
+#     opr = {
+#         '__int__': interface.cast.apply(int),
+#         '__float__': interface.cast.apply(float),
+#         '__abs__': interface.unary.apply(abs),
+#         '__pos__': interface.unary.apply(standard.pos),
+#         '__neg__': interface.unary.apply(standard.neg),
+#         '__lt__': interface.comparison.apply(standard.lt),
+#         '__le__': interface.comparison.apply(standard.le),
+#         '__gt__': interface.comparison.apply(standard.gt),
+#         '__ge__': interface.comparison.apply(standard.ge),
+#         '__eq__': interface.comparison.apply(standard.eq),
+#         '__ne__': interface.comparison.apply(standard.ne),
+#         '__add__': interface.numeric.apply(standard.add),
+#         '__radd__': interface.numeric.apply(standard.add, 'reverse'),
+#         '__sub__': interface.numeric.apply(standard.sub),
+#         '__rsub__': interface.numeric.apply(standard.sub, 'reverse'),
+#         '__mul__': interface.numeric.apply(standard.mul),
+#         '__rmul__': interface.numeric.apply(standard.mul, 'reverse'),
+#         '__truediv__': interface.numeric.apply(standard.truediv),
+#         '__rtruediv__': interface.numeric.apply(standard.truediv, 'reverse'),
+#         '__pow__': interface.numeric.apply(pow),
+#         '__rpow__': interface.numeric.apply(pow, 'reverse'),
+#     }
+#     return type('Operators', (), opr)
 
 
 _operations = {
