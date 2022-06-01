@@ -317,9 +317,9 @@ class Rules(_RulesType):
         
         Parameters
         ----------
-        *parameters : type or string
-            Zero or more names of attributes for each rule to update unless
-            explicity registered otherwise.
+        *parameters : string
+            Zero or more names of attributes to associate with unconstrained
+            rules. See Notes for more information.
 
         Notes
         -----
