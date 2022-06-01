@@ -357,7 +357,8 @@ class Rules(_RulesType):
     def implicit(self):
         """The implicit update rule."""
         if self._type is not None:
-            return Rule(*self._implied.copy())
+            parameters = self._implied or self.parameters
+            return Rule(*parameters.copy())
 
     def register(self, types: Types, *parameters: typing.Optional[str]):
         """Add a rule to the collection.
