@@ -532,10 +532,9 @@ def test_interface_mixin(interface: operations.Interface):
     assert getattr(mixin, '__add__')(instances[0], 6.7) == expected
 
 
-@pytest.mark.xfail
-def test_augment():
+def test_augment(interface: operations.Interface):
     """Test the function that creates a subclass with mixin operators."""
-    New = operations.augment(Base)
+    New = operations.augment(Base, interface=interface)
     assert issubclass(New, Base)
     for name in METHODS:
         assert name in dir(New)

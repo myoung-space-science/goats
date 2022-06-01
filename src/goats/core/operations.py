@@ -574,8 +574,9 @@ class Operation:
             return NotImplemented
         if not rule.parameters:
             # We don't know which arguments to operate on, so we hand execution
-            # over to the given operands, in case they implement this method in
-            # their class definitions.
+            # over to the given operands, in case they implement this operator
+            # in their class definitions. Note that this will lead to recursion
+            # if they define the operator via this class.
             return self.method(*args, **kwargs)
         operands = Operands(*args, reference=reference)
         fixed = tuple(set(self.rules.parameters) - set(rule.parameters))
