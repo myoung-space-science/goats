@@ -496,7 +496,7 @@ class Rules(_RulesType):
         for t in self.mapping:
             if all(issubclass(i, j) for i, j in zip(types, t)):
                 return self._from(t)
-        if self._type in types:
+        if self._type in types or any(issubclass(t, self._type) for t in types):
             return self.implicit
         raise KeyError(f"No rule for operand type(s) {__k!r}") from None
 
