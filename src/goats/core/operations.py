@@ -886,11 +886,28 @@ OPERATIONS = {
 class Interface(collections.abc.Mapping):
     """Top-level interface to arithmetic operations."""
 
-    def __init__(self, primary: str, *secondary: str, target: type=None):
-        parameters = primary, *secondary
+    def __init__(
+        self,
+        *parameters: str,
+        default: typing.Sequence[typing.Union[type, str]]=None,
+    ) -> None:
+        """
+        Initialize this instance.
+
+        Parameters
+        ----------
+        *parameters : string
+            Zero or more strings representing the updatable attributes in each
+            operand to these operations.
+
+        default : type and strings, optional
+            An object type and zero or more names of attributes to update
+            whenever the given object type appears in an operation, unless
+            overriden by an explicit rule.
+        """
         self.rules = Rules(*parameters)
-        if target is not None:
-            self.rules.imply(target, primary)
+        if default is not None:
+            self.rules.imply(*default)
         self.parameters = parameters
         """The names of all updatable attributes"""
         self._categories = {k: v(self.rules) for k, v in CATEGORIES.items()}

@@ -435,9 +435,14 @@ METHODS.extend(
 )
 
 
-def test_cast_interface():
+@pytest.fixture
+def interface():
+    """An operations interface."""
+    return operations.Interface('value', 'info', default=[Base, 'value'])
+
+
+def test_cast_interface(interface: operations.Interface):
     """Test cast operations via the module interface."""
-    interface = operations.Interface('value', 'info', target=Base)
     operation = interface.cast
     instances = build(Base)
     for builtin in CATEGORIES['cast']['operations'].values():
@@ -447,9 +452,8 @@ def test_cast_interface():
             assert operator(instance) == expected
 
 
-def test_unary_interface():
+def test_unary_interface(interface: operations.Interface):
     """Test unary operations via the module interface."""
-    interface = operations.Interface('value', 'info', target=Base)
     operation = interface.unary
     instances = build(Base)
     for builtin in CATEGORIES['unary']['operations'].values():
@@ -459,9 +463,8 @@ def test_unary_interface():
             assert operator(instance) == expected
 
 
-def test_comparison_interface():
+def test_comparison_interface(interface: operations.Interface):
     """Test comparison operations via the module interface."""
-    interface = operations.Interface('value', 'info', target=Base)
     operation = interface.comparison
     instances = build(Base)
     targets = instances[0], instances[1]
@@ -472,9 +475,8 @@ def test_comparison_interface():
             operator(instances[0], instances[2])
 
 
-def test_numeric_interface():
+def test_numeric_interface(interface: operations.Interface):
     """Test numeric operations via the module interface."""
-    interface = operations.Interface('value', 'info', target=Base)
     operation = interface.numeric
     instances = build(Base)
     targets = instances[0], instances[1]
@@ -489,45 +491,36 @@ def test_numeric_interface():
             operator(instances[0], instances[2])
 
 
-def test_interface_categories():
+def test_interface_categories(interface: operations.Interface):
     """Test the ability to access and update category contexts."""
-    # Create the interface.
-    interface = operations.Interface('value', 'info', target=Base)
-    # Make sure it caches category-level contexts.
     for name, current in CATEGORIES.items():
         category: operations.Context = getattr(interface, name)
         assert isinstance(category, current['context'])
         assert len(category.rules) == 0
         category.rules.register([Base] * current['ntypes'], 'value')
         assert len(category.rules) == 1
-    # Make sure we can directly access the cached categories.
     assert interface.cast.rules[Base].parameters == ['value']
     assert interface.unary.rules[Base].parameters == ['value']
     assert interface.comparison.rules[Base, Base].parameters == ['value']
     assert interface.numeric.rules[Base, Base].parameters == ['value']
 
 
-def test_interface_operations():
+def test_interface_operations(interface: operations.Interface):
     """Test the ability to implement and cache operations."""
-    # Create the interface.
-    interface = operations.Interface('value', 'info', target=Base)
-    # Make sure it caches operation-level contexts.
     add = interface.implement('add')
     assert add.rules == interface.numeric.rules
     add.rules.register([Base, float], 'value')
     assert interface.numeric.rules[Base, Base].parameters == ['value']
     assert len(interface['add'].rules) == 1
     assert interface['add'].rules[Base, float].parameters == ['value']
-    # Make sure implementation returns a context object.
     for defined in CATEGORIES.values():
         context = defined['context']
         for k in defined['operations']:
             assert isinstance(interface.implement(k), context)
 
 
-def test_interface_mixin():
+def test_interface_mixin(interface: operations.Interface):
     """Test the ability to create a mixin class instance."""
-    interface = operations.Interface('value', 'info', target=Base)
     assert len(interface) == len(METHODS)
     interface['add'].rules.register([Base, float], 'value')
     mixin = interface.mixin()
