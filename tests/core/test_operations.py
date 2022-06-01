@@ -540,6 +540,13 @@ def test_augment(interface: operations.Interface):
         assert name in dir(New)
     c0 = New(1.2, 'this')
     c1 = New(2.1, 'this')
+    # Check a unary cast operation.
+    assert int(c0) == 1
+    # Check a unary arithmetic operation.
+    assert -c0 == -1.2
+    # Check a binary comparison operation.
+    assert c0 < c1
+    # Check a binary numeric operation.
     assert c0 + c1 == New(3.3, 'this')
 
 
