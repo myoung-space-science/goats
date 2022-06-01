@@ -1003,7 +1003,13 @@ class Interface(collections.abc.Mapping):
         return self._categories[name]
 
 
-def augment(target: type, name: str, interface: Interface=None):
+def augment(
+    target: type,
+    name: str,
+    interface: Interface=None,
+    reverse: bool=False,
+    inplace: bool=False,
+) -> typing.Type:
     """Create a subclass of `target` with mixin operators.
     
     Parameters
@@ -1022,11 +1028,19 @@ def augment(target: type, name: str, interface: Interface=None):
         f'__{k}__': interface[k].apply(v['default'])
         for k, v in OPERATIONS.items()
     }
-    reflected = {
-        f'__r{k}__': interface[k].apply(v['default'], 'reverse')
-        for k, v in OPERATIONS.items()
-        if v['category'] == 'numeric'
-    }
-    ops.update(reflected)
+    if reverse:
+        updates = {
+            f'__r{k}__': interface[k].apply(v['default'], 'reverse')
+            for k, v in OPERATIONS.items()
+            if v['category'] == 'numeric'
+        }
+        ops.update(updates)
+    if inplace:
+        updates = {
+            f'__i{k}__': interface[k].apply(v['default'], 'inplace')
+            for k, v in OPERATIONS.items()
+            if v['category'] == 'numeric'
+        }
+        ops.update(updates)
     return type(name, (target,), ops)
 

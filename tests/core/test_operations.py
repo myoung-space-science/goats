@@ -423,16 +423,18 @@ CATEGORIES = {
 }
 
 
-METHODS = [
-    f'__{i}__' for v in CATEGORIES.values() for i in v['operations']
-]
-METHODS.extend(
-    [
-        f'__r{i}__'
-        for v in CATEGORIES.values() for i in v['operations']
-        if v['context'] == 'numeric'
-    ]
-)
+@pytest.fixture
+def method_names():
+    """A dictionary of method names by category."""
+    names = {
+        k: [f'__{i}__' for i in v['operations']]
+        for k, v in CATEGORIES.items() if k != 'numeric'
+    }
+    v = CATEGORIES['numeric']['operations']
+    names['forward'] = [f'__{i}__' for i in v]
+    names['reverse'] = [f'__r{i}__' for i in v]
+    names['inplace'] = [f'__i{i}__' for i in v]
+    return names
 
 
 @pytest.fixture
@@ -519,25 +521,10 @@ def test_interface_operations(interface: operations.Interface):
             assert isinstance(interface.implement(k), context)
 
 
-def test_interface_mixin(interface: operations.Interface):
-    """Test the ability to create a mixin class instance."""
-    assert len(interface) == len(METHODS)
-    interface['add'].rules.register([Base, float], 'value')
-    mixin = interface.mixin()
-    for name in METHODS:
-        assert name in dir(mixin)
-    instances = build(Base)
-    instance = instances[0]
-    expected = Base(instance.value + 6.7, instance.info)
-    assert getattr(mixin, '__add__')(instances[0], 6.7) == expected
-
-
-def test_augment(interface: operations.Interface):
+def test_augment(interface: operations.Interface, method_names: dict):
     """Test the function that creates a subclass with mixin operators."""
     New = operations.augment(Base, 'New', interface=interface)
     assert issubclass(New, Base)
-    for name in METHODS:
-        assert name in dir(New)
     c0 = New(1.2, 'this')
     c1 = New(2.1, 'this')
     # Check a unary cast operation.
@@ -548,6 +535,27 @@ def test_augment(interface: operations.Interface):
     assert c0 < c1
     # Check a binary numeric operation.
     assert c0 + c1 == New(3.3, 'this')
+    common = [
+        'cast',
+        'unary',
+        'comparison',
+        'forward',
+    ]
+    check_method_names(method_names, New, *common)
+    New = operations.augment(Base, 'New', interface=interface, reverse=True)
+    check_method_names(method_names, New, *common, 'reverse')
+    New = operations.augment(Base, 'New', interface=interface, inplace=True)
+    check_method_names(method_names, New, *common, 'inplace')
+
+
+def check_method_names(method_names: dict, target, *included):
+    """Helper for asserting existence of defined operators."""
+    listing = dir(target)
+    excluded = set(method_names) - set(included)
+    for category in included:
+        assert all(name in listing for name in method_names[category])
+    for category in excluded:
+        assert not any(name in listing for name in method_names[category])
 
 
 class Mixin:
