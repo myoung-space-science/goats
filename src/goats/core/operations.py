@@ -542,6 +542,10 @@ class Rules(_RulesType):
         return ', '.join(f"{t[0]}: {t[1]}" for t in self)
 
 
+class OperationError(Exception):
+    """An error occurred during an operation."""
+
+
 class OperandTypeError(Exception):
     """Operands are incompatible for a given operation."""
 
@@ -577,7 +581,12 @@ class Operation:
             # over to the given operands, in case they implement this operator
             # in their class definitions. Note that this will lead to recursion
             # if they define the operator via this class.
-            return self.method(*args, **kwargs)
+            try:
+                return self.method(*args, **kwargs)
+            except RecursionError as err:
+                raise OperationError(
+                    f"Caught {err!r} when attempting to implement {self.method!r}. This may be because one of the operands uses {self!r} to implement {self.method!r} without explicit knowledge of the updatable attributes."
+                ) from err
         operands = Operands(*args, reference=reference)
         fixed = tuple(set(self.rules.parameters) - set(rule.parameters))
         if not operands.agree(*fixed):
