@@ -1003,7 +1003,7 @@ class Interface(collections.abc.Mapping):
         return self._categories[name]
 
 
-def augment(target: type, interface: Interface=None):
+def augment(target: type, name: str, interface: Interface=None):
     """Create a subclass of `target` with mixin operators.
     
     Parameters
@@ -1028,5 +1028,5 @@ def augment(target: type, interface: Interface=None):
         if v['category'] == 'numeric'
     }
     ops.update(reflected)
-    return type('Operators', (target,), ops)
+    return type(name, (target,), ops)
 

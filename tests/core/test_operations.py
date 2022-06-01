@@ -534,7 +534,7 @@ def test_interface_mixin(interface: operations.Interface):
 
 def test_augment(interface: operations.Interface):
     """Test the function that creates a subclass with mixin operators."""
-    New = operations.augment(Base, interface=interface)
+    New = operations.augment(Base, 'New', interface=interface)
     assert issubclass(New, Base)
     for name in METHODS:
         assert name in dir(New)
