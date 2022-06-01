@@ -670,7 +670,7 @@ class Operation:
         ]
 
 
-class Context(abc.ABC):
+class Context(abc.ABC, iterables.ReprStrMixin):
     """Abstract base class for operation-related contexts."""
 
     def __init__(self, rules: Rules=None) -> None:
@@ -685,6 +685,9 @@ class Context(abc.ABC):
     def apply(self, __callable: typing.Callable):
         """Use the given callable object within this context."""
         pass
+
+    def __str__(self) -> str:
+        return str(self.rules)
 
 
 class Default(Context):
