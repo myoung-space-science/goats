@@ -989,3 +989,31 @@ class Interface(collections.abc.Mapping):
             return context
         return self._categories[name]
 
+
+def augment(target: type, interface: Interface=None):
+    """Create a subclass of `target` with mixin operators.
+    
+    Parameters
+    ----------
+    target : type
+        The parent type to use as a base class when creating the new class.
+
+    interface : `~operations.Interface`, optional
+        An instance of the class that provides dynamic access to operation
+        contexts. If ``None`` (the default), this function will create a plain
+        instance with the default type set to `target`.
+    """
+    if not interface:
+        interface = Interface(default=[target])
+    ops = {
+        f'__{k}__': interface[k].apply(v['default'])
+        for k, v in OPERATIONS.items()
+    }
+    reflected = {
+        f'__r{k}__': interface[k].apply(v['default'], 'reverse')
+        for k, v in OPERATIONS.items()
+        if v['category'] == 'numeric'
+    }
+    ops.update(reflected)
+    return type('Operators', (target,), ops)
+
