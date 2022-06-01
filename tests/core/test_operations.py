@@ -431,9 +431,16 @@ def method_names():
         for k, v in CATEGORIES.items() if k != 'numeric'
     }
     v = CATEGORIES['numeric']['operations']
-    names['forward'] = [f'__{i}__' for i in v]
-    names['reverse'] = [f'__r{i}__' for i in v]
-    names['inplace'] = [f'__i{i}__' for i in v]
+    numeric = {
+        'forward': [f'__{i}__' for i in v],
+        'reverse': [f'__r{i}__' for i in v],
+        'inplace': [f'__i{i}__' for i in v],
+    }
+    names.update(numeric)
+    copied = names.copy()
+    names['all'] = [
+        name for category in copied.values() for name in category
+    ]
     return names
 
 
@@ -509,7 +516,7 @@ def test_interface_categories(interface: operations.Interface):
 
 def test_interface_operations(interface: operations.Interface):
     """Test the ability to implement and cache operations."""
-    add = interface.implement('add')
+    add = interface['add']
     assert add.rules == interface.numeric.rules
     add.rules.register([Base, float], 'value')
     assert interface.numeric.rules[Base, Base].parameters == ['value']
@@ -518,7 +525,7 @@ def test_interface_operations(interface: operations.Interface):
     for defined in CATEGORIES.values():
         context = defined['context']
         for k in defined['operations']:
-            assert isinstance(interface.implement(k), context)
+            assert isinstance(interface[k], context)
 
 
 def test_augment(interface: operations.Interface, method_names: dict):
@@ -535,27 +542,51 @@ def test_augment(interface: operations.Interface, method_names: dict):
     assert c0 < c1
     # Check a binary numeric operation.
     assert c0 + c1 == New(3.3, 'this')
+    all_names = [
+        name for category in method_names.values()
+        for name in category
+    ]
+    def check(target, *included):
+        listing = dir(target)
+        excluded = set(method_names) - set(included)
+        for category in included:
+            assert all(name in listing for name in method_names[category])
+        for category in excluded:
+            assert not any(name in listing for name in method_names[category])
     common = [
         'cast',
         'unary',
         'comparison',
         'forward',
     ]
-    check_method_names(method_names, New, *common)
+    check_method_names(method_names, New, categories=common)
     New = operations.augment(Base, 'New', interface=interface, reverse=True)
-    check_method_names(method_names, New, *common, 'reverse')
+    check_method_names(method_names, New, categories=[*common, 'reverse'])
     New = operations.augment(Base, 'New', interface=interface, inplace=True)
-    check_method_names(method_names, New, *common, 'inplace')
+    check_method_names(method_names, New, categories=[*common, 'inplace'])
+    New = operations.augment(Base, 'New', interface, include='__abs__')
+    check_method_names(method_names, New, operators=['__abs__'])
 
 
-def check_method_names(method_names: dict, target, *included):
+def check_method_names(
+    method_names: dict,
+    target,
+    categories=None,
+    operators=None,
+) -> None:
     """Helper for asserting existence of defined operators."""
     listing = dir(target)
-    excluded = set(method_names) - set(included)
-    for category in included:
-        assert all(name in listing for name in method_names[category])
-    for category in excluded:
-        assert not any(name in listing for name in method_names[category])
+    all_names = [
+        name for category in method_names.values()
+        for name in category
+    ]
+    included = [
+        name for category in categories or []
+        for name in method_names.get(category, [])
+    ] + [name for name in operators or []]
+    excluded = set(all_names) - set(included)
+    assert all(name in listing for name in included)
+    assert not any(name in listing for name in excluded)
 
 
 class Mixin:
