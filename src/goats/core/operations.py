@@ -395,21 +395,33 @@ class Rules(_RulesType):
         self[types].suppress
         return self
 
-    def register(self, *properties):
+    def register(self, *rules):
         """Add a rule to the collection.
         
         Parameters
         ----------
-        *properties
-            One or more operand type(s) that define the target rule, followed by
-            zero or more parameters to update when operating on those types.
+        *rules
+            One or more rule specifications to register. A rule specification
+            consists of one or more operand type(s) followed by zero or more
+            parameters to update when operating on those types. Multiple rule
+            specifications must be grouped into lists or tuples.
 
         Raises
         ------
         KeyError
             There is already a rule in the collection corresponding to `types`.
         """
-        args = list(properties)
+        if not rules:
+            raise ValueError("No rule to register") from None
+        if isinstance(rules[0], type):
+            return self._register(rules)
+        for rule in rules:
+            self._register(rule)
+        return self
+
+    def _register(self, rule):
+        """Internal helper for `~Rules.register`."""
+        args = list(rule)
         types = tuple(arg for arg in args if isinstance(arg, type))
         if not types:
             raise ValueError(

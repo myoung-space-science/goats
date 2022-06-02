@@ -39,6 +39,25 @@ def test_rules_register():
         rules.register(int, 'a')
 
 
+def test_rules_batch_register():
+    """Test the ability to register multiple rules at once."""
+    default = ['a', 'b', 'c']
+    rules = operations.Rules(*default)
+    assert not rules
+    assert rules.ntypes is None
+    user = [
+        (int, float, 'a', 'b'),
+        (float, float),
+        (int, int, None),
+    ]
+    rules.register(*user)
+    assert rules
+    assert rules.ntypes == 2
+    assert rules[(int, float)].parameters == ['a', 'b']
+    assert rules[(float, float)].parameters == default
+    assert not rules[(int, int)].parameters
+
+
 def test_rules_update_rule():
     """Test the ability to dynamically update a rule in Rules."""
     rules = operations.Rules()
