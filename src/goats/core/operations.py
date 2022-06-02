@@ -803,14 +803,83 @@ class Inplace(Context):
         return operator
 
 
+class Numeric(Context):
+    """A factory for binary numeric operators."""
+
+    CType = typing.TypeVar('CType', bound=typing.Callable)
+    CType = typing.Callable[[A, B], T]
+
+    @typing.overload
+    def apply(self, __callable: CType) -> typing.Callable[[A, B], A]: ...
+
+    @typing.overload
+    def apply(
+        self,
+        __callable: CType,
+        mode: typing.Literal['forward'],
+    ) -> typing.Callable[[A, B], A]: ...
+
+    @typing.overload
+    def apply(
+        self,
+        __callable: CType,
+        mode: typing.Literal['reverse'],
+    ) -> typing.Callable[[B, A], B]: ...
+
+    @typing.overload
+    def apply(
+        self,
+        __callable: CType,
+        mode: typing.Literal['inplace'],
+    ) -> typing.Callable[[A, B], A]: ...
+
+    def apply(self, __callable, mode: str='forward'):
+        operation = Operation(__callable, self.rules)
+        def forward(a: A, b: B, /, **kwargs) -> A:
+            """Apply this operation to `a` and `b`."""
+            try:
+                result = operation.compute(a, b, reference=a, target=type(a), **kwargs)
+            except metric.UnitError as err:
+                raise OperandTypeError(err) from err
+            else:
+                return result
+        forward.__name__ = f'__{__callable.__name__}__'
+        forward.__doc__ = __callable.__doc__
+        def reverse(b: B, a: A, /, **kwargs) -> B:
+            """Apply this operation to `a` and `b` with reflected operands."""
+            try:
+                result = operation.compute(a, b, reference=b, target=type(b), **kwargs)
+            except metric.UnitError as err:
+                raise OperandTypeError(err) from err
+            else:
+                return result
+        reverse.__name__ = f'__r{__callable.__name__}__'
+        reverse.__doc__ = __callable.__doc__
+        def inplace(a: A, b: B, /, **kwargs) -> A:
+            """Apply this operation to `a` and `b` in-place."""
+            try:
+                result = operation.compute(a, b, reference=a, target=a, **kwargs)
+            except metric.UnitError as err:
+                raise OperandTypeError(err) from err
+            else:
+                return result
+        inplace.__name__ = f'__i{__callable.__name__}__'
+        inplace.__doc__ = __callable.__doc__
+        if mode == 'forward':
+            return forward
+        if mode == 'reverse':
+            return reverse
+        if mode == 'inplace':
+            return inplace
+        raise ValueError(f"Unknown implementation mode {mode!r}") from None
+
+
 CATEGORIES: typing.Dict[str, typing.Type[Context]] = {
     'default': Default,
     'cast': Cast,
     'unary': Unary,
     'comparison': Comparison,
-    'forward': Forward,
-    'reverse': Reverse,
-    'inplace': Inplace,
+    'numeric': Numeric,
 }
 """The canonical operation-category implementations."""
 
@@ -818,83 +887,83 @@ CATEGORIES: typing.Dict[str, typing.Type[Context]] = {
 OPERATIONS = {
     'int': {
         'category': 'cast',
-        'operator': int,
+        'callable': int,
     },
     'float': {
         'category': 'cast',
-        'operator': float,
+        'callable': float,
     },
     'abs': {
         'category': 'unary',
-        'operator': abs,
+        'callable': abs,
     },
     'neg': {
         'category': 'unary',
-        'operator': standard.neg,
+        'callable': standard.neg,
     },
     'pos': {
         'category': 'unary',
-        'operator': standard.pos,
+        'callable': standard.pos,
     },
     'ceil': {
         'category': 'unary',
-        'operator': math.ceil,
+        'callable': math.ceil,
     },
     'floor': {
         'category': 'unary',
-        'operator': math.floor,
+        'callable': math.floor,
     },
     'trunc': {
         'category': 'unary',
-        'operator': math.trunc,
+        'callable': math.trunc,
     },
     'round': {
         'category': 'unary',
-        'operator': round,
+        'callable': round,
     },
     'lt': {
         'category': 'comparison',
-        'operator': standard.lt,
+        'callable': standard.lt,
     },
     'le': {
         'category': 'comparison',
-        'operator': standard.le,
+        'callable': standard.le,
     },
     'gt': {
         'category': 'comparison',
-        'operator': standard.gt,
+        'callable': standard.gt,
     },
     'ge': {
         'category': 'comparison',
-        'operator': standard.ge,
+        'callable': standard.ge,
     },
     'eq': {
         'category': 'comparison',
-        'operator': standard.eq,
+        'callable': standard.eq,
     },
     'ne': {
         'category': 'comparison',
-        'operator': standard.ne,
+        'callable': standard.ne,
     },
     'add': {
         'category': 'numeric',
-        'operator': standard.add,
+        'callable': standard.add,
     },
     'sub': {
         'category': 'numeric',
-        'operator': standard.sub,
+        'callable': standard.sub,
     },
     'mul': {
         'category': 'numeric',
-        'operator': standard.mul,
+        'callable': standard.mul,
     },
     'truediv': {
         'category': 'numeric',
-        'operator': standard.truediv,
+        'callable': standard.truediv,
     },
     'pow': {
         'category': 'numeric',
-        'operator': pow,
+        'callable': pow,
     },
 }
 """A mapping of operation name to metadata."""
@@ -906,19 +975,19 @@ OPERATORS = {
 }
 OPERATORS.update(
     {
-        f'__{k}__': {'operator': v['operator'], 'category': 'forward'}
+        f'__{k}__': {**v, 'mode': 'forward'}
         for k, v in OPERATIONS.items() if v['category'] == 'numeric'
     }
 )
 OPERATORS.update(
     {
-        f'__r{k}__': {'operator': v['operator'], 'category': 'reverse'}
+        f'__r{k}__': {**v, 'mode': 'reverse'}
         for k, v in OPERATIONS.items() if v['category'] == 'numeric'
     }
 )
 OPERATORS.update(
     {
-        f'__i{k}__': {'operator': v['operator'], 'category': 'inplace'}
+        f'__i{k}__': {**v, 'mode': 'inplace'}
         for k, v in OPERATIONS.items() if v['category'] == 'numeric'
     }
 )
@@ -969,19 +1038,48 @@ class Interface(collections.abc.Mapping):
             self.rules.imply(*default)
         self.parameters = parameters
         """The names of all updatable attributes"""
-        self._categories = {k: v(self.rules) for k, v in CATEGORIES.items()}
+        self.categories = {k: v(self.rules) for k, v in CATEGORIES.items()}
         self._operations = None
+        self._contexts = None
 
-    def implement(self, __k: str, method: typing.Callable):
+    def implement(self, __k: str, method: typing.Callable=None) -> Context:
         """Implement the named operator."""
-        context = self[__k] if __k in self else self._categories['default']
+        context = self[__k] if __k in self else self.categories['default']
+        operator = OPERATORS[__k]
+        method = method or operator['callable']
+        if isinstance(context, Numeric):
+            return context.apply(method, mode=operator.get('mode'))
         return context.apply(method)
 
-    def __getitem__(self, __k: str) -> Context:
-        """Retrieve the operation context for this operator."""
-        if __k in self.operations:
-            return self.operations[__k]
-        raise KeyError(f"Unknown operator {__k!r}") from None
+    @typing.overload
+    def __getitem__(self, __k: typing.Literal['cast']) -> Cast: ...
+
+    @typing.overload
+    def __getitem__(self, __k: typing.Literal['unary']) -> Unary: ...
+
+    @typing.overload
+    def __getitem__(self, __k: typing.Literal['comparison']) -> Comparison: ...
+
+    @typing.overload
+    def __getitem__(self, __k: typing.Literal['numeric']) -> Numeric: ...
+
+    @typing.overload
+    def __getitem__(self, __k: str) -> Default: ...
+
+    def __getitem__(self, __k):
+        """Retrieve the appropriate operation context."""
+        keys = (__k, f'__{__k}__')
+        for key in keys:
+            if key in self.categories:
+                return self.categories[key]
+            # This block ensures that we don't overwrite a context.
+            if key in self.operations:
+                if current := self.operations[key]:
+                    return current
+                new = self.categories[OPERATORS[key]['category']].spawn()
+                self.operations[key] = new
+                return new
+        raise KeyError(f"Unknown context {__k!r}") from None
 
     def __len__(self) -> int:
         """The number of defined operations."""
@@ -1009,41 +1107,19 @@ class Interface(collections.abc.Mapping):
     def operations(self) -> typing.Dict[str, Context]:
         """The standard operation contexts defined here."""
         if self._operations is None:
-            self._operations = {
-                k: self._categories[v['category']].spawn()
-                for k, v in OPERATORS.items()
-            }
+            self._operations = {k: None for k in OPERATORS}
         return self._operations
 
     @property
-    def cast(self) -> Cast:
-        """An interface to type-casting operations."""
-        return self._create_category('cast')
-
-    @property
-    def unary(self) -> Unary:
-        """An interface to unary arithmetic operations."""
-        return self._create_category('unary')
-
-    @property
-    def comparison(self) -> Comparison:
-        """An interface to binary comparison operations."""
-        return self._create_category('comparison')
-
-    @property
-    def numeric(self):
-        """An interface to binary arithmetic operations."""
-        return self._create_category('numeric')
-
-    def _create_category(self, name: str):
-        """Update the named category context from the current rules."""
-        category = CATEGORIES[name]
-        context = category(self.rules)
-        if name not in self._categories:
-            self._categories[name] = context
-            return context
-        return self._categories[name]
-
+    def contexts(self) -> typing.Dict[str, Context]:
+        """All defined category and operation contexts."""
+        operations = {
+            k: self.categories[v['category']].spawn()
+            if self.operations[k] is None
+            else self.operations[k]
+            for k, v in OPERATORS.items()
+        }
+        return {**self.categories, **operations}
 
 def augment(
     target: type,
@@ -1051,8 +1127,6 @@ def augment(
     interface: Interface=None,
     include: typing.Iterable[str]=None,
     exclude: typing.Iterable[str]=None,
-    # reverse: bool=False,
-    # inplace: bool=False,
 ) -> typing.Type:
     """Create a subclass of `target` with mixin operators.
     
@@ -1076,61 +1150,20 @@ def augment(
     # - logical combinations of the above (e.g., all cast and all unary except
     #   abs)
 
-    # incnames = []
-    # for string in include:
-    #     if string in CATEGORIES:
-    #         incnames.append(s for s in NAMES[string])
-    #     else:
-    #         incnames.append(string)
-    # excnames = []
-    # for string in exclude:
-    #     if string in _by_category:
-    #         excnames.append(s for s in _by_category[string])
-    #     else:
-    #         excnames.append(string)
-    # included = (set(NAMES) - set(excnames)) | set(incnames)
-    if not include and not exclude:
-        included = list(OPERATORS)
-    else:
-        tmp = []
-        for name in include:
-            if name in CATEGORIES:
-                tmp.extend(NAMES[name])
-            else:
-                tmp.append(name)
-        current = set(tmp)
-        for name in exclude:
-            if name in CATEGORIES:
-                current -= set(NAMES[name])
-            else:
-                current -= {name}
-        included = list(current)
+    included = set(OPERATORS) if include is None else set()
+    for s in include or []:
+        if s in NAMES:
+            included.update(set(NAMES[s]))
+        else:
+            included.update({s})
+    for s in exclude or []:
+        if s in NAMES:
+            included.difference_update(set(NAMES[s]))
+        else:
+            included.difference_update({s})
     operators = {
-        k: interface.implement(k, OPERATORS['operator'])
+        k: interface.implement(k)
         for k in included
     }
-    # operators = {
-    #     f'__{k.strip("__")}__': v['operator']
-    #     for k, v in OPERATIONS.items()
-    #     if k in included
-    # }
-    # ops = {
-    #     f'__{k}__': interface[k].apply(v['default'])
-    #     for k, v in OPERATIONS.items()
-    # }
-    # if reverse:
-    #     updates = {
-    #         f'__r{k}__': interface[k].apply(v['default'], 'reverse')
-    #         for k, v in OPERATIONS.items()
-    #         if v['category'] == 'numeric'
-    #     }
-    #     ops.update(updates)
-    # if inplace:
-    #     updates = {
-    #         f'__i{k}__': interface[k].apply(v['default'], 'inplace')
-    #         for k, v in OPERATIONS.items()
-    #         if v['category'] == 'numeric'
-    #     }
-    #     ops.update(updates)
     return type(name, (target,), operators)
 

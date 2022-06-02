@@ -452,7 +452,7 @@ def interface():
 
 def test_cast_interface(interface: operations.Interface):
     """Test cast operations via the module interface."""
-    operation = interface.cast
+    operation = interface['cast']
     instances = build(Base)
     for builtin in CATEGORIES['cast']['operations'].values():
         operator = operation.apply(builtin)
@@ -463,7 +463,7 @@ def test_cast_interface(interface: operations.Interface):
 
 def test_unary_interface(interface: operations.Interface):
     """Test unary operations via the module interface."""
-    operation = interface.unary
+    operation = interface['unary']
     instances = build(Base)
     for builtin in CATEGORIES['unary']['operations'].values():
         operator = operation.apply(builtin)
@@ -474,7 +474,7 @@ def test_unary_interface(interface: operations.Interface):
 
 def test_comparison_interface(interface: operations.Interface):
     """Test comparison operations via the module interface."""
-    operation = interface.comparison
+    operation = interface['comparison']
     instances = build(Base)
     targets = instances[0], instances[1]
     for builtin in CATEGORIES['comparison']['operations'].values():
@@ -486,7 +486,7 @@ def test_comparison_interface(interface: operations.Interface):
 
 def test_numeric_interface(interface: operations.Interface):
     """Test numeric operations via the module interface."""
-    operation = interface.numeric
+    operation = interface['numeric']
     instances = build(Base)
     targets = instances[0], instances[1]
     for builtin in CATEGORIES['numeric']['operations'].values():
@@ -503,23 +503,25 @@ def test_numeric_interface(interface: operations.Interface):
 def test_interface_categories(interface: operations.Interface):
     """Test the ability to access and update category contexts."""
     for name, current in CATEGORIES.items():
-        category: operations.Context = getattr(interface, name)
+        category = interface[name]
         assert isinstance(category, current['context'])
         assert len(category.rules) == 0
         category.rules.register([Base] * current['ntypes'], 'value')
         assert len(category.rules) == 1
-    assert interface.cast.rules[Base].parameters == ['value']
-    assert interface.unary.rules[Base].parameters == ['value']
-    assert interface.comparison.rules[Base, Base].parameters == ['value']
-    assert interface.numeric.rules[Base, Base].parameters == ['value']
+    assert interface['cast'].rules[Base].parameters == ['value']
+    assert interface['unary'].rules[Base].parameters == ['value']
+    assert interface['comparison'].rules[Base, Base].parameters == ['value']
+    assert interface['numeric'].rules[Base, Base].parameters == ['value']
 
 
 def test_interface_operations(interface: operations.Interface):
     """Test the ability to implement and cache operations."""
     add = interface['add']
-    assert add.rules == interface.numeric.rules
+    assert add is interface['add']
+    assert add is interface['__add__']
+    assert add.rules == interface['numeric'].rules
     add.rules.register([Base, float], 'value')
-    assert interface.numeric.rules[Base, Base].parameters == ['value']
+    assert interface['numeric'].rules[Base, Base].parameters == ['value']
     assert len(interface['add'].rules) == 1
     assert interface['add'].rules[Base, float].parameters == ['value']
     for defined in CATEGORIES.values():
@@ -542,30 +544,45 @@ def test_augment(interface: operations.Interface, method_names: dict):
     assert c0 < c1
     # Check a binary numeric operation.
     assert c0 + c1 == New(3.3, 'this')
-    all_names = [
-        name for category in method_names.values()
-        for name in category
-    ]
     def check(target, *included):
         listing = dir(target)
-        excluded = set(method_names) - set(included)
-        for category in included:
-            assert all(name in listing for name in method_names[category])
-        for category in excluded:
-            assert not any(name in listing for name in method_names[category])
-    common = [
-        'cast',
-        'unary',
-        'comparison',
-        'forward',
-    ]
-    check_method_names(method_names, New, categories=common)
-    New = operations.augment(Base, 'New', interface=interface, reverse=True)
-    check_method_names(method_names, New, categories=[*common, 'reverse'])
-    New = operations.augment(Base, 'New', interface=interface, inplace=True)
-    check_method_names(method_names, New, categories=[*common, 'inplace'])
-    New = operations.augment(Base, 'New', interface, include='__abs__')
-    check_method_names(method_names, New, operators=['__abs__'])
+        excluded = set(method_names['all']) - set(included)
+        # This is not a very good test because creating a new class via `type`
+        # apparently adds some methods (e.g., `__lt__`) by default. I think a
+        # better way to test this is to define expected return values, included
+        # `NotImplemented` for excluded operations.
+        assert all(name in listing for name in included)
+        assert not any(name in listing for name in excluded)
+    check(New, *method_names['all'])
+    New = operations.augment(
+        Base,
+        'New',
+        interface=interface,
+        exclude=['reverse'],
+    )
+    check(New, *list(set(method_names['all']) - set(method_names['reverse'])))
+    New = operations.augment(
+        Base,
+        'New',
+        interface=interface,
+        exclude=['cast'],
+    )
+    check(New, *list(set(method_names['all']) - set(method_names['cast'])))
+    New = operations.augment(
+        Base,
+        'New',
+        interface=interface,
+        exclude=['unary'],
+    )
+    check(New, *list(set(method_names['all']) - set(method_names['unary'])))
+    New = operations.augment(
+        Base,
+        'New',
+        interface=interface,
+        include=['unary'],
+        exclude=['__neg__']
+    )
+    check(New, *list(set(method_names['unary']) - {'__neg__'}))
 
 
 def check_method_names(
@@ -589,177 +606,177 @@ def check_method_names(
     assert not any(name in listing for name in excluded)
 
 
-class Mixin:
-    """A mixin class that provides operator implementations."""
+# class Mixin:
+#     """A mixin class that provides operator implementations."""
 
-    rules = operations.Rules('value', 'info')
+#     rules = operations.Rules('value', 'info')
 
-    cast = operations.Cast(rules)
-    cast.rules.register(Base, 'value')
+#     cast = operations.Cast(rules)
+#     cast.rules.register(Base, 'value')
 
-    comparison = operations.Comparison(rules)
-    comparison.rules.register([Base, Base], 'value')
+#     comparison = operations.Comparison(rules)
+#     comparison.rules.register([Base, Base], 'value')
 
-    unary = operations.Unary(rules)
-    unary.rules.register(Base, 'value')
+#     unary = operations.Unary(rules)
+#     unary.rules.register(Base, 'value')
 
-    numeric = operations.Numeric(rules)
-    numeric.rules.register([Base, Base], 'value')
+#     numeric = operations.Numeric(rules)
+#     numeric.rules.register([Base, Base], 'value')
 
-    __int__ = cast.apply(int)
-    __float__ = cast.apply(float)
-    __lt__ = comparison.apply(standard.lt)
-    __le__ = comparison.apply(standard.le)
-    __gt__ = comparison.apply(standard.gt)
-    __ge__ = comparison.apply(standard.ge)
-    __eq__ = comparison.apply(standard.eq)
-    __ne__ = comparison.apply(standard.ne)
-    __abs__ = unary.apply(standard.abs)
-    __pos__ = unary.apply(standard.pos)
-    __neg__ = unary.apply(standard.neg)
-    __ceil__ = unary.apply(math.ceil)
-    __floor__ = unary.apply(math.floor)
-    __trunc__ = unary.apply(math.trunc)
-    __round__ = unary.apply(round)
-    __add__ = numeric.apply(standard.add)
-    __radd__ = numeric.apply(standard.add, 'reverse')
-    __sub__ = numeric.apply(standard.sub)
-    __rsub__ = numeric.apply(standard.sub, 'reverse')
-    __mul__ = numeric.apply(standard.mul)
-    __rmul__ = numeric.apply(standard.mul, 'reverse')
-    __truediv__ = numeric.apply(standard.truediv)
-    __rtruediv__ = numeric.apply(standard.truediv, 'reverse')
-    __pow__ = numeric.apply(pow)
-    __rpow__ = numeric.apply(pow, 'reverse')
-
-
-class MixedIn(Mixin, Base):
-    """A test class that uses mixin custom operators."""
+#     __int__ = cast.apply(int)
+#     __float__ = cast.apply(float)
+#     __lt__ = comparison.apply(standard.lt)
+#     __le__ = comparison.apply(standard.le)
+#     __gt__ = comparison.apply(standard.gt)
+#     __ge__ = comparison.apply(standard.ge)
+#     __eq__ = comparison.apply(standard.eq)
+#     __ne__ = comparison.apply(standard.ne)
+#     __abs__ = unary.apply(standard.abs)
+#     __pos__ = unary.apply(standard.pos)
+#     __neg__ = unary.apply(standard.neg)
+#     __ceil__ = unary.apply(math.ceil)
+#     __floor__ = unary.apply(math.floor)
+#     __trunc__ = unary.apply(math.trunc)
+#     __round__ = unary.apply(round)
+#     __add__ = numeric.apply(standard.add)
+#     __radd__ = numeric.apply(standard.add, 'reverse')
+#     __sub__ = numeric.apply(standard.sub)
+#     __rsub__ = numeric.apply(standard.sub, 'reverse')
+#     __mul__ = numeric.apply(standard.mul)
+#     __rmul__ = numeric.apply(standard.mul, 'reverse')
+#     __truediv__ = numeric.apply(standard.truediv)
+#     __rtruediv__ = numeric.apply(standard.truediv, 'reverse')
+#     __pow__ = numeric.apply(pow)
+#     __rpow__ = numeric.apply(pow, 'reverse')
 
 
-def test_cast_mixin():
-    """Test the use of the mixin cast operators."""
-    instances = build(MixedIn)
-    for builtin in CATEGORIES['cast']['operations'].values():
-        for instance in instances:
-            assert builtin(instance) == builtin(instance.value)
+# class MixedIn(Mixin, Base):
+#     """A test class that uses mixin custom operators."""
 
 
-def test_unary_mixin():
-    """Test the use of the mixin unary operators."""
-    instances = build(MixedIn)
-    for builtin in CATEGORIES['unary']['operations'].values():
-        for instance in instances:
-            expected = MixedIn(builtin(instance.value), instance.info)
-            assert builtin(instance) == expected
+# def test_cast_mixin():
+#     """Test the use of the mixin cast operators."""
+#     instances = build(MixedIn)
+#     for builtin in CATEGORIES['cast']['operations'].values():
+#         for instance in instances:
+#             assert builtin(instance) == builtin(instance.value)
 
 
-def test_comparison_mixin():
-    """Test the use of the mixin comparison operators."""
-    instances = build(MixedIn)
-    targets = instances[0], instances[1]
-    for builtin in CATEGORIES['comparison']['operations'].values():
-        assert builtin(*targets) == builtin(*[c.value for c in targets])
-        with pytest.raises(operations.OperandTypeError):
-            builtin(instances[0], instances[2])
+# def test_unary_mixin():
+#     """Test the use of the mixin unary operators."""
+#     instances = build(MixedIn)
+#     for builtin in CATEGORIES['unary']['operations'].values():
+#         for instance in instances:
+#             expected = MixedIn(builtin(instance.value), instance.info)
+#             assert builtin(instance) == expected
 
 
-def test_numeric_mixin():
-    """Test the use of the mixin numeric operators."""
-    instances = build(MixedIn)
-    targets = instances[0], instances[1]
-    for builtin in CATEGORIES['numeric']['operations'].values():
-        expected = MixedIn(
-            builtin(*[c.value for c in targets]),
-            targets[0].info,
-        )
-        assert builtin(*targets) == expected
-        with pytest.raises(operations.OperandTypeError):
-            builtin(instances[0], instances[2])
+# def test_comparison_mixin():
+#     """Test the use of the mixin comparison operators."""
+#     instances = build(MixedIn)
+#     targets = instances[0], instances[1]
+#     for builtin in CATEGORIES['comparison']['operations'].values():
+#         assert builtin(*targets) == builtin(*[c.value for c in targets])
+#         with pytest.raises(operations.OperandTypeError):
+#             builtin(instances[0], instances[2])
 
 
-rules = operations.Rules('value', 'info')
-
-cast = operations.Cast(rules)
-cast.rules.register(Base, 'value')
-
-comparison = operations.Comparison(rules)
-comparison.rules.register([Base, Base], 'value')
-
-unary = operations.Unary(rules)
-unary.rules.register(Base, 'value')
-
-numeric = operations.Numeric(rules)
-numeric.rules.register([Base, Base], 'value')
-
-
-class Defined(Base):
-    """A test class that defines custom operators."""
-
-    __int__ = cast.apply(int)
-    __float__ = cast.apply(float)
-    __lt__ = comparison.apply(standard.lt)
-    __le__ = comparison.apply(standard.le)
-    __gt__ = comparison.apply(standard.gt)
-    __ge__ = comparison.apply(standard.ge)
-    __eq__ = comparison.apply(standard.eq)
-    __ne__ = comparison.apply(standard.ne)
-    __abs__ = unary.apply(standard.abs)
-    __pos__ = unary.apply(standard.pos)
-    __neg__ = unary.apply(standard.neg)
-    __ceil__ = unary.apply(math.ceil)
-    __floor__ = unary.apply(math.floor)
-    __trunc__ = unary.apply(math.trunc)
-    __round__ = unary.apply(round)
-    __add__ = numeric.apply(standard.add)
-    __radd__ = numeric.apply(standard.add, 'reverse')
-    __sub__ = numeric.apply(standard.sub)
-    __rsub__ = numeric.apply(standard.sub, 'reverse')
-    __mul__ = numeric.apply(standard.mul)
-    __rmul__ = numeric.apply(standard.mul, 'reverse')
-    __truediv__ = numeric.apply(standard.truediv)
-    __rtruediv__ = numeric.apply(standard.truediv, 'reverse')
-    __pow__ = numeric.apply(pow)
-    __rpow__ = numeric.apply(pow, 'reverse')
+# def test_numeric_mixin():
+#     """Test the use of the mixin numeric operators."""
+#     instances = build(MixedIn)
+#     targets = instances[0], instances[1]
+#     for builtin in CATEGORIES['numeric']['operations'].values():
+#         expected = MixedIn(
+#             builtin(*[c.value for c in targets]),
+#             targets[0].info,
+#         )
+#         assert builtin(*targets) == expected
+#         with pytest.raises(operations.OperandTypeError):
+#             builtin(instances[0], instances[2])
 
 
-def test_cast_defined():
-    """Test the use of the defined cast operators."""
-    instances = build(Defined)
-    for builtin in CATEGORIES['cast']['operations'].values():
-        for instance in instances:
-            assert builtin(instance) == builtin(instance.value)
+# rules = operations.Rules('value', 'info')
+
+# cast = operations.Cast(rules)
+# cast.rules.register(Base, 'value')
+
+# comparison = operations.Comparison(rules)
+# comparison.rules.register([Base, Base], 'value')
+
+# unary = operations.Unary(rules)
+# unary.rules.register(Base, 'value')
+
+# numeric = operations.Numeric(rules)
+# numeric.rules.register([Base, Base], 'value')
 
 
-def test_unary_defined():
-    """Test the use of the defined unary operators."""
-    instances = build(Defined)
-    for builtin in CATEGORIES['unary']['operations'].values():
-        for instance in instances:
-            expected = Defined(builtin(instance.value), instance.info)
-            assert builtin(instance) == expected
+# class Defined(Base):
+#     """A test class that defines custom operators."""
+
+#     __int__ = cast.apply(int)
+#     __float__ = cast.apply(float)
+#     __lt__ = comparison.apply(standard.lt)
+#     __le__ = comparison.apply(standard.le)
+#     __gt__ = comparison.apply(standard.gt)
+#     __ge__ = comparison.apply(standard.ge)
+#     __eq__ = comparison.apply(standard.eq)
+#     __ne__ = comparison.apply(standard.ne)
+#     __abs__ = unary.apply(standard.abs)
+#     __pos__ = unary.apply(standard.pos)
+#     __neg__ = unary.apply(standard.neg)
+#     __ceil__ = unary.apply(math.ceil)
+#     __floor__ = unary.apply(math.floor)
+#     __trunc__ = unary.apply(math.trunc)
+#     __round__ = unary.apply(round)
+#     __add__ = numeric.apply(standard.add)
+#     __radd__ = numeric.apply(standard.add, 'reverse')
+#     __sub__ = numeric.apply(standard.sub)
+#     __rsub__ = numeric.apply(standard.sub, 'reverse')
+#     __mul__ = numeric.apply(standard.mul)
+#     __rmul__ = numeric.apply(standard.mul, 'reverse')
+#     __truediv__ = numeric.apply(standard.truediv)
+#     __rtruediv__ = numeric.apply(standard.truediv, 'reverse')
+#     __pow__ = numeric.apply(pow)
+#     __rpow__ = numeric.apply(pow, 'reverse')
 
 
-def test_comparison_defined():
-    """Test the use of the defined comparison operators."""
-    instances = build(Defined)
-    targets = instances[0], instances[1]
-    for builtin in CATEGORIES['comparison']['operations'].values():
-        assert builtin(*targets) == builtin(*[c.value for c in targets])
-        with pytest.raises(operations.OperandTypeError):
-            builtin(instances[0], instances[2])
+# def test_cast_defined():
+#     """Test the use of the defined cast operators."""
+#     instances = build(Defined)
+#     for builtin in CATEGORIES['cast']['operations'].values():
+#         for instance in instances:
+#             assert builtin(instance) == builtin(instance.value)
 
 
-def test_numeric_defined():
-    """Test the use of the defined numeric operators."""
-    instances = build(Defined)
-    targets = instances[0], instances[1]
-    for builtin in CATEGORIES['numeric']['operations'].values():
-        expected = Defined(
-            builtin(*[c.value for c in targets]),
-            targets[0].info,
-        )
-        assert builtin(*targets) == expected
-        with pytest.raises(operations.OperandTypeError):
-            builtin(instances[0], instances[2])
+# def test_unary_defined():
+#     """Test the use of the defined unary operators."""
+#     instances = build(Defined)
+#     for builtin in CATEGORIES['unary']['operations'].values():
+#         for instance in instances:
+#             expected = Defined(builtin(instance.value), instance.info)
+#             assert builtin(instance) == expected
+
+
+# def test_comparison_defined():
+#     """Test the use of the defined comparison operators."""
+#     instances = build(Defined)
+#     targets = instances[0], instances[1]
+#     for builtin in CATEGORIES['comparison']['operations'].values():
+#         assert builtin(*targets) == builtin(*[c.value for c in targets])
+#         with pytest.raises(operations.OperandTypeError):
+#             builtin(instances[0], instances[2])
+
+
+# def test_numeric_defined():
+#     """Test the use of the defined numeric operators."""
+#     instances = build(Defined)
+#     targets = instances[0], instances[1]
+#     for builtin in CATEGORIES['numeric']['operations'].values():
+#         expected = Defined(
+#             builtin(*[c.value for c in targets]),
+#             targets[0].info,
+#         )
+#         assert builtin(*targets) == expected
+#         with pytest.raises(operations.OperandTypeError):
+#             builtin(instances[0], instances[2])
 
