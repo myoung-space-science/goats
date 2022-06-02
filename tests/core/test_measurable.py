@@ -7,27 +7,35 @@ from goats.core import measurable
 from goats.core import operations
 
 
-class Quantified(measurable.OperatorMixin, measurable.Quantifiable):
-    """Concrete version of `~measurable.Quantifiable` for testing."""
+interface = operations.Interface('_amount', '_metric')
+Quantified = interface.subclass('Quantified', measurable.Quantifiable)
+"""A concrete version of `~measurable.Quantifiable` for testing."""
+
+interface = operations.Interface(
+    'data', 'unit',
+    default=[measurable.Quantity, 'data'],
+)
+rules = {
+    'numeric': [
+        (measurable.Quantity, measurable.Quantity),
+        (measurable.Quantity, measurable.Real, 'data'),
+        (measurable.Real, measurable.Quantity, 'data'),
+    ]
+}
+interface['numeric'].rules.register(*rules['numeric'])
+interface['__rtruediv__'].rules.suppress(measurable.Real, measurable.Quantity)
+interface['__pow__'].rules[measurable.Quantity, measurable.Real].append('unit')
+interface['__rpow__'].rules.suppress(measurable.Real, measurable.Quantity)
+interface['__pow__'].rules[measurable.Quantity, measurable.Quantity].suppress
+Quantity = interface.subclass(
+    'Quantity',
+    exclude=['cast', '__round__', '__ceil__', '__floor__', '__trunc__']
+)
+"""A concrete quantity for testing."""
 
 
-class Quantity(measurable.OperatorMixin, measurable.Quantity):
-    """Concrete quantity for testing."""
-
-
-class Scalar(Quantity):
-    """Concrete scalar quantity for testing."""
-
-    cast = Quantity.factory.cast
-    cast.rules.register(Quantity, 'data')
-    __int__ = cast.apply(int)
-    __float__ = cast.apply(float)
-
-    unary = Quantity.unary
-    __round__ = unary.apply(round)
-    __ceil__ = unary.apply(math.ceil)
-    __floor__ = unary.apply(math.floor)
-    __trunc__ = unary.apply(math.trunc)
+Scalar = interface.subclass('Scalar')
+"""A concrete scalar quantity for testing."""
 
 
 @pytest.mark.quantity

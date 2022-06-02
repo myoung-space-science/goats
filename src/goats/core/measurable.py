@@ -206,6 +206,8 @@ class Quantity(Quantifiable):
         return self
 
 
+# TODO: Figure out what to do with this now that `operations.augment` creates
+# the required class. We should at least save the docstring.
 class OperatorMixin:
     """A mixin class that defines operators for quantifiable objects.
     
@@ -230,46 +232,6 @@ class OperatorMixin:
           ``[0.2, 0.1]``) or a single value (e.g., ``2.0 / ||d||``) and it is
           not at all obvious what the unit or dimensions should be.
     """
-
-    factory = operations.Interface('data', 'unit')
-
-    unary = factory.unary
-    unary.rules.register(Quantity, 'data')
-    __abs__ = unary.apply(standard.abs)
-    __pos__ = unary.apply(standard.pos)
-    __neg__ = unary.apply(standard.neg)
-
-    comparison = factory.comparison
-    comparison.rules.register([Quantity, Quantity], 'data')
-    comparison.rules.register([Quantity, Real], 'data')
-    comparison.rules.register([Real, Quantity], 'data')
-    __lt__ = comparison.apply(standard.lt)
-    __le__ = comparison.apply(standard.le)
-    __gt__ = comparison.apply(standard.gt)
-    __ge__ = comparison.apply(standard.ge)
-    __eq__ = comparison.apply(standard.eq)
-    __ne__ = comparison.apply(standard.ne)
-
-    numeric = factory.numeric
-    numeric.rules.register([Quantity, Quantity])
-    numeric.rules.register([Quantity, Real], 'data')
-    numeric.rules.register([Real, Quantity], 'data')
-    __add__ = numeric.apply(standard.add)
-    __radd__ = numeric.apply(standard.add, 'reverse')
-    __sub__ = numeric.apply(standard.sub)
-    __rsub__ = numeric.apply(standard.sub, 'reverse')
-    __mul__ = numeric.apply(standard.mul)
-    __rmul__ = numeric.apply(standard.mul, 'reverse')
-    _truediv = numeric.spawn()
-    _truediv.rules.suppress([Real, Quantity])
-    __truediv__ = _truediv.apply(standard.truediv)
-    __rtruediv__ = _truediv.apply(standard.truediv, 'reverse')
-    _pow = numeric.spawn()
-    _pow.rules.modify([Quantity, Real])
-    _pow.rules.suppress([Real, Quantity])
-    _pow.rules.suppress([Quantity, Quantity])
-    __pow__ = _pow.apply(pow)
-    __rpow__ = _pow.apply(pow, 'reverse')
 
 
 class Scalar(Quantity):
