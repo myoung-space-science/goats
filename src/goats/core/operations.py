@@ -588,7 +588,10 @@ class Operation:
                 return self.method(*args, **kwargs)
             except RecursionError as err:
                 raise OperationError(
-                    f"Caught {err!r} when attempting to implement {self.method!r}. This may be because one of the operands uses {self!r} to implement {self.method!r} without explicit knowledge of the updatable attributes."
+                    f"Caught {err!r} when attempting to implement"
+                    f" {self.method!r}. This may be because one of the"
+                    f" operands uses {self!r} to implement {self.method!r}"
+                    " without explicit knowledge of the updatable attributes."
                 ) from err
         operands = Operands(*args, reference=reference)
         fixed = tuple(set(self.rules.parameters) - set(rule.parameters))
