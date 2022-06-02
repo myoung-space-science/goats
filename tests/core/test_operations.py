@@ -43,19 +43,20 @@ def test_rules_update_rule():
     """Test the ability to dynamically update a rule in Rules."""
     rules = operations.Rules()
     rules.register([float, float], 'd', 'e', 'f')
-    assert sorted(rules[(float, float)].parameters) == sorted(['d', 'e', 'f'])
-    rules[(float, float)].update('a', 'b')
-    assert sorted(rules[(float, float)].parameters) == sorted(['a', 'b'])
-    rules[(float, float)].append('c')
-    assert sorted(rules[(float, float)].parameters) == sorted(['a', 'b', 'c'])
-    rules[(float, float)].restrict('a', 'b')
-    assert sorted(rules[(float, float)].parameters) == sorted(['a', 'b'])
+    rule = rules[(float, float)]
+    assert sorted(rule.parameters) == sorted(['d', 'e', 'f'])
+    rule.update('a', 'b')
+    assert sorted(rule.parameters) == sorted(['a', 'b'])
+    rule.append('c')
+    assert sorted(rule.parameters) == sorted(['a', 'b', 'c'])
+    rule.restrict('a', 'b')
+    assert sorted(rule.parameters) == sorted(['a', 'b'])
     with pytest.raises(ValueError):
-        rules[(float, float)].restrict('a', 'd')
-    rules[(float, float)].remove('a')
-    assert rules[(float, float)].parameters == ['b']
-    rules[(float, float)].suppress
-    assert not rules[(float, float)].implemented
+        rule.restrict('a', 'd')
+    rule.remove('a')
+    assert rule.parameters == ['b']
+    rule.suppress
+    assert not rule.implemented
 
 
 def test_rules_copy():
