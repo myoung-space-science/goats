@@ -394,10 +394,6 @@ class Rules(_RulesType):
         ------
         KeyError
             There is already a rule in the collection corresponding to `types`.
-
-        See Also
-        --------
-        `~modify`: Update, restrict, or remove an existing rule's parameters.
         """
         key = tuple(iterables.whole(types))
         ntypes = len(key)
