@@ -378,40 +378,48 @@ class Rules(_RulesType):
             parameters = self._implied or self.parameters
             return Rule(*parameters.copy())
 
-    def suppress(self, types: Types):
+    def suppress(self, *types: type):
         """Suppress a rule, even if it doesn't exist.
         
         Parameters
         ----------
-        types : type or tuple of types
+        *types : type
             The argument type(s) in the target rule.
         """
+        if not types:
+            raise ValueError(
+                "Can't suppress rule with unknown types"
+            ) from None
         if types not in self:
-            self.register(types)
+            self.register(*types)
         self[types].suppress
         return self
 
-    def register(self, types: Types, *parameters: typing.Optional[str]):
+    def register(self, *properties):
         """Add a rule to the collection.
         
         Parameters
         ----------
-        types : type or tuple of types
-            The argument type(s) in the target rule.
-
-        *parameters : str
-            Zero or more parameters to update based on `types`.
+        *properties
+            One or more operand type(s) that define the target rule, followed by
+            zero or more parameters to update when operating on those types.
 
         Raises
         ------
         KeyError
             There is already a rule in the collection corresponding to `types`.
         """
-        key = tuple(iterables.whole(types))
-        ntypes = len(key)
+        args = list(properties)
+        types = tuple(arg for arg in args if isinstance(arg, type))
+        if not types:
+            raise ValueError(
+                "Can't register rule with unknown types"
+            ) from None
+        parameters = tuple(arg for arg in args if not isinstance(arg, type))
+        ntypes = len(types)
         self._check_ntypes(ntypes)
-        if key not in self._mapping:
-            self._mapping[key] = Rule(*self._resolve(*parameters))
+        if types not in self._mapping:
+            self._mapping[types] = Rule(*self._resolve(*parameters))
             return self
         raise KeyError(f"{types!r} is already in the collection") from None
 

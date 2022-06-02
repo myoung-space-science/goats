@@ -27,13 +27,13 @@ def test_rules_register():
     rules = operations.Rules(*default)
     assert not rules
     assert rules.ntypes is None
-    rules.register([int, float], 'a', 'b')
+    rules.register(int, float, 'a', 'b')
     assert rules
     assert rules.ntypes == 2
     assert rules[(int, float)].parameters == ['a', 'b']
-    rules.register([float, float])
+    rules.register(float, float)
     assert rules[(float, float)].parameters == default
-    rules.register([int, int], None)
+    rules.register(int, int, None)
     assert not rules[(int, int)].parameters
     with pytest.raises(operations.NTypesError):
         rules.register(int, 'a')
@@ -42,7 +42,7 @@ def test_rules_register():
 def test_rules_update_rule():
     """Test the ability to dynamically update a rule in Rules."""
     rules = operations.Rules()
-    rules.register([float, float], 'd', 'e', 'f')
+    rules.register(float, float, 'd', 'e', 'f')
     rule = rules[(float, float)]
     assert sorted(rule.parameters) == sorted(['d', 'e', 'f'])
     rule.update('a', 'b')
@@ -62,14 +62,14 @@ def test_rules_update_rule():
 def test_rules_suppress():
     """Allow the user to suppress a rule with or without registering it."""
     rules = operations.Rules()
-    rules.register([float, float], 'd', 'e', 'f')
+    rules.register(float, float, 'd', 'e', 'f')
     assert rules[float, float].implemented
-    rules.suppress([float, float])
+    rules.suppress(float, float)
     assert not rules[float, float].implemented
     with pytest.raises(KeyError):
-        rules[(float, int)]
-    rules.suppress([float, int])
-    assert not rules[(float, int)].implemented
+        rules[float, int]
+    rules.suppress(float, int)
+    assert not rules[float, int].implemented
 
 
 def test_rules_copy():
@@ -140,7 +140,7 @@ def test_rules_implicit():
     assert len(rules) == 0
     assert rules[Base, Base].parameters == ['a']
     assert rules[Base, float].parameters == ['a']
-    rules.register([Base, Base], 'b')
+    rules.register(Base, Base, 'b')
     assert len(rules) == 1
     assert rules[Base, Base].parameters == ['b']
     assert rules[Base, float].parameters == ['a']
@@ -338,7 +338,7 @@ def test_comparison_custom():
     operator = operation.apply(builtin)
     with pytest.raises(TypeError):
         operator(instances[0], instances[1])
-    operation.rules.register([Base, Base], 'value')
+    operation.rules.register(Base, Base, 'value')
     operator = operation.apply(builtin)
     assert operator(instances[0], instances[1])
     assert not operator(instances[1], instances[0])
@@ -373,7 +373,7 @@ def test_numeric_custom():
     operator = operation.apply(builtin)
     with pytest.raises(TypeError):
         operator(instances[0], instances[1])
-    operation.rules.register([Base, Base], 'value')
+    operation.rules.register(Base, Base, 'value')
     operator = operation.apply(builtin)
     expected = Base(
         builtin(instances[0].value, instances[1].value),
@@ -515,7 +515,8 @@ def test_interface_categories(interface: operations.Interface):
         category = interface[name]
         assert isinstance(category, current['context'])
         assert len(category.rules) == 0
-        category.rules.register([Base] * current['ntypes'], 'value')
+        types = [Base] * current['ntypes']
+        category.rules.register(*types, 'value')
         assert len(category.rules) == 1
     assert interface['cast'].rules[Base].parameters == ['value']
     assert interface['unary'].rules[Base].parameters == ['value']
@@ -529,7 +530,7 @@ def test_interface_operations(interface: operations.Interface):
     assert add is interface['add']
     assert add is interface['__add__']
     assert add.rules == interface['numeric'].rules
-    add.rules.register([Base, float], 'value')
+    add.rules.register(Base, float, 'value')
     assert interface['numeric'].rules[Base, Base].parameters == ['value']
     assert len(interface['add'].rules) == 1
     assert interface['add'].rules[Base, float].parameters == ['value']
@@ -541,7 +542,7 @@ def test_interface_operations(interface: operations.Interface):
 
 def test_interface_update_rule(interface: operations.Interface):
     """Make sure we can independently update rules."""
-    interface['numeric'].rules.register([Base, float], 'value')
+    interface['numeric'].rules.register(Base, float, 'value')
     assert interface['add'].rules[(Base, float)].implemented
     interface['__add__'].rules[(Base, float)].suppress
     assert not interface['add'].rules[(Base, float)].implemented
