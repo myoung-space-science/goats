@@ -437,7 +437,8 @@ class Rules(_RulesType):
 
     def __contains__(self, __o: Types) -> bool:
         """True if there is an explicit rule for these types."""
-        return __o in self._mapping
+        key = tuple(iterables.whole(__o))
+        return key in self._mapping
 
     def __getitem__(self, __k: Types):
         """Retrieve the operand-update rule for `types`."""
