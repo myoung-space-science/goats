@@ -69,7 +69,7 @@ def test_rules_suppress():
     rules.register([float, float])
     assert rules[(float, float)].parameters == rules.parameters
     rules.suppress([float, float])
-    assert rules[(float, float)].parameters == []
+    assert not rules[(float, float)].implemented
 
 
 def test_rules_copy():

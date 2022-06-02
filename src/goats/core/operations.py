@@ -122,8 +122,8 @@ class Rule(iterables.ReprStrMixin):
 
     @property
     def implemented(self):
-        """True if this rule's set of parameters is not ``None``."""
-        return not (len(self.parameters) == 1 and self.parameters[0] is None)
+        """True if this rule's set of parameters is not empty."""
+        return bool(self.parameters)
 
     @property
     def parameters(self):
@@ -509,16 +509,6 @@ class Rules(_RulesType):
         parameters = self.mapping.get(types, self.parameters.copy())
         return Rule(*parameters)
 
-    def get(self, __types: Types, default: Rule=None):
-        """Get the rule for these types, or a default rule.
-        
-        This method behaves like ``~typing.Mapping.get`` with a modified default
-        value: Instead of returning ``None`` when key-based look-up fails (i.e.,
-        there is no rule for the given types), this method returns a rule with
-        no constraints for the given types.
-        """
-        return super().get(__types, default or Rule())
-
     def copy(self, implicit: bool=True):
         """Create a shallow copy of this instance.
         
@@ -577,9 +567,7 @@ class Operation:
     def compute(self, *args, reference=None, target=None, **kwargs):
         """Evaluate arguments within this operational context."""
         rule = self.get_rule(*args)
-        if not rule.implemented:
-            return NotImplemented
-        if not rule.parameters:
+        if rule is None:
             # We don't know which arguments to operate on, so we hand execution
             # over to the given operands, in case they implement this operator
             # in their class definitions. Note that this will lead to recursion
@@ -593,6 +581,8 @@ class Operation:
                     f" operands uses {self!r} to implement {self.method!r}"
                     " without explicit knowledge of the updatable attributes."
                 ) from err
+        if not rule.implemented:
+            return NotImplemented
         operands = Operands(*args, reference=reference)
         fixed = tuple(set(self.rules.parameters) - set(rule.parameters))
         if not operands.agree(*fixed):
