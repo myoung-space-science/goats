@@ -1089,19 +1089,50 @@ class Interface(collections.abc.Mapping):
         """Iterate over operation contexts."""
         return iter(self.operations)
 
-    def mixin(self):
-        """Generate a mixin operator class from the current state."""
-        ops = {
-            f'__{k}__': self[k].apply(v['default'])
-            for k, v in OPERATIONS.items()
-        }
-        reflected = {
-            f'__r{k}__': self[k].apply(v['default'], 'reverse')
-            for k, v in OPERATIONS.items()
-            if v['category'] == 'numeric'
-        }
-        ops.update(reflected)
-        return type('OperatorsMixin', (), ops)
+    def subclass(
+        self,
+        __name: str,
+        *bases: type,
+        include: typing.Iterable[str]=None,
+        exclude: typing.Iterable[str]=None,
+    ) -> typing.Type:
+        """Generate a subclass with mixin operators from the current state.
+        
+        Parameters
+        ----------
+        __name : str
+            The name of the new subclass.
+
+        *bases : type
+            Zero or more base classes from which the new subclass will inherit.
+            This method will append `bases` to the default type if one was
+            passed during initialization, so that the default type will appear
+            with in the subclass's MRO.
+
+        include : iterable of strings, optional
+            Names of operators or operation categories to exlicitly implement in
+            the new subclass.
+
+        exclude : iterable of strings, optional
+            Names of operators or operation categories to exlicitly not
+            implement in the new subclass.
+        """
+        included = set(OPERATORS) if include is None else set()
+        for name in include or []:
+            if name in NAMES:
+                included.update(set(NAMES[name]))
+            else:
+                included.update({name})
+        for name in exclude or []:
+            if name in NAMES:
+                included.difference_update(set(NAMES[name]))
+            else:
+                included.difference_update({name})
+        operators = {k: self.implement(k) for k in included}
+        parents = tuple(bases)
+        if self.rules._type is not None:
+            parents = (self.rules._type,) + parents
+        return type(__name, parents, operators)
 
     @property
     def operations(self) -> typing.Dict[str, Context]:
@@ -1120,50 +1151,4 @@ class Interface(collections.abc.Mapping):
             for k, v in OPERATORS.items()
         }
         return {**self.categories, **operations}
-
-def augment(
-    target: type,
-    name: str,
-    interface: Interface=None,
-    include: typing.Iterable[str]=None,
-    exclude: typing.Iterable[str]=None,
-) -> typing.Type:
-    """Create a subclass of `target` with mixin operators.
-    
-    Parameters
-    ----------
-    target : type
-        The parent type to use as a base class when creating the new class.
-
-    interface : `~operations.Interface`, optional
-        An instance of the class that provides dynamic access to operation
-        contexts. If ``None`` (the default), this function will create a plain
-        instance with the default type set to `target`.
-    """
-    if not interface:
-        interface = Interface(default=[target])
-    # User should be able to include or exclude
-    # - cast, unary, or comparison categories
-    # - entire numeric category or any of forward, reverse, or inplace
-    # - individual operation or operator names (i.e., with or without double
-    #   underscores)
-    # - logical combinations of the above (e.g., all cast and all unary except
-    #   abs)
-
-    included = set(OPERATORS) if include is None else set()
-    for s in include or []:
-        if s in NAMES:
-            included.update(set(NAMES[s]))
-        else:
-            included.update({s})
-    for s in exclude or []:
-        if s in NAMES:
-            included.difference_update(set(NAMES[s]))
-        else:
-            included.difference_update({s})
-    operators = {
-        k: interface.implement(k)
-        for k in included
-    }
-    return type(name, (target,), operators)
 

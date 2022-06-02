@@ -530,9 +530,12 @@ def test_interface_operations(interface: operations.Interface):
             assert isinstance(interface[k], context)
 
 
-def test_augment(interface: operations.Interface, method_names: dict):
-    """Test the function that creates a subclass with mixin operators."""
-    New = operations.augment(Base, 'New', interface=interface)
+def test_interface_subclass(
+    interface: operations.Interface,
+    method_names: dict,
+) -> None:
+    """Test the ability to generate subclasses from interface methods."""
+    New = interface.subclass('New')
     assert issubclass(New, Base)
     c0 = New(1.2, 'this')
     c1 = New(2.1, 'this')
@@ -544,43 +547,6 @@ def test_augment(interface: operations.Interface, method_names: dict):
     assert c0 < c1
     # Check a binary numeric operation.
     assert c0 + c1 == New(3.3, 'this')
-    def check(target, *included):
-        listing = dir(target)
-        excluded = set(method_names['all']) - set(included)
-        # This is not a very good test because creating a new class via `type`
-        # apparently adds some methods (e.g., `__lt__`) by default. I think a
-        # better way to test this is to define expected return values, included
-        # `NotImplemented` for excluded operations.
-        assert all(name in listing for name in included)
-        assert not any(name in listing for name in excluded)
-    check(New, *method_names['all'])
-    New = operations.augment(
-        Base,
-        'New',
-        interface=interface,
-        exclude=['reverse'],
-    )
-    check(New, *list(set(method_names['all']) - set(method_names['reverse'])))
-    New = operations.augment(
-        Base,
-        'New',
-        interface=interface,
-        exclude=['cast'],
-    )
-    check(New, *list(set(method_names['all']) - set(method_names['cast'])))
-    New = operations.augment(
-        Base,
-        'New',
-        interface=interface,
-        exclude=['unary'],
-    )
-    check(New, *list(set(method_names['all']) - set(method_names['unary'])))
-    New = operations.augment(
-        Base,
-        'New',
-        interface=interface,
-        include=['unary'],
-        exclude=['__neg__']
-    )
-    check(New, *list(set(method_names['unary']) - {'__neg__'}))
+    # Make sure the default case defines all methods.
+    assert all(name in dir(New) for name in method_names['all'])
 
