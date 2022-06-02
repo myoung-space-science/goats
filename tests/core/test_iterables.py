@@ -53,6 +53,13 @@ def test_unwrap():
     cases = [[3], (3,), [[3]], [(3,)], ([3],), ((3,),)]
     for case in cases:
         assert iterables.unwrap(case) == 3
+    for case in [[3], [[3]], (3,), [(3,)]]:
+        assert iterables.unwrap(case, wrap=list) == [3]
+        assert iterables.unwrap(case, wrap=tuple) == (3,)
+        assert isinstance(iterables.unwrap(case, wrap=iter), typing.Iterator)
+    for case in [[3, 4], (3, 4), [(3, 4)], ([3, 4])]:
+        assert iterables.unwrap(case, wrap=list) == [3, 4]
+        assert iterables.unwrap(case, wrap=tuple) == (3, 4)
 
 
 def test_naked():

@@ -22,23 +22,30 @@ def unique(target: typing.Container, options: typing.Iterable):
 T = typing.TypeVar('T')
 def unwrap(
     obj: typing.Union[T, typing.Iterable],
+    wrap: type=None,
 ) -> typing.Union[T, list, tuple]:
     """Remove redundant outer lists and tuples.
 
-    This function will strip away enclosing instances of `list` or `tuple`, as
-    long as they contain a single item, until it finds an object of a different
-    type or an empty `list` or `tuple`.
+    This function will strip away enclosing instances of ``list`` or ``tuple``,
+    as long as they contain a single item, until it finds an object of a
+    different type, a ``list`` or ``tuple`` containing multiple items, or an
+    empty ``list`` or ``tuple``.
 
     Parameters
     ----------
     obj : Any
         The object to "unwrap".
 
+    wrap : type
+        An iterable type into which to store the result. Specifying this allows
+        the caller to ensure that the result is an iterable object after
+        unwrapping interior iterables.
+
     Returns
     -------
     Any
-        The element enclosed in multiple instances of `list` or `tuple`, or an
-        empty `list` or `tuple`.
+        The element enclosed in multiple instances of ``list`` or ``tuple``, or
+        a (possibly empty) ``list`` or ``tuple``.
 
     Examples
     --------
@@ -60,6 +67,17 @@ def unwrap(
     >>> iterables.unwrap('string')
     'string'
 
+    Passing a type to `wrap` ensures a result of that type:
+
+    >>> iterables.unwrap(42, wrap=tuple)
+    (42,)
+    >>> iterables.unwrap(42, wrap=list)
+    [42]
+    >>> iterables.unwrap([42], wrap=list)
+    [42]
+    >>> iterables.unwrap(([(42,)],), wrap=list)
+    [42]
+
     It works with multiple wrapped elements:
 
     >>> iterables.unwrap([1, 2])
@@ -71,7 +89,7 @@ def unwrap(
     >>> iterables.unwrap([['one', 'two']])
     ['one', 'two']
 
-    It stops at an empty `list` or `tuple`:
+    It stops at an empty ``list`` or ``tuple``:
 
     >>> iterables.unwrap([])
     []
@@ -85,11 +103,15 @@ def unwrap(
     []
     >>> iterables.unwrap([()])
     ()
+    >>> iterables.unwrap([], wrap=tuple)
+    ()
     """
     seed = [obj]
     wrapped = (list, tuple)
     while isinstance(seed, wrapped) and len(seed) == 1:
         seed = seed[0]
+    if wrap is not None:
+        return wrap(whole(seed))
     return seed
 
 
