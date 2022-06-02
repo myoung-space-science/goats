@@ -1103,7 +1103,7 @@ class Interface(collections.abc.Mapping):
         __name : str
             The name of the new subclass.
 
-        *bases : type
+        *bases : types or iterable of types
             Zero or more base classes from which the new subclass will inherit.
             This method will append `bases` to the default type if one was
             passed during initialization, so that the default type will appear
@@ -1129,7 +1129,8 @@ class Interface(collections.abc.Mapping):
             else:
                 included.difference_update({name})
         operators = {k: self.implement(k) for k in included}
-        parents = tuple(bases)
+        unwrapped = iterables.unwrap(bases)
+        parents = tuple(iterables.whole(unwrapped))
         if self.rules._type is not None:
             parents = (self.rules._type,) + parents
         return type(__name, parents, operators)
