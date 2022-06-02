@@ -584,24 +584,3 @@ def test_augment(interface: operations.Interface, method_names: dict):
     )
     check(New, *list(set(method_names['unary']) - {'__neg__'}))
 
-
-def check_method_names(
-    method_names: dict,
-    target,
-    categories=None,
-    operators=None,
-) -> None:
-    """Helper for asserting existence of defined operators."""
-    listing = dir(target)
-    all_names = [
-        name for category in method_names.values()
-        for name in category
-    ]
-    included = [
-        name for category in categories or []
-        for name in method_names.get(category, [])
-    ] + [name for name in operators or []]
-    excluded = set(all_names) - set(included)
-    assert all(name in listing for name in included)
-    assert not any(name in listing for name in excluded)
-
