@@ -1129,8 +1129,7 @@ class Interface(collections.abc.Mapping):
             else:
                 included.difference_update({name})
         operators = {k: self.implement(k) for k in included}
-        unwrapped = iterables.unwrap(bases)
-        parents = tuple(iterables.whole(unwrapped))
+        parents = iterables.unwrap(bases, wrap=tuple)
         if self.rules._type is not None:
             parents = (self.rules._type,) + parents
         return type(__name, parents, operators)
