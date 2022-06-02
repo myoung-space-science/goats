@@ -113,16 +113,46 @@ class Rule(iterables.ReprStrMixin):
     """A correspondence between operand types and affected parameters."""
 
     def __init__(self, *parameters: str) -> None:
-        self._parameters = parameters
+        self._parameters = list(parameters)
 
-    def ignore(self, *parameters: str):
-        """Ignore these parameters when updating operands."""
-        self._parameters = set(self.parameters) - set(parameters)
+    def update(self, *parameters: str):
+        """Unconditionally change the parameters for this rule."""
+        self._parameters = list(parameters)
+        return self
+
+    def append(self, *parameters: str):
+        """Add the given parameters to the end of the rule."""
+        self._parameters.extend(parameters)
+        return self
+
+    def restrict(self, *parameters: str):
+        """Restrict the existing parameters in this rule."""
+        for parameter in parameters:
+            if parameter not in self.parameters:
+                raise ValueError(
+                    f"Can't restrict rule with new parameter {parameter}"
+                ) from None
+        self._parameters = list(parameters)
+        return self
+
+    def remove(self, *parameters: str):
+        """Remove the given parameters from this rule."""
+        self._parameters = list(set(self.parameters) - set(parameters))
+        return self
+
+    @property
+    def suppress(self):
+        """Suppress this rule.
+        
+        Invoking this property will signal to operations that they should not
+        implement the operator for these operand types.
+        """
+        self._parameters = []
         return self
 
     @property
     def implemented(self):
-        """True if this rule's set of parameters is not empty."""
+        """True if this rule contains updatable parameters."""
         return bool(self.parameters)
 
     @property
@@ -162,18 +192,6 @@ class Rule(iterables.ReprStrMixin):
     def __bool__(self) -> bool:
         """True if this rule is implemented."""
         return self.implemented
-
-    # Consider letting this return `Suppressed` (see above).
-    @property
-    def suppress(self):
-        """Suppress this operand rule.
-        
-        Invoking this property will signal to operation implementations that
-        they should not implement the operator for these operand types.
-        """
-        self._parameters = None
-        self.implemented = False
-        return self
 
     def __str__(self) -> str:
         return str(self.parameters)
@@ -338,6 +356,7 @@ class Rules(_RulesType):
         self._type = None
         self._implied = []
         self._rulemap = None
+        self._cache = {}
 
     def _parse(self, *default):
         """Parse initialization arguments."""
@@ -387,62 +406,6 @@ class Rules(_RulesType):
             self.mapping[key] = self._resolve(*parameters)
             return self
         raise KeyError(f"{types!r} is already in the collection") from None
-
-    def suppress(self, types: Types):
-        """Suppress the rule for these types."""
-        self.modify(types, None)
-
-    def modify(self, types: Types, *parameters: str, mode: str='update'):
-        """Modify the parameters of an existing rule.
-        
-        Parameters
-        ----------
-        types : type or tuple of types
-            The argument type(s) in the target rule.
-
-        *parameters : str
-            Zero or more parameters with which to modify the rule. The use of
-            the given parameters depends on `mode`.
-
-        mode : {'update', 'restrict', 'remove'}
-            How to handle the given parameters::
-        - update (default): Replace the existing parameters with the given
-          parameters.
-        - restrict: Restrict the target rule's parameters to the given
-          parameters, and raise an exception if a parameter is not in the rule.
-        - remove: Remove the given parameters from the target rule's parameters.
-
-        Raises
-        ------
-        KeyError
-            There is not an existing rule corresponding to `types`.
-
-        See Also
-        --------
-        `~register`: Create a rule for `types`.
-        """
-        key = tuple(iterables.whole(types))
-        if key not in self:
-            if self._type not in key:
-                raise KeyError(f"Rule for {types!r} does not exist") from None
-            self.register(types)
-        if mode == 'update':
-            new = parameters
-        elif mode == 'restrict':
-            rule = self[key]
-            for parameter in parameters:
-                if parameter not in rule.parameters:
-                    raise ValueError(
-                        "Can't restrict rule with new parameter"
-                        f" {parameter}"
-                    ) from None
-            new = parameters
-        elif mode == 'remove':
-            rule = self[key]
-            new = set(rule.parameters) - set(parameters)
-        else:
-            raise ValueError(f"Unknown mode {mode!r}")
-        self.mapping[key] = self._resolve(*new)
 
     def _resolve(self, *parameters) -> typing.List[str]:
         """Determine the affected parameters based on input."""
@@ -506,8 +469,12 @@ class Rules(_RulesType):
 
     def _from(self, types: Types):
         """Build a rule from the given types."""
+        if types in self._cache:
+            return self._cache[types]
         parameters = self.mapping.get(types, self.parameters.copy())
-        return Rule(*parameters)
+        rule = Rule(*parameters)
+        self._cache[types] = rule
+        return rule
 
     def copy(self, implicit: bool=True):
         """Create a shallow copy of this instance.

@@ -21,14 +21,6 @@ def test_rule_contains():
         assert name in rule
 
 
-def test_rule_ignore():
-    """Allow a rule to ignore certain parameters."""
-    rule = operations.Rule('a', 'b', 'c')
-    assert rule.parameters == ['a', 'b', 'c']
-    rule.ignore('b')
-    assert sorted(rule.parameters) == sorted(['a', 'c'])
-
-
 def test_rules_register():
     """Test the ability to register operand rules."""
     default = ['a', 'b', 'c']
@@ -47,28 +39,22 @@ def test_rules_register():
         rules.register(int, 'a')
 
 
-def test_rules_modify():
-    """Test the ability to modify parameters in a rule."""
+def test_rules_update_rule():
+    """Test the ability to dynamically update a rule in Rules."""
     rules = operations.Rules()
     rules.register([float, float], 'd', 'e', 'f')
     assert sorted(rules[(float, float)].parameters) == sorted(['d', 'e', 'f'])
-    rules.modify([float, float], 'a', 'b', 'c')
-    assert sorted(rules[(float, float)].parameters) == sorted(['a', 'b', 'c'])
-    rules.modify([float, float], 'a', 'b', mode='restrict')
+    rules[(float, float)].update('a', 'b')
     assert sorted(rules[(float, float)].parameters) == sorted(['a', 'b'])
-    rules.modify([float, float], 'a', mode='remove')
-    assert rules[(float, float)].parameters == ['b']
+    rules[(float, float)].append('c')
+    assert sorted(rules[(float, float)].parameters) == sorted(['a', 'b', 'c'])
+    rules[(float, float)].restrict('a', 'b')
+    assert sorted(rules[(float, float)].parameters) == sorted(['a', 'b'])
     with pytest.raises(ValueError):
-        rules.modify([float, float], 'a', mode='restrict')
-
-
-def test_rules_suppress():
-    """Test the ability to suppress a given rule."""
-    default = ['a', 'b', 'c']
-    rules = operations.Rules(*default)
-    rules.register([float, float])
-    assert rules[(float, float)].parameters == rules.parameters
-    rules.suppress([float, float])
+        rules[(float, float)].restrict('a', 'd')
+    rules[(float, float)].remove('a')
+    assert rules[(float, float)].parameters == ['b']
+    rules[(float, float)].suppress
     assert not rules[(float, float)].implemented
 
 
