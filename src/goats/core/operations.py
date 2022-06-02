@@ -378,6 +378,19 @@ class Rules(_RulesType):
             parameters = self._implied or self.parameters
             return Rule(*parameters.copy())
 
+    def suppress(self, types: Types):
+        """Suppress a rule, even if it doesn't exist.
+        
+        Parameters
+        ----------
+        types : type or tuple of types
+            The argument type(s) in the target rule.
+        """
+        if types not in self:
+            self.register(types)
+        self[types].suppress
+        return self
+
     def register(self, types: Types, *parameters: typing.Optional[str]):
         """Add a rule to the collection.
         

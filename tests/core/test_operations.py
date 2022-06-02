@@ -59,6 +59,19 @@ def test_rules_update_rule():
     assert not rule.implemented
 
 
+def test_rules_suppress():
+    """Allow the user to suppress a rule with or without registering it."""
+    rules = operations.Rules()
+    rules.register([float, float], 'd', 'e', 'f')
+    assert rules[float, float].implemented
+    rules.suppress([float, float])
+    assert not rules[float, float].implemented
+    with pytest.raises(KeyError):
+        rules[(float, int)]
+    rules.suppress([float, int])
+    assert not rules[(float, int)].implemented
+
+
 def test_rules_copy():
     """Test the ability to copy an instance."""
     default = ['a', 'b', 'c']
