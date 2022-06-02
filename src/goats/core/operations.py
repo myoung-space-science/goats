@@ -355,8 +355,7 @@ class Rules(_RulesType):
         """The number of argument types in these rules."""
         self._type = None
         self._implied = []
-        self._rulemap = None
-        self._cache = {}
+        self._mapping = {}
 
     def _parse(self, *default):
         """Parse initialization arguments."""
@@ -398,8 +397,8 @@ class Rules(_RulesType):
         key = tuple(iterables.whole(types))
         ntypes = len(key)
         self._check_ntypes(ntypes)
-        if key not in self.mapping:
-            self.mapping[key] = self._resolve(*parameters)
+        if key not in self._mapping:
+            self._mapping[key] = Rule(*self._resolve(*parameters))
             return self
         raise KeyError(f"{types!r} is already in the collection") from None
 
@@ -410,13 +409,6 @@ class Rules(_RulesType):
         if not parameters:
             return self.parameters.copy()
         return list(parameters)
-
-    @property
-    def mapping(self) -> typing.Dict[Types, Parameters]:
-        """The current mapping from types to affected parameters."""
-        if self._rulemap is None:
-            self._rulemap = {}
-        return self._rulemap
 
     def _check_ntypes(self, ntypes: int):
         """Helper for enforcing consistency in number of types.
@@ -437,25 +429,24 @@ class Rules(_RulesType):
 
     def __len__(self) -> int:
         """Returns the number of rules. Called for len(self)."""
-        return len(self.mapping)
+        return len(self._mapping)
 
     def __iter__(self) -> typing.Iterator[Rule]:
         """Iterate over rules. Called for iter(self)."""
-        for types in self.mapping:
-            yield (types, Rule(*self.mapping[types]))
+        return iter(self._mapping)
 
     def __contains__(self, __o: Types) -> bool:
         """True if there is an explicit rule for these types."""
-        return __o in self.mapping
+        return __o in self._mapping
 
     def __getitem__(self, __k: Types):
         """Retrieve the operand-update rule for `types`."""
         types = tuple(iterables.whole(__k))
-        if types in self.mapping:
-            return self._from(types)
-        for t in self.mapping:
+        if types in self._mapping:
+            return self._mapping[types]
+        for t in self._mapping:
             if all(issubclass(i, j) for i, j in zip(types, t)):
-                return self._from(t)
+                return self._mapping[t]
         if (
             self._type is not None
             and (self._type in types
@@ -463,25 +454,35 @@ class Rules(_RulesType):
         ): return self.implicit
         raise KeyError(f"No rule for operand type(s) {__k!r}") from None
 
-    def _from(self, types: Types):
-        """Build a rule from the given types."""
-        if types in self._cache:
-            return self._cache[types]
-        parameters = self.mapping.get(types, self.parameters.copy())
-        rule = Rule(*parameters)
-        self._cache[types] = rule
-        return rule
-
-    def copy(self, implicit: bool=True):
-        """Create a shallow copy of this instance.
+    def copy(self, deep: bool=False, implicit: bool=True, full: bool=False):
+        """Create a copy of this instance.
         
         Parameters
         ----------
+        deep : bool, default=False
+            If ``True``, create copies of individual rules. The default behavior
+            is to pass a shallow copy of the internal rules mapping to the new
+            instance, in which case the mappings will be different object but
+            their items will be identical. This can produce undesired behavior
+            when maintaining independent sets of rules.
+
         implicit : bool, default=True
             If ``True``, also copy this instance's implict rule.
+
+        full : bool, default=False
+            An alias for ``deep=True`` and ``implicit=True``. The value of this
+            argument takes precedence over the individual values of `deep` and
+            `implicit`.
         """
         new = Rules(*self.parameters)
-        new.mapping.update(self.mapping.copy())
+        if full:
+            deep = True
+            implicit = True
+        mapping = {
+            types: Rule(*rule.parameters)
+            for types, rule in self.items()
+        } if deep else self._mapping.copy()
+        new._mapping.update(mapping)
         if implicit:
             new.imply(self._type, *self._implied)
         return new
@@ -491,11 +492,11 @@ class Rules(_RulesType):
         return (
             isinstance(__o, Rules)
             and __o.parameters == self.parameters
-            and __o.mapping == self.mapping
+            and __o._mapping == self._mapping
         )
 
     def __str__(self) -> str:
-        return ', '.join(f"{t[0]}: {t[1]}" for t in self)
+        return ', '.join(f"{k}: {v}" for k, v in self.items())
 
 
 class OperationError(Exception):
@@ -630,7 +631,7 @@ class Context(abc.ABC, iterables.ReprStrMixin):
     """Abstract base class for operation-related contexts."""
 
     def __init__(self, rules: Rules=None) -> None:
-        self.rules = Rules() if rules is None else rules.copy()
+        self.rules = Rules() if rules is None else rules.copy(deep=True)
         """This application's operand-update rules."""
 
     def spawn(self):

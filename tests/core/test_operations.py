@@ -68,6 +68,15 @@ def test_rules_copy():
     copied = rules.copy()
     assert copied == rules
     assert copied is not rules
+    for t in [int, float]:
+        assert rules[t] == copied[t]
+        assert rules[t] is copied[t]
+    copied = rules.copy(deep=True)
+    assert copied == rules
+    assert copied is not rules
+    for t in [int, float]:
+        assert rules[t] == copied[t]
+        assert rules[t] is not copied[t]
 
 
 def test_operands():
@@ -515,6 +524,15 @@ def test_interface_operations(interface: operations.Interface):
         context = defined['context']
         for k in defined['operations']:
             assert isinstance(interface[k], context)
+
+
+def test_interface_update_rule(interface: operations.Interface):
+    """Make sure we can independently update rules."""
+    interface['numeric'].rules.register([Base, float], 'value')
+    assert interface['add'].rules[(Base, float)].implemented
+    interface['__add__'].rules[(Base, float)].suppress
+    assert not interface['add'].rules[(Base, float)].implemented
+    assert interface['numeric'].rules[(Base, float)].implemented
 
 
 def test_interface_subclass(
