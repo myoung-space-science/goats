@@ -423,9 +423,9 @@ class Rules(_RulesType):
         """
         key = tuple(iterables.whole(types))
         if key not in self:
-            if self._type in key:
-                self.register(types)
-            raise KeyError(f"Rule for {types!r} does not exist") from None
+            if self._type not in key:
+                raise KeyError(f"Rule for {types!r} does not exist") from None
+            self.register(types)
         if mode == 'update':
             new = parameters
         elif mode == 'restrict':
