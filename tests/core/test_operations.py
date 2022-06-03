@@ -8,6 +8,19 @@ import pytest
 from goats.core import operations
 
 
+def test_unique():
+    """Test the function that extracts unique items while preserving order."""
+    cases = {
+        'a': ['a'],
+        ('a', 'b'): ['a', 'b'],
+        ('a', 'b', 'a'): ['a', 'b'],
+        ('a', 'b', 'a', 'c'): ['a', 'b', 'c'],
+        ('a', 'b', 'b', 'a', 'c'): ['a', 'b', 'c'],
+    }
+    for items, expected in cases.items():
+        assert sorted(operations.unique(*items)) == expected
+
+
 def test_rule_len():
     """Test the length of an operator rule."""
     for parameters in ([], ['a'], ['a', 'b'], ['a', 'b', 'c']):

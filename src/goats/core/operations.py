@@ -48,7 +48,7 @@ Parameters = typing.Union[str, typing.Collection[str]]
 T = typing.TypeVar('T')
 
 
-def unique(items: typing.Iterable[T]) -> typing.List[T]:
+def unique(*items: T) -> typing.List[T]:
     """Remove repeated items while preserving order."""
     collection = []
     for item in items:
@@ -158,7 +158,7 @@ class Rule(iterables.ReprStrMixin):
     @property
     def parameters(self):
         """The parameters that this rule affects."""
-        return unique(self._parameters)
+        return unique(*self._parameters)
 
     def __len__(self) -> int:
         """The number of parameters affected by this rule."""
