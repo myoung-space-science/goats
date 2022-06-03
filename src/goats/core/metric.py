@@ -1732,7 +1732,7 @@ class Unit(algebraic.Expression):
         return self._add_sub(other)
 
     def __sub__(self, other):
-        """Called for self + other; either a no-op or an error."""
+        """Called for self - other; either a no-op or an error."""
         return self._add_sub(other)
 
     def _add_sub(self, other):
