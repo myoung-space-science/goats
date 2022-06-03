@@ -594,6 +594,67 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         return decorator
 
 
+class Dimensions(iterables.ReprStrMixin):
+    """A representation of one or more axis names."""
+
+    def __init__(self, *names: str) -> None:
+        self._names = names
+
+    @property
+    def names(self): # Try to prevent accidentially changing names.
+        """The names of these axes."""
+        return self._names
+
+    def _suppressed(self):
+        """This operation is unconditionally not implemented."""
+        return NotImplemented
+
+    def _identity(self):
+        """Immediately return the unmodified object."""
+        return self
+
+    __abs__ = _identity
+    """Called for abs(self)."""
+    __pos__ = _identity
+    """Called for +self."""
+    __neg__ = _identity
+    """Called for -self."""
+
+    def _add_sub(self, other):
+        """Return this instance if self == other."""
+        if isinstance(other, Dimensions) and self == other:
+            return self
+        return NotImplemented
+
+    __add__ = _add_sub
+    """Called for self + other."""
+    __sub__ = _add_sub
+    """Called for self - other."""
+
+    def _mul_div(self, other):
+        """Return the unique axis names in order."""
+        if isinstance(other, Dimensions):
+            names = operations.unique(*self.names, *other.names)
+            return Dimensions(*names)
+        return NotImplemented
+
+    __mul__ = _mul_div
+    """Called for self * other."""
+    __truediv__ = _mul_div
+    """Called for self / other."""
+
+    def __eq__(self, other):
+        """True if two instances represent the same axes."""
+        return isinstance(other, Dimensions) and other.names == self.names
+
+    def __hash__(self):
+        """Support use as a mapping key."""
+        return hash(self.names)
+
+    def __str__(self) -> str:
+        return ', '.join(str(name) for name in self.names)
+
+
 Instance = typing.TypeVar('Instance', bound='Variable')
 
 

@@ -822,3 +822,42 @@ def test_full_mean(components):
         expected=numpy.mean(ref['data']),
     )
 
+
+def test_dimensions_object():
+    """Make sure axes names behave as expected in operations."""
+    xy = datatypes.Dimensions('x', 'y')
+    yz = datatypes.Dimensions('y', 'z')
+    zw = datatypes.Dimensions('z', 'w')
+    pairs = {
+        (xy, xy): {
+            operator.add: xy,
+            operator.sub: xy,
+            operator.mul: xy,
+            operator.truediv: xy,
+            operator.pow: TypeError,
+        },
+        # TODO: continue for (xy, yz), (yz, zw), and (xy, zw).
+    }
+    # Below are just examples. A more rigorous test should check all instances
+    # under unary arithmetic operations and all pairs of instances under binary
+    # numeric operations.
+
+    # addition and subtraction are only valid on the same dimensions
+    for opr in (operator.add, operator.sub):
+        assert opr(xy, xy) == xy
+        with pytest.raises(TypeError):
+            opr(xy, yz)
+    # multiplication and division should concatenate unique dimensions
+    for opr in (operator.mul, operator.truediv):
+        assert opr(xy, xy) == xy
+        assert opr(xy, yz) == datatypes.Dimensions('x', 'y', 'z')
+        assert opr(xy, zw) == datatypes.Dimensions('x', 'y', 'z', 'w')
+    # exponentiation is not valid
+    with pytest.raises(TypeError):
+        pow(xy, xy)
+    # unary arithmetic operations should preserve dimensions
+    for instance in (xy, yz, zw):
+        for opr in (abs, operator.pos, operator.neg):
+            assert opr(instance) == instance
+    # cast and comparison operations don't affect dimensions
+
