@@ -38,6 +38,9 @@ def test_types():
     types.add(int, float, symmetric=True)
     assert len(types) == 2
     assert (int, float) in types and (float, int) in types
+    copied = types.copy()
+    assert copied == types
+    assert copied is not types
 
 
 def test_rule_len():

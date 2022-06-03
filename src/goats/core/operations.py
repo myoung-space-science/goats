@@ -547,7 +547,7 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
                     f"Can't initialize {self.__class__.__qualname__}"
                     " with variable-length types."
                 )
-        self._types = set(*init)
+        self._types = set(init)
 
     def add(self, *types: type, symmetric: bool=False):
         """Add these types to the collection, if possible."""
@@ -570,6 +570,10 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
     def clear(self) -> None:
         """Remove all types from the collection."""
         self._types = set()
+
+    def copy(self) -> None:
+        """Copy types into a new instance."""
+        return type(self)(*self._types)
 
     def __contains__(self, __x) -> bool:
         """Called for x in self."""
