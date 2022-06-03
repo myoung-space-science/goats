@@ -571,7 +571,7 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
         """Remove all types from the collection."""
         self._types = set()
 
-    def copy(self) -> None:
+    def copy(self):
         """Copy types into a new instance."""
         return type(self)(*self._types)
 
