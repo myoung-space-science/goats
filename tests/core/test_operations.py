@@ -46,6 +46,9 @@ def test_types():
     assert types.supports(numbers.Real, numbers.Real)
     assert types.supports(int, float)
     assert not types.supports(int, str)
+    assert types
+    types.clear()
+    assert not types
 
 
 def test_rule_len():
