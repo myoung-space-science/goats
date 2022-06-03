@@ -575,6 +575,15 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
         """Copy types into a new instance."""
         return type(self)(*self._types)
 
+    def supports(self, *types: type):
+        """Determine if this collection contains `types` or subtypes."""
+        if types in self:
+            return True
+        for t in self:
+            if all(issubclass(i, j) for i, j in zip(types, t)):
+                return True
+        return False
+
     def __contains__(self, __x) -> bool:
         """Called for x in self."""
         return __x in self._types

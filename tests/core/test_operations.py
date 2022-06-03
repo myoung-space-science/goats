@@ -41,6 +41,11 @@ def test_types():
     copied = types.copy()
     assert copied == types
     assert copied is not types
+    types.clear()
+    types.add(numbers.Real, numbers.Real)
+    assert types.supports(numbers.Real, numbers.Real)
+    assert types.supports(int, float)
+    assert not types.supports(int, str)
 
 
 def test_rule_len():
