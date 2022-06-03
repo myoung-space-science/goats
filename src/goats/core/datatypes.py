@@ -605,19 +605,11 @@ class Dimensions(iterables.ReprStrMixin):
         """The names of these axes."""
         return self._names
 
-    def _suppressed(self):
-        """This operation is unconditionally not implemented."""
-        return NotImplemented
-
-    def _identity(self):
-        """Immediately return the unmodified object."""
-        return self
-
-    __abs__ = _identity
+    __abs__ = operations.identity(abs)
     """Called for abs(self)."""
-    __pos__ = _identity
+    __pos__ = operations.identity(standard.pos)
     """Called for +self."""
-    __neg__ = _identity
+    __neg__ = operations.identity(standard.neg)
     """Called for -self."""
 
     def _add_sub(self, other):
