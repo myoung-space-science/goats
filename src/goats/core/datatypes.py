@@ -612,15 +612,9 @@ class Dimensions(iterables.ReprStrMixin):
     __neg__ = operations.identity(standard.neg)
     """Called for -self."""
 
-    def _add_sub(self, other):
-        """Return this instance if self == other."""
-        if isinstance(other, Dimensions) and self == other:
-            return self
-        return NotImplemented
-
-    __add__ = _add_sub
+    __add__ = operations.identity(standard.add)
     """Called for self + other."""
-    __sub__ = _add_sub
+    __sub__ = operations.identity(standard.sub)
     """Called for self - other."""
 
     def _mul_div(self, other):
