@@ -21,6 +21,25 @@ def test_unique():
         assert sorted(operations.unique(*items)) == expected
 
 
+def test_types():
+    """Test the collection of operand types."""
+    types = operations.Types()
+    types.add(int, int)
+    assert len(types) == 1
+    assert (int, int) in types
+    types.add(str, float)
+    assert len(types) == 2
+    assert (str, float) in types
+    types.discard(int, int)
+    assert len(types) == 1
+    assert (str, float) in types
+    types.clear()
+    assert len(types) == 0
+    types.add(int, float, symmetric=True)
+    assert len(types) == 2
+    assert (int, float) in types and (float, int) in types
+
+
 def test_rule_len():
     """Test the length of an operator rule."""
     for parameters in ([], ['a'], ['a', 'b'], ['a', 'b', 'c']):

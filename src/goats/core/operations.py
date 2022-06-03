@@ -533,6 +533,60 @@ class Rules(_RulesType):
         return ', '.join(f"{k}: {v}" for k, v in self.items())
 
 
+class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
+    """A collection of allowed operand types."""
+
+    def __init__(self, *init: typing.Union[type, typing.Iterable[type]]):
+        self.ntypes = None
+        if init:
+            ntypes = len(init[0])
+            if all(len(i) == ntypes for i in init):
+                self.ntypes = ntypes
+            else:
+                raise NTypesError(
+                    f"Can't initialize {self.__class__.__qualname__}"
+                    " with variable-length types."
+                )
+        self._types = set(*init)
+
+    def add(self, *types: type, symmetric: bool=False):
+        """Add these types to the collection, if possible."""
+        ntypes = len(types)
+        if self.ntypes is None:
+            self.ntypes = ntypes
+        if ntypes != self.ntypes:
+            raise NTypesError(
+                f"Can't add a length-{ntypes} rule to a collection"
+                f" of length-{self.ntypes} rules."
+            ) from None
+        self._types |= set([types])
+        if symmetric:
+            self._types |= set([types[::-1]])
+
+    def discard(self, *types: type):
+        """Remove these types from the collection."""
+        self._types.discard(types)
+
+    def clear(self) -> None:
+        """Remove all types from the collection."""
+        self._types = set()
+
+    def __contains__(self, __x) -> bool:
+        """Called for x in self."""
+        return __x in self._types
+
+    def __iter__(self):
+        """Called for iter(self)."""
+        return iter(self._types)
+
+    def __len__(self):
+        """Called for len(self)."""
+        return len(self._types)
+
+    def __str__(self) -> str:
+        return ', '.join(str(t) for t in self._types)
+
+
 class OperationError(Exception):
     """An error occurred during an operation."""
 
