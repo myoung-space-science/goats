@@ -536,7 +536,49 @@ class Rules(_RulesType):
 class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
     """A collection of allowed operand types."""
 
-    def __init__(self, *init: typing.Union[type, typing.Iterable[type]]):
+    def __init__(
+        self,
+        *init: typing.Union[type, typing.Sequence[type]],
+        implied: type=None,
+    ) -> None:
+        """Initialize this instance.
+        
+        Parameters
+        ----------
+        *init : type or sequence of types
+            Zero or more types or sequences of types with which to initialize
+            this instance's collection.
+
+        implied : type, optional
+            A single type to treat as an implied type when checking for the
+            existence of other types in this collection. This type will not show
+            up in the explicit collection of types. See Notes for clarification
+            of containment (i.e., queries of the form ``x in types``).
+
+        Notes
+        -----
+        Checks for existence of the implied type will depend on whether this
+        collection is empty or has explicit type groups: If there are no
+        explicit type groups, checking for the implied type or a homogeneous
+        tuple of the implied type of any length will evaluate as ``True``. If
+        there are explicit type groups, the number of types must agree. For
+        example::
+
+        >>> types = operations.Types(implied=str)
+        >>> str in types
+        True
+        >>> (str, str) in types
+        True
+        >>> (str, str, str) in types
+        True
+        >>> types.add(int, float)
+        >>> str in types
+        False
+        >>> (str, str) in types
+        True
+        >>> (str, str, str) in types
+        False
+        """
         self.ntypes = None
         if init:
             ntypes = len(init[0])
@@ -547,6 +589,7 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
                     f"Can't initialize {self.__class__.__qualname__}"
                     " with variable-length types."
                 )
+        self.implied = implied
         self._types = set(init)
 
     def add(self, *types: type, symmetric: bool=False):
@@ -573,7 +616,7 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
 
     def copy(self):
         """Copy types into a new instance."""
-        return type(self)(*self._types)
+        return type(self)(*self._types, implied=self.implied)
 
     def supports(self, *types: type):
         """Determine if this collection contains `types` or subtypes."""
@@ -586,9 +629,13 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
 
     def __contains__(self, __x) -> bool:
         """Called for x in self."""
-        if isinstance(__x, type):
-            return (__x,) in self._types
-        return __x in self._types
+        x = (__x,) if isinstance(__x, type) else __x
+        if self.implied is None:
+            return x in self._types
+        truth = all(t == self.implied for t in x) or x in self._types
+        if self.ntypes is None:
+            return truth
+        return len(x) == self.ntypes and truth
 
     def __iter__(self):
         """Called for iter(self)."""

@@ -53,6 +53,19 @@ def test_types():
     types.add(int)
     assert int in types
 
+def test_types_implied():
+    """Test the implied type specification."""
+    types = operations.Types(implied=str)
+    assert str in types
+    assert (str, str) in types
+    assert (str, str, str) in types
+    assert (str, float) not in types
+    types.add(int, float)
+    assert str not in types
+    assert (str, str) in types
+    assert (str, str, str) not in types
+    assert (str, float) not in types
+
 
 def test_rule_len():
     """Test the length of an operator rule."""
