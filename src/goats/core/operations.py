@@ -586,6 +586,8 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
 
     def __contains__(self, __x) -> bool:
         """Called for x in self."""
+        if isinstance(__x, type):
+            return (__x,) in self._types
         return __x in self._types
 
     def __iter__(self):

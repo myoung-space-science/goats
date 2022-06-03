@@ -49,6 +49,9 @@ def test_types():
     assert types
     types.clear()
     assert not types
+    types = operations.Types()
+    types.add(int)
+    assert int in types
 
 
 def test_rule_len():
