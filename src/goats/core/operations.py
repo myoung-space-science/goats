@@ -1270,7 +1270,7 @@ def identity(__operator: typing.Callable):
 
 
 def suppress(__operator: typing.Callable):
-    """Unconditionall suppress an operation."""
+    """Unconditionally suppress an operation."""
     def operator(*args, **kwargs):
         return NotImplemented
     operator.__name__ = f'__{__operator.__name__}__'
