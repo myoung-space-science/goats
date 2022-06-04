@@ -1164,6 +1164,8 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
             return '1'
         if isinstance(expression, str):
             return expression
+        if not isinstance(expression, typing.Iterable):
+            return str(expression)
         return ' * '.join(f"({part})" for part in expression)
 
     def __iter__(self) -> typing.Iterator[Term]:
