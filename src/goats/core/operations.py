@@ -609,6 +609,8 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
     def discard(self, *types: type):
         """Remove these types from the collection."""
         self._types.discard(types)
+        if all(t == self.implied for t in types):
+            self.implied = None
 
     def clear(self) -> None:
         """Remove all types from the collection."""
@@ -625,7 +627,13 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
         for t in self:
             if all(issubclass(i, j) for i, j in zip(types, t)):
                 return True
-        return False
+        return (
+            self.implied
+            and (
+                self.implied in types
+                or any(issubclass(t, self.implied) for t in types)
+            )
+        )
 
     def __contains__(self, __x) -> bool:
         """Called for x in self."""
