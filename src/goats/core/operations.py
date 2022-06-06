@@ -1126,6 +1126,29 @@ NAMES['all'] = [
 ]
 
 
+def identity(__operator: typing.Callable):
+    """Create an operator that immediately returns its argument."""
+    def operator(*args: T):
+        first = args[0]
+        if (
+            all(type(arg) == type(first) for arg in args)
+            and all(arg == first for arg in args)
+        ): return first
+        return NotImplemented
+    operator.__name__ = f'__{__operator.__name__}__'
+    operator.__doc__ = __operator.__doc__
+    return operator
+
+
+def suppress(__operator: typing.Callable):
+    """Unconditionally suppress an operation."""
+    def operator(*args, **kwargs):
+        return NotImplemented
+    operator.__name__ = f'__{__operator.__name__}__'
+    operator.__doc__ = __operator.__doc__
+    return operator
+
+
 class Interface(collections.abc.Mapping):
     """Top-level interface to arithmetic operations."""
 
