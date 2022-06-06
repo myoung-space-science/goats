@@ -37,10 +37,6 @@ from goats.core import utilities
 #  - reference is a
 
 
-Types = typing.TypeVar('Types', type, tuple)
-Types = typing.Union[type, typing.Tuple[type, ...]]
-
-
 Parameters = typing.TypeVar('Parameters', str, typing.Collection)
 Parameters = typing.Union[str, typing.Collection[str]]
 
@@ -92,109 +88,6 @@ def get_parameters(__object):
         {} if isbuiltin(__object)
         else inspect.signature(type(__object)).parameters
     )
-
-
-# Possible specialized return type for `Rule.suppress`. Another option is that a
-# common ABC could require all the methods the `Rule` defines, and this class
-# could implement versions that raise exceptions with informative messages.
-class Suppressed(iterables.Singleton):
-    """A suppressed operand rule."""
-
-    def __bool__(self) -> bool:
-        return False
-
-    def __str__(self) -> str:
-        names = [t.__qualname__ for t in self.types]
-        types = names[0] if len(names) == 1 else tuple(names)
-        return f"{types}: NotImplemented"
-
-
-class Rule(iterables.ReprStrMixin):
-    """A correspondence between operand types and affected parameters."""
-
-    def __init__(self, *parameters: str) -> None:
-        self._parameters = list(parameters)
-
-    def update(self, *parameters: str):
-        """Unconditionally change the parameters for this rule."""
-        self._parameters = list(parameters)
-        return self
-
-    def append(self, *parameters: str):
-        """Add the given parameters to the end of the rule."""
-        self._parameters.extend(parameters)
-        return self
-
-    def restrict(self, *parameters: str):
-        """Restrict the existing parameters in this rule."""
-        for parameter in parameters:
-            if parameter not in self.parameters:
-                raise ValueError(
-                    f"Can't restrict rule with new parameter {parameter}"
-                ) from None
-        self._parameters = list(parameters)
-        return self
-
-    def remove(self, *parameters: str):
-        """Remove the given parameters from this rule."""
-        self._parameters = list(set(self.parameters) - set(parameters))
-        return self
-
-    @property
-    def suppress(self):
-        """Suppress this rule.
-        
-        Invoking this property will signal to operations that they should not
-        implement the operator for these operand types.
-        """
-        self._parameters = []
-        return self
-
-    @property
-    def implemented(self):
-        """True if this rule contains updatable parameters."""
-        return bool(self.parameters)
-
-    @property
-    def parameters(self):
-        """The parameters that this rule affects."""
-        return unique(*self._parameters)
-
-    def __len__(self) -> int:
-        """The number of parameters affected by this rule."""
-        return len(self.parameters)
-
-    def __contains__(self, __x: typing.Union[type, str]) -> bool:
-        """True if `__x` is part of this rule.
-        
-        Parameters
-        ----------
-        __x : type or string
-            If `__x` is a type, this method will report whether or not `__x` is
-            a type in this rule. If `__x` is a string, this method with report
-            whether or not `__x` is a parameter affected by this rule.
-        """
-        return __x in self.parameters
-
-    def __eq__(self, __o) -> bool:
-        """Called for self == other.
-        
-        This method returns ``True`` iff each type in the other object is
-        strictly equal to the corresponding type in this object under
-        element-wise comparison.
-        """
-        return (
-            __o.parameters == self.parameters
-            if isinstance(__o, Rule)
-            else __o == self.parameters
-        )
-
-    def __bool__(self) -> bool:
-        """True if this rule is implemented."""
-        return self.implemented
-
-    def __str__(self) -> str:
-        return str(self.parameters)
 
 
 class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
@@ -318,219 +211,6 @@ class same:
 
 class NTypesError(Exception):
     """Inconsistent number of types in a new rule."""
-
-
-class _RulesType(
-    typing.Mapping[Types, Rule],
-    collections.abc.Mapping,
-    iterables.ReprStrMixin,
-): ...
-
-
-class Rules(_RulesType):
-    """A class for managing operand-update rules."""
-
-    def __init__(self, *parameters: str) -> None:
-        """Initialize this instance.
-        
-        Parameters
-        ----------
-        *parameters : string
-            Zero or more names of attributes to associate with unconstrained
-            rules. See Notes for more information.
-
-        Notes
-        -----
-        Providing the names of all possibly updatable attributes via
-        `*parameters` protects against bugs that arise from naive use of
-        ``inspect.signature``. For example, a class's ``__init__`` method may
-        accept generic `*args` and `**kwargs`, which it then parses into
-        specific attributes. In that case, ``inspect.signature`` will not
-        discover the correct names of attributes necessary to initialize a new
-        instance after applying a given rule.
-        """
-        self.parameters = list(parameters)
-        """The default parameters to update for each rule."""
-        self.ntypes = None
-        """The number of argument types in these rules."""
-        self._type = None
-        self._implied = []
-        self._mapping = {}
-
-    def _parse(self, *default):
-        """Parse initialization arguments."""
-        if not default:
-            return None, []
-        if isinstance(default[0], type):
-            return default[0], list(default[1:])
-        return None, list(default)
-
-    def imply(self, __type: type, *parameters: str):
-        """Declare the implicit type and parameters."""
-        self._type = __type
-        self._implied = list(parameters)
-        return self
-
-    @property
-    def implicit(self):
-        """The implicit update rule."""
-        if self._type is not None:
-            parameters = self._implied or self.parameters
-            return Rule(*parameters.copy())
-
-    def suppress(self, *types: type):
-        """Suppress a rule, even if it doesn't exist.
-        
-        Parameters
-        ----------
-        *types : type
-            The argument type(s) in the target rule.
-        """
-        if not types:
-            raise ValueError(
-                "Can't suppress rule with unknown types"
-            ) from None
-        if types not in self:
-            self.register(*types)
-        self[types].suppress
-        return self
-
-    def register(self, *rules):
-        """Add a rule to the collection.
-        
-        Parameters
-        ----------
-        *rules
-            One or more rule specifications to register. A rule specification
-            consists of one or more operand type(s) followed by zero or more
-            parameters to update when operating on those types. Multiple rule
-            specifications must be grouped into lists or tuples.
-
-        Raises
-        ------
-        KeyError
-            There is already a rule in the collection corresponding to `types`.
-        """
-        if not rules:
-            raise ValueError("No rule to register") from None
-        if isinstance(rules[0], type):
-            return self._register(rules)
-        for rule in rules:
-            self._register(rule)
-        return self
-
-    def _register(self, rule):
-        """Internal helper for `~Rules.register`."""
-        args = list(rule)
-        types = tuple(arg for arg in args if isinstance(arg, type))
-        if not types:
-            raise ValueError(
-                "Can't register rule with unknown types"
-            ) from None
-        parameters = tuple(arg for arg in args if not isinstance(arg, type))
-        ntypes = len(types)
-        self._check_ntypes(ntypes)
-        if types not in self._mapping:
-            self._mapping[types] = Rule(*self._resolve(*parameters))
-            return self
-        raise KeyError(f"{types!r} is already in the collection") from None
-
-    def _resolve(self, *parameters) -> typing.List[str]:
-        """Determine the affected parameters based on input."""
-        if len(parameters) == 1 and parameters[0] is None:
-            return []
-        if not parameters:
-            return self.parameters.copy()
-        return list(parameters)
-
-    def _check_ntypes(self, ntypes: int):
-        """Helper for enforcing consistency in number of types.
-        
-        If the internal attribute that keeps track of how many arguments are
-        allowed for all rules is `None`, this method will set it on the first
-        time through. After that, it will raise an exception if the user tries
-        to register a rule with a different number of types.
-        """
-        if self.ntypes is None:
-            self.ntypes = ntypes
-            return
-        if ntypes != self.ntypes:
-            raise NTypesError(
-                f"Can't add a length-{ntypes} rule to a collection"
-                f" of length-{self.ntypes} rules."
-            ) from None
-
-    def __len__(self) -> int:
-        """Returns the number of rules. Called for len(self)."""
-        return len(self._mapping)
-
-    def __iter__(self) -> typing.Iterator[Rule]:
-        """Iterate over rules. Called for iter(self)."""
-        return iter(self._mapping)
-
-    def __contains__(self, __o: Types) -> bool:
-        """True if there is an explicit rule for these types."""
-        key = tuple(iterables.whole(__o))
-        return key in self._mapping
-
-    def __getitem__(self, __k: Types):
-        """Retrieve the operand-update rule for `types`."""
-        types = tuple(iterables.whole(__k))
-        if types in self._mapping:
-            return self._mapping[types]
-        for t in self._mapping:
-            if all(issubclass(i, j) for i, j in zip(types, t)):
-                return self._mapping[t]
-        if (
-            self._type is not None
-            and (self._type in types
-            or any(issubclass(t, self._type) for t in types))
-        ): return self.implicit
-        raise KeyError(f"No rule for operand type(s) {__k!r}") from None
-
-    def copy(self, deep: bool=False, implicit: bool=True, full: bool=False):
-        """Create a copy of this instance.
-        
-        Parameters
-        ----------
-        deep : bool, default=False
-            If ``True``, create copies of individual rules. The default behavior
-            is to pass a shallow copy of the internal rules mapping to the new
-            instance, in which case the mappings will be different object but
-            their items will be identical. This can produce undesired behavior
-            when maintaining independent sets of rules.
-
-        implicit : bool, default=True
-            If ``True``, also copy this instance's implict rule.
-
-        full : bool, default=False
-            An alias for ``deep=True`` and ``implicit=True``. The value of this
-            argument takes precedence over the individual values of `deep` and
-            `implicit`.
-        """
-        new = Rules(*self.parameters)
-        if full:
-            deep = True
-            implicit = True
-        mapping = {
-            types: Rule(*rule.parameters)
-            for types, rule in self.items()
-        } if deep else self._mapping.copy()
-        new._mapping.update(mapping)
-        if implicit:
-            new.imply(self._type, *self._implied)
-        return new
-
-    def __eq__(self, __o) -> bool:
-        """True iff two instances have the same default parameters and rules."""
-        return (
-            isinstance(__o, Rules)
-            and __o.parameters == self.parameters
-            and __o._mapping == self._mapping
-        )
-
-    def __str__(self) -> str:
-        return ', '.join(f"{k}: {v}" for k, v in self.items())
 
 
 class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
@@ -679,17 +359,36 @@ _operators = [
 ]
 
 
+# Idea: Instead of specifying active parameters for certain rules, require the
+# operand objects to declare whether or not they implement the operation. This
+# could preclude the need to pass names of updatable attributes to `Rules`, and
+# possibly the need to even have a Rule object. The interface would still need
+# to know parameters in order to avoid the `inspect.signature`
+# variable-arguments bug. To implement this change, `Operation.compute` could
+# try all active parameters (which it gets from the interface) and skip any for
+# which either operand does not implement the given operation.
+
+
 class Operation:
     """A general arithmetic operation."""
 
-    def __init__(self, method, rules: Rules) -> None:
+    def __init__(self, method, types: Types, *parameters: str) -> None:
         self.method = method
-        self.rules = rules.copy()
+        self.types = types.copy()
+        self.parameters = parameters
 
+    # New implementation:
+    # - if allowed types is None, use `rule is None` block
+    # - convert argument(s) to operand(s)
+    # - for each active attribute
+    #  - try to apply operator to attribute on operand(s)
+    #  - if that succeeds, keep the result
+    #  - if it fails (NotImplemented? TypeError?), do nothing
+    # - if no results, return `NotImplemented`
+    # - otherwise, proceed from `target is None`
     def compute(self, *args, reference=None, target=None, **kwargs):
         """Evaluate arguments within this operational context."""
-        rule = self.get_rule(*args)
-        if rule is None:
+        if not self.parameters:
             # We don't know which arguments to operate on, so we hand execution
             # over to the given operands, in case they implement this operator
             # in their class definitions. Note that this will lead to recursion
@@ -703,17 +402,30 @@ class Operation:
                     f" operands uses {self!r} to implement {self.method!r}"
                     " without explicit knowledge of the updatable attributes."
                 ) from err
-        if not rule.implemented:
+        if not self.types.supports(*(type(arg) for arg in args)):
             return NotImplemented
         operands = Operands(*args, reference=reference)
-        fixed = tuple(set(self.rules.parameters) - set(rule.parameters))
+        computed = {
+            parameter: self._compute(operands, parameter, **kwargs)
+            for parameter in self.parameters
+        }
+        valid = [k for k, v in computed.items() if v != NotImplemented]
+        if not valid:
+            return NotImplemented
+        fixed = [k for k, v in computed.items() if v == NotImplemented]
         if not operands.agree(*fixed):
-            errmsg = self._operand_errmsg(rule, operands)
+            errmsg = self._operand_errmsg(operands, *fixed)
             raise OperandTypeError(errmsg) from None
         defaults = self._get_defaults(reference)
-        values = self._compute(operands, rule, defaults=defaults, **kwargs)
+        values = [ # order matters
+            computed[k] if k in valid else defaults[k]
+            for k in self.parameters
+        ] if defaults else [computed[k] for k in valid]
         if target is None:
-            return values[0] if len(values) == 1 else values
+            return (
+                values[0] if len(values) == 1 or reference is None
+                else values
+            )
         if isinstance(target, type):
             return target(*values)
         zipped = zip(defaults, values)
@@ -721,12 +433,7 @@ class Operation:
             utilities.setattrval(target, name, value)
         return target
 
-    def get_rule(self, *operands):
-        """Get the operation rule for these operands' types."""
-        types = [type(operand) for operand in operands]
-        return self.rules.get(types)
-
-    def _operand_errmsg(self, rule: Rule, operands: Operands):
+    def _operand_errmsg(self, operands: Operands, *fixed: str):
         """Build an error message based on `rule` and `operands`."""
         method_string = repr(self.method.__qualname__)
         types = operands.types
@@ -734,7 +441,6 @@ class Operation:
             types[0].__qualname__ if len(types) == 1
             else f"({', '.join(t.__qualname__ for t in types)})"
         )
-        fixed = tuple(set(self.rules.parameters) - set(rule.parameters))
         attrs_string = (
             repr(fixed[0]) if len(fixed) == 1
             else f"{fixed[0]!r} and {fixed[1]!r}" if len(fixed) == 2
@@ -745,56 +451,52 @@ class Operation:
             f" with different values of {attrs_string}"
         )
 
-    def _get_defaults(self, reference=None):
+    def _get_defaults(self, reference=None) -> typing.Dict[str, typing.Any]:
         """Get default values for initialization arguments."""
         if reference is None:
             return {}
         parameters = get_parameters(reference)
         if not parameters:
+            # There's nothing to operate on.
             return {}
         kinds = {parameter.kind for parameter in parameters.values()}
+        # Should this check for `VAR_POSITIONAL in kinds` instead?
+        # variable-length keyword parameters aren't fatal -- they just mean
+        # we'll initialize the new object with default values.
         if kinds == {
+            # Inspection found only variable-length parameters, so we can't
+            # determine the names of attributes to get; we need to fall back on
+            # the user-provided attribute names.
             inspect.Parameter.VAR_KEYWORD,
             inspect.Parameter.VAR_POSITIONAL,
         }: return {
             name: utilities.getattrval(reference, name)
-            for name in self.rules.parameters
+            for name in self.parameters
         }
         return {
             name: utilities.getattrval(reference, name)
             for name in parameters
         }
 
-    def _compute(
-        self,
-        operands: Operands,
-        rule: Rule,
-        defaults: dict=None,
-        **kwargs
-    ):
-        """Compute values based on parameters."""
-        if not defaults:
-            return [
-                self.method(*operands.get(name), **kwargs)
-                for name in rule.parameters
-            ]
-        return [
-            self.method(*operands.get(name), **kwargs)
-            if name in rule else value
-            for name, value in defaults.items()
-        ]
+    def _compute(self, operands: Operands, name: str, **kwargs):
+        """Compute a value if possible."""
+        try:
+            value = self.method(*operands.get(name), **kwargs)
+        except (ValueError, TypeError):
+            value = NotImplemented
+        return value
 
 
 class Context(abc.ABC, iterables.ReprStrMixin):
     """Abstract base class for operation-related contexts."""
 
-    def __init__(self, rules: Rules=None) -> None:
-        self.rules = Rules() if rules is None else rules.copy(deep=True)
-        """This application's operand-update rules."""
+    def __init__(self, *parameters: str, types: Types=None) -> None:
+        self.parameters = parameters
+        self.types = Types() if types is None else types.copy()
 
     def spawn(self):
-        """Create a new instance of this context with the current rules."""
-        return type(self)(self.rules)
+        """Create a new instance of this context from the current state."""
+        return type(self)(*self.parameters, types=self.types)
 
     @abc.abstractmethod
     def apply(self, __callable: typing.Callable):
@@ -802,7 +504,7 @@ class Context(abc.ABC, iterables.ReprStrMixin):
         pass
 
     def __str__(self) -> str:
-        return str(self.rules)
+        return f"{self.parameters}, {self.types}"
 
 
 class Default(Context):
@@ -810,7 +512,7 @@ class Default(Context):
 
     def apply(self, __callable: typing.Callable[..., T]):
         """Implement this operation with the given callable object."""
-        operation = Operation(__callable, self.rules)
+        operation = Operation(__callable, self.types, *self.parameters)
         def operator(*args, **kwargs) -> T:
             return operation.compute(*args, **kwargs)
         return operator
@@ -820,7 +522,7 @@ class Cast(Context):
     """A factory for type-casting operators."""
 
     def apply(self, __callable: typing.Type[T]):
-        operation = Operation(__callable, self.rules)
+        operation = Operation(__callable, self.types, *self.parameters)
         def operator(a: A) -> T:
             return operation.compute(a)
         operator.__name__ = f'__{__callable.__name__}__'
@@ -835,7 +537,7 @@ class Unary(Context):
     CType = typing.Callable[[A], A]
 
     def apply(self, __callable: CType):
-        operation = Operation(__callable, self.rules)
+        operation = Operation(__callable, self.types, *self.parameters)
         def operator(a: A, /, **kwargs) -> A:
             return operation.compute(a, reference=a, target=type(a), **kwargs)
         operator.__name__ = f'__{__callable.__name__}__'
@@ -850,7 +552,7 @@ class Comparison(Context):
     CType = typing.Callable[[A, B], T]
 
     def apply(self, __callable: CType):
-        operation = Operation(__callable, self.rules)
+        operation = Operation(__callable, self.types, *self.parameters)
         def operator(a: A, b: B, /) -> T:
             return operation.compute(a, b)
         operator.__name__ = f'__{__callable.__name__}__'
@@ -865,7 +567,7 @@ class Forward(Context):
     CType = typing.Callable[[A, B], T]
 
     def apply(self, __callable: CType):
-        operation = Operation(__callable, self.rules)
+        operation = Operation(__callable, self.types, *self.parameters)
         def operator(a: A, b: B, /, **kwargs) -> A:
             try:
                 result = operation.compute(a, b, reference=a, target=type(a), **kwargs)
@@ -885,7 +587,7 @@ class Reverse(Context):
     CType = typing.Callable[[A, B], T]
 
     def apply(self, __callable: CType):
-        operation = Operation(__callable, self.rules)
+        operation = Operation(__callable, self.types, *self.parameters)
         def operator(b: B, a: A, /, **kwargs) -> B:
             try:
                 result = operation.compute(a, b, reference=b, target=type(b), **kwargs)
@@ -905,7 +607,7 @@ class Inplace(Context):
     CType = typing.Callable[[A, B], T]
 
     def apply(self, __callable: CType):
-        operation = Operation(__callable, self.rules)
+        operation = Operation(__callable, self.types, *self.parameters)
         def operator(a: A, b: B, /, **kwargs) -> A:
             try:
                 result = operation.compute(a, b, reference=a, target=a, **kwargs)
@@ -949,7 +651,7 @@ class Numeric(Context):
     ) -> typing.Callable[[A, B], A]: ...
 
     def apply(self, __callable, mode: str='forward'):
-        operation = Operation(__callable, self.rules)
+        operation = Operation(__callable, self.types, *self.parameters)
         def forward(a: A, b: B, /, **kwargs) -> A:
             """Apply this operation to `a` and `b`."""
             try:
@@ -1152,11 +854,7 @@ def suppress(__operator: typing.Callable):
 class Interface(collections.abc.Mapping):
     """Top-level interface to arithmetic operations."""
 
-    def __init__(
-        self,
-        *parameters: str,
-        default: typing.Sequence[typing.Union[type, str]]=None,
-    ) -> None:
+    def __init__(self, __type: type, *parameters: str) -> None:
         """
         Initialize this instance.
 
@@ -1165,18 +863,15 @@ class Interface(collections.abc.Mapping):
         *parameters : string
             Zero or more strings representing the updatable attributes in each
             operand to these operations.
-
-        default : type and strings, optional
-            An object type and zero or more names of attributes to update
-            whenever the given object type appears in an operation, unless
-            overriden by an explicit rule.
         """
-        self.rules = Rules(*parameters)
-        if default is not None:
-            self.rules.imply(*default)
+        self._type = __type
         self.parameters = parameters
         """The names of all updatable attributes"""
-        self.categories = {k: v(self.rules) for k, v in CATEGORIES.items()}
+        self.types = Types(implied=__type)
+        self.categories = {
+            k: v(*parameters, types=self.types)
+            for k, v in CATEGORIES.items()
+        }
         self._operations = None
         self._contexts = None
 
@@ -1227,6 +922,13 @@ class Interface(collections.abc.Mapping):
         """Iterate over operation contexts."""
         return iter(self.operations)
 
+    @property
+    def operations(self) -> typing.Dict[str, Context]:
+        """The standard operation contexts defined here."""
+        if self._operations is None:
+            self._operations = {k: None for k in OPERATORS}
+        return self._operations
+
     def subclass(
         self,
         __name: str,
@@ -1267,49 +969,6 @@ class Interface(collections.abc.Mapping):
             else:
                 included.difference_update({name})
         operators = {k: self.implement(k) for k in included}
-        parents = iterables.unwrap(bases, wrap=tuple)
-        if self.rules._type is not None:
-            parents = (self.rules._type,) + parents
+        parents = (self._type,) + iterables.unwrap(bases, wrap=tuple)
         return type(__name, parents, operators)
-
-    @property
-    def operations(self) -> typing.Dict[str, Context]:
-        """The standard operation contexts defined here."""
-        if self._operations is None:
-            self._operations = {k: None for k in OPERATORS}
-        return self._operations
-
-    @property
-    def contexts(self) -> typing.Dict[str, Context]:
-        """All defined category and operation contexts."""
-        operations = {
-            k: self.categories[v['category']].spawn()
-            if self.operations[k] is None
-            else self.operations[k]
-            for k, v in OPERATORS.items()
-        }
-        return {**self.categories, **operations}
-
-
-def identity(__operator: typing.Callable):
-    """Create an operator that immediately returns its argument."""
-    def operator(*args: T):
-        first = args[0]
-        if (
-            all(type(arg) == type(first) for arg in args)
-            and all(arg == first for arg in args)
-        ): return first
-        return NotImplemented
-    operator.__name__ = f'__{__operator.__name__}__'
-    operator.__doc__ = __operator.__doc__
-    return operator
-
-
-def suppress(__operator: typing.Callable):
-    """Unconditionally suppress an operation."""
-    def operator(*args, **kwargs):
-        return NotImplemented
-    operator.__name__ = f'__{__operator.__name__}__'
-    operator.__doc__ = __operator.__doc__
-    return operator
 

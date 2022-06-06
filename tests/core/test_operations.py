@@ -67,109 +67,6 @@ def test_types_implied():
     assert (str, float) not in types
 
 
-def test_rule_len():
-    """Test the length of an operator rule."""
-    for parameters in ([], ['a'], ['a', 'b'], ['a', 'b', 'c']):
-        assert len(operations.Rule(*parameters)) == len(parameters)
-
-
-def test_rule_contains():
-    """Check for a type in an operator rule."""
-    rule = operations.Rule('a', 'b')
-    for name in ['a', 'b']:
-        assert name in rule
-
-
-def test_rules_register():
-    """Test the ability to register operand rules."""
-    default = ['a', 'b', 'c']
-    rules = operations.Rules(*default)
-    assert not rules
-    assert rules.ntypes is None
-    rules.register(int, float, 'a', 'b')
-    assert rules
-    assert rules.ntypes == 2
-    assert rules[(int, float)].parameters == ['a', 'b']
-    rules.register(float, float)
-    assert rules[(float, float)].parameters == default
-    rules.register(int, int, None)
-    assert not rules[(int, int)].parameters
-    with pytest.raises(operations.NTypesError):
-        rules.register(int, 'a')
-
-
-def test_rules_batch_register():
-    """Test the ability to register multiple rules at once."""
-    default = ['a', 'b', 'c']
-    rules = operations.Rules(*default)
-    assert not rules
-    assert rules.ntypes is None
-    user = [
-        (int, float, 'a', 'b'),
-        (float, float),
-        (int, int, None),
-    ]
-    rules.register(*user)
-    assert rules
-    assert rules.ntypes == 2
-    assert rules[(int, float)].parameters == ['a', 'b']
-    assert rules[(float, float)].parameters == default
-    assert not rules[(int, int)].parameters
-
-
-def test_rules_update_rule():
-    """Test the ability to dynamically update a rule in Rules."""
-    rules = operations.Rules()
-    rules.register(float, float, 'd', 'e', 'f')
-    rule = rules[(float, float)]
-    assert sorted(rule.parameters) == sorted(['d', 'e', 'f'])
-    rule.update('a', 'b')
-    assert sorted(rule.parameters) == sorted(['a', 'b'])
-    rule.append('c')
-    assert sorted(rule.parameters) == sorted(['a', 'b', 'c'])
-    rule.restrict('a', 'b')
-    assert sorted(rule.parameters) == sorted(['a', 'b'])
-    with pytest.raises(ValueError):
-        rule.restrict('a', 'd')
-    rule.remove('a')
-    assert rule.parameters == ['b']
-    rule.suppress
-    assert not rule.implemented
-
-
-def test_rules_suppress():
-    """Allow the user to suppress a rule with or without registering it."""
-    rules = operations.Rules()
-    rules.register(float, float, 'd', 'e', 'f')
-    assert rules[float, float].implemented
-    rules.suppress(float, float)
-    assert not rules[float, float].implemented
-    with pytest.raises(KeyError):
-        rules[float, int]
-    rules.suppress(float, int)
-    assert not rules[float, int].implemented
-
-
-def test_rules_copy():
-    """Test the ability to copy an instance."""
-    default = ['a', 'b', 'c']
-    rules = operations.Rules(*default)
-    rules.register(int, 'a')
-    rules.register(float, 'a', 'b')
-    copied = rules.copy()
-    assert copied == rules
-    assert copied is not rules
-    for t in [int, float]:
-        assert rules[t] == copied[t]
-        assert rules[t] is copied[t]
-    copied = rules.copy(deep=True)
-    assert copied == rules
-    assert copied is not rules
-    for t in [int, float]:
-        assert rules[t] == copied[t]
-        assert rules[t] is not copied[t]
-
-
 def test_operands():
     """Test the `Operands` class."""
     inputs = ['a', 1, 2.3]
@@ -182,12 +79,39 @@ def test_operands():
         assert operands[index] == inputs[index]
 
 
+class Info:
+    """Information about a value."""
+
+    def __init__(self, __text: str) -> None:
+        self._text = __text
+
+    __abs__ = operations.identity(abs)
+    __pos__ = operations.identity(standard.pos)
+    __neg__ = operations.identity(standard.neg)
+
+    __lt__ = operations.suppress(standard.lt)
+    __le__ = operations.suppress(standard.le)
+    __gt__ = operations.suppress(standard.gt)
+    __ge__ = operations.suppress(standard.ge)
+
+    __add__ = operations.identity(standard.add)
+    __sub__ = operations.identity(standard.sub)
+    __mul__ = operations.identity(standard.mul)
+    __truediv__ = operations.identity(standard.truediv)
+
+    def __eq__(self, other):
+        return isinstance(other, Info) and other._text == self._text
+
+    def __repr__(self):
+        return f"{self.__class__.__qualname__}({self._text!r})"
+
+
 class Base:
     """A base for test classes."""
     def __init__(self, value: numbers.Real, info: str) -> None:
         self.value = value
         """A numerical value."""
-        self.info = info
+        self.info = Info(info)
         """Some information about this instance."""
 
     def __eq__(self, other):
@@ -209,19 +133,6 @@ class Score:
         self.points = points
         self.kind = kind
         self.name = name
-
-
-def test_rules_implicit():
-    """Allow the user to specify an implicit default rule."""
-    rules = operations.Rules('a', 'b', 'c')
-    rules.imply(Base, 'a')
-    assert len(rules) == 0
-    assert rules[Base, Base].parameters == ['a']
-    assert rules[Base, float].parameters == ['a']
-    rules.register(Base, Base, 'b')
-    assert len(rules) == 1
-    assert rules[Base, Base].parameters == ['b']
-    assert rules[Base, float].parameters == ['a']
 
 
 T = typing.TypeVar('T')
@@ -360,14 +271,13 @@ def test_cast_builtin():
 
 def test_cast_custom():
     """Test a type-cast operation on a custom object."""
-    rules = operations.Rules('value', 'info')
-    operation = operations.Cast(rules)
+    operation = operations.Cast('value', 'info')
     instances = build(Base)
     builtin = int
     operator = operation.apply(builtin)
     with pytest.raises(TypeError):
         operator(instances[0])
-    operation.rules.register(Base, 'value')
+    operation.types.add(Base)
     operator = operation.apply(builtin)
     for instance in instances:
         assert operator(instance) == builtin(instance.value)
@@ -384,14 +294,13 @@ def test_unary_builtin():
 
 def test_unary_custom():
     """Test a unary arithmetic operation on a custom object."""
-    rules = operations.Rules('value', 'info')
-    operation = operations.Unary(rules)
+    operation = operations.Unary('value', 'info')
     instances = build(Base)
     builtin = round
     operator = operation.apply(builtin)
     with pytest.raises(TypeError):
         operator(instances[0])
-    operation.rules.register(Base, 'value')
+    operation.types.add(Base)
     operator = operation.apply(builtin)
     for instance in instances:
         expected = Base(builtin(instance.value), instance.info)
@@ -409,14 +318,13 @@ def test_comparison_builtin():
 
 def test_comparison_custom():
     """Test a binary comparison operation on a custom object."""
-    rules = operations.Rules('value', 'info')
-    operation = operations.Comparison(rules)
+    operation = operations.Comparison('value', 'info')
     builtin = standard.lt
     instances = build(Base)
     operator = operation.apply(builtin)
     with pytest.raises(TypeError):
         operator(instances[0], instances[1])
-    operation.rules.register(Base, Base, 'value')
+    operation.types.add(Base, Base)
     operator = operation.apply(builtin)
     assert operator(instances[0], instances[1])
     assert not operator(instances[1], instances[0])
@@ -444,14 +352,13 @@ def test_numeric_builtin():
 
 def test_numeric_custom():
     """Test a binary numeric operation on a built-in object."""
-    rules = operations.Rules('value', 'info')
-    operation = operations.Numeric(rules)
+    operation = operations.Numeric('value', 'info')
     builtin = standard.add
     instances = build(Base)
     operator = operation.apply(builtin)
     with pytest.raises(TypeError):
         operator(instances[0], instances[1])
-    operation.rules.register(Base, Base, 'value')
+    operation.types.add(Base, Base)
     operator = operation.apply(builtin)
     expected = Base(
         builtin(instances[0].value, instances[1].value),
@@ -534,7 +441,7 @@ def method_names():
 @pytest.fixture
 def interface():
     """An operations interface."""
-    return operations.Interface('value', 'info', default=[Base, 'value'])
+    return operations.Interface(Base, 'value', 'info')
 
 
 def test_cast_interface(interface: operations.Interface):
@@ -592,14 +499,14 @@ def test_interface_categories(interface: operations.Interface):
     for name, current in CATEGORIES.items():
         category = interface[name]
         assert isinstance(category, current['context'])
-        assert len(category.rules) == 0
+        assert len(category.types) == 0
         types = [Base] * current['ntypes']
-        category.rules.register(*types, 'value')
-        assert len(category.rules) == 1
-    assert interface['cast'].rules[Base].parameters == ['value']
-    assert interface['unary'].rules[Base].parameters == ['value']
-    assert interface['comparison'].rules[Base, Base].parameters == ['value']
-    assert interface['numeric'].rules[Base, Base].parameters == ['value']
+        category.types.add(*types)
+        assert len(category.types) == 1
+    assert Base in interface['cast'].types
+    assert Base in interface['unary'].types
+    assert (Base, Base) in interface['comparison'].types
+    assert (Base, Base) in interface['numeric'].types
 
 
 def test_interface_operations(interface: operations.Interface):
@@ -607,11 +514,11 @@ def test_interface_operations(interface: operations.Interface):
     add = interface['add']
     assert add is interface['add']
     assert add is interface['__add__']
-    assert add.rules == interface['numeric'].rules
-    add.rules.register(Base, float, 'value')
-    assert interface['numeric'].rules[Base, Base].parameters == ['value']
-    assert len(interface['add'].rules) == 1
-    assert interface['add'].rules[Base, float].parameters == ['value']
+    assert add.types == interface['numeric'].types
+    assert (Base, Base) in interface['numeric'].types
+    add.types.add(Base, float)
+    assert len(interface['add'].types) == 1
+    assert (Base, float) in interface['add'].types
     for defined in CATEGORIES.values():
         context = defined['context']
         for k in defined['operations']:
@@ -620,11 +527,13 @@ def test_interface_operations(interface: operations.Interface):
 
 def test_interface_update_rule(interface: operations.Interface):
     """Make sure we can independently update rules."""
-    interface['numeric'].rules.register(Base, float, 'value')
-    assert interface['add'].rules[(Base, float)].implemented
-    interface['__add__'].rules[(Base, float)].suppress
-    assert not interface['add'].rules[(Base, float)].implemented
-    assert interface['numeric'].rules[(Base, float)].implemented
+    interface['numeric'].types.add(Base, float)
+    assert (Base, float) in interface['add'].types
+    interface['__add__'].types.discard(Base, float)
+    assert (Base, float) not in interface['add'].types
+    assert (Base, float) in interface['numeric'].types
+    interface['numeric'].types.discard(Base, Base)
+    assert (Base, Base) not in interface['numeric'].types
 
 
 def test_interface_subclass(
