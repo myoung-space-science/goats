@@ -144,7 +144,13 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
 
     def get(self, name: str):
         """Get operand values for the named attribute."""
-        return [utilities.getattrval(i, name) for i in self]
+        return [self._get(name, operand) for operand in self]
+
+    def _get(self, name: str, operand):
+        """Helper for `~Operands.get`."""
+        if hasattr(operand, name):
+            return utilities.getattrval(operand, name)
+        return utilities.getattrval(self.reference, name)
 
     @property
     def types(self):
