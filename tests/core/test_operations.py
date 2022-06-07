@@ -276,117 +276,6 @@ def test_same():
     assert f3(scores[0]) == scores[0]
 
 
-def test_cast_builtin():
-    """Test a type-cast operation on a built-in object."""
-    operation = operations.Cast()
-    builtin = int
-    operator = operation.apply(builtin)
-    value = 3.3
-    result = operator(value)
-    assert isinstance(result, builtin)
-    assert result == builtin(value)
-
-
-def test_cast_custom():
-    """Test a type-cast operation on a custom object."""
-    operation = operations.Cast('value', 'info')
-    instances = build(Base)
-    builtin = int
-    operator = operation.apply(builtin)
-    with pytest.raises(TypeError):
-        builtin(instances[0])
-    operation.types.add(Base)
-    operator = operation.apply(builtin)
-    for instance in instances:
-        assert operator(instance) == builtin(instance.value)
-
-
-def test_unary_builtin():
-    """Test a unary arithmetic operation on a built-in object."""
-    operation = operations.Unary()
-    builtin = round
-    operator = operation.apply(builtin)
-    value = 3.3
-    assert operator(value) == builtin(value)
-
-
-def test_unary_custom():
-    """Test a unary arithmetic operation on a custom object."""
-    operation = operations.Unary('value', 'info')
-    instances = build(Base)
-    builtin = round
-    operator = operation.apply(builtin)
-    with pytest.raises(TypeError):
-        builtin(instances[0])
-    operation.types.add(Base)
-    operator = operation.apply(builtin)
-    for instance in instances:
-        expected = Base(builtin(instance.value), instance.info)
-        assert operator(instance) == expected
-
-
-def test_comparison_builtin():
-    """Test a binary comparison operation on a built-in object."""
-    operation = operations.Comparison()
-    builtin = standard.lt
-    operator = operation.apply(builtin)
-    values = 2, 4
-    assert operator(*values) == builtin(*values)
-
-
-def test_comparison_custom():
-    """Test a binary comparison operation on a custom object."""
-    operation = operations.Comparison('value', 'info')
-    builtin = standard.lt
-    instances = build(Base)
-    operator = operation.apply(builtin)
-    with pytest.raises(TypeError):
-        builtin(instances[0], instances[1])
-    operation.types.add(Base, Base)
-    operator = operation.apply(builtin)
-    assert operator(instances[0], instances[1])
-    assert not operator(instances[1], instances[0])
-    with pytest.raises(operations.OperandTypeError):
-        operator(instances[0], instances[2])
-
-
-def test_numeric_builtin():
-    """Test a binary numeric operation on a built-in object."""
-    operation = operations.Numeric()
-    builtin = standard.add
-    operator = operation.apply(builtin)
-    values = 2, 4
-    types = {
-        (int, int): int,
-        (float, int): float,
-        (int, float): float,
-    }
-    for casts, rtype in types.items():
-        inputs = [cast(value) for cast, value in zip(casts, values)]
-        result = operator(*inputs)
-        assert isinstance(result, rtype)
-        assert result == builtin(*inputs)
-
-
-def test_numeric_custom():
-    """Test a binary numeric operation on a built-in object."""
-    operation = operations.Numeric('value', 'info')
-    builtin = standard.add
-    instances = build(Base)
-    operator = operation.apply(builtin)
-    with pytest.raises(TypeError):
-        builtin(instances[0], instances[1])
-    operation.types.add(Base, Base)
-    operator = operation.apply(builtin)
-    expected = Base(
-        builtin(instances[0].value, instances[1].value),
-        instances[0].info,
-    )
-    assert operator(instances[0], instances[1]) == expected
-    with pytest.raises(operations.OperandTypeError):
-        operator(instances[0], instances[2])
-
-
 CATEGORIES = {
     'cast': {
         'ntypes': 1,
@@ -462,38 +351,8 @@ def interface():
     return operations.Interface(Base, 'value', 'info')
 
 
-# Attempting to operate on instances of `Base` should raise a `TypeError` if it
-# doesn't implement the operator, which will be the case for most. Inheriting
-# from a mixin class that implements the missing operator should resolve the
-# `TypeError`. The mixin class can come from `Interface.subclass`. We will also
-# want to implement a custom operator by passing a callable to
-# `Interface.implement` (e.g., in `__array_ufunc__`). Therefore, I think the two
-# primary groups of tests should 1) test built-in operators on `Base` and a
-# subclass with implemented operators, and 2) test custom operator
-# implementations from the interface on that subclass.
-# - call built-in unary operators on
-#   - `Base` -> `TypeError`
-# - call built-in binary operators on
-#   - (`Base`, `Base`) -> `TypeError`
-#   - (`float`, `Base`) -> `TypeError`
-#   - (`Base`, `float`) -> `TypeError`
-# - define `Custom(Mixin, Base)`
-# - call built-in unary operators on
-#   - `Custom` -> result
-# - call built-in binary operators on
-#   - (`Custom`, `Custom`) -> result
-#   - (`float`, `Custom`) -> result
-#   - (`Custom`, `float`) -> result
-# - call custom unary operators on
-#   - `Custom` -> result
-# - call custom binary operators on
-#   - (`Custom`, `Custom`) -> result
-#   - (`float`, `Custom`) -> result
-#   - (`Custom`, `float`) -> result
-
-
-def test_builtin_cast(interface: operations.Interface):
-    """Test cast operations on custom objects."""
+def test_cast(interface: operations.Interface):
+    """Test cast operations on built-in and custom objects."""
     builtins = CATEGORIES['cast']['operations']
     instances = build(Base)
     for builtin in builtins.values():
@@ -510,8 +369,8 @@ def test_builtin_cast(interface: operations.Interface):
             assert operator(instance) == expected
 
 
-def test_builtin_comparison(interface: operations.Interface):
-    """Test comparison operations on custom objects."""
+def test_comparison(interface: operations.Interface):
+    """Test comparison operations on built-in and custom objects."""
     builtins = CATEGORIES['comparison']['operations']
     instances = build(Base)
     targets = instances[0], instances[1]
@@ -530,8 +389,8 @@ def test_builtin_comparison(interface: operations.Interface):
         assert operator(*targets) == expected
 
 
-def test_builtin_unary(interface: operations.Interface):
-    """Test unary operations on custom objects."""
+def test_unary(interface: operations.Interface):
+    """Test unary operations on built-in and custom objects."""
     builtins = CATEGORIES['unary']['operations']
     instances = build(Base)
     for builtin in builtins.values():
@@ -548,8 +407,8 @@ def test_builtin_unary(interface: operations.Interface):
             assert operator(instance) == expected
 
 
-def test_builtin_numeric(interface: operations.Interface):
-    """Test numeric operations on custom objects."""
+def test_numeric(interface: operations.Interface):
+    """Test numeric operations on built-in and custom objects."""
     builtins = CATEGORIES['numeric']['operations']
     instances = build(Base)
     targets = instances[0], instances[1]
@@ -586,8 +445,8 @@ def test_interface_categories(interface: operations.Interface):
     assert (Base, Base) in interface['numeric'].types
 
 
-def test_interface_operations(interface: operations.Interface):
-    """Test the ability to implement and cache operations."""
+def test_interface_operation_context(interface: operations.Interface):
+    """Make sure each operation has the correct context."""
     add = interface['add']
     assert add is interface['add']
     assert add is interface['__add__']
@@ -602,15 +461,43 @@ def test_interface_operations(interface: operations.Interface):
             assert isinstance(interface[k], context)
 
 
-def test_interface_update_rule(interface: operations.Interface):
-    """Make sure we can independently update rules."""
+def test_interface_implied_type(interface: operations.Interface):
+    """Make sure the implied type shows up correctly."""
+    cases = {
+        'cast': (Base,),
+        'unary': (Base,),
+        'comparison': (Base, Base),
+        'numeric': (Base, Base),
+    }
+    for category, types in cases.items():
+        assert types in interface[category].types
+        interface[category].types.discard(*types)
+        assert types not in interface[category].types
+
+
+def test_interface_context(interface: operations.Interface):
+    """Test access to operation and category contexts."""
+    add = interface['add']
+    assert add is interface['add']
+    assert add is interface['__add__']
+    assert add is not interface['numeric']
+    assert add.types == interface['numeric'].types
+
+
+def test_interface_update_types(interface: operations.Interface):
+    """Make sure we can correctly update type specifications."""
+    # Add types to a category.
     interface['numeric'].types.add(Base, float)
+    # Check that they're in an operation in that category.
     assert (Base, float) in interface['add'].types
-    interface['__add__'].types.discard(Base, float)
+    assert (Base, float) in interface['__add__'].types
+    # Discard them from the operation.
+    interface['add'].types.discard(Base, float)
+    # Check that they're not in the operation.
     assert (Base, float) not in interface['add'].types
+    assert (Base, float) not in interface['__add__'].types
+    # Make sure they're still in the category.
     assert (Base, float) in interface['numeric'].types
-    interface['numeric'].types.discard(Base, Base)
-    assert (Base, Base) not in interface['numeric'].types
 
 
 def test_interface_subclass(
