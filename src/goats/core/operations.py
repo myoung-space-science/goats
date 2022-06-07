@@ -365,6 +365,99 @@ _operators = [
 ]
 
 
+@typing.runtime_checkable
+class Metadata(typing.Protocol):
+    """Protocol definition for metadata attributes in operations."""
+
+    @abc.abstractmethod
+    def __abs__(self):
+        pass
+
+    @abc.abstractmethod
+    def __pos__(self):
+        pass
+
+    @abc.abstractmethod
+    def __neg__(self):
+        pass
+
+    @abc.abstractmethod
+    def __round__(self):
+        pass
+
+    @abc.abstractmethod
+    def __ceil__(self):
+        pass
+
+    @abc.abstractmethod
+    def __floor__(self):
+        pass
+
+    @abc.abstractmethod
+    def __trunc__(self):
+        pass
+
+    @abc.abstractmethod
+    def __add__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __radd__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __iadd__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __sub__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __rsub__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __isub__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __mul__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __rmul__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __imul__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __truediv__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __rtruediv__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __itruediv__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __pow__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __rpow__(self, other):
+        pass
+
+    @abc.abstractmethod
+    def __ipow__(self, other):
+        pass
+
+
 # Idea: Instead of specifying active parameters for certain rules, require the
 # operand objects to declare whether or not they implement the operation. This
 # could preclude the need to pass names of updatable attributes to `Rules`, and
