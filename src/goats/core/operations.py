@@ -385,12 +385,6 @@ A = typing.TypeVar('A')
 B = typing.TypeVar('B')
 
 
-_operators = [
-    ('add', '__add__', 'addition'),
-    ('sub', '__sub__', 'subtraction'),
-]
-
-
 @typing.runtime_checkable
 class Metadata(typing.Protocol):
     """Protocol definition for metadata attributes in operations."""
@@ -919,28 +913,29 @@ OPERATIONS = {
 """A mapping of operation name to metadata."""
 
 
-OPERATORS = {
-    f'__{k}__': v.copy() for k, v in OPERATIONS.items()
+_operators = {
+    (k, f'__{k}__'): v.copy() for k, v in OPERATIONS.items()
     if v['category'] != 'numeric'
 }
-OPERATORS.update(
+_operators.update(
     {
-        f'__{k}__': {**v, 'mode': 'forward'}
+        (k, f'__{k}__'): {**v, 'mode': 'forward'}
         for k, v in OPERATIONS.items() if v['category'] == 'numeric'
     }
 )
-OPERATORS.update(
+_operators.update(
     {
         f'__r{k}__': {**v, 'mode': 'reverse'}
         for k, v in OPERATIONS.items() if v['category'] == 'numeric'
     }
 )
-OPERATORS.update(
+_operators.update(
     {
         f'__i{k}__': {**v, 'mode': 'inplace'}
         for k, v in OPERATIONS.items() if v['category'] == 'numeric'
     }
 )
+OPERATORS = aliased.Mapping(_operators)
 
 
 NAMES = {
@@ -1030,17 +1025,15 @@ class Interface(collections.abc.Mapping):
 
     def __getitem__(self, __k):
         """Retrieve the appropriate operation context."""
-        keys = (__k, f'__{__k}__')
-        for key in keys:
-            if key in self.categories:
-                return self.categories[key]
-            # This block ensures that we don't overwrite a context.
-            if key in self.operations:
-                if current := self.operations[key]:
-                    return current
-                new = self.categories[OPERATORS[key]['category']].spawn()
-                self.operations[key] = new
-                return new
+        if __k in self.categories:
+            return self.categories[__k]
+        # This block ensures that we don't overwrite a context.
+        if __k in self.operations:
+            if current := self.operations[__k]:
+                return current
+            new = self.categories[OPERATORS[__k]['category']].spawn()
+            self.operations[__k] = new
+            return new
         raise KeyError(f"Unknown context {__k!r}") from None
 
     def __len__(self) -> int:
@@ -1065,7 +1058,7 @@ class Interface(collections.abc.Mapping):
     def operations(self) -> typing.Dict[str, Context]:
         """The standard operation contexts defined here."""
         if self._operations is None:
-            self._operations = {k: None for k in OPERATORS}
+            self._operations = aliased.MutableMapping.fromkeys(OPERATORS)
         return self._operations
 
     def subclass(

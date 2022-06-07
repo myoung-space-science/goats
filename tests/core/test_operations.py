@@ -494,65 +494,72 @@ def interface():
 
 def test_builtin_cast(interface: operations.Interface):
     """Test cast operations on custom objects."""
-    builtins = CATEGORIES['cast']['operations'].values()
+    builtins = CATEGORIES['cast']['operations']
     instances = build(Base)
-    for builtin in builtins:
+    for builtin in builtins.values():
         for instance in instances:
             with pytest.raises(TypeError):
                 builtin(instance)
     Custom = interface.subclass('Custom')
     instances = build(Custom)
-    for builtin in builtins:
+    for name, builtin in builtins.items():
         for instance in instances:
             expected = builtin(instance.value)
             assert builtin(instance) == expected
+            operator = interface.implement(name, builtin)
+            assert operator(instance) == expected
 
 
 def test_builtin_comparison(interface: operations.Interface):
     """Test comparison operations on custom objects."""
-    builtins = CATEGORIES['comparison']['operations'].values()
+    builtins = CATEGORIES['comparison']['operations']
     instances = build(Base)
     targets = instances[0], instances[1]
-    for builtin in builtins:
+    for builtin in builtins.values():
         with pytest.raises(TypeError):
             builtin(*targets)
     Custom = interface.subclass('Custom')
     instances = build(Custom)
     targets = instances[0], instances[1]
-    for builtin in builtins:
-        assert builtin(*targets) == builtin(*[c.value for c in targets])
+    for name, builtin in builtins.items():
+        expected = builtin(*[c.value for c in targets])
+        assert builtin(*targets) == expected
         with pytest.raises(operations.OperandTypeError):
             builtin(instances[0], instances[2])
+        operator = interface.implement(name, builtin)
+        assert operator(*targets) == expected
 
 
 def test_builtin_unary(interface: operations.Interface):
     """Test unary operations on custom objects."""
-    builtins = CATEGORIES['unary']['operations'].values()
+    builtins = CATEGORIES['unary']['operations']
     instances = build(Base)
-    for builtin in builtins:
+    for builtin in builtins.values():
         for instance in instances:
             with pytest.raises(TypeError):
                 builtin(instance)
     Custom = interface.subclass('Custom')
     instances = build(Custom)
-    for builtin in builtins:
+    for name, builtin in builtins.items():
         for instance in instances:
             expected = Base(builtin(instance.value), instance.info)
             assert builtin(instance) == expected
+            operator = interface.implement(name, builtin)
+            assert operator(instance) == expected
 
 
 def test_builtin_numeric(interface: operations.Interface):
     """Test numeric operations on custom objects."""
-    builtins = CATEGORIES['numeric']['operations'].values()
+    builtins = CATEGORIES['numeric']['operations']
     instances = build(Base)
     targets = instances[0], instances[1]
-    for builtin in builtins:
+    for builtin in builtins.values():
         with pytest.raises(TypeError):
             builtin(*targets)
     Custom = interface.subclass('Custom')
     instances = build(Custom)
     targets = instances[0], instances[1]
-    for builtin in builtins:
+    for name, builtin in builtins.items():
         expected = Base(
             builtin(*[c.value for c in targets]),
             targets[0].info,
@@ -560,6 +567,8 @@ def test_builtin_numeric(interface: operations.Interface):
         assert builtin(*targets) == expected
         with pytest.raises(operations.OperandTypeError):
             builtin(instances[0], instances[2])
+        operator = interface.implement(name, builtin)
+        assert operator(*targets) == expected
 
 
 def test_interface_categories(interface: operations.Interface):
