@@ -492,8 +492,9 @@ def test_comparison_interface(interface: operations.Interface):
     for builtin in CATEGORIES['comparison']['operations'].values():
         operator = operation.apply(builtin)
         assert operator(*targets) == builtin(*[c.value for c in targets])
-        with pytest.raises(operations.OperandTypeError):
-            operator(instances[0], instances[2])
+        if builtin not in {standard.eq, standard.ne}:
+            with pytest.raises(operations.OperandTypeError):
+                operator(instances[0], instances[2])
 
 
 def test_numeric_interface(interface: operations.Interface):
