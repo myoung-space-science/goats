@@ -528,11 +528,10 @@ class Operation:
         operands = Operands(*args, reference=reference)
         primary, *secondary = self.parameters
         data = self.method(*operands.get(primary, force=True), **kwargs)
-        consistent = operands.agree(*secondary)
+        if not operands.agree(*secondary):
+            errmsg = self._operand_errmsg(types, *secondary)
+            raise OperandTypeError(errmsg)
         if reference is None and target is None: # proxy for cast/comparison?
-            if not consistent:
-                errmsg = self._operand_errmsg(types, *secondary)
-                raise OperandTypeError(errmsg)
             return data
         # - Unary
         #   - operate on the data and metadata attributes of a single operand
@@ -550,10 +549,6 @@ class Operation:
         #   - needs to raise `OperandTypeError` if a metadata operator raises
         #     `TypeError` because we don't know à priori which metadata
         #     attributes will implement a given operation
-
-        if not consistent:
-            errmsg = self._operand_errmsg(types, *secondary)
-            raise OperandTypeError(errmsg)
         values = [data] + [
             self.method(*operands.get(name), **kwargs)
             for name in secondary
