@@ -967,12 +967,8 @@ class Interface(collections.abc.Mapping):
         self.parameters = parameters
         """The names of all updatable attributes"""
         self.types = Types(implied=__type)
-        self.categories = {
-            k: v(*parameters, types=self.types)
-            for k, v in CATEGORIES.items()
-        }
+        self._categories = None
         self._operations = None
-        self._contexts = None
 
     def implement(self, __k: str, method: typing.Callable=None) -> Context:
         """Implement the named operator."""
@@ -1020,6 +1016,16 @@ class Interface(collections.abc.Mapping):
     def __iter__(self):
         """Iterate over operation contexts."""
         return iter(self.operations)
+
+    @property
+    def categories(self) -> typing.Dict[str, Context]:
+        """The defined operation-category contexts."""
+        if self._categories is None:
+            self._categories = {
+                k: v(*self.parameters, types=self.types)
+                for k, v in CATEGORIES.items()
+            }
+        return self._categories
 
     @property
     def operations(self) -> typing.Dict[str, Context]:
