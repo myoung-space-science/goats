@@ -549,42 +549,19 @@ class Operation:
         #   - needs to raise `OperandTypeError` if a metadata operator raises
         #     `TypeError` because we don't know à priori which metadata
         #     attributes will implement a given operation
-        values = [data] + [
-            self.method(*operands.get(name), **kwargs)
-            for name in secondary
-        ]
+        values = [data]
+        for name in secondary:
+            try:
+                value = self.method(*operands.get(name), **kwargs)
+            except TypeError:
+                value = utilities.getattrval(operands.reference, name)
+            values.append(value)
         if isinstance(target, type):
             return target(*values)
         zipped = zip(self.parameters, values)
         for name, value in zipped:
             utilities.setattrval(target, name, value)
         return target
-
-    # Deprecate?
-    def computable(self, operands: Operands, name: str):
-        """Determine if this instance can compute the value of an attribute."""
-        try:
-            self.method(*operands.get(name))
-        except TypeError:
-            return operands.agree(name)
-        else:
-            return True
-
-    # Deprecate?
-    def _compute(self, operands: Operands, name: str, **kwargs):
-        """Compute a value if possible."""
-        try:
-            value = self.method(*operands.get(name), **kwargs)
-        except TypeError as err:
-            # TODO: This would be more useful if it distinguished between cases
-            # when the operation is undefined/not implemented and cases when the
-            # operation is meaningless between instances with different values
-            # of a metadata attribute. Maybe it just needs to behave differently
-            # for unary and binary operations. Either way, the user needs to
-            # know what to fix.
-            errmsg = self._operand_errmsg(operands.types, name)
-            raise OperandTypeError(errmsg) from err
-        return value
 
     def _operand_errmsg(self, types: typing.Iterable[type], *fixed: str):
         """Build an error message based on `rule` and `operands`."""
