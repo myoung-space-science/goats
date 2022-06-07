@@ -82,22 +82,22 @@ def test_operands():
 class Info:
     """Information about a value."""
 
-    def __init__(self, __text: str) -> None:
-        self._text = __text
+    def __init__(self, arg) -> None:
+        self._text = arg._text if isinstance(arg, Info) else arg
 
     __abs__ = operations.identity(abs)
     __pos__ = operations.identity(standard.pos)
     __neg__ = operations.identity(standard.neg)
-
-    __lt__ = operations.suppress(standard.lt)
-    __le__ = operations.suppress(standard.le)
-    __gt__ = operations.suppress(standard.gt)
-    __ge__ = operations.suppress(standard.ge)
+    __ceil__ = operations.identity(math.ceil)
+    __floor__ = operations.identity(math.floor)
+    __trunc__ = operations.identity(math.trunc)
+    __round__ = operations.identity(round)
 
     __add__ = operations.identity(standard.add)
     __sub__ = operations.identity(standard.sub)
     __mul__ = operations.identity(standard.mul)
     __truediv__ = operations.identity(standard.truediv)
+    __pow__ = operations.identity(standard.pow)
 
     def __eq__(self, other):
         return isinstance(other, Info) and other._text == self._text
@@ -276,7 +276,7 @@ def test_cast_custom():
     builtin = int
     operator = operation.apply(builtin)
     with pytest.raises(TypeError):
-        operator(instances[0])
+        builtin(instances[0])
     operation.types.add(Base)
     operator = operation.apply(builtin)
     for instance in instances:
@@ -299,7 +299,7 @@ def test_unary_custom():
     builtin = round
     operator = operation.apply(builtin)
     with pytest.raises(TypeError):
-        operator(instances[0])
+        builtin(instances[0])
     operation.types.add(Base)
     operator = operation.apply(builtin)
     for instance in instances:
@@ -323,7 +323,7 @@ def test_comparison_custom():
     instances = build(Base)
     operator = operation.apply(builtin)
     with pytest.raises(TypeError):
-        operator(instances[0], instances[1])
+        builtin(instances[0], instances[1])
     operation.types.add(Base, Base)
     operator = operation.apply(builtin)
     assert operator(instances[0], instances[1])
@@ -357,7 +357,7 @@ def test_numeric_custom():
     instances = build(Base)
     operator = operation.apply(builtin)
     with pytest.raises(TypeError):
-        operator(instances[0], instances[1])
+        builtin(instances[0], instances[1])
     operation.types.add(Base, Base)
     operator = operation.apply(builtin)
     expected = Base(

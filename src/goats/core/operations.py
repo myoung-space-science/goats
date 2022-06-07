@@ -476,17 +476,13 @@ class Operation:
         self.types = types.copy()
         self.parameters = parameters
 
-    # New implementation:
-    # - if allowed types is None, use `rule is None` block
-    # - convert argument(s) to operand(s)
-    # - for each active attribute
-    #  - try to apply operator to attribute on operand(s)
-    #  - if that succeeds, keep the result
-    #  - if it fails (NotImplemented? TypeError?), do nothing
-    # - if no results, return `NotImplemented`
-    # - otherwise, proceed from `target is None`
     def compute(self, *args, reference=None, target=None, **kwargs):
         """Evaluate arguments within this operational context."""
+        if all(isbuiltin(arg) for arg in args): # Need to check this first.
+            return self.method(*args, **kwargs)
+        if not self.types.supports(*(type(arg) for arg in args)):
+            # HACK: This is just to get it to raise a `TypeError` for now.
+            return self.method(*args, **kwargs)
         if not self.parameters:
             # We don't know which arguments to operate on, so we hand execution
             # over to the given operands, in case they implement this operator
@@ -501,36 +497,66 @@ class Operation:
                     f" operands uses {self!r} to implement {self.method!r}"
                     " without explicit knowledge of the updatable attributes."
                 ) from err
-        if not self.types.supports(*(type(arg) for arg in args)):
-            return NotImplemented
+        # What does each context actually need?
+        # - Cast
+        #   - operate on the data attribute of a single operand
+        #   - directly return the result
+        # - Comparison
+        #   - check metadata attribute consistency if necessary
+        #   - operate on the data attribute of mulitple operands
+        #   - directly return the result
         operands = Operands(*args, reference=reference)
-        computed = {
-            parameter: self._compute(operands, parameter, **kwargs)
-            for parameter in self.parameters
-        }
-        valid = [k for k, v in computed.items() if v != NotImplemented]
-        if not valid:
-            return NotImplemented
-        fixed = [k for k, v in computed.items() if v == NotImplemented]
-        if not operands.agree(*fixed):
-            errmsg = self._operand_errmsg(operands, *fixed)
-            raise OperandTypeError(errmsg) from None
-        defaults = self._get_defaults(reference)
-        values = [ # order matters
-            computed[k] if k in valid else defaults[k]
-            for k in self.parameters
-        ] if defaults else [computed[k] for k in valid]
-        if target is None:
-            return (
-                values[0] if len(values) == 1 or reference is None
-                else values
-            )
+        primary, *secondary = self.parameters
+        if reference is None and target is None: # proxy for cast/comparison?
+            if not operands.agree(*secondary):
+                # Will this erroneously raise an exception for
+                # `__eq__`/`__ne__`? Unlike the other comparison operators, they
+                # can meaningfully compare two operands with different values of
+                # a metadata attribute.
+                errmsg = self._operand_errmsg(operands, *secondary)
+                raise OperandTypeError(errmsg) from None
+            return self.method(*operands.get(primary), **kwargs)
+        # - Unary
+        #   - operate on the data and metadata attributes of a single operand
+        #   - initialize a new instance of the operand with the results
+        #   - return the instance
+        # - Numeric
+        #   - operate on the data attribute of multiple operands
+        #   - attempt to operate on the metadata attributes of the same operands
+        #   - fall back on a reference value if necessary
+        #   - initialize a new instance or update an existing instance
+        #   - return the instance
+        #   - default values are necessary when the co-operand(s) in a binary
+        #     numeric operation define some but not all of the metadata
+        #     attributes
+        #   - needs to raise `OperandTypeError` if a metadata operator raises
+        #     `TypeError` because we don't know a priori which metadata
+        #     attributes will implement a given operation
+        values = [
+            self._compute(operands, name, **kwargs)
+            for name in self.parameters
+        ]
         if isinstance(target, type):
             return target(*values)
-        zipped = zip(defaults, values)
+        zipped = zip(self.parameters, values)
         for name, value in zipped:
             utilities.setattrval(target, name, value)
         return target
+
+    def _compute(self, operands: Operands, name: str, **kwargs):
+        """Compute a value if possible."""
+        try:
+            value = self.method(*operands.get(name), **kwargs)
+        except TypeError as err:
+            # TODO: This would be more useful if it distinguished between cases
+            # when the operation is undefined/not implemented and cases when the
+            # operation is meaningless between instances with different values
+            # of a metadata attribute. Maybe it just needs to behave differently
+            # for unary and binary operations. Either way, the user needs to
+            # know what to fix.
+            errmsg = self._operand_errmsg(operands, name)
+            raise OperandTypeError(errmsg) from err
+        return value
 
     def _operand_errmsg(self, operands: Operands, *fixed: str):
         """Build an error message based on `rule` and `operands`."""
@@ -549,41 +575,6 @@ class Operation:
             f"Can't apply operator {method_string} to {types_string}"
             f" with different values of {attrs_string}"
         )
-
-    def _get_defaults(self, reference=None) -> typing.Dict[str, typing.Any]:
-        """Get default values for initialization arguments."""
-        if reference is None:
-            return {}
-        parameters = get_parameters(reference)
-        if not parameters:
-            # There's nothing to operate on.
-            return {}
-        kinds = {parameter.kind for parameter in parameters.values()}
-        # Should this check for `VAR_POSITIONAL in kinds` instead?
-        # variable-length keyword parameters aren't fatal -- they just mean
-        # we'll initialize the new object with default values.
-        if kinds == {
-            # Inspection found only variable-length parameters, so we can't
-            # determine the names of attributes to get; we need to fall back on
-            # the user-provided attribute names.
-            inspect.Parameter.VAR_KEYWORD,
-            inspect.Parameter.VAR_POSITIONAL,
-        }: return {
-            name: utilities.getattrval(reference, name)
-            for name in self.parameters
-        }
-        return {
-            name: utilities.getattrval(reference, name)
-            for name in parameters
-        }
-
-    def _compute(self, operands: Operands, name: str, **kwargs):
-        """Compute a value if possible."""
-        try:
-            value = self.method(*operands.get(name), **kwargs)
-        except (ValueError, TypeError):
-            value = NotImplemented
-        return value
 
 
 class Context(abc.ABC, iterables.ReprStrMixin):
