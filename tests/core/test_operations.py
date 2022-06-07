@@ -53,6 +53,22 @@ def test_types():
     types.add(int)
     assert int in types
 
+
+def test_types_add_multiple():
+    """Test the ability to add multiple type specifications."""
+    types = operations.Types()
+    assert len(types) == 0
+    user = [
+        (int, float),
+        (float, float),
+        (int, int),
+    ]
+    types.add(*user)
+    assert len(types) == 3
+    for these in user:
+        assert these in types
+
+
 def test_types_implied():
     """Test the implied type specification."""
     types = operations.Types(implied=str)

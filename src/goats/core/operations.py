@@ -279,7 +279,32 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
         self._types = set(init)
 
     def add(self, *types: type, symmetric: bool=False):
-        """Add these types to the collection, if possible."""
+        """Add these types to the collection, if possible.
+        
+        Parameters
+        ----------
+        *types
+            One or more type specifications to register. A type specification
+            consists of one or more type(s) of operand(s) that are
+            inter-operable. Multiple type specifications must be grouped into
+            lists or tuples, even if they represent a single type.
+
+        Raises
+        ------
+        NTypesError
+            The number of types in a given type specification is not equal to
+            the number of types in existing type specifications.
+        """
+        if not types:
+            raise ValueError("No types to add.") from None
+        if isinstance(types[0], type):
+            return self._add(types, symmetric=symmetric)
+        for these in types:
+            self._add(these)
+        return self
+
+    def _add(self, types, symmetric=False):
+        """Internal helper for `~Types.add`."""
         ntypes = len(types)
         if self.ntypes is None:
             self.ntypes = ntypes
@@ -291,6 +316,7 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
         self._types |= set([types])
         if symmetric:
             self._types |= set([types[::-1]])
+        return self
 
     def discard(self, *types: type):
         """Remove these types from the collection."""
@@ -530,7 +556,7 @@ class Operation:
         #     numeric operation define some but not all of the metadata
         #     attributes
         #   - needs to raise `OperandTypeError` if a metadata operator raises
-        #     `TypeError` because we don't know a priori which metadata
+        #     `TypeError` because we don't know à priori which metadata
         #     attributes will implement a given operation
         values = [
             self._compute(operands, name, **kwargs)
