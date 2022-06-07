@@ -533,15 +533,13 @@ class Operation:
         #   - directly return the result
         operands = Operands(*args, reference=reference)
         primary, *secondary = self.parameters
+        data = self.method(*operands.get(primary, force=True), **kwargs)
+        consistent = operands.agree(*secondary)
         if reference is None and target is None: # proxy for cast/comparison?
-            if not operands.agree(*secondary):
-                # Will this erroneously raise an exception for
-                # `__eq__`/`__ne__`? Unlike the other comparison operators, they
-                # can meaningfully compare two operands with different values of
-                # a metadata attribute.
+            if not consistent:
                 errmsg = self._operand_errmsg(types, *secondary)
-                raise OperandTypeError(errmsg) from None
-            return self.method(*operands.get(primary), **kwargs)
+                raise OperandTypeError(errmsg)
+            return data
         # - Unary
         #   - operate on the data and metadata attributes of a single operand
         #   - initialize a new instance of the operand with the results
@@ -558,10 +556,13 @@ class Operation:
         #   - needs to raise `OperandTypeError` if a metadata operator raises
         #     `TypeError` because we don't know à priori which metadata
         #     attributes will implement a given operation
-        values = [
-            self.method(*operands.get(primary, force=True), **kwargs)
-        ] + [
-            self._compute(operands, name, **kwargs) for name in secondary
+
+        if not consistent:
+            errmsg = self._operand_errmsg(types, *secondary)
+            raise OperandTypeError(errmsg)
+        values = [data] + [
+            self.method(*operands.get(name), **kwargs)
+            for name in secondary
         ]
         if isinstance(target, type):
             return target(*values)
@@ -570,6 +571,17 @@ class Operation:
             utilities.setattrval(target, name, value)
         return target
 
+    # Deprecate?
+    def computable(self, operands: Operands, name: str):
+        """Determine if this instance can compute the value of an attribute."""
+        try:
+            self.method(*operands.get(name))
+        except TypeError:
+            return operands.agree(name)
+        else:
+            return True
+
+    # Deprecate?
     def _compute(self, operands: Operands, name: str, **kwargs):
         """Compute a value if possible."""
         try:
@@ -641,7 +653,7 @@ class Cast(Context):
         operation = Operation(__callable, self.types, *self.parameters)
         def operator(a: A) -> T:
             return operation.compute(a)
-        operator.__name__ = f'__{__callable.__name__}__'
+        # operator.__name__ = f'__{__callable.__name__}__'
         operator.__doc__ = __callable.__doc__
         return operator
 
@@ -656,7 +668,7 @@ class Unary(Context):
         operation = Operation(__callable, self.types, *self.parameters)
         def operator(a: A, /, **kwargs) -> A:
             return operation.compute(a, reference=a, target=type(a), **kwargs)
-        operator.__name__ = f'__{__callable.__name__}__'
+        # operator.__name__ = f'__{__callable.__name__}__'
         operator.__doc__ = __callable.__doc__
         return operator
 
@@ -671,7 +683,7 @@ class Comparison(Context):
         operation = Operation(__callable, self.types, *self.parameters)
         def operator(a: A, b: B, /) -> T:
             return operation.compute(a, b)
-        operator.__name__ = f'__{__callable.__name__}__'
+        # operator.__name__ = f'__{__callable.__name__}__'
         operator.__doc__ = __callable.__doc__
         return operator
 
@@ -691,7 +703,7 @@ class Forward(Context):
                 raise OperandTypeError(err) from err
             else:
                 return result
-        operator.__name__ = f'__{__callable.__name__}__'
+        # operator.__name__ = f'__{__callable.__name__}__'
         operator.__doc__ = __callable.__doc__
         return operator
 
@@ -711,7 +723,7 @@ class Reverse(Context):
                 raise OperandTypeError(err) from err
             else:
                 return result
-        operator.__name__ = f'__r{__callable.__name__}__'
+        # operator.__name__ = f'__r{__callable.__name__}__'
         operator.__doc__ = __callable.__doc__
         return operator
 
@@ -731,7 +743,7 @@ class Inplace(Context):
                 raise OperandTypeError(err) from err
             else:
                 return result
-        operator.__name__ = f'__i{__callable.__name__}__'
+        # operator.__name__ = f'__i{__callable.__name__}__'
         operator.__doc__ = __callable.__doc__
         return operator
 
@@ -776,7 +788,7 @@ class Numeric(Context):
                 raise OperandTypeError(err) from err
             else:
                 return result
-        forward.__name__ = f'__{__callable.__name__}__'
+        # forward.__name__ = f'__{__callable.__name__}__'
         forward.__doc__ = __callable.__doc__
         def reverse(b: B, a: A, /, **kwargs) -> B:
             """Apply this operation to `a` and `b` with reflected operands."""
@@ -786,7 +798,7 @@ class Numeric(Context):
                 raise OperandTypeError(err) from err
             else:
                 return result
-        reverse.__name__ = f'__r{__callable.__name__}__'
+        # reverse.__name__ = f'__r{__callable.__name__}__'
         reverse.__doc__ = __callable.__doc__
         def inplace(a: A, b: B, /, **kwargs) -> A:
             """Apply this operation to `a` and `b` in-place."""
@@ -796,7 +808,7 @@ class Numeric(Context):
                 raise OperandTypeError(err) from err
             else:
                 return result
-        inplace.__name__ = f'__i{__callable.__name__}__'
+        # inplace.__name__ = f'__i{__callable.__name__}__'
         inplace.__doc__ = __callable.__doc__
         if mode == 'forward':
             return forward
@@ -870,6 +882,11 @@ OPERATIONS = {
         'category': 'comparison',
         'callable': standard.ge,
     },
+    # We may want to exclude 'eq' and 'ne' because
+    # 1) unlike the other comparison operators, they can be valid when metadata
+    #    attributes are unequal
+    # 2) `__eq__` is implemented for `object` (via `__hash__`?) whereas others
+    #    are not, so `==` will work on most objects by default.
     'eq': {
         'category': 'comparison',
         'callable': standard.eq,
@@ -970,7 +987,7 @@ def suppress(__operator: typing.Callable):
 class Interface(collections.abc.Mapping):
     """Top-level interface to arithmetic operations."""
 
-    def __init__(self, __type: type, *parameters: str) -> None:
+    def __init__(self, __type: T, *parameters: str) -> None:
         """
         Initialize this instance.
 
@@ -1057,7 +1074,7 @@ class Interface(collections.abc.Mapping):
         *bases: type,
         include: typing.Iterable[str]=None,
         exclude: typing.Iterable[str]=None,
-    ) -> typing.Type:
+    ) -> T:
         """Generate a subclass with mixin operators from the current state.
         
         Parameters
@@ -1067,9 +1084,9 @@ class Interface(collections.abc.Mapping):
 
         *bases : types or iterable of types
             Zero or more base classes from which the new subclass will inherit.
-            This method will append `bases` to the default type if one was
-            passed during initialization, so that the default type will appear
-            with in the subclass's MRO.
+            This method will append `bases` to the default type passed during
+            initialization, so that the default type will appear first in the
+            subclass's MRO.
 
         include : iterable of strings, optional
             Names of operators or operation categories to exlicitly implement in

@@ -417,8 +417,8 @@ CATEGORIES = {
             'le': standard.le,
             'gt': standard.gt,
             'ge': standard.ge,
-            'eq': standard.eq,
-            'ne': standard.ne,
+            # 'eq': standard.eq,
+            # 'ne': standard.ne,
         },
     },
     'numeric': {
@@ -462,55 +462,104 @@ def interface():
     return operations.Interface(Base, 'value', 'info')
 
 
-def test_cast_interface(interface: operations.Interface):
-    """Test cast operations via the module interface."""
-    operation = interface['cast']
+# Attempting to operate on instances of `Base` should raise a `TypeError` if it
+# doesn't implement the operator, which will be the case for most. Inheriting
+# from a mixin class that implements the missing operator should resolve the
+# `TypeError`. The mixin class can come from `Interface.subclass`. We will also
+# want to implement a custom operator by passing a callable to
+# `Interface.implement` (e.g., in `__array_ufunc__`). Therefore, I think the two
+# primary groups of tests should 1) test built-in operators on `Base` and a
+# subclass with implemented operators, and 2) test custom operator
+# implementations from the interface on that subclass.
+# - call built-in unary operators on
+#   - `Base` -> `TypeError`
+# - call built-in binary operators on
+#   - (`Base`, `Base`) -> `TypeError`
+#   - (`float`, `Base`) -> `TypeError`
+#   - (`Base`, `float`) -> `TypeError`
+# - define `Custom(Mixin, Base)`
+# - call built-in unary operators on
+#   - `Custom` -> result
+# - call built-in binary operators on
+#   - (`Custom`, `Custom`) -> result
+#   - (`float`, `Custom`) -> result
+#   - (`Custom`, `float`) -> result
+# - call custom unary operators on
+#   - `Custom` -> result
+# - call custom binary operators on
+#   - (`Custom`, `Custom`) -> result
+#   - (`float`, `Custom`) -> result
+#   - (`Custom`, `float`) -> result
+
+
+def test_builtin_cast(interface: operations.Interface):
+    """Test cast operations on custom objects."""
+    builtins = CATEGORIES['cast']['operations'].values()
     instances = build(Base)
-    for builtin in CATEGORIES['cast']['operations'].values():
-        operator = operation.apply(builtin)
+    for builtin in builtins:
+        for instance in instances:
+            with pytest.raises(TypeError):
+                builtin(instance)
+    Custom = interface.subclass('Custom')
+    instances = build(Custom)
+    for builtin in builtins:
         for instance in instances:
             expected = builtin(instance.value)
-            assert operator(instance) == expected
+            assert builtin(instance) == expected
 
 
-def test_unary_interface(interface: operations.Interface):
-    """Test unary operations via the module interface."""
-    operation = interface['unary']
+def test_builtin_comparison(interface: operations.Interface):
+    """Test comparison operations on custom objects."""
+    builtins = CATEGORIES['comparison']['operations'].values()
     instances = build(Base)
-    for builtin in CATEGORIES['unary']['operations'].values():
-        operator = operation.apply(builtin)
+    targets = instances[0], instances[1]
+    for builtin in builtins:
+        with pytest.raises(TypeError):
+            builtin(*targets)
+    Custom = interface.subclass('Custom')
+    instances = build(Custom)
+    targets = instances[0], instances[1]
+    for builtin in builtins:
+        assert builtin(*targets) == builtin(*[c.value for c in targets])
+        with pytest.raises(operations.OperandTypeError):
+            builtin(instances[0], instances[2])
+
+
+def test_builtin_unary(interface: operations.Interface):
+    """Test unary operations on custom objects."""
+    builtins = CATEGORIES['unary']['operations'].values()
+    instances = build(Base)
+    for builtin in builtins:
+        for instance in instances:
+            with pytest.raises(TypeError):
+                builtin(instance)
+    Custom = interface.subclass('Custom')
+    instances = build(Custom)
+    for builtin in builtins:
         for instance in instances:
             expected = Base(builtin(instance.value), instance.info)
-            assert operator(instance) == expected
+            assert builtin(instance) == expected
 
 
-def test_comparison_interface(interface: operations.Interface):
-    """Test comparison operations via the module interface."""
-    operation = interface['comparison']
+def test_builtin_numeric(interface: operations.Interface):
+    """Test numeric operations on custom objects."""
+    builtins = CATEGORIES['numeric']['operations'].values()
     instances = build(Base)
     targets = instances[0], instances[1]
-    for builtin in CATEGORIES['comparison']['operations'].values():
-        operator = operation.apply(builtin)
-        assert operator(*targets) == builtin(*[c.value for c in targets])
-        if builtin not in {standard.eq, standard.ne}:
-            with pytest.raises(operations.OperandTypeError):
-                operator(instances[0], instances[2])
-
-
-def test_numeric_interface(interface: operations.Interface):
-    """Test numeric operations via the module interface."""
-    operation = interface['numeric']
-    instances = build(Base)
+    for builtin in builtins:
+        with pytest.raises(TypeError):
+            builtin(*targets)
+    Custom = interface.subclass('Custom')
+    instances = build(Custom)
     targets = instances[0], instances[1]
-    for builtin in CATEGORIES['numeric']['operations'].values():
-        operator = operation.apply(builtin)
+    for builtin in builtins:
         expected = Base(
             builtin(*[c.value for c in targets]),
             targets[0].info,
         )
-        assert operator(*targets) == expected
+        assert builtin(*targets) == expected
         with pytest.raises(operations.OperandTypeError):
-            operator(instances[0], instances[2])
+            builtin(instances[0], instances[2])
 
 
 def test_interface_categories(interface: operations.Interface):
