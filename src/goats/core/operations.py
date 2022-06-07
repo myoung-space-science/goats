@@ -314,7 +314,7 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
             if all(issubclass(i, j) for i, j in zip(types, t)):
                 return True
         return (
-            self.implied
+            isinstance(self.implied, type)
             and (
                 self.implied in types
                 or any(issubclass(t, self.implied) for t in types)
