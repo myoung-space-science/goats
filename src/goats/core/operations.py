@@ -142,13 +142,13 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
         """Determine if all operands have the named attributes."""
         return all(hasattr(obj, name) for obj in self for name in names)
 
-    def get(self, name: str):
+    def get(self, name: str, force: bool=False):
         """Get operand values for the named attribute."""
-        return [self._get(name, operand) for operand in self]
+        return [self._get(name, operand, force=force) for operand in self]
 
-    def _get(self, name: str, operand):
+    def _get(self, name: str, operand, force):
         """Helper for `~Operands.get`."""
-        if hasattr(operand, name):
+        if hasattr(operand, name) or force:
             return utilities.getattrval(operand, name)
         return utilities.getattrval(self.reference, name)
 
@@ -559,8 +559,9 @@ class Operation:
         #     `TypeError` because we don't know à priori which metadata
         #     attributes will implement a given operation
         values = [
-            self._compute(operands, name, **kwargs)
-            for name in self.parameters
+            self.method(*operands.get(primary, force=True), **kwargs)
+        ] + [
+            self._compute(operands, name, **kwargs) for name in secondary
         ]
         if isinstance(target, type):
             return target(*values)
