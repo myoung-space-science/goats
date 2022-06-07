@@ -506,9 +506,9 @@ class Operation:
         """Evaluate arguments within this operational context."""
         if all(isbuiltin(arg) for arg in args): # Need to check this first.
             return self.method(*args, **kwargs)
-        if not self.types.supports(*(type(arg) for arg in args)):
-            # HACK: This is just to get it to raise a `TypeError` for now.
-            return self.method(*args, **kwargs)
+        types = [type(arg) for arg in args]
+        if not self.types.supports(*types):
+            raise OperandTypeError(self._operand_errmsg(types))
         if not self.parameters:
             # We don't know which arguments to operate on, so we hand execution
             # over to the given operands, in case they implement this operator
@@ -539,7 +539,7 @@ class Operation:
                 # `__eq__`/`__ne__`? Unlike the other comparison operators, they
                 # can meaningfully compare two operands with different values of
                 # a metadata attribute.
-                errmsg = self._operand_errmsg(operands, *secondary)
+                errmsg = self._operand_errmsg(types, *secondary)
                 raise OperandTypeError(errmsg) from None
             return self.method(*operands.get(primary), **kwargs)
         # - Unary
@@ -580,27 +580,26 @@ class Operation:
             # of a metadata attribute. Maybe it just needs to behave differently
             # for unary and binary operations. Either way, the user needs to
             # know what to fix.
-            errmsg = self._operand_errmsg(operands, name)
+            errmsg = self._operand_errmsg(operands.types, name)
             raise OperandTypeError(errmsg) from err
         return value
 
-    def _operand_errmsg(self, operands: Operands, *fixed: str):
+    def _operand_errmsg(self, types: typing.Iterable[type], *fixed: str):
         """Build an error message based on `rule` and `operands`."""
         method_string = repr(self.method.__qualname__)
-        types = operands.types
         types_string = (
             types[0].__qualname__ if len(types) == 1
             else f"({', '.join(t.__qualname__ for t in types)})"
         )
-        attrs_string = (
-            repr(fixed[0]) if len(fixed) == 1
-            else f"{fixed[0]!r} and {fixed[1]!r}" if len(fixed) == 2
-            else f"{', '.join(fixed[:-1])} and {fixed[-1]}"
-        )
-        return (
-            f"Can't apply operator {method_string} to {types_string}"
-            f" with different values of {attrs_string}"
-        )
+        message = f"Can't apply operator {method_string} to {types_string}"
+        if fixed:
+            attrs_string = (
+                repr(fixed[0]) if len(fixed) == 1
+                else f"{fixed[0]!r} and {fixed[1]!r}" if len(fixed) == 2
+                else f"{', '.join(fixed[:-1])} and {fixed[-1]}"
+            )
+            message += f" with different values of {attrs_string}"
+        return message
 
 
 class Context(abc.ABC, iterables.ReprStrMixin):
