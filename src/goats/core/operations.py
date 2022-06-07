@@ -528,10 +528,10 @@ class Operation:
         operands = Operands(*args, reference=reference)
         primary, *secondary = self.parameters
         data = self.method(*operands.get(primary, force=True), **kwargs)
-        if not operands.agree(*secondary):
-            errmsg = self._operand_errmsg(types, *secondary)
-            raise OperandTypeError(errmsg)
         if reference is None and target is None: # proxy for cast/comparison?
+            if not operands.agree(*secondary):
+                errmsg = self._operand_errmsg(types, *secondary)
+                raise OperandTypeError(errmsg)
             return data
         # - Unary
         #   - operate on the data and metadata attributes of a single operand
@@ -553,8 +553,12 @@ class Operation:
         for name in secondary:
             try:
                 value = self.method(*operands.get(name), **kwargs)
-            except TypeError:
-                value = utilities.getattrval(operands.reference, name)
+            except TypeError as err:
+                if len(args) == 1:
+                    value = utilities.getattrval(operands.reference, name)
+                else:
+                    errmsg = self._operand_errmsg(types, name)
+                    raise OperandTypeError(errmsg) from err
             values.append(value)
         if isinstance(target, type):
             return target(*values)
