@@ -1077,7 +1077,7 @@ class Interface(collections.abc.Mapping):
             Names of operators or operation categories to exlicitly not
             implement in the new subclass.
         """
-        included = set(OPERATORS) if include is None else set()
+        included = set(NAMES['all']) if include is None else set()
         for name in include or []:
             if name in NAMES:
                 included.update(set(NAMES[name]))
