@@ -107,24 +107,32 @@ class Name(collections.abc.Collection, iterables.ReprStrMixin):
 
     def __add__(self, other):
         """Called for self + other."""
+        if other == self:
+            return self
         if strings := self._combine(other, '+'):
             return Name(*strings)
         return NotImplemented
 
     def __sub__(self, other):
         """Called for self - other."""
+        if other == self:
+            return self
         if strings := self._combine(other, '-'):
             return Name(*strings)
         return NotImplemented
 
     def __mul__(self, other):
         """Called for self * other."""
+        if other == self:
+            return Name(*[f'{i}*{i}' for i in self])
         if strings := self._combine(other, '*'):
             return Name(*strings)
         return NotImplemented
 
     def __truediv__(self, other):
         """Called for self / other."""
+        if other == self:
+            return Name(*[f'{i}/{i}' for i in self])
         if strings := self._combine(other, '/'):
             return Name(*strings)
         return NotImplemented

@@ -866,6 +866,26 @@ def test_name():
     """Test the attribute representing a data quantity's name."""
     name = datatypes.Name('a', 'A')
     assert sorted(name) == ['A', 'a']
-    assert name + 'b' == datatypes.Name('a+b', 'A+b')
-    expected = datatypes.Name('a+b', 'a+B', 'A+b', 'A+B')
-    assert name + datatypes.Name('b', 'B') == expected
+    additive = {
+        operator.add: '+',
+        operator.sub: '-',
+    }
+    multiplicative = {
+        operator.mul: '*',
+        operator.truediv: '/',
+    }
+    cases = {**additive, **multiplicative}
+    for method, symbol in cases.items():
+        other = 'b'
+        expected = datatypes.Name(*[f'{i}{symbol}b' for i in name])
+        assert method(name, other) == expected
+        other = datatypes.Name('b', 'B')
+        expected = datatypes.Name(
+            *[f'{i}{symbol}{j}' for i in name for j in other]
+        )
+        assert method(name, other) == expected
+    for method in additive:
+        assert method(name, name) == name
+    for method, symbol in multiplicative.items():
+        expected = datatypes.Name(*[f'{i}{symbol}{i}' for i in name])
+        assert method(name, name) == expected
