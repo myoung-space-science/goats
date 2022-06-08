@@ -334,6 +334,8 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
 
     def supports(self, *types: type):
         """Determine if this collection contains `types` or subtypes."""
+        if self.ntypes and len(types) != self.ntypes:
+            return False
         if types in self:
             return True
         for t in self:
@@ -341,10 +343,7 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
                 return True
         return (
             isinstance(self.implied, type)
-            and (
-                self.implied in types
-                or any(issubclass(t, self.implied) for t in types)
-            )
+            and all(issubclass(t, self.implied) for t in types)
         )
 
     def __contains__(self, __x) -> bool:

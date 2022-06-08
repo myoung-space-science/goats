@@ -76,13 +76,22 @@ def test_types_implied():
     assert (str, str) in types
     assert (str, str, str) in types
     assert (str, float) not in types
+    assert types.supports(str)
+    assert types.supports(str, str)
+    assert types.supports(str, str, str)
+    assert not types.supports(str, float)
     types.add(int, float)
     assert str not in types
     assert (str, str) in types
     assert (str, str, str) not in types
     assert (str, float) not in types
+    assert not types.supports(str)
+    assert types.supports(str, str)
+    assert not types.supports(str, str, str)
+    assert not types.supports(str, float)
     types.discard(str, str)
     assert (str, str) not in types
+    assert not types.supports(str, str)
 
 
 def test_operands():
