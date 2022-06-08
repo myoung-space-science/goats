@@ -1,5 +1,6 @@
 import abc
 import collections.abc
+import numbers
 import typing
 
 import numpy as np
@@ -1726,6 +1727,26 @@ class Unit(algebraic.Expression):
     def __rfloordiv__(self, other):
         """Compute the inverse of self // other."""
         return 1.0 / self.__floordiv__(other)
+
+    def __mul__(self, other):
+        if isinstance(other, numbers.Real):
+            return self
+        return super().__mul__(other)
+
+    def __rmul__(self, other):
+        if isinstance(other, numbers.Real):
+            return self
+        return super().__rmul__(other)
+
+    def __truediv__(self, other):
+        if isinstance(other, numbers.Real):
+            return self
+        return super().__truediv__(other)
+
+    def __rtruediv__(self, other):
+        if isinstance(other, numbers.Real):
+            return self
+        return super().__rtruediv__(other)
 
     def __add__(self, other):
         """Called for self + other; either a no-op or an error."""

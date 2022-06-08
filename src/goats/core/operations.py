@@ -495,18 +495,45 @@ class Operation:
         self.types = types.copy()
         self.parameters = parameters
 
+    # What does each operation actually need?
+    # - cast
+    #   - operate on the data attribute of a single operand
+    #   - directly return the result
+    # - lt, le, gt, ge
+    #   - check metadata attribute consistency if necessary
+    #   - operate on the data attribute of mulitple operands
+    #   - directly return the result
+    # - eq, ne
+    #   - operate on data and metadata attributes of multiple operands
+    #   - return the union of boolean results
+    # - unary
+    #   - operate on the data and metadata attributes of a single operand
+    #   - initialize a new instance of the operand with the results
+    #   - return the instance
+    # - numeric
+    #   - operate on the data attribute of multiple operands
+    #   - attempt to operate on the metadata attributes of the same operands
+    #   - fall back on a reference value if necessary
+    #   - initialize a new instance or update an existing instance
+    #   - return the instance
+    #   - default values are necessary when the co-operand(s) in a binary
+    #     numeric operation define some but not all of the metadata attributes
+    #   - needs to raise `OperandTypeError` if a metadata operator raises
+    #     `TypeError` because we don't know à priori which metadata attributes
+    #     will implement a given operation
+
     def compute(self, *args, reference=None, target=None, **kwargs):
         """Evaluate arguments within this operational context."""
-        if all(isbuiltin(arg) for arg in args): # Need to check this first.
-            return self.method(*args, **kwargs)
-        types = [type(arg) for arg in args]
-        if not self.types.supports(*types):
-            raise OperandTypeError(self._operand_errmsg(types))
-        if not self.parameters:
-            # We don't know which arguments to operate on, so we hand execution
-            # over to the given operands, in case they implement this operator
-            # in their class definitions. Note that this will lead to recursion
-            # if they define the operator via this class.
+        if not self.parameters or all(isbuiltin(arg) for arg in args):
+            # Either we don't know which arguments to operate on or this
+            # implementation is unnecessary.
+            # - solution: hand execution over to the given operands, in case
+            #   they implement this operator in their class definitions. 
+            # - this will lead to recursion if they define the operator via this
+            #   class
+            # - see old implementation for try/catch recursion block
+            # - consider reducing recursion limit via `sys.setrecursionlimit`
+            #   inside this block
             try:
                 return self.method(*args, **kwargs)
             except RecursionError as err:
@@ -516,62 +543,40 @@ class Operation:
                     f" operands uses {self!r} to implement {self.method!r}"
                     " without explicit knowledge of the updatable attributes."
                 ) from err
-        # What does each operation actually need?
-        # - cast
-        #   - operate on the data attribute of a single operand
-        #   - directly return the result
-        # - lt, le, gt, ge
-        #   - check metadata attribute consistency if necessary
-        #   - operate on the data attribute of mulitple operands
-        #   - directly return the result
-        # - eq, ne
-        #   - operate on data and metadata attributes of multiple operands
-        #   - return the union of boolean results
-        # - unary
-        #   - operate on the data and metadata attributes of a single operand
-        #   - initialize a new instance of the operand with the results
-        #   - return the instance
-        # - numeric
-        #   - operate on the data attribute of multiple operands
-        #   - attempt to operate on the metadata attributes of the same operands
-        #   - fall back on a reference value if necessary
-        #   - initialize a new instance or update an existing instance
-        #   - return the instance
-        #   - default values are necessary when the co-operand(s) in a binary
-        #     numeric operation define some but not all of the metadata
-        #     attributes
-        #   - needs to raise `OperandTypeError` if a metadata operator raises
-        #     `TypeError` because we don't know à priori which metadata
-        #     attributes will implement a given operation
+        types = [type(arg) for arg in args]
+        if not self.types.supports(*types):
+            raise OperandTypeError(self._operand_errmsg(types))
         operands = Operands(*args, reference=reference)
         primary, *secondary = self.parameters
         data = self.method(*operands.get(primary, force=True), **kwargs)
         if reference is None and target is None:
-            for name in secondary:
-                try:
-                    self.method(*operands.get(name), **kwargs)
-                except TypeError as err:
-                    if len(operands) > 1 and not operands.agree(name):
-                        errmsg = self._operand_errmsg(types, name)
-                        raise OperandTypeError(errmsg) from err
-            return data
-        values = [data]
-        for name in secondary:
-            try:
-                value = self.method(*operands.get(name), **kwargs)
-            except TypeError as err:
-                if len(operands) > 1:
-                    errmsg = self._operand_errmsg(types, name)
-                    raise OperandTypeError(errmsg) from err
-                else:
-                    value = utilities.getattrval(operands.reference, name)
-            values.append(value)
+            if operands.agree(*secondary):
+                return data
+            errmsg = self._operand_errmsg(types, *secondary)
+            raise OperandTypeError(errmsg)
+        values = [data] + [
+            self._compute(name, operands, **kwargs)
+            for name in secondary
+        ]
         if isinstance(target, type):
             return target(*values)
         zipped = zip(self.parameters, values)
         for name, value in zipped:
             utilities.setattrval(target, name, value)
         return target
+
+    def _compute(self, name: str, operands: Operands, **kwargs):
+        """Internal helper for `~Operation.compute`."""
+        try:
+            if operands.allhave(name):
+                return self.method(*operands.get(name), **kwargs)
+            with contextlib.suppress(TypeError):
+                return self.method(*operands.get(name, force=True), **kwargs)
+        except TypeError as err:
+            if len(operands) > 1:
+                errmsg = self._operand_errmsg(operands.types, name)
+                raise OperandTypeError(errmsg) from err
+        return utilities.getattrval(operands.reference, name)
 
     def _operand_errmsg(self, types: typing.Iterable[type], *fixed: str):
         """Build an error message based on `rule` and `operands`."""
