@@ -1169,7 +1169,7 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         return ' * '.join(f"({part})" for part in expression)
 
     def __iter__(self) -> typing.Iterator[Term]:
-        return super().__iter__()
+        return iter(self.terms)
 
     def __len__(self) -> int:
         return len(self.terms)
