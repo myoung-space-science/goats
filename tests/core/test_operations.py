@@ -175,13 +175,13 @@ def test_operands_find():
     assert operands.find('value', 'info') == [instances[0]]
 
 
-def test_operands_consistent():
+def test_operands_allhave():
     """Test the ability to check for named attributes across operands."""
     instances = build(Base)
     operands = operations.Operands(*instances)
-    assert operands.consistent('value', 'info')
+    assert operands.allhave('value', 'info')
     operands = operations.Operands(instances[0], 0.0)
-    assert not operands.consistent('value', 'info')
+    assert not operands.allhave('value', 'info')
 
 
 def test_operands_agree():

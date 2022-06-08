@@ -138,7 +138,7 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
             if all(hasattr(obj, name) for name in names)
         ]
 
-    def consistent(self, *names: str):
+    def allhave(self, *names: str):
         """Determine if all operands have the named attributes."""
         return all(hasattr(obj, name) for obj in self for name in names)
 
@@ -207,7 +207,7 @@ class same:
             if len(args) == 1:
                 return func(*args, **kwargs)
             operands = Operands(*args)
-            if not operands.consistent(*self.names):
+            if not operands.allhave(*self.names):
                 return NotImplemented
             if operands.agree(*self.names):
                 return func(*args, **kwargs)
