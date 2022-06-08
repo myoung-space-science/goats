@@ -196,10 +196,6 @@ class Quantity(Quantifiable):
             return self._metric
         if unit == self._metric:
             return self
-        return self._update_unit(unit)
-
-    def _update_unit(self, unit: metric.UnitLike=None):
-        """Update the instance unit. Extracted for overloading."""
         new = metric.Unit(unit)
         self._amount *= new // self._metric
         self._metric = new
