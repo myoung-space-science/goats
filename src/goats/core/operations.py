@@ -517,27 +517,22 @@ class Operation:
                     f" operands uses {self!r} to implement {self.method!r}"
                     " without explicit knowledge of the updatable attributes."
                 ) from err
-        # What does each context actually need?
-        # - Cast
+        # What does each operation actually need?
+        # - cast
         #   - operate on the data attribute of a single operand
         #   - directly return the result
-        # - Comparison
+        # - lt, le, gt, ge
         #   - check metadata attribute consistency if necessary
         #   - operate on the data attribute of mulitple operands
         #   - directly return the result
-        operands = Operands(*args, reference=reference)
-        primary, *secondary = self.parameters
-        data = self.method(*operands.get(primary, force=True), **kwargs)
-        if reference is None and target is None: # proxy for cast/comparison?
-            if not operands.agree(*secondary):
-                errmsg = self._operand_errmsg(types, *secondary)
-                raise OperandTypeError(errmsg)
-            return data
-        # - Unary
+        # - eq, ne
+        #   - operate on data and metadata attributes of multiple operands
+        #   - return the union of boolean results
+        # - unary
         #   - operate on the data and metadata attributes of a single operand
         #   - initialize a new instance of the operand with the results
         #   - return the instance
-        # - Numeric
+        # - numeric
         #   - operate on the data attribute of multiple operands
         #   - attempt to operate on the metadata attributes of the same operands
         #   - fall back on a reference value if necessary
@@ -549,16 +544,28 @@ class Operation:
         #   - needs to raise `OperandTypeError` if a metadata operator raises
         #     `TypeError` because we don't know à priori which metadata
         #     attributes will implement a given operation
+        operands = Operands(*args, reference=reference)
+        primary, *secondary = self.parameters
+        data = self.method(*operands.get(primary, force=True), **kwargs)
+        if reference is None and target is None:
+            for name in secondary:
+                try:
+                    self.method(*operands.get(name), **kwargs)
+                except TypeError as err:
+                    if len(operands) > 1 and not operands.agree(name):
+                        errmsg = self._operand_errmsg(types, name)
+                        raise OperandTypeError(errmsg) from err
+            return data
         values = [data]
         for name in secondary:
             try:
                 value = self.method(*operands.get(name), **kwargs)
             except TypeError as err:
-                if len(args) == 1:
-                    value = utilities.getattrval(operands.reference, name)
-                else:
+                if len(operands) > 1:
                     errmsg = self._operand_errmsg(types, name)
                     raise OperandTypeError(errmsg) from err
+                else:
+                    value = utilities.getattrval(operands.reference, name)
             values.append(value)
         if isinstance(target, type):
             return target(*values)
@@ -857,14 +864,15 @@ OPERATIONS = {
     #    attributes are unequal
     # 2) `__eq__` is implemented for `object` (via `__hash__`?) whereas others
     #    are not, so `==` will work on most objects by default.
-    'eq': {
-        'category': 'comparison',
-        'callable': standard.eq,
-    },
-    'ne': {
-        'category': 'comparison',
-        'callable': standard.ne,
-    },
+    #
+    # 'eq': {
+    #     'category': 'comparison',
+    #     'callable': standard.eq,
+    # },
+    # 'ne': {
+    #     'category': 'comparison',
+    #     'callable': standard.ne,
+    # },
     'add': {
         'category': 'numeric',
         'callable': standard.add,
