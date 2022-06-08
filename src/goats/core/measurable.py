@@ -205,6 +205,11 @@ class Quantity(Quantifiable):
         self._metric = new
         return self
 
+    def __eq__(self, other) -> bool:
+        """Determine if two quantities are equal."""
+        if isinstance(other, Quantity):
+            return other.data == self.data and other.unit() == self.unit()
+        return other == self.data
 
 # TODO: Figure out what to do with this now that `operations.augment` creates
 # the required class. We should at least save the docstring.
