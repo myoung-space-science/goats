@@ -410,7 +410,7 @@ def test_unary(interface: operations.Interface):
     instances = build(Custom)
     for name, builtin in builtins.items():
         for instance in instances:
-            expected = Base(builtin(instance.value), instance.info)
+            expected = Custom(builtin(instance.value), instance.info)
             assert builtin(instance) == expected
             operator = interface.implement(name, builtin)
             assert operator(instance) == expected
@@ -428,7 +428,7 @@ def test_numeric(interface: operations.Interface):
     instances = build(Custom)
     targets = instances[0], instances[1]
     for name, builtin in builtins.items():
-        expected = Base(
+        expected = Custom(
             builtin(*[c.value for c in targets]),
             targets[0].info,
         )
