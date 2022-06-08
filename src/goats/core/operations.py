@@ -757,18 +757,22 @@ OPERATIONS = {
     'lt': {
         'category': 'comparison',
         'callable': standard.lt,
+        'aliases': ['less'],
     },
     'le': {
         'category': 'comparison',
         'callable': standard.le,
+        'aliases': ['less_equal'],
     },
     'gt': {
         'category': 'comparison',
         'callable': standard.gt,
+        'aliases': ['greater'],
     },
     'ge': {
         'category': 'comparison',
         'callable': standard.ge,
+        'aliases': ['greater_equal'],
     },
     # We may want to exclude 'eq' and 'ne' because
     # 1) unlike the other comparison operators, they can be valid when metadata
@@ -791,14 +795,17 @@ OPERATIONS = {
     'sub': {
         'category': 'numeric',
         'callable': standard.sub,
+        'aliases': ['subtract'],
     },
     'mul': {
         'category': 'numeric',
         'callable': standard.mul,
+        'aliases': ['multiply'],
     },
     'truediv': {
         'category': 'numeric',
         'callable': standard.truediv,
+        'aliases': ['true_divide'],
     },
     'pow': {
         'category': 'numeric',
@@ -808,47 +815,34 @@ OPERATIONS = {
 """A mapping of operation name to metadata."""
 
 
-_operators = {
-    (k, f'__{k}__'): v.copy() for k, v in OPERATIONS.items()
-    if v['category'] != 'numeric'
-}
-_operators.update(
-    {
-        (k, f'__{k}__'): {**v, 'mode': 'forward'}
-        for k, v in OPERATIONS.items() if v['category'] == 'numeric'
-    }
-)
-_operators.update(
-    {
-        f'__r{k}__': {**v, 'mode': 'reverse'}
-        for k, v in OPERATIONS.items() if v['category'] == 'numeric'
-    }
-)
-_operators.update(
-    {
-        f'__i{k}__': {**v, 'mode': 'inplace'}
-        for k, v in OPERATIONS.items() if v['category'] == 'numeric'
-    }
-)
-OPERATORS = aliased.Mapping(_operators)
+class REFERENCE(typing.NamedTuple):
+    """Reference objects for operations and operators."""
 
+    _numeric = [k for k, v in OPERATIONS.items() if v['category'] == 'numeric']
 
-NAMES = {
-    c: [f'__{k}__' for k, v in OPERATIONS.items() if v['category'] == c]
-    for c in CATEGORIES if c != 'numeric'
-}
-_numeric = [k for k, v in OPERATIONS.items() if v['category'] == 'numeric']
-NAMES.update(
-    {
-        'forward': [f'__{i}__' for i in _numeric],
-        'reverse': [f'__r{i}__' for i in _numeric],
-        'inplace': [f'__i{i}__' for i in _numeric],
+    OPERATORS = aliased.MutableMapping(OPERATIONS)
+    for k, v in OPERATIONS.items():
+        OPERATORS.alias(k, f'__{k}__')
+    for k in _numeric:
+        OPERATORS[k].update({'mode': 'forward'})
+        OPERATORS[f'__r{k}__'] = {**OPERATORS[k], 'mode': 'reverse'}
+        OPERATORS[f'__i{k}__'] = {**OPERATORS[k], 'mode': 'inplace'}
+
+    NAMES = {
+        c: [f'__{k}__' for k, v in OPERATIONS.items() if v['category'] == c]
+        for c in CATEGORIES if c != 'numeric'
     }
-)
-copied = NAMES.copy()
-NAMES['all'] = [
-    name for category in copied.values() for name in category
-]
+    NAMES.update(
+        {
+            'forward': [f'__{i}__' for i in _numeric],
+            'reverse': [f'__r{i}__' for i in _numeric],
+            'inplace': [f'__i{i}__' for i in _numeric],
+        }
+    )
+    copied = NAMES.copy()
+    NAMES['all'] = [
+        name for category in copied.values() for name in category
+    ]
 
 
 def identity(__operator: typing.Callable):
@@ -897,7 +891,7 @@ class Interface(collections.abc.Mapping):
     def implement(self, __k: str, method: typing.Callable=None) -> Context:
         """Implement the named operator."""
         context = self[__k] if __k in self else self.categories['default']
-        operator = OPERATORS[__k]
+        operator = REFERENCE.OPERATORS[__k]
         method = method or operator['callable']
         if isinstance(context, Numeric):
             return context.apply(method, mode=operator.get('mode'))
@@ -926,7 +920,7 @@ class Interface(collections.abc.Mapping):
         if __k in self.operations:
             if current := self.operations[__k]:
                 return current
-            new = self.categories[OPERATORS[__k]['category']].spawn()
+            new = self.categories[REFERENCE.OPERATORS[__k]['category']].spawn()
             self.operations[__k] = new
             return new
         raise KeyError(f"Unknown context {__k!r}") from None
@@ -953,7 +947,9 @@ class Interface(collections.abc.Mapping):
     def operations(self) -> typing.Dict[str, Context]:
         """The standard operation contexts defined here."""
         if self._operations is None:
-            self._operations = aliased.MutableMapping.fromkeys(OPERATORS)
+            self._operations = aliased.MutableMapping.fromkeys(
+                REFERENCE.OPERATORS
+            )
         return self._operations
 
     def subclass(
@@ -984,15 +980,15 @@ class Interface(collections.abc.Mapping):
             Names of operators or operation categories to exlicitly not
             implement in the new subclass.
         """
-        included = set(NAMES['all']) if include is None else set()
+        included = set(REFERENCE.NAMES['all']) if include is None else set()
         for name in include or []:
-            if name in NAMES:
-                included.update(set(NAMES[name]))
+            if name in REFERENCE.NAMES:
+                included.update(set(REFERENCE.NAMES[name]))
             else:
                 included.update({name})
         for name in exclude or []:
-            if name in NAMES:
-                included.difference_update(set(NAMES[name]))
+            if name in REFERENCE.NAMES:
+                included.difference_update(set(REFERENCE.NAMES[name]))
             else:
                 included.difference_update({name})
         operators = {k: self.implement(k) for k in included}
@@ -1014,15 +1010,15 @@ def operators(interface: Interface, **kwargs):
     """"""
     include = kwargs.get('include')
     exclude = kwargs.get('exclude')
-    included = set(NAMES['all']) if include is None else set()
+    included = set(REFERENCE.NAMES['all']) if include is None else set()
     for name in include or []:
-        if name in NAMES:
-            included.update(set(NAMES[name]))
+        if name in REFERENCE.NAMES:
+            included.update(set(REFERENCE.NAMES[name]))
         else:
             included.update({name})
     for name in exclude or []:
-        if name in NAMES:
-            included.difference_update(set(NAMES[name]))
+        if name in REFERENCE.NAMES:
+            included.difference_update(set(REFERENCE.NAMES[name]))
         else:
             included.difference_update({name})
     operators = {k: interface.implement(k) for k in included}
