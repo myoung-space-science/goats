@@ -521,7 +521,7 @@ def test_interface_subclass(
     # Check a unary cast operation.
     assert int(c0) == 1
     # Check a unary arithmetic operation.
-    assert -c0 == -1.2
+    assert -c0 == New(-1.2, 'this')
     # Check a binary comparison operation.
     assert c0 < c1
     # Check a binary numeric operation.
