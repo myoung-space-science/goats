@@ -99,6 +99,67 @@ class Ufunc(iterables.ReprStrMixin):
         return self.name
 
 
+class Name(collections.abc.Collection, iterables.ReprStrMixin):
+    """The name attribute of a data quantity."""
+
+    def __init__(self, *aliases: str) -> None:
+        self._aliases = aliased.MappingKey(*aliases)
+
+    def __add__(self, other):
+        """Called for self + other."""
+        if strings := self._combine(other, '+'):
+            return Name(*strings)
+        return NotImplemented
+
+    def __sub__(self, other):
+        """Called for self - other."""
+        if strings := self._combine(other, '-'):
+            return Name(*strings)
+        return NotImplemented
+
+    def __mul__(self, other):
+        """Called for self * other."""
+        if strings := self._combine(other, '*'):
+            return Name(*strings)
+        return NotImplemented
+
+    def __truediv__(self, other):
+        """Called for self / other."""
+        if strings := self._combine(other, '/'):
+            return Name(*strings)
+        return NotImplemented
+
+    def __pow__(self, other):
+        """Called for self ** other."""
+        if strings := self._combine(other, '**'):
+            return Name(*strings)
+        return NotImplemented
+
+    def _combine(self, other, symbol: str):
+        """Symbolically combine `self` with `other`."""
+        if isinstance(other, str):
+            return [f'{i}{symbol}{other}' for i in self._aliases]
+        if isinstance(other, typing.Iterable):
+            return [f'{i}{symbol}{j}' for i in self for j in other]
+
+    def __contains__(self, __x) -> bool:
+        return __x in self._aliases
+
+    def __iter__(self) -> typing.Iterator:
+        return iter(self._aliases)
+
+    def __len__(self) -> int:
+        return len(self._aliases)
+
+    def __eq__(self, __o) -> bool:
+        if isinstance(__o, Name):
+            return __o._aliases == self._aliases
+        return __o == self._aliases
+
+    def __str__(self) -> str:
+        return str(self._aliases)
+
+
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 

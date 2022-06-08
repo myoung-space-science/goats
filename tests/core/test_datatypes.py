@@ -861,3 +861,11 @@ def test_dimensions_object():
             assert opr(instance) == instance
     # cast and comparison operations don't affect dimensions
 
+
+def test_name():
+    """Test the attribute representing a data quantity's name."""
+    name = datatypes.Name('a', 'A')
+    assert sorted(name) == ['A', 'a']
+    assert name + 'b' == datatypes.Name('a+b', 'A+b')
+    expected = datatypes.Name('a+b', 'a+B', 'A+b', 'A+B')
+    assert name + datatypes.Name('b', 'B') == expected
