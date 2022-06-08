@@ -7,26 +7,22 @@ from goats.core import measurable
 from goats.core import operations
 
 
-interface = operations.Interface('_amount', '_metric')
-Quantified = interface.subclass('Quantified', measurable.Quantifiable)
+interface = operations.Interface(measurable.Quantifiable, '_amount', '_metric')
+Quantified = interface.subclass('Quantified')
 """A concrete version of `~measurable.Quantifiable` for testing."""
 
-interface = operations.Interface(
-    'data', 'unit',
-    default=[measurable.Quantity, 'data'],
-)
+interface = operations.Interface(measurable.Quantity, 'data', 'unit')
 rules = {
     'numeric': [
         (measurable.Quantity, measurable.Quantity),
-        (measurable.Quantity, measurable.Real, 'data'),
-        (measurable.Real, measurable.Quantity, 'data'),
+        (measurable.Quantity, measurable.Real),
+        (measurable.Real, measurable.Quantity),
     ]
 }
-interface['numeric'].rules.register(*rules['numeric'])
-interface['__rtruediv__'].rules.suppress(measurable.Real, measurable.Quantity)
-interface['__pow__'].rules[measurable.Quantity, measurable.Real].append('unit')
-interface['__rpow__'].rules.suppress(measurable.Real, measurable.Quantity)
-interface['__pow__'].rules[measurable.Quantity, measurable.Quantity].suppress
+interface['numeric'].types.add(*rules['numeric'])
+interface['__rtruediv__'].types.discard(measurable.Real, measurable.Quantity)
+interface['__rpow__'].types.discard(measurable.Real, measurable.Quantity)
+interface['__pow__'].types.discard(measurable.Quantity, measurable.Quantity)
 Quantity = interface.subclass(
     'Quantity',
     exclude=['cast', '__round__', '__ceil__', '__floor__', '__trunc__']
@@ -59,8 +55,11 @@ def test_quantity_comparisons():
         result = opr(scalar, Quantity(v, unit))
         assert isinstance(result, bool)
         assert result
+    different = Quantity(v, 'J')
+    assert scalar != different
+    for opr in {operator.lt, operator.le, operator.gt, operator.ge}:
         with pytest.raises(operations.OperandTypeError):
-            opr(scalar, Quantity(v, 'J'))
+            opr(scalar, different)
 
 
 @pytest.mark.quantity
@@ -95,7 +94,7 @@ def test_quantities_same_unit():
 
     # EXPONENTIAL
     opr = operator.pow
-    with pytest.raises(TypeError):
+    with pytest.raises(operations.OperandTypeError):
         opr(*quantities)
 
 
@@ -130,7 +129,7 @@ def test_quantities_diff_unit():
 
     # EXPONENTIAL
     opr = operator.pow
-    with pytest.raises(TypeError):
+    with pytest.raises(operations.OperandTypeError):
         opr(*quantities)
 
 
@@ -170,7 +169,7 @@ def test_quantity_number():
     expected = Quantity(opr(*values), unit)
     assert opr(quantity, value) == expected
     # reverse
-    with pytest.raises(TypeError):
+    with pytest.raises(operations.OperandTypeError):
         opr(value, quantity)
 
     # EXPONENTIAL
@@ -179,7 +178,7 @@ def test_quantity_number():
     expected = Quantity(opr(*values), f'{unit}^{value}')
     assert opr(quantity, value) == expected
     # reverse
-    with pytest.raises(TypeError):
+    with pytest.raises(operations.OperandTypeError):
         opr(value, quantity)
 
 
