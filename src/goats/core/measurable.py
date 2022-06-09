@@ -228,27 +228,10 @@ class Metadata:
         method = operation['callable']
         get = utilities.getattrval
         def operator(*args, **kwargs):
-            # BUG: Need to check `method(*values, **kwargs)` earlier in order to
-            # support operations with built-in types.
-            available = {
-                name: [hasattr(arg, name) for arg in args]
-                for name in self._names
-            }
-            attributes = {
-                name: [get(arg, name) for arg in args]
-                for name, here in available.items() if all(here)
-            }
-            if operation.get('strict', False):
-                for name in self._names:
-                    if all(available[name]):
-                        ref = get(args[0], name)
-                        equal = [get(arg, name) == ref for arg in args[1:]]
-                        if not all(equal):
-                            raise TypeError(
-                                f"Inconsistent metadata for {name!r}"
-                            ) from None
             results = {}
-            for name, values in attributes.items():
+            for name in self._names:
+                values = [get(arg, name) for arg in args]
+                v0 = values[0]
                 try:
                     # If the attribute type defines the operator, hand
                     # control over the the argument(s)
@@ -258,12 +241,20 @@ class Metadata:
                     # operator. If there's only one argument, we can safely
                     # return it as-is. Otherwise, the solution is not as
                     # clear.
-                    if len(values) == 1: # same as len(args)
-                        results[name] = values[0]
+                    if len(args) == 1:
+                        results[name] = v0
+                    # raise TypeError(
+                    #     f"Metadata attribute {name!r}"
+                    #     f" does not support {method}"
+                    # ) from err
+                if (
+                    operation.get('strict', False)
+                    and all([hasattr(arg, name) for arg in args])
+                    and any([getattr(arg, name) != v0 for arg in args])
+                ):
                     raise TypeError(
-                        f"Metadata attribute {name!r}"
-                        f" does not support {method}"
-                    ) from err
+                        f"Inconsistent metadata for {name!r}"
+                    ) from None
             return results
         return operator
 
