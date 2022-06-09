@@ -149,7 +149,10 @@ class Name(collections.abc.Collection, iterables.ReprStrMixin):
     def __eq__(self, __o) -> bool:
         if isinstance(__o, Name):
             return __o._aliases == self._aliases
-        return __o == self._aliases
+        try:
+            return __o == self._aliases
+        except TypeError:
+            return False
 
     def __str__(self) -> str:
         return str(self._aliases)
