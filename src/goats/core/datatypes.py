@@ -127,7 +127,7 @@ class Name(collections.abc.Collection, iterables.ReprStrMixin):
 
     def __pow__(self, other):
         """Called for self ** other."""
-        return Name(*self._combine('**', other))
+        return Name(*self._combine('^', fractions.Fraction(other)))
 
     def _combine(self, symbol: str, other):
         """Symbolically combine `self` with `other`."""

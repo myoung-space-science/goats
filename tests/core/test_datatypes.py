@@ -878,7 +878,7 @@ def test_name_builtin():
         operator.sub: {'symbol': '-', 'others': ['b', 2]},
         operator.mul: {'symbol': '*', 'others': ['b', 2]},
         operator.truediv: {'symbol': '/', 'others': ['b', 2]},
-        pow: {'symbol': '**','others': [2]},
+        pow: {'symbol': '^','others': [2]},
     }
     for method, test in cases.items():
         s = test['symbol']
