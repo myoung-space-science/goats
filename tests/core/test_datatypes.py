@@ -890,6 +890,20 @@ def test_dimensions_operators():
     # cast and comparison operations don't affect dimensions
 
 
+def test_dimensions_merge():
+    """Test the ability to extract unique dimensions in order."""
+    xy = datatypes.Dimensions('x', 'y')
+    yz = datatypes.Dimensions('y', 'z')
+    zw = datatypes.Dimensions('z', 'w')
+    assert xy.merge(xy) == datatypes.Dimensions('x', 'y')
+    assert xy.merge(yz) == datatypes.Dimensions('x', 'y', 'z')
+    assert yz.merge(xy) == datatypes.Dimensions('y', 'z', 'x')
+    assert xy.merge(zw) == datatypes.Dimensions('x', 'y', 'z', 'w')
+    assert zw.merge(xy) == datatypes.Dimensions('z', 'w', 'x', 'y')
+    assert yz.merge(zw) == datatypes.Dimensions('y', 'z', 'w')
+    assert zw.merge(yz) == datatypes.Dimensions('z', 'w', 'y')
+
+
 def test_name():
     """Test the attribute representing a data quantity's name."""
     name = datatypes.Name('a', 'A')
