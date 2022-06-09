@@ -109,46 +109,33 @@ class Name(collections.abc.Collection, iterables.ReprStrMixin):
         """Called for self + other."""
         if other == self:
             return self
-        if strings := self._combine(other, '+'):
-            return Name(*strings)
-        return NotImplemented
+        return Name(*self._combine('+', other))
 
     def __sub__(self, other):
         """Called for self - other."""
         if other == self:
             return self
-        if strings := self._combine(other, '-'):
-            return Name(*strings)
-        return NotImplemented
+        return Name(*self._combine('-', other))
 
     def __mul__(self, other):
         """Called for self * other."""
-        if other == self:
-            return Name(*[f'{i}*{i}' for i in self])
-        if strings := self._combine(other, '*'):
-            return Name(*strings)
-        return NotImplemented
+        return Name(*self._combine('*', other))
 
     def __truediv__(self, other):
         """Called for self / other."""
-        if other == self:
-            return Name(*[f'{i}/{i}' for i in self])
-        if strings := self._combine(other, '/'):
-            return Name(*strings)
-        return NotImplemented
+        return Name(*self._combine('/', other))
 
     def __pow__(self, other):
         """Called for self ** other."""
-        if strings := self._combine(other, '**'):
-            return Name(*strings)
-        return NotImplemented
+        return Name(*self._combine('**', other))
 
-    def _combine(self, other, symbol: str):
+    def _combine(self, symbol: str, other):
         """Symbolically combine `self` with `other`."""
-        if isinstance(other, str):
-            return [f'{i}{symbol}{other}' for i in self._aliases]
-        if isinstance(other, typing.Iterable):
+        if self == other:
+            return [f'{i}{symbol}{i}' for i in self]
+        if isinstance(other, typing.Iterable) and not isinstance(other, str):
             return [f'{i}{symbol}{j}' for i in self for j in other]
+        return [f'{i}{symbol}{other}' for i in self._aliases]
 
     def __contains__(self, __x) -> bool:
         return __x in self._aliases
