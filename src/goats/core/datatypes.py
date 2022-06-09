@@ -657,7 +657,16 @@ class Dimensions(collections.abc.Sequence, iterables.ReprStrMixin):
     """A representation of one or more axis names."""
 
     def __init__(self, *names: str) -> None:
-        self._names = names
+        self._names = self._init(*names)
+
+    def _init(self, *args):
+        names = iterables.unwrap(args)
+        if all(isinstance(name, str) for name in names):
+            return names
+        raise TypeError(
+            f"Can't initialize instance of {type(self)}"
+            f" with {names!r}"
+        )
 
     @property
     def names(self): # Try to prevent accidentially changing names.

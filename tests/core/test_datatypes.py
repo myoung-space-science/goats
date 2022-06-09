@@ -834,6 +834,23 @@ def test_dimensions_object():
         assert all(name in dimensions for name in subset)
         assert dimensions[i-1] == name
 
+
+def test_dimensions_init():
+    """Test various ways to initialize dimensions metadata."""
+    names = ['a', 'b', 'c']
+    assert len(datatypes.Dimensions(names)) == 3
+    assert len(datatypes.Dimensions(*names)) == 3
+    assert len(datatypes.Dimensions([names])) == 3
+    invalid = [
+        [1, 2, 3],
+        [[1], [2], [3]],
+        [['a'], ['b'], ['c']],
+    ]
+    for case in invalid:
+        with pytest.raises(TypeError):
+            datatypes.Dimensions(*case)
+
+
 def test_dimensions_operators():
     """Test built-in operations on dimensions metadata."""
     xy = datatypes.Dimensions('x', 'y')
