@@ -865,7 +865,46 @@ def test_dimensions_object():
 def test_name():
     """Test the attribute representing a data quantity's name."""
     name = datatypes.Name('a', 'A')
+    assert len(name) == 2
     assert sorted(name) == ['A', 'a']
+    assert all(i in name for i in ('a', 'A'))
+
+
+def test_name_builtin():
+    """Test operations between a name metadata object and a built-in object."""
+    name = datatypes.Name('a', 'A')
+    cases = {
+        operator.add: {'symbol': '+', 'others': ['b', 2]},
+        operator.sub: {'symbol': '-', 'others': ['b', 2]},
+        operator.mul: {'symbol': '*', 'others': ['b', 2]},
+        operator.truediv: {'symbol': '/', 'others': ['b', 2]},
+        pow: {'symbol': '**','others': [2]},
+    }
+    for method, test in cases.items():
+        s = test['symbol']
+        for other in test['others']:
+            expected = datatypes.Name(*[f'{i}{s}{other}' for i in name])
+            assert method(name, other) == expected
+
+
+def test_name_name():
+    """Test operations between two name metadata objects."""
+    name = datatypes.Name('a', 'A')
+    cases = {
+        operator.add: '+',
+        operator.sub: '-',
+        operator.mul: '*',
+        operator.truediv: '/',
+    }
+    for method, s in cases.items():
+        other = datatypes.Name('b', 'B')
+        expected = datatypes.Name(*[f'{i}{s}{j}' for i in name for j in other])
+        assert method(name, other) == expected
+
+
+def test_same_name():
+    """Test operations on a name metadata object with itself."""
+    name = datatypes.Name('a', 'A')
     additive = {
         operator.add: '+',
         operator.sub: '-',
@@ -873,18 +912,7 @@ def test_name():
     multiplicative = {
         operator.mul: '*',
         operator.truediv: '/',
-        pow: '**',
     }
-    cases = {**additive, **multiplicative}
-    for method, symbol in cases.items():
-        other = 'b'
-        expected = datatypes.Name(*[f'{i}{symbol}b' for i in name])
-        assert method(name, other) == expected
-        other = datatypes.Name('b', 'B')
-        expected = datatypes.Name(
-            *[f'{i}{symbol}{j}' for i in name for j in other]
-        )
-        assert method(name, other) == expected
     for method in additive:
         assert method(name, name) == name
     for method, symbol in multiplicative.items():
