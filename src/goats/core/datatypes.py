@@ -131,11 +131,16 @@ class Name(collections.abc.Collection, iterables.ReprStrMixin):
 
     def _combine(self, symbol: str, other):
         """Symbolically combine `self` with `other`."""
+        if not self or not other:
+            return ['']
         if self == other:
             return [f'{i}{symbol}{i}' for i in self]
         if isinstance(other, typing.Iterable) and not isinstance(other, str):
             return [f'{i}{symbol}{j}' for i in self for j in other]
         return [f'{i}{symbol}{other}' for i in self._aliases]
+
+    def __bool__(self) -> bool:
+        return bool(self._aliases)
 
     def __contains__(self, __x) -> bool:
         return __x in self._aliases

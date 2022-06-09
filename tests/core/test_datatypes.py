@@ -946,3 +946,18 @@ def test_same_name():
     for method, symbol in multiplicative.items():
         expected = datatypes.Name(*[f'{i}{symbol}{i}' for i in name])
         assert method(name, name) == expected
+
+
+def test_empty_names():
+    """Make sure operations on empty names produce empty results."""
+    n0 = datatypes.Name('')
+    n1 = datatypes.Name('')
+    cases = {
+        operator.add: '+',
+        operator.sub: '-',
+        operator.mul: '*',
+        operator.truediv: '/',
+    }
+    for method in cases:
+        assert method(n0, n1) == datatypes.Name('')
+
