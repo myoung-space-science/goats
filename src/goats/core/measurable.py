@@ -1,6 +1,7 @@
 import abc
 import collections.abc
 import functools
+import math
 import numbers
 import operator as standard
 import typing
@@ -8,6 +9,7 @@ import typing
 import numpy
 import numpy.typing
 
+from goats.core import aliased
 from goats.core import algebraic
 from goats.core import iterables
 from goats.core import metric
@@ -118,6 +120,154 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
         return f"{values} [{self._unit}]"
 
 
+def sqrt(a):
+    """Square-root implementation for metadata."""
+    try:
+        return pow(a, 0.5)
+    except TypeError:
+        return f'sqrt({a})'
+
+
+OPERATIONS = {
+    'abs': {
+        'callable': abs,
+        'aliases': ['absolute'],
+    },
+    'pos': {
+        'callable': standard.pos,
+        'aliases': ['positive'],
+    },
+    'neg': {
+        'callable': standard.neg,
+        'aliases': ['negative'],
+    },
+    'ceil': {
+        'callable': math.ceil,
+        'aliases': ['ceiling'],
+    },
+    'floor': {
+        'callable': math.floor,
+    },
+    'trunc': {
+        'callable': math.trunc,
+        'aliases': ['truncate'],
+    },
+    'round': {
+        'callable': round,
+    },
+    'lt': {
+        'callable': standard.lt,
+        'aliases': ['less'],
+        'strict': True,
+    },
+    'le': {
+        'callable': standard.le,
+        'aliases': ['less_equal', 'less equal'],
+        'strict': True,
+    },
+    'gt': {
+        'callable': standard.gt,
+        'aliases': ['greater'],
+        'strict': True,
+    },
+    'ge': {
+        'callable': standard.ge,
+        'aliases': ['greater_equal', 'greater equal'],
+        'strict': True,
+    },
+    'add': {
+        'category': 'numeric',
+        'callable': standard.add,
+        'strict': True,
+    },
+    'sub': {
+        'callable': standard.sub,
+        'aliases': ['subtract'],
+        'strict': True,
+    },
+    'mul': {
+        'callable': standard.mul,
+        'aliases': ['multiply'],
+    },
+    'truediv': {
+        'callable': standard.truediv,
+        'aliases': ['true_divide'],
+    },
+    'pow': {
+        'callable': pow,
+        'aliases': ['power'],
+    },
+    'sqrt': {
+        'callable': sqrt,
+        'aliases': ['square_root', 'square root'],
+    },
+}
+
+
+class Metadata:
+    """Manages metadata attributes for measurable quantities."""
+
+    operations = aliased.MutableMapping(OPERATIONS)
+
+    def __init__(self, *names: str) -> None:
+        self._names = list(names)
+
+    @property
+    def names(self):
+        """The current collection of updatable metadata attributes."""
+        return tuple(self._names)
+
+    def register(self, *names: str):
+        """Register additional names of metadata attributes."""
+        self._names.extend(names)
+        return self
+
+    def implement(self, __key: str):
+        """Implement an operation"""
+        operation = self.operations[__key]
+        method = operation['callable']
+        get = utilities.getattrval
+        def operator(*args, **kwargs):
+            # BUG: Need to check `method(*values, **kwargs)` earlier in order to
+            # support operations with built-in types.
+            available = {
+                name: [hasattr(arg, name) for arg in args]
+                for name in self._names
+            }
+            attributes = {
+                name: [get(arg, name) for arg in args]
+                for name, here in available.items() if all(here)
+            }
+            if operation.get('strict', False):
+                for name in self._names:
+                    if all(available[name]):
+                        ref = get(args[0], name)
+                        equal = [get(arg, name) == ref for arg in args[1:]]
+                        if not all(equal):
+                            raise TypeError(
+                                f"Inconsistent metadata for {name!r}"
+                            ) from None
+            results = {}
+            for name, values in attributes.items():
+                try:
+                    # If the attribute type defines the operator, hand
+                    # control over the the argument(s)
+                    results[name] = method(*values, **kwargs)
+                except TypeError as err:
+                    # Uh oh: The attribute type does not define the
+                    # operator. If there's only one argument, we can safely
+                    # return it as-is. Otherwise, the solution is not as
+                    # clear.
+                    if len(values) == 1: # same as len(args)
+                        results[name] = values[0]
+                    raise TypeError(
+                        f"Metadata attribute {name!r}"
+                        f" does not support {method}"
+                    ) from err
+            return results
+        return operator
+
+
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
@@ -157,6 +307,7 @@ class Quantity(Quantifiable):
     def __init__(self, *args, **kwargs) -> None:
         init = self._parse(*args, **kwargs)
         super().__init__(*init)
+        self.metadata = Metadata('unit')
         display = {
             '__str__': {
                 'strings': ["{_amount}", "[{_metric}]"],
@@ -207,32 +358,138 @@ class Quantity(Quantifiable):
             return other.data == self.data and other.unit() == self.unit()
         return other == self.data
 
-# TODO: Figure out what to do with this now that `operations.augment` creates
-# the required class. We should at least save the docstring.
-class OperatorMixin:
-    """A mixin class that defines operators for quantifiable objects.
-    
-    This class implements the `~algebraic.Quantity` operators with the following
-    rules:
-        - unary `-`, `+`, and `abs` on an instance
-        - binary `+` and `-` between two instances with an identical metric
-        - binary `*` and `/` between two instances
-        - symmetric binary `*` between an instance and a number
-        - right-sided `/` and `**` between an instance and a number
 
-    Notes on allowed binary arithmetic operations:
-        - This class does not support floor division (`//`) in any form because
-          of the ambiguity it would create with `~metric.Unit` floor division.
-        - This class does not support floating-point division (`/`) in which the
-          left operand is not the same type or a subtype. The reason for this
-          choice is that the result may be ambiguous. For example, suppose we
-          have an instance called ``d`` with values ``[10.0, 20.0]`` and unit
-          ``cm``. Whereas the result of ``d / 2.0`` should clearly be a new
-          instance with values ``[5.0, 10.0]`` and the same unit, it is unclear
-          whether the values of ``2.0 / d`` should be element-wise ratios (i.e.,
-          ``[0.2, 0.1]``) or a single value (e.g., ``2.0 / ||d||``) and it is
-          not at all obvious what the unit or dimensions should be.
-    """
+T = typing.TypeVar('T')
+A = typing.TypeVar('A')
+B = typing.TypeVar('B')
+
+
+class OperatorMixin:
+    """Mixin operators for measurable quantities."""
+
+    def cast(__callable: typing.Type[T]):
+        """"""
+        def operator(a: A) -> T:
+            if isinstance(a, Quantity):
+                return __callable(a.data)
+            return __callable(a)
+        return operator
+
+    def unary(__callable: typing.Callable[[A], T]):
+        """"""
+        def operator(a: A, **kwargs) -> A:
+            if isinstance(a, Quantity):
+                return __callable(a.data, **kwargs)
+            return __callable(a, **kwargs)
+        return operator
+
+    def comparison(__callable: typing.Callable[[A, B], T]):
+        """"""
+        def operator(a: A, b: B) -> typing.Union[bool, T]:
+            if isinstance(a, Quantity):
+                if isinstance(b, Quantity):
+                    return __callable(a.data, b.data)
+                return __callable(a.data, b)
+            return __callable(a, b)
+        return operator
+
+    def forward(__callable: typing.Callable[[A, B], T]):
+        """"""
+        def operator(a: A, b: B, **kwargs) -> A:
+            if isinstance(a, Quantity):
+                if isinstance(b, Quantity):
+                    return __callable(a.data, b.data, **kwargs)
+                return __callable(a.data, b, **kwargs)
+            return __callable(a, b, **kwargs)
+        return operator
+
+    def reverse(__callable: typing.Callable[[A, B], T]):
+        """"""
+        def operator(a: A, b: B, **kwargs) -> B:
+            return
+        return operator
+
+    def inplace(__callable: typing.Callable[[A, B], T]):
+        """"""
+        def operator(a: A, b: B, **kwargs) -> A:
+            return
+        return operator
+
+
+def mixin(*parameters: str, name: str='QuantityMixin', bases=(), **kwargs):
+    """Create a class that defines mixin operators for quantities."""
+    interface = operations.Interface(Quantity, *parameters)
+    rules = {
+        'numeric': [
+            (Quantity, Quantity),
+            (Quantity, Real),
+            (Real, Quantity),
+        ]
+    }
+    interface['numeric'].types.add(*rules['numeric'])
+    interface['__rtruediv__'].types.discard(Real, Quantity)
+    interface['__rpow__'].types.discard(Real, Quantity)
+    interface['__pow__'].types.discard(Quantity, Quantity)
+    return interface.subclass(name, *bases, **kwargs)
+
+
+interface = operations.Interface(Quantity, 'data', 'unit')
+rules = {
+    'numeric': [
+        (Quantity, Quantity),
+        (Quantity, Real),
+        (Real, Quantity),
+    ]
+}
+interface['numeric'].types.add(*rules['numeric'])
+interface['__rtruediv__'].types.discard(Real, Quantity)
+interface['__rpow__'].types.discard(Real, Quantity)
+interface['__pow__'].types.discard(Quantity, Quantity)
+QuantityMixin = interface.subclass(
+    'QuantityMixin',
+    exclude=['cast', '__round__', '__ceil__', '__floor__', '__trunc__']
+)
+"""A mixin class that defines operators for quantifiable objects.
+
+This class implements the `~algebraic.Quantity` operators with the following
+rules:
+    - unary `-`, `+`, and `abs` on an instance
+    - binary `+` and `-` between two instances with an identical metric
+    - binary `*` and `/` between two instances
+    - symmetric binary `*` between an instance and a number
+    - right-sided `/` and `**` between an instance and a number
+
+Notes on allowed binary arithmetic operations:
+    - This class does not support floor division (`//`) in any form because
+        of the ambiguity it would create with `~metric.Unit` floor division.
+    - This class does not support floating-point division (`/`) in which the
+        left operand is not the same type or a subtype. The reason for this
+        choice is that the result may be ambiguous. For example, suppose we
+        have an instance called ``d`` with values ``[10.0, 20.0]`` and unit
+        ``cm``. Whereas the result of ``d / 2.0`` should clearly be a new
+        instance with values ``[5.0, 10.0]`` and the same unit, it is unclear
+        whether the values of ``2.0 / d`` should be element-wise ratios (i.e.,
+        ``[0.2, 0.1]``) or a single value (e.g., ``2.0 / ||d||``) and it is
+        not at all obvious what the unit or dimensions should be.
+"""
+
+
+def operators(*parameters: str, **kwargs):
+    """"""
+    names = ['data', 'unit', *parameters]
+    interface = operations.Interface(Quantity, *names)
+    rules = {
+        'numeric': [
+            (Quantity, Quantity),
+            (Quantity, Real),
+            (Real, Quantity),
+        ]
+    }
+    interface['numeric'].types.add(*rules['numeric'])
+    interface['__rtruediv__'].types.discard(Real, Quantity)
+    interface['__rpow__'].types.discard(Real, Quantity)
+    interface['__pow__'].types.discard(Quantity, Quantity)
+    return operations.operators(interface, **kwargs)
 
 
 class Scalar(Quantity):
