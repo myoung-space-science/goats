@@ -902,6 +902,7 @@ def test_dimensions_merge():
     assert zw.merge(xy) == datatypes.Dimensions('z', 'w', 'x', 'y')
     assert yz.merge(zw) == datatypes.Dimensions('y', 'z', 'w')
     assert zw.merge(yz) == datatypes.Dimensions('z', 'w', 'y')
+    assert xy.merge(yz, zw) == datatypes.Dimensions('x', 'y', 'z', 'w')
 
 
 def test_name():

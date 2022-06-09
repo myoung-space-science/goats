@@ -690,11 +690,13 @@ class Dimensions(collections.abc.Sequence, iterables.ReprStrMixin):
     __sub__ = operations.identity(standard.sub)
     """Called for self - other."""
 
-    def merge(a, b):
+    def merge(a, *others):
         """Return the unique axis names in order."""
-        if isinstance(b, Dimensions):
-            names = operations.unique(*a.names, *b.names)
-            return Dimensions(*names)
+        if all(isinstance(b, Dimensions) for b in others):
+            names = list(a.names)
+            for b in others:
+                names.extend(b.names)
+            return Dimensions(*operations.unique(*names))
         return NotImplemented
 
     __mul__ = merge
