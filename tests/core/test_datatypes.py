@@ -873,6 +873,7 @@ def test_name():
     multiplicative = {
         operator.mul: '*',
         operator.truediv: '/',
+        pow: '**',
     }
     cases = {**additive, **multiplicative}
     for method, symbol in cases.items():
