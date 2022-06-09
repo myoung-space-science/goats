@@ -825,6 +825,17 @@ def test_full_mean(components):
 
 def test_dimensions_object():
     """Make sure axes names behave as expected in operations."""
+    assert len(datatypes.Dimensions()) == 0
+    names = ['a', 'b', 'c']
+    for i, name in enumerate(names, start=1):
+        subset = names[:i]
+        dimensions = datatypes.Dimensions(*subset)
+        assert len(dimensions) == i
+        assert all(name in dimensions for name in subset)
+        assert dimensions[i-1] == name
+
+def test_dimensions_operators():
+    """Test built-in operations on dimensions metadata."""
     xy = datatypes.Dimensions('x', 'y')
     yz = datatypes.Dimensions('y', 'z')
     zw = datatypes.Dimensions('z', 'w')

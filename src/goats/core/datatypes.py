@@ -653,7 +653,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         return decorator
 
 
-class Dimensions(iterables.ReprStrMixin):
+class Dimensions(collections.abc.Sequence, iterables.ReprStrMixin):
     """A representation of one or more axis names."""
 
     def __init__(self, *names: str) -> None:
@@ -695,6 +695,14 @@ class Dimensions(iterables.ReprStrMixin):
     def __hash__(self):
         """Support use as a mapping key."""
         return hash(self.names)
+
+    def __len__(self) -> int:
+        """Called for len(self)."""
+        return len(self.names)
+
+    def __getitem__(self, __i: typing.SupportsIndex):
+        """Called for index-based access."""
+        return self.names[__i]
 
     def __str__(self) -> str:
         return ', '.join(str(name) for name in self.names)
