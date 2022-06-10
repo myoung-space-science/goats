@@ -250,7 +250,7 @@ class Metadata:
                 if (
                     operation.get('strict', False)
                     and all([hasattr(arg, name) for arg in args])
-                    and any([getattr(arg, name) != v0 for arg in args])
+                    and any([get(arg, name) != v0 for arg in args])
                 ):
                     raise TypeError(
                         f"Inconsistent metadata for {name!r}"
@@ -332,12 +332,27 @@ class Quantity(Quantifiable):
         unit = metric.Unit(kwargs.get('unit') or pos.pop(0) or '1')
         return data, unit
 
+    # def unit(self, unit: metric.UnitLike=None):
+    #     """Get or set the unit of this object's values."""
+    #     if not unit:
+    #         return self._metric
+    #     if unit == self._metric:
+    #         return self
+    #     new = metric.Unit(unit)
+    #     self._amount *= new // self._metric
+    #     self._metric = new
+    #     return self
+
     def unit(self, unit: metric.UnitLike=None):
         """Get or set the unit of this object's values."""
         if not unit:
             return self._metric
         if unit == self._metric:
             return self
+        return self._update_unit(unit)
+
+    def _update_unit(self, unit: metric.UnitLike=None):
+        """Update the instance unit. Extracted for overloading."""
         new = metric.Unit(unit)
         self._amount *= new // self._metric
         self._metric = new
