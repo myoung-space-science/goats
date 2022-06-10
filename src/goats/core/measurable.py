@@ -316,6 +316,11 @@ class Quantity(Quantifiable):
         """This quantity's data."""
         return self._amount
 
+    @property
+    def unit(self):
+        """This quantity's metric unit."""
+        return self._metric
+
     Attrs = typing.TypeVar('Attrs', bound=tuple)
     Attrs = typing.Tuple[Real, metric.UnitLike]
 
@@ -332,27 +337,10 @@ class Quantity(Quantifiable):
         unit = metric.Unit(kwargs.get('unit') or pos.pop(0) or '1')
         return data, unit
 
-    # def unit(self, unit: metric.UnitLike=None):
-    #     """Get or set the unit of this object's values."""
-    #     if not unit:
-    #         return self._metric
-    #     if unit == self._metric:
-    #         return self
-    #     new = metric.Unit(unit)
-    #     self._amount *= new // self._metric
-    #     self._metric = new
-    #     return self
-
-    def unit(self, unit: metric.UnitLike=None):
-        """Get or set the unit of this object's values."""
-        if not unit:
-            return self._metric
+    def convert(self, unit: metric.UnitLike):
+        """Set the unit of this object's values."""
         if unit == self._metric:
             return self
-        return self._update_unit(unit)
-
-    def _update_unit(self, unit: metric.UnitLike=None):
-        """Update the instance unit. Extracted for overloading."""
         new = metric.Unit(unit)
         self._amount *= new // self._metric
         self._metric = new
@@ -361,7 +349,7 @@ class Quantity(Quantifiable):
     def __eq__(self, other) -> bool:
         """Determine if two quantities are equal."""
         if isinstance(other, Quantity):
-            return other.data == self.data and other.unit() == self.unit()
+            return other.data == self.data and other.unit == self.unit
         return other == self.data
 
 

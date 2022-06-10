@@ -4,6 +4,7 @@ import operator
 import pytest
 
 from goats.core import measurable
+from goats.core import metric
 from goats.core import operations
 
 
@@ -180,6 +181,15 @@ def test_quantity_number():
     # reverse
     with pytest.raises(operations.OperandTypeError):
         opr(value, quantity)
+
+
+def test_quantity_unit():
+    """Test getting and setting a quantity's unit."""
+    q = Quantity(1, 'm') # use int to avoid failing due to precision
+    assert q.unit == 'm'
+    assert q.convert('cm') == Quantity(100, 'cm')
+    with pytest.raises(metric.UnitConversionError):
+        q.convert('J')
 
 
 def test_scalar_cast():
