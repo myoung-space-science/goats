@@ -110,34 +110,27 @@ class Name(collections.abc.Collection, iterables.ReprStrMixin):
     def __init__(self, *aliases: str) -> None:
         self._aliases = aliased.MappingKey(*aliases)
 
-    def __add__(self, other):
-        """Called for self + other."""
-        if other == self:
-            return self
-        return Name(*self._combine('+', other))
-
-    def __sub__(self, other):
-        """Called for self - other."""
-        if other == self:
-            return self
-        return Name(*self._combine('-', other))
-
-    def __mul__(self, other):
-        """Called for self * other."""
-        return Name(*self._combine('*', other))
-
-    def __truediv__(self, other):
-        """Called for self / other."""
-        return Name(*self._combine('/', other))
-
-    def __pow__(self, other):
-        """Called for self ** other."""
-        return Name(*self._combine('^', fractions.Fraction(other)))
-
-    def _combine(self, symbol: str, other):
-        """Symbolically combine `self` with `other`."""
-        if not self or not other:
-            return ['']
+    def _implement(symbol: str, reverse: bool=False, identity: bool=False):
+        """Implement a symbolic operation."""
+        def fwd(a, b):
+            """Symbolically combine `a` with `b`."""
+            if isinstance(b, typing.Iterable) and not isinstance(b, str):
+                return [f'{i}{symbol}{j}' for i in a for j in b]
+            try:
+                return [f'{i}{symbol}{fractions.Fraction(b)}' for i in a]
+            except ValueError:
+                return [f'{i}{symbol}{b}' for i in a]
+        def rev(a, b):
+            """Symbolically combine `b` with `a`."""
+            if isinstance(a, typing.Iterable) and not isinstance(a, str):
+                return [f'{i}{symbol}{j}' for i in b for j in a]
+            try:
+                return [f'{fractions.Fraction(a)}{symbol}{i}' for i in b]
+            except ValueError:
+                return [f'{a}{symbol}{i}' for i in b]
+        def operator(self, other):
+            if not self or not other:
+                return ['']
         if self == other:
             return [f'{i}{symbol}{i}' for i in self]
         if isinstance(other, typing.Iterable) and not isinstance(other, str):

@@ -1211,6 +1211,8 @@ def test_name_builtin():
         for other in test['others']:
             expected = datatypes.Name(*[f'{i}{s}{other}' for i in name])
             assert method(name, other) == expected
+            expected = datatypes.Name(*[f'{other}{s}{i}' for i in name])
+            assert method(other, name) == expected
 
 
 def test_name_name():
