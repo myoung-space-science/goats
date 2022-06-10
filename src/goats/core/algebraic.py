@@ -1251,7 +1251,7 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
             other = self._new(other)
         if not other:
             return NotImplemented
-        return self.__mul__([term ** -1 for term in other])
+        return self._new(reduce(self, [term ** -1 for term in other]))
 
     def __rtruediv__(self, other: typing.Any):
         """Called for other / self."""
