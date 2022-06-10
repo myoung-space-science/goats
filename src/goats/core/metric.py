@@ -1390,7 +1390,7 @@ class Conversion(iterables.ReprStrMixin):
                     factor *= value
         if not unmatched:
             return factor
-        raise RuntimeError
+        raise UnitConversionError(self.u0, self.u1)
 
     def _match_terms(
         self,
