@@ -849,11 +849,10 @@ def identity(__operator: typing.Callable):
     """Create an operator that immediately returns its argument."""
     def operator(*args: T):
         first = args[0]
-        if (
-            all(type(arg) == type(first) for arg in args)
-            and all(arg == first for arg in args)
-        ): return first
-        return NotImplemented
+        for arg in args:
+            if type(arg) == type(first) and arg != first:
+                return NotImplemented
+        return first
     operator.__name__ = f'__{__operator.__name__}__'
     operator.__doc__ = __operator.__doc__
     return operator
