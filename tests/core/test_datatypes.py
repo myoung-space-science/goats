@@ -1184,6 +1184,8 @@ def test_dimensions_merge():
     assert yz.merge(zw) == datatypes.Dimensions('y', 'z', 'w')
     assert zw.merge(yz) == datatypes.Dimensions('z', 'w', 'y')
     assert xy.merge(yz, zw) == datatypes.Dimensions('x', 'y', 'z', 'w')
+    assert xy.merge(1.1) == xy
+    assert xy.merge(yz, 1.1) == datatypes.Dimensions('x', 'y', 'z')
 
 
 def test_name():

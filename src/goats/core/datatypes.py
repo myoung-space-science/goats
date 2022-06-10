@@ -670,7 +670,7 @@ class Dimensions(collections.abc.Sequence, iterables.ReprStrMixin):
         self._names = self._init(*names)
 
     def _init(self, *args):
-        names = iterables.unwrap(args)
+        names = iterables.unwrap(args, wrap=tuple)
         if all(isinstance(name, str) for name in names):
             return names
         raise TypeError(
@@ -697,21 +697,36 @@ class Dimensions(collections.abc.Sequence, iterables.ReprStrMixin):
 
     def merge(a, *others):
         """Return the unique axis names in order."""
-        if all(isinstance(b, Dimensions) for b in others):
-            names = list(a.names)
-            for b in others:
+        names = list(a.names)
+        for b in others:
+            if isinstance(b, Dimensions):
                 names.extend(b.names)
-            return Dimensions(*operations.unique(*names))
-        return NotImplemented
+        return Dimensions(*operations.unique(*names))
 
     __mul__ = merge
     """Called for self * other."""
     __truediv__ = merge
     """Called for self / other."""
 
+    def __pow__(self, other, **kwargs):
+        """Called for self ** other."""
+        return self
+
     def __eq__(self, other):
-        """True if two instances represent the same axes."""
-        return isinstance(other, Dimensions) and other.names == self.names
+        """True if self and other represent the same axes."""
+        return (
+            isinstance(other, Dimensions) and other.names == self.names
+            or (
+                isinstance(other, str)
+                and len(self) == 1
+                and other == self.names[0]
+            )
+            or (
+                isinstance(other, typing.Iterable)
+                and len(other) == len(self)
+                and all(i in self for i in other)
+            )
+        )
 
     def __hash__(self):
         """Support use as a mapping key."""
