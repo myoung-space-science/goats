@@ -1,6 +1,6 @@
 import abc
 import collections.abc
-import numbers
+import operator as standard
 import typing
 
 import numpy as np
@@ -8,6 +8,7 @@ import numpy as np
 from goats.core import algebraic
 from goats.core import aliased
 from goats.core import iterables
+from goats.core import operations
 
 
 _prefixes = [
@@ -1728,25 +1729,14 @@ class Unit(algebraic.Expression):
         """Compute the inverse of self // other."""
         return 1.0 / self.__floordiv__(other)
 
-    def __mul__(self, other):
-        if isinstance(other, numbers.Real):
-            return self
-        return super().__mul__(other)
+    def restrict(method: typing.Callable, reverse: bool=False):
+        """Restrict allowed operand types for an operation."""
+        return operations.restrict(method, str, reverse=reverse)
 
-    def __rmul__(self, other):
-        if isinstance(other, numbers.Real):
-            return self
-        return super().__rmul__(other)
-
-    def __truediv__(self, other):
-        if isinstance(other, numbers.Real):
-            return self
-        return super().__truediv__(other)
-
-    def __rtruediv__(self, other):
-        if isinstance(other, numbers.Real):
-            return self
-        return super().__rtruediv__(other)
+    __mul__ = restrict(standard.mul)
+    __rmul__ = restrict(standard.mul, reverse=True)
+    __truediv__ = restrict(standard.truediv)
+    __rtruediv__ = restrict(standard.truediv, reverse=True)
 
     def __add__(self, other):
         """Called for self + other; either a no-op or an error."""
