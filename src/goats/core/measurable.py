@@ -473,13 +473,19 @@ def operators(*parameters: str, **kwargs):
     names = ['data', 'unit', *parameters]
     interface = operations.Interface(Quantity, *names)
     rules = {
+        'comparison': [
+            (Quantity, Quantity),
+            (Quantity, Real),
+            (Real, Quantity),
+        ],
         'numeric': [
             (Quantity, Quantity),
             (Quantity, Real),
             (Real, Quantity),
-        ]
+        ],
     }
-    interface['numeric'].types.add(*rules['numeric'])
+    for key, types in rules.items():
+        interface[key].types.add(*types)
     interface['__rtruediv__'].types.discard(Real, Quantity)
     interface['__rpow__'].types.discard(Real, Quantity)
     interface['__pow__'].types.discard(Quantity, Quantity)
