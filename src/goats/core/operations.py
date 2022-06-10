@@ -867,6 +867,20 @@ def suppress(__operator: typing.Callable):
     return operator
 
 
+def restrict(__f: typing.Callable, *types: type, reverse: bool=False):
+    """Restrict allowed operand types for an operation."""
+    s = 'r' if reverse else ''
+    name = f"__{s}{__f.__name__}__"
+    def operator(a, b, **kwargs):
+        method = getattr(super(type(a), a), name)
+        if not isinstance(b, (type(a), *types)):
+            return NotImplemented
+        return method(b, **kwargs)
+    operator.__name__ = name
+    operator.__doc__ = __f.__doc__
+    return operator
+
+
 class Interface(collections.abc.Mapping):
     """Top-level interface to arithmetic operations."""
 
