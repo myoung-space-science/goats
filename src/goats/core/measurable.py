@@ -1,6 +1,6 @@
 import abc
 import collections.abc
-import functools
+import contextlib
 import math
 import numbers
 import operator as standard
@@ -132,76 +132,100 @@ OPERATIONS = {
     'abs': {
         'callable': abs,
         'aliases': ['absolute'],
+        'category': 'unary',
     },
     'pos': {
         'callable': standard.pos,
         'aliases': ['positive'],
+        'category': 'unary',
     },
     'neg': {
         'callable': standard.neg,
         'aliases': ['negative'],
+        'category': 'unary',
     },
     'ceil': {
         'callable': math.ceil,
         'aliases': ['ceiling'],
+        'category': 'unary',
     },
     'floor': {
         'callable': math.floor,
+        'category': 'unary',
     },
     'trunc': {
         'callable': math.trunc,
         'aliases': ['truncate'],
+        'category': 'unary',
     },
     'round': {
         'callable': round,
+        'category': 'unary',
     },
     'lt': {
         'callable': standard.lt,
         'aliases': ['less'],
         'strict': True,
+        'category': 'comparison',
     },
     'le': {
         'callable': standard.le,
         'aliases': ['less_equal', 'less equal'],
         'strict': True,
+        'category': 'comparison',
     },
     'gt': {
         'callable': standard.gt,
         'aliases': ['greater'],
         'strict': True,
+        'category': 'comparison',
     },
     'ge': {
         'callable': standard.ge,
         'aliases': ['greater_equal', 'greater equal'],
         'strict': True,
+        'category': 'comparison',
     },
     'add': {
-        'category': 'numeric',
         'callable': standard.add,
         'strict': True,
+        'category': 'binary',
     },
     'sub': {
         'callable': standard.sub,
         'aliases': ['subtract'],
         'strict': True,
+        'category': 'binary',
     },
     'mul': {
         'callable': standard.mul,
         'aliases': ['multiply'],
+        'category': 'binary',
     },
     'truediv': {
         'callable': standard.truediv,
         'aliases': ['true_divide'],
+        'category': 'binary',
     },
     'pow': {
         'callable': pow,
         'aliases': ['power'],
+        'category': 'binary',
     },
     'sqrt': {
         'callable': sqrt,
         'aliases': ['square_root', 'square root'],
     },
 }
+
+
+class MetadataError(Exception):
+    """Error in computing metadata value."""
+
+
+T = typing.TypeVar('T')
+A = typing.TypeVar('A')
+B = typing.TypeVar('B')
 
 
 class Metadata:
@@ -226,37 +250,81 @@ class Metadata:
         """Implement an operation"""
         operation = self.operations[__key]
         method = operation['callable']
+        strict = operation.get('strict', False)
         get = utilities.getattrval
-        def operator(*args, **kwargs):
+        def cast(arg):
+            """Type-cast operations require no metadata."""
+            return None
+        def unary(arg, **kwargs):
+            """Compute values of metadata attribute from `arg`."""
             results = {}
             for name in self._names:
-                values = [get(arg, name) for arg in args]
-                v0 = values[0]
+                value = get(arg, name)
                 try:
-                    # If the attribute type defines the operator, hand
-                    # control over the the argument(s)
-                    results[name] = method(*values, **kwargs)
-                except TypeError as err:
-                    # Uh oh: The attribute type does not define the
-                    # operator. If there's only one argument, we can safely
-                    # return it as-is. Otherwise, the solution is not as
-                    # clear.
-                    if len(args) == 1:
-                        results[name] = v0
-                    # raise TypeError(
-                    #     f"Metadata attribute {name!r}"
-                    #     f" does not support {method}"
-                    # ) from err
-                if (
-                    operation.get('strict', False)
-                    and all([hasattr(arg, name) for arg in args])
-                    and any([get(arg, name) != v0 for arg in args])
-                ):
+                    results[name] = method(value, **kwargs)
+                except TypeError:
+                    results[name] = value
+            return results
+        def comparison(*args):
+            """Check metadata consistency of `args`."""
+            if not strict:
+                return
+            for name in self._names:
+                if not self.consistent(name, *args):
                     raise TypeError(
                         f"Inconsistent metadata for {name!r}"
                     ) from None
+        def binary(*args, **kwargs):
+            """Compute values of metadata attribute from `args`."""
+            results = {}
+            for name in self._names:
+                available = [hasattr(arg, name) for arg in args]
+                if strict and not self.consistent(name, *args):
+                    raise TypeError(
+                        f"Inconsistent metadata for {name!r}"
+                    ) from None
+                values = [get(arg, name) for arg in args]
+                try:
+                    results[name] = method(*values, **kwargs)
+                except TypeError as err:
+                    if all(available):
+                        # This is an error because the method failed despite the
+                        # fact that all arguments have the attribute. That
+                        # implies that one of the attributes said no thank you.
+                        raise MetadataError(err) from err
+                    # At least one of the arguments has the attribute, so let's
+                    # find it and use its value.
+                    #
+                    # results[name] = next(values[i] for i, t in available if t)
             return results
-        return operator
+        def default(*args, **kwargs):
+            """Compute metadata attribute values if possible."""
+            results = {}
+            for name in self._names:
+                values = [get(arg, name) for arg in args]
+                with contextlib.suppress(TypeError):
+                    results[name] = method(*values, **kwargs)
+            return results
+        category = operation.get('category')
+        # TODO: Refactor this case block into something more exstensible.
+        if category == 'cast':
+            return cast
+        if category == 'unary':
+            return unary
+        if category == 'comparison':
+            return comparison
+        if category == 'binary':
+            return binary
+        return default
+
+    def consistent(self, name: str, *args):
+        """Check consistency of a metadata attribute across `args`."""
+        values = [utilities.getattrval(arg, name) for arg in args]
+        v0 = values[0]
+        return (
+            all(hasattr(arg, name) for arg in args)
+            and any([v != v0 for v in values])
+        )
 
 
 Instance = typing.TypeVar('Instance', bound='Quantity')
@@ -351,11 +419,6 @@ class Quantity(Quantifiable):
         if isinstance(other, Quantity):
             return other.data == self.data and other.unit == self.unit
         return other == self.data
-
-
-T = typing.TypeVar('T')
-A = typing.TypeVar('A')
-B = typing.TypeVar('B')
 
 
 class OperatorMixin:
