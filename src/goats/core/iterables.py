@@ -10,16 +10,18 @@ import typing
 from goats.core import numerical
 
 
-def unique(target: typing.Container, options: typing.Iterable):
-    """Search `target` for a unique element from `options`."""
-    for option in options:
-        others = set(options) - {option}
-        no_others = all(this not in target for this in others)
-        if option in target and no_others:
-            return option
-
-
 T = typing.TypeVar('T')
+
+
+def unique(*items: T) -> typing.List[T]:
+    """Remove repeated items while preserving order."""
+    collection = []
+    for item in items:
+        if item not in collection:
+            collection.append(item)
+    return collection
+
+
 def unwrap(
     obj: typing.Union[T, typing.Iterable],
     wrap: type=None,

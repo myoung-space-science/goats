@@ -43,9 +43,16 @@ def test_separable():
 
 
 def test_unique():
-    """Test the function that searches a container for a unique option."""
-    assert iterables.unique('a b c', ['a', 'd']) == 'a'
-    assert iterables.unique('a b c', ['a', 'b']) is None
+    """Test the function that extracts unique items while preserving order."""
+    cases = {
+        'a': ['a'],
+        ('a', 'b'): ['a', 'b'],
+        ('a', 'b', 'a'): ['a', 'b'],
+        ('a', 'b', 'a', 'c'): ['a', 'b', 'c'],
+        ('a', 'b', 'b', 'a', 'c'): ['a', 'b', 'c'],
+    }
+    for items, expected in cases.items():
+        assert list(iterables.unique(*items)) == expected
 
 
 def test_unwrap():
