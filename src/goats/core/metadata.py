@@ -384,7 +384,7 @@ class OperatorFactory(collections.abc.Mapping):
             operand to these operations.
         """
         self._type = __type
-        self._parameters = list(iterables.unique(parameters))
+        self._parameters = list(iterables.unique(*parameters))
         self.types = Types(implied=__type)
         self._operations = None
 
@@ -395,7 +395,7 @@ class OperatorFactory(collections.abc.Mapping):
 
     def register(self, *names: str):
         """Register additional names of metadata attributes."""
-        self._parameters.extend(iterables.unique(names))
+        self._parameters.extend(iterables.unique(*names))
         return self
 
     def implement(self, name: str, method: typing.Callable=None):

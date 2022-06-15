@@ -1,4 +1,5 @@
 import numbers
+import typing
 
 import pytest
 
@@ -90,4 +91,64 @@ def test_operation():
     operation.suppress(complex, float, symmetric=True)
     assert not operation.supports(complex, float)
     assert not operation.supports(float, complex)
+
+
+class Info:
+    """Information about a value."""
+
+    def __init__(self, arg) -> None:
+        self._text = arg._text if isinstance(arg, Info) else arg
+
+    def __eq__(self, other):
+        return isinstance(other, Info) and other._text == self._text
+
+    def __repr__(self):
+        return f"{self.__class__.__qualname__}({self._text!r})"
+
+
+class Base:
+    """A base for test classes."""
+    def __init__(self, value: numbers.Real, info: str) -> None:
+        self.value = value
+        """A numerical value."""
+        self.info = Info(info)
+        """Some information about this instance."""
+
+    def __eq__(self, other):
+        """True if two instances have the same value and info."""
+        return (
+            isinstance(other, type(self))
+            and all(
+                getattr(self, name) == getattr(other, name)
+                for name in ('value', 'info')
+            )
+        )
+
+    def __repr__(self):
+        return f"{self.__class__.__qualname__}({self.value}, {self.info})"
+
+
+T = typing.TypeVar('T')
+
+
+def build(__type: typing.Type[T]) -> typing.List[T]:
+    """Create and initialize instances of a class for tests."""
+    inputs = [
+        (1, 'A'),
+        (2, 'A'),
+        (2, 'B'),
+    ]
+    return [__type(*args) for args in inputs]
+
+
+def test_operator_factory():
+    """Test the class that creates operators from operation contexts."""
+    factory = metadata.OperatorFactory(Base)
+    assert not factory.parameters
+    factory.register('value', 'info')
+    assert factory.parameters == ('value', 'info')
+    assert isinstance(factory['add'], metadata.Operation)
+    assert factory['add'] is factory['__add__']
+    assert factory['__add__'] is not factory['__radd__']
+
 
