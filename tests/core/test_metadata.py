@@ -150,5 +150,12 @@ def test_operator_factory():
     assert isinstance(factory['add'], metadata.Operation)
     assert factory['add'] is factory['__add__']
     assert factory['__add__'] is not factory['__radd__']
+    keys = ('add', '__add__')
+    assert all(factory[key].supports(Base, float) for key in keys)
+    factory['__add__'].suppress(Base, float)
+    for key in keys:
+        assert not factory[key].supports(Base, float)
+        assert factory[key].supports(Base, Base)
+        assert factory[key].supports(float, Base)
 
 
