@@ -368,12 +368,14 @@ class MetadataError(Exception):
 
 def consistent(name: str, *args):
     """Check consistency of a metadata attribute across `args`."""
-    values = [utilities.getattrval(arg, name) for arg in args]
+    values = [
+        utilities.getattrval(arg, name) for arg in args
+        if hasattr(arg, name)
+    ]
+    if not values:
+        return True # trivial case
     v0 = values[0]
-    return (
-        all(hasattr(arg, name) for arg in args)
-        and all([v == v0 for v in values])
-    )
+    return all([v == v0 for v in values])
 
 
 class OperatorFactory(collections.abc.Mapping):
