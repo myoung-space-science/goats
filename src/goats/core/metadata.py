@@ -21,139 +21,6 @@ class NTypesError(Exception):
     """Inconsistent number of types in a new rule."""
 
 
-class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
-    """A set-like collection of allowed operand types."""
-
-    def __init__(
-        self,
-        *init: typing.Union[type, typing.Sequence[type]],
-        implied: type=None,
-    ) -> None:
-        """Initialize this instance.
-        
-        Parameters
-        ----------
-        *init : type or sequence of types
-            Zero or more types or sequences of types with which to initialize
-            this instance's collection.
-
-        implied : type, optional
-            A single type to treat as an implied type when checking for the
-            existence of other types in this collection. This type will not show
-            up in the explicit collection of types. See Notes for clarification
-            of containment (i.e., queries of the form ``x in types``).
-
-        Notes
-        -----
-        Checks for existence of the implied type will depend on whether this
-        collection is empty or has explicit type groups: If there are no
-        explicit type groups, checking for the implied type or a homogeneous
-        tuple of the implied type of any length will evaluate as ``True``. If
-        there are explicit type groups, the number of types must agree. For
-        example::
-
-        >>> types = operations.Types(implied=str)
-        >>> str in types
-        True
-        >>> (str, str) in types
-        True
-        >>> (str, str, str) in types
-        True
-        >>> types.add(int, float)
-        >>> str in types
-        False
-        >>> (str, str) in types
-        True
-        >>> (str, str, str) in types
-        False
-        """
-        self.ntypes = None
-        if init:
-            ntypes = len(init[0])
-            if all(len(i) == ntypes for i in init):
-                self.ntypes = ntypes
-            else:
-                raise NTypesError(
-                    f"Can't initialize {self.__class__.__qualname__}"
-                    " with variable-length types."
-                )
-        self.implied = implied
-        self._types = set(init)
-
-    def add(self, *types: type):
-        """Add these types to the collection, if possible.
-        
-        Parameters
-        ----------
-        *types
-            One or more type specifications to register. A type specification
-            consists of one or more type(s) of operand(s) that are
-            inter-operable. Multiple type specifications must be grouped into
-            lists or tuples, even if they represent a single type.
-
-        Raises
-        ------
-        NTypesError
-            The number of types in a given type specification is not equal to
-            the number of types in existing type specifications.
-        """
-        if not types:
-            raise ValueError("No types to add.") from None
-        if isinstance(types[0], type):
-            return self._add(types)
-        for these in types:
-            self._add(these)
-        return self
-
-    def _add(self, types):
-        """Internal helper for `~Types.add`."""
-        ntypes = len(types)
-        if self.ntypes is None:
-            self.ntypes = ntypes
-        if ntypes != self.ntypes:
-            raise NTypesError(
-                f"Can't add a length-{ntypes} rule to a collection"
-                f" of length-{self.ntypes} rules."
-            ) from None
-        self._types |= set([types])
-        return self
-
-    def discard(self, *types: type):
-        """Remove these types from the collection."""
-        self._types.discard(types)
-        if all(t == self.implied for t in types):
-            self.implied = None
-
-    def clear(self) -> None:
-        """Remove all types from the collection."""
-        self._types = set()
-
-    def copy(self):
-        """Copy types into a new instance."""
-        return type(self)(*self._types, implied=self.implied)
-
-    def __contains__(self, __x) -> bool:
-        """Called for x in self."""
-        x = (__x,) if isinstance(__x, type) else __x
-        if self.implied is None:
-            return x in self._types
-        truth = all(t == self.implied for t in x) or x in self._types
-        if self.ntypes is None:
-            return truth
-        return len(x) == self.ntypes and truth
-
-    def __iter__(self):
-        """Called for iter(self)."""
-        return iter(self._types)
-
-    def __len__(self):
-        """Called for len(self)."""
-        return len(self._types)
-
-    def __str__(self) -> str:
-        return ', '.join(str(t) for t in self._types)
-
-
 class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
     """A sequence of operands."""
 
@@ -267,32 +134,45 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
         return ', '.join(str(i) for i in self)
 
 
-class Operation(iterables.ReprStrMixin):
+class Operation(typing.Generic[T], iterables.ReprStrMixin):
     """A general operation context."""
 
     def __init__(
         self,
+        __type: typing.Type[T],
         *constraints: str,
-        types: Types=None,
         method: typing.Callable=None,
     ) -> None:
+        self._type = __type
         self.constraints = constraints
         """Strings indicating operational constraints."""
-        self.types = Types() if types is None else types.copy()
-        """The operand types allowed in this operation."""
         self.method = method
         """The default callable for computing metadata."""
-        self._suppressed = set()
+        self.supported = set()
+        self.suppressed = set()
+        self.nargs = None
+        """The number of required arguments in this context."""
+
+    @property
+    def implemented(self):
+        """False if this operation supports no operand types."""
+        return bool(self.supported)
 
     def copy(self):
         """Create a deep copy of this operation."""
         return Operation(
+            self._type,
             *self.constraints,
-            types=self.types.copy(),
             method=self.method,
         )
 
-    def suppress(self, *types: type, symmetric: bool=False):
+    Types = typing.Union[
+        type,
+        typing.Tuple[type],
+        typing.List[type],
+    ]
+
+    def suppress(self, *types: Types, symmetric: bool=False):
         """Suppress operations on these types.
         
         Parameters
@@ -310,12 +190,12 @@ class Operation(iterables.ReprStrMixin):
             specifications. This option can simplify method calls for binary
             operations; it has no effect on unary operations.
         """
-        self._suppressed.add(types)
+        self.suppressed.add(types)
         if symmetric:
-            self._suppressed.add(types[::-1])
+            self.suppressed.add(types[::-1])
         return self
 
-    def support(self, *types: type, symmetric: bool=False):
+    def support(self, *types: Types, symmetric: bool=False):
         """Support operations on these types.
         
         Parameters
@@ -332,29 +212,54 @@ class Operation(iterables.ReprStrMixin):
             specification. Otherwise, support only the given type
             specifications. This option can simplify method calls for binary
             operations; it has no effect on unary operations.
+
+        Raises
+        ------
+        NTypesError
+            The number of types in a given type specification is not equal to
+            the number of types in existing type specifications.
         """
-        self.types.add(*types)
-        if symmetric:
-            self.types.add(*types[::-1])
+        if not types:
+            raise ValueError("No types to add.") from None
+        these = [types] if all(isinstance(t, type) for t in types) else types
+        for this in these:
+            ntypes = len(this)
+            if self.nargs is None:
+                self.nargs = ntypes
+            if ntypes != self.nargs:
+                raise NTypesError(
+                    f"Can't add a length-{ntypes} rule to a collection"
+                    f" of length-{self.nargs} rules."
+                ) from None
+            self.supported.add(this)
+            if symmetric:
+                self.supported.add(this[::-1])
         return self
 
-    def supports(self, *types: type):
+    def supports(self, *types: Types):
         """Determine if this operation supports `types` or subtypes."""
-        if self.types.ntypes and len(types) != self.types.ntypes:
+        if self.nargs and len(types) != self.nargs:
             return False
-        if types in self._suppressed:
+        if types in self.suppressed:
             return False
-        for t in self._suppressed:
+        for t in self.suppressed:
             if all(issubclass(i, j) for i, j in zip(types, t)):
                 return False
-        if types in self.types:
+        if types in self.supported:
             return True
-        for t in self.types:
+        for t in self.supported:
             if all(issubclass(i, j) for i, j in zip(types, t)):
                 return True
+        return self._type in types
+
+    def __eq__(self, __o):
+        """Determine if two operational contexts are equal."""
         return (
-            isinstance(self.types.implied, type)
-            and self.types.implied in types
+            isinstance(__o, Operation)
+            and __o._type == self._type
+            and __o.supported == self.supported
+            and __o.suppressed == self.suppressed
+            and __o.constraints == self.constraints
         )
 
 
@@ -393,7 +298,6 @@ class OperatorFactory(collections.abc.Mapping):
         """
         self._type = __type
         self._parameters = list(iterables.unique(*parameters))
-        self.types = Types(implied=__type)
         self._operations = None
 
     @property
@@ -500,8 +404,8 @@ class OperatorFactory(collections.abc.Mapping):
             operations = aliased.MutableMapping.fromkeys(OPERATIONS)
             for k, v in OPERATIONS.items():
                 definition = Operation(
+                    self._type,
                     *v.get('constraints', ()),
-                    types=self.types,
                     method=v.get('callable'),
                 )
                 # Use `copy` because definitions need to be independent.

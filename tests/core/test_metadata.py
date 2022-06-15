@@ -6,91 +6,54 @@ import pytest
 from goats.core import metadata
 
 
-def test_types():
-    """Test the collection of operand types."""
-    types = metadata.Types()
-    assert types.ntypes is None
-    types.add(int, int)
-    assert types.ntypes == 2
-    assert len(types) == 1
-    assert (int, int) in types
-    types.add(str, float)
-    assert types.ntypes == 2
-    assert len(types) == 2
-    assert (str, float) in types
-    types.discard(int, int)
-    assert types.ntypes == 2
-    assert len(types) == 1
-    assert (str, float) in types
-    types.clear()
-    assert types.ntypes is 2
-    assert len(types) == 0
-    assert not types
-    types.add(numbers.Real, numbers.Real)
-    assert (numbers.Real, numbers.Real) in types
-    assert (int, float) not in types
-    assert types
-    types = metadata.Types()
-    assert types.ntypes is None
-    types.add(int)
-    assert types.ntypes == 1
-    assert int in types
+def test_operation_copy():
+    """Test the ability to make a copy of an operation context."""
+    operation = metadata.Operation(str)
+    operation.supports(int, str)
+    copied = operation.copy()
+    assert copied == operation
+    assert copied is not operation
 
 
-def test_types_copy():
-    """Test the ability to make a copy of a `Types` instance."""
-    types = metadata.Types()
-    types.add(int, str)
-    copied = types.copy()
-    assert copied == types
-    assert copied is not types
-
-
-def test_types_add_batch():
-    """Test the ability to add multiple type specifications."""
-    types = metadata.Types()
-    assert len(types) == 0
-    user = [
-        (int, float),
-        (float, float),
-        (int, int),
-    ]
-    types.add(*user)
-    assert len(types) == 3
-    for these in user:
-        assert these in types
-
-
-def test_types_implied():
-    """Test the implied type specification."""
-    types = metadata.Types(implied=str)
-    assert str in types
-    assert (str, str) in types
-    assert (str, str, str) in types
-    assert (str, float) not in types
-    types.add(int, float)
-    assert str not in types
-    assert (str, str) in types
-    assert (str, str, str) not in types
-    assert (str, float) not in types
-    types.discard(str, str)
-    assert (str, str) not in types
-
-
-def test_operation():
-    """Test the general operational context."""
-    operation = metadata.Operation()
-    operation.support(float, int)
-    assert operation.supports(float, int)
+def test_operation_types():
+    """Add and remove operand type specifications."""
+    operation = metadata.Operation(str)
+    assert operation.supports(str)
+    assert operation.supports(str, str)
+    assert operation.supports(str, str, str)
+    assert operation.supports(str, float)
     assert not operation.supports(int, float)
-    operation.suppress(float, int)
+    operation.support(int, float)
+    assert operation.supports(int, float)
+    assert not operation.supports(str)
+    assert operation.supports(str, str)
+    assert not operation.supports(str, str, str)
+    assert operation.supports(str, float)
+    assert operation.supports(int, float)
     assert not operation.supports(float, int)
+    operation.suppress(str, str)
+    assert not operation.supports(str, str)
     operation.support(complex, float, symmetric=True)
     assert operation.support(complex, float)
     assert operation.support(float, complex)
     operation.suppress(complex, float, symmetric=True)
     assert not operation.supports(complex, float)
     assert not operation.supports(float, complex)
+
+
+def test_operation_batch_types():
+    """Test the ability to add or remove multiple type specifications."""
+    operation = metadata.Operation(str)
+    assert not operation.implemented
+    user = [
+        (int, float),
+        (float, float),
+        (int, int),
+    ]
+    operation.support(*user)
+    assert operation.implemented
+    for these in user:
+        assert operation.supports(*these)
 
 
 class Info:
