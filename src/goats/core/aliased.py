@@ -8,7 +8,7 @@ from goats.core import iterables
 Aliases = typing.TypeVar('Aliases')
 Aliases = typing.Union[str, typing.Iterable[str]]
 
-class MappingKey(iterables.ReprStrMixin, collections.abc.Set):
+class MappingKey(collections.abc.Set, iterables.ReprStrMixin):
     """A mapping key with associated aliases."""
 
     __slots__ = ('_aliases')
