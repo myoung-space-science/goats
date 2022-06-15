@@ -313,7 +313,7 @@ class Operation(iterables.ReprStrMixin):
 
     def supports(self, *types: type):
         """Determine if this operation contains `types` or subtypes."""
-        if len(types) != len(self.types):
+        if len(types) != self.types.ntypes:
             return False
         if types in self.types:
             return True
