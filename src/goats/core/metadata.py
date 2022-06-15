@@ -275,39 +275,44 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
         return ', '.join(str(i) for i in self)
 
 
-class Context(iterables.ReprStrMixin):
+class Operation(iterables.ReprStrMixin):
     """A general operation context."""
 
     def __init__(
         self,
-        *parameters: str,
+        *constraints: str,
         types: Types=None,
-        **kwargs
+        method: typing.Callable=None,
     ) -> None:
-        self.parameters = parameters
+        self.constraints = constraints
+        """Strings indicating operational constraints."""
         self.types = Types() if types is None else types.copy()
-        self._kwargs = kwargs
-
-    @property
-    def strict(self):
-        """True if this context requires consistent attribute values."""
-        return bool(self._kwargs.get('strict', False))
+        """The operand types allowed in this operation."""
+        self.method = method
+        """The default callable for computing metadata."""
 
     def copy(self):
-        """Create a deep copy of this instance."""
-        return Context(
-            *self.parameters,
+        """Create a deep copy of this operation."""
+        return Operation(
+            *self.constraints,
             types=self.types.copy(),
-            **self._kwargs
+            method=self.method,
         )
 
+    # Consider adding `symmetric` kwarg.
     def suppress(self, *types: type):
-        """Suppress operations on these types within this context."""
+        """Suppress operations on these types."""
         self.types.discard(types)
         return self
 
+    # Consider moving `symmetric` kwarg from `Types.add` to here.
+    def allow(self, *types: type, symmetric: bool=False):
+        """Allow operations on these types."""
+        self.types.add(types, symmetric=symmetric)
+        return self
+
     def supports(self, *types: type):
-        """Determine if this collection contains `types` or subtypes."""
+        """Determine if this operation contains `types` or subtypes."""
         if len(types) != len(self.types):
             return False
         if types in self.types:
@@ -321,90 +326,22 @@ class Context(iterables.ReprStrMixin):
         )
 
 
-# Operation categories (nargs, returns metadata?, strict?):
-# - cast (1, F, F)
-# - unary (1, T, F)
-# - comparison (2, F, T)
-# - numeric (2, T, T)
-class Operation(iterables.ReprStrMixin):
-    """A general operation on metadata attributes."""
-
-    def __init__(
-        self,
-        context: Context,
-        method: typing.Callable=None,
-    ) -> None:
-        self.context = context.copy()
-        self.method = method
-
-    def apply(self, method: typing.Callable):
-        """Apply `method` to this operation."""
-        self.method = method
-        return self
-
-    @property
-    def operator(self):
-        """A function for computing metadata for this operation."""
-        @self.documenting
-        def operator(*args, **kwargs):
-            if self.context.strict:
-                for p in self.context.parameters:
-                    if not self.consistent(p, *args):
-                        raise TypeError(f"Inconsistent metadata for {p!r}")
-            if not self.active:
-                return None
-            types = [type(arg) for arg in args]
-            if not self.context.supports(*types):
-                raise OperandTypeError(
-                    f"Can't apply {self.method.__qualname__!r} to metadata"
-                    f" with types {', '.join(t.__qualname__ for t in types)}"
-                ) from None
-            results = {}
-            for p in self.context.parameters:
-                values = [utilities.getattrval(arg, p) for arg in args]
-                try:
-                    results[p] = self.method(*values, **kwargs)
-                except TypeError as err:
-                    if all([hasattr(arg, p) for arg in args]):
-                        raise MetadataError(err) from err
-            return results
-        return operator
-
-    def documenting(self, func: typing.Callable):
-        """Decorator for attaching documentation to an operator."""
-        if self.active:
-            # BUG: This will provide a misleading name for non-standard
-            # operators (e.g., `sqrt`). Maybe this class should get have a
-            # `name` attribute.
-            func.__name__ = f'__{self.method.__name__}__'
-            func.__doc__ = self.method.__doc__
-            func.__text_signature__ = str(inspect.signature(self.method))
-        return func
-
-    @property
-    def active(self):
-        """True if this operation has a callable method."""
-        return callable(self.method)
-
-    def consistent(self, name: str, *args):
-        """Check consistency of a metadata attribute across `args`."""
-        values = [utilities.getattrval(arg, name) for arg in args]
-        v0 = values[0]
-        return (
-            all(hasattr(arg, name) for arg in args)
-            and any([v != v0 for v in values])
-        )
-
-    def __str__(self) -> str:
-        return str(self.method)
-
-
 class OperandTypeError(Exception):
     """Operands are incompatible for a given operation."""
 
 
 class MetadataError(Exception):
     """Error in computing metadata value."""
+
+
+def consistent(name: str, *args):
+    """Check consistency of a metadata attribute across `args`."""
+    values = [utilities.getattrval(arg, name) for arg in args]
+    v0 = values[0]
+    return (
+        all(hasattr(arg, name) for arg in args)
+        and any([v != v0 for v in values])
+    )
 
 
 class OperatorFactory(collections.abc.Mapping):
@@ -435,21 +372,55 @@ class OperatorFactory(collections.abc.Mapping):
         self._parameters.extend(iterables.unique(names))
         return self
 
-    # TODO: This needs to return a callable that takes category-appropriate
-    # arguments, and returns a `dict` of appropriate metadata or `None`.
     def implement(self, name: str, method: typing.Callable=None):
         """Implement the named operator."""
-        if name not in self and method is None:
-            raise ValueError(
-                f"Can't implement {name!r} with unknown method."
-            ) from None
-        # => name in self or method is not None
+        # Notes:
+        # - `parameters` are the same for all operations
+        # - `types` are operation-specific
+        # - `strict` is operation-specific
+        # - if user doesn't pass `method`, we need to check for a default
         if name not in self:
             return self._default(method)
-        operation = self.operations[name]
-        if method:
-            operation.apply(method)
-        return operation
+        operation = self[name]
+        # I would like to put this in something like `Operation.apply`, which
+        # would take `method` and return a callable equivalent to `operator`. We
+        # would still be able to update `operator.__name__` and
+        # `operator.__doc__` here.
+        method = method or operation.method
+        def operator(*args, **kwargs):
+            # - Check operand consistency. This needs to happen before checking
+            #   `method` because some operations (e.g., binary comparisons)
+            #   require consistency even though they don't operate on metadata.
+            if 'strict' in operation.constraints:
+                for p in self.parameters:
+                    if not consistent(p, *args):
+                        raise TypeError(f"Inconsistent metadata for {p!r}")
+            # - If a method really is missing, we'll take that to mean there is
+            #   no metadata to compute. This is a common case (e.g., type casts
+            #   and binary comparisons).
+            if not method:
+                return None
+            # - At this point, we can proceed to process metadata.
+            types = [type(arg) for arg in args]
+            if not operation.supports(*types):
+                raise OperandTypeError(
+                    f"Can't apply {method.__qualname__!r} to metadata"
+                    f" with types {', '.join(t.__qualname__ for t in types)}"
+                ) from None
+            results = {}
+            for p in self.parameters:
+                values = [utilities.getattrval(arg, p) for arg in args]
+                try:
+                    results[p] = method(*values, **kwargs)
+                except TypeError as err:
+                    if all([hasattr(arg, p) for arg in args]):
+                        raise MetadataError(err) from err
+            return results
+        operator.__name__ = name
+        operator.__doc__ = method.__doc__
+        if callable(method):
+            operator.__text_signature__ = str(inspect.signature(method))
+        return operator
 
     def consistent(self, name: str, *args):
         """Check consistency of a metadata attribute across `args`."""
@@ -477,7 +448,7 @@ class OperatorFactory(collections.abc.Mapping):
     def __getitem__(self, __k: str):
         """Retrieve the appropriate operation context."""
         if __k in self.operations:
-            return self.operations[__k].context
+            return self.operations[__k]
         raise KeyError(f"Unknown context {__k!r}") from None
 
     def __len__(self) -> int:
@@ -494,15 +465,19 @@ class OperatorFactory(collections.abc.Mapping):
         if self._operations is None:
             operations = aliased.MutableMapping.fromkeys(OPERATIONS)
             for k, v in OPERATIONS.items():
-                context = Context(*self.parameters, types=self.types)
-                definition = Operation(context, v.get('callable'))
-                operations[k] = definition
+                definition = Operation(
+                    *v.get('constraints', ()),
+                    types=self.types,
+                    method=v.get('callable'),
+                )
+                # Use `copy` because definitions need to be independent.
+                operations[k] = definition.copy()
                 operators = v.get('operators', ())
                 if 'dunder' in operators:
                     operations.alias(k, f'__{k}__')
                     if 'numeric' in operators:
-                        operations[f'__r{k}__'] = definition
-                        operations[f'__i{k}__'] = definition
+                        operations[f'__r{k}__'] = definition.copy()
+                        operations[f'__i{k}__'] = definition.copy()
             self._operations = operations
         return self._operations
 
@@ -517,113 +492,95 @@ def sqrt(a):
 
 OPERATIONS: typing.Dict[str, dict] = {
     'int': {
-        # 'callable': int,
+        'callable': None,
         'operators': ['dunder'],
-        # 'category': 'cast',
     },
     'float': {
-        # 'callable': float,
+        'callable': None,
         'operators': ['dunder'],
-        # 'category': 'cast',
     },
     'abs': {
         'callable': abs,
         'aliases': ['absolute'],
         'operators': ['dunder'],
-        # 'category': 'unary',
     },
     'pos': {
         'callable': standard.pos,
         'aliases': ['positive'],
         'operators': ['dunder'],
-        # 'category': 'unary',
     },
     'neg': {
         'callable': standard.neg,
         'aliases': ['negative'],
         'operators': ['dunder'],
-        # 'category': 'unary',
     },
     'ceil': {
         'callable': math.ceil,
         'aliases': ['ceiling'],
         'operators': ['dunder'],
-        # 'category': 'unary',
     },
     'floor': {
         'callable': math.floor,
         'operators': ['dunder'],
-        # 'category': 'unary',
     },
     'trunc': {
         'callable': math.trunc,
         'aliases': ['truncate'],
         'operators': ['dunder'],
-        # 'category': 'unary',
     },
     'round': {
         'callable': round,
         'operators': ['dunder'],
-        # 'category': 'unary',
     },
     'lt': {
-        # 'callable': standard.lt,
+        'callable': None,
         'aliases': ['less'],
-        'modes': ['strict'],
+        'constraints': ['strict'],
         'operators': ['dunder'],
-        # 'category': 'comparison',
     },
     'le': {
-        # 'callable': standard.le,
+        'callable': None,
         'aliases': ['less_equal', 'less equal'],
-        'modes': ['strict'],
+        'constraints': ['strict'],
         'operators': ['dunder'],
-        # 'category': 'comparison',
     },
     'gt': {
-        # 'callable': standard.gt,
+        'callable': None,
         'aliases': ['greater'],
-        'modes': ['strict'],
+        'constraints': ['strict'],
         'operators': ['dunder'],
-        # 'category': 'comparison',
     },
     'ge': {
-        # 'callable': standard.ge,
+        'callable': None,
         'aliases': ['greater_equal', 'greater equal'],
-        'modes': ['strict'],
+        'constraints': ['strict'],
         'operators': ['dunder'],
-        # 'category': 'comparison',
     },
     'add': {
         'callable': standard.add,
-        'modes': ['strict'],
+        'constraints': ['strict'],
         'operators': ['dunder', 'numeric'],
-        # 'category': 'numeric',
     },
     'sub': {
         'callable': standard.sub,
         'aliases': ['subtract'],
-        'modes': ['strict'],
+        'constraints': ['strict'],
         'operators': ['dunder', 'numeric'],
-        # 'category': 'numeric',
     },
     'mul': {
         'callable': standard.mul,
         'aliases': ['multiply'],
         'operators': ['dunder', 'numeric'],
-        # 'category': 'numeric',
     },
     'truediv': {
         'callable': standard.truediv,
         'aliases': ['true_divide', 'true divide'],
         'operators': ['dunder', 'numeric'],
-        # 'category': 'numeric',
     },
     'pow': {
         'callable': pow,
         'aliases': ['power'],
         'operators': ['dunder', 'numeric'],
-        # 'category': 'numeric',
     },
     'sqrt': {
         'callable': sqrt,
