@@ -80,7 +80,7 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
         self.implied = implied
         self._types = set(init)
 
-    def add(self, *types: type, symmetric: bool=False):
+    def add(self, *types: type):
         """Add these types to the collection, if possible.
         
         Parameters
@@ -91,12 +91,6 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
             inter-operable. Multiple type specifications must be grouped into
             lists or tuples, even if they represent a single type.
 
-        symmetric : bool, default=False
-            If true, add the forward and reverse version of each type
-            specification. Otherwise, add only the given type specifications.
-            Setting this keyword to true can simplify method calls for binary
-            type specifications; it has no effect on unary type specifications.
-
         Raises
         ------
         NTypesError
@@ -106,12 +100,12 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
         if not types:
             raise ValueError("No types to add.") from None
         if isinstance(types[0], type):
-            return self._add(types, symmetric=symmetric)
+            return self._add(types)
         for these in types:
             self._add(these)
         return self
 
-    def _add(self, types, symmetric=False):
+    def _add(self, types):
         """Internal helper for `~Types.add`."""
         ntypes = len(types)
         if self.ntypes is None:
@@ -122,8 +116,6 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
                 f" of length-{self.ntypes} rules."
             ) from None
         self._types |= set([types])
-        if symmetric:
-            self._types |= set([types[::-1]])
         return self
 
     def discard(self, *types: type):
@@ -299,16 +291,50 @@ class Operation(iterables.ReprStrMixin):
             method=self.method,
         )
 
-    # Consider adding `symmetric` kwarg.
-    def suppress(self, *types: type):
-        """Suppress operations on these types."""
-        self.types.discard(types)
+    def suppress(self, *types: type, symmetric: bool=False):
+        """Suppress operations on these types.
+        
+        Parameters
+        ----------
+        *types
+            One or more type specifications to suppress. A type specification
+            consists of one or more type(s) of operand(s) that are
+            inter-operable. Multiple type specifications must be grouped into
+            lists or tuples, even if they represent a single type; this method
+            will interpret ungrouped types as a single type specification.
+
+        symmetric : bool, default=False
+            If true, suppress the forward and reverse version of each type
+            specification. Otherwise, suppress only the given type
+            specifications. This option can simplify method calls for binary
+            operations; it has no effect on unary operations.
+        """
+        self.types.discard(*types)
+        if symmetric:
+            self.types.discard(*types[::-1])
         return self
 
-    # Consider moving `symmetric` kwarg from `Types.add` to here.
-    def allow(self, *types: type, symmetric: bool=False):
-        """Allow operations on these types."""
-        self.types.add(types, symmetric=symmetric)
+    def support(self, *types: type, symmetric: bool=False):
+        """Support operations on these types.
+        
+        Parameters
+        ----------
+        *types
+            One or more type specifications to support. A type specification
+            consists of one or more type(s) of operand(s) that are
+            inter-operable. Multiple type specifications must be grouped into
+            lists or tuples, even if they represent a single type; this method
+            will interpret ungrouped types as a single type specification.
+
+        symmetric : bool, default=False
+            If true, support the forward and reverse version of each type
+            specification. Otherwise, support only the given type
+            specifications. This option can simplify method calls for binary
+            operations; it has no effect on unary operations.
+        """
+        self.types.add(*types)
+        if symmetric:
+            self.types.add(*types[::-1])
         return self
 
     def supports(self, *types: type):
