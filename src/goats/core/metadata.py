@@ -282,6 +282,7 @@ class Operation(iterables.ReprStrMixin):
         """The operand types allowed in this operation."""
         self.method = method
         """The default callable for computing metadata."""
+        self._suppressed = set()
 
     def copy(self):
         """Create a deep copy of this operation."""
@@ -310,8 +311,10 @@ class Operation(iterables.ReprStrMixin):
             operations; it has no effect on unary operations.
         """
         self.types.discard(*types)
+        self._suppressed.add(types)
         if symmetric:
             self.types.discard(*types[::-1])
+            self._suppressed.add(types[::-1])
         return self
 
     def support(self, *types: type, symmetric: bool=False):
@@ -338,8 +341,10 @@ class Operation(iterables.ReprStrMixin):
         return self
 
     def supports(self, *types: type):
-        """Determine if this operation contains `types` or subtypes."""
-        if len(types) != self.types.ntypes:
+        """Determine if this operation supports `types` or subtypes."""
+        if self.types.ntypes and len(types) != self.types.ntypes:
+            return False
+        if types in self._suppressed:
             return False
         if types in self.types:
             return True
@@ -348,7 +353,7 @@ class Operation(iterables.ReprStrMixin):
                 return True
         return (
             isinstance(self.types.implied, type)
-            and all(issubclass(t, self.types.implied) for t in types)
+            and self.types.implied in types
         )
 
 
