@@ -310,10 +310,8 @@ class Operation(iterables.ReprStrMixin):
             specifications. This option can simplify method calls for binary
             operations; it has no effect on unary operations.
         """
-        self.types.discard(*types)
         self._suppressed.add(types)
         if symmetric:
-            self.types.discard(*types[::-1])
             self._suppressed.add(types[::-1])
         return self
 
@@ -346,6 +344,9 @@ class Operation(iterables.ReprStrMixin):
             return False
         if types in self._suppressed:
             return False
+        for t in self._suppressed:
+            if all(issubclass(i, j) for i, j in zip(types, t)):
+                return False
         if types in self.types:
             return True
         for t in self.types:
