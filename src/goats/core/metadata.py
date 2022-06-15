@@ -366,7 +366,7 @@ def consistent(name: str, *args):
     v0 = values[0]
     return (
         all(hasattr(arg, name) for arg in args)
-        and any([v != v0 for v in values])
+        and all([v == v0 for v in values])
     )
 
 
