@@ -91,6 +91,12 @@ class Types(collections.abc.MutableSet, iterables.ReprStrMixin):
             inter-operable. Multiple type specifications must be grouped into
             lists or tuples, even if they represent a single type.
 
+        symmetric : bool, default=False
+            If true, add the forward and reverse version of each type
+            specification. Otherwise, add only the given type specifications.
+            Setting this keyword to true can simplify method calls for binary
+            type specifications; it has no effect on unary type specifications.
+
         Raises
         ------
         NTypesError
