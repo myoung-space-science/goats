@@ -183,6 +183,7 @@ def test_quantity_number():
         opr(value, quantity)
 
 
+@pytest.mark.quantity
 def test_quantity_unit():
     """Test getting and setting a quantity's unit."""
     q = Quantity(1, 'm') # use int to avoid failing due to precision
@@ -190,6 +191,30 @@ def test_quantity_unit():
     assert q.convert('cm') == Quantity(100, 'cm')
     with pytest.raises(metric.UnitConversionError):
         q.convert('J')
+
+
+@pytest.mark.quantity
+def test_initialize_quantity():
+    """Test the initialization behavior of Quantity."""
+    cases = {
+        'standard': [[1.1, 'm'], {}, {'data': 1.1, 'unit': 'm'}],
+        'default unit': [[1.1], {}, {'data': 1.1, 'unit': '1'}],
+        'keyword unit': [[1.1], {'unit': 'm'}, {'data': 1.1, 'unit': 'm'}],
+    }
+    for name, (args, kwargs, expected) in cases.items():
+        q = Quantity(*args, **kwargs)
+        msg = f'Failed for {name}'
+        assert q.data == expected['data'], msg
+        assert q.unit == expected['unit'], msg
+
+
+@pytest.mark.quantity
+def test_quantity_idempotence():
+    """Test initializing a concrete quantity from an existing instance."""
+    q0 = Quantity(1.5, 'm')
+    q1 = Quantity(q0)
+    assert q1 is not q0
+    assert q1 == q0
 
 
 def test_scalar_cast():
@@ -206,14 +231,6 @@ def test_scalar_unary():
     unit = 'm'
     scalar = Scalar(value, unit)
     assert round(scalar) == Scalar(round(value), unit)
-
-
-def test_quantity_idempotence():
-    """Test initializing a concrete quantity from an existing instance."""
-    q0 = Quantity(1.5, 'm')
-    q1 = Quantity(q0)
-    assert q1 is not q0
-    assert q1 == q0
 
 
 def test_quantified_bool():
