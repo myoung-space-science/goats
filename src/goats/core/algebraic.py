@@ -1358,7 +1358,7 @@ class Orderable(typing.Protocol):
         pass
 
 
-class Ordered:
+class Ordered(abc.ABC):
     """Abstract base class for all objects that support relative ordering.
 
     Concrete implementations of this class must define the six binary comparison
