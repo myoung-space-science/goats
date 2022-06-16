@@ -5,6 +5,7 @@ import pytest
 
 from goats.core import measurable
 from goats.core import metric
+from goats.core import metadata
 from goats.core import operations
 
 
@@ -12,27 +13,192 @@ interface = operations.Interface(measurable.Quantifiable, '_amount', '_metric')
 Quantified = interface.subclass('Quantified')
 """A concrete version of `~measurable.Quantifiable` for testing."""
 
-interface = operations.Interface(measurable.Quantity, 'data', 'unit')
-rules = {
-    'numeric': [
-        (measurable.Quantity, measurable.Quantity),
-        (measurable.Quantity, measurable.Real),
-        (measurable.Real, measurable.Quantity),
-    ]
-}
-interface['numeric'].types.add(*rules['numeric'])
-interface['__rtruediv__'].types.discard(measurable.Real, measurable.Quantity)
-interface['__rpow__'].types.discard(measurable.Real, measurable.Quantity)
-interface['__pow__'].types.discard(measurable.Quantity, measurable.Quantity)
-Quantity = interface.subclass(
-    'Quantity',
-    exclude=['cast', '__round__', '__ceil__', '__floor__', '__trunc__']
-)
-"""A concrete quantity for testing."""
+
+# class Quantified(measurable.Quantifiable):
+#     """A concrete version of `~measurable.Quantifiable` for testing."""
+
+
+# interface = operations.Interface(measurable.Quantity, 'data', 'unit')
+# rules = {
+#     'numeric': [
+#         (measurable.Quantity, measurable.Quantity),
+#         (measurable.Quantity, measurable.Real),
+#         (measurable.Real, measurable.Quantity),
+#     ]
+# }
+# interface['numeric'].types.add(*rules['numeric'])
+# interface['__rtruediv__'].types.discard(measurable.Real, measurable.Quantity)
+# interface['__rpow__'].types.discard(measurable.Real, measurable.Quantity)
+# interface['__pow__'].types.discard(measurable.Quantity, measurable.Quantity)
+# Quantity = interface.subclass(
+#     'Quantity',
+#     exclude=['cast', '__round__', '__ceil__', '__floor__', '__trunc__']
+# )
+# """A concrete quantity for testing."""
+
+
+# Mixin = measurable.operators(
+#     measurable.Quantity,
+#     exclude=['int', 'float', 'round', 'ceil', 'floor', 'trunc'],
+# )
+class Quantity(measurable.Quantity):
+    """A concrete quantity for testing."""
+
+    def __abs__(self):
+        """"""
+        data = abs(self.data)
+        meta = self.metadata.implement('abs')(self)
+        return type(self)(data, **meta)
+
+    def __pos__(self):
+        """"""
+        data = operator.pos(self.data)
+        meta = self.metadata.implement('pos')(self)
+        return type(self)(data, **meta)
+
+    def __neg__(self):
+        """"""
+        data = operator.neg(self.data)
+        meta = self.metadata.implement('neg')(self)
+        return type(self)(data, **meta)
+
+    def __lt__(self, other):
+        """"""
+        data = (
+            self.data < other.data if isinstance(other, Quantity)
+            else self.data < other
+        )
+        # consistency check only
+        self.metadata.implement('lt')(self, other)
+        return data
+
+    def __le__(self, other):
+        """"""
+        data = (
+            self.data <= other.data if isinstance(other, Quantity)
+            else self.data <= other
+        )
+        # consistency check only
+        self.metadata.implement('le')(self, other)
+        return data
+
+    def __gt__(self, other):
+        """"""
+        data = (
+            self.data > other.data if isinstance(other, Quantity)
+            else self.data > other
+        )
+        # consistency check only
+        self.metadata.implement('gt')(self, other)
+        return data
+
+    def __ge__(self, other):
+        """"""
+        data = (
+            self.data >= other.data if isinstance(other, Quantity)
+            else self.data >= other
+        )
+        # consistency check only
+        self.metadata.implement('ge')(self, other)
+        return data
+
+    def __add__(self, other):
+        """"""
+        data = (
+            self.data + other.data if isinstance(other, Quantity)
+            else self.data + other
+        )
+        meta = self.metadata.implement('add')(self, other)
+        return type(self)(data, **meta)
+
+    def __radd__(self, other):
+        """"""
+        data = (
+            other.data + self.data if isinstance(other, Quantity)
+            else other + self.data
+        )
+        meta = self.metadata.implement('add')(other, self)
+        return type(self)(data, **meta)
+
+    def __sub__(self, other):
+        """"""
+        data = (
+            self.data - other.data if isinstance(other, Quantity)
+            else self.data - other
+        )
+        meta = self.metadata.implement('sub')(self, other)
+        return type(self)(data, **meta)
+
+    def __rsub__(self, other):
+        """"""
+        data = (
+            other.data - self.data if isinstance(other, Quantity)
+            else other - self.data
+        )
+        meta = self.metadata.implement('sub')(other, self)
+        return type(self)(data, **meta)
+
+    def __mul__(self, other):
+        """"""
+        data = (
+            self.data * other.data if isinstance(other, Quantity)
+            else self.data * other
+        )
+        meta = self.metadata.implement('mul')(self, other)
+        return type(self)(data, **meta)
+
+    def __rmul__(self, other):
+        """"""
+        data = (
+            other.data * self.data if isinstance(other, Quantity)
+            else other * self.data
+        )
+        meta = self.metadata.implement('mul')(other, self)
+        return type(self)(data, **meta)
+
+    def __truediv__(self, other):
+        """"""
+        data = (
+            self.data / other.data if isinstance(other, Quantity)
+            else self.data / other
+        )
+        meta = self.metadata.implement('truediv')(self, other)
+        return type(self)(data, **meta)
+
+    def __rtruediv__(self, other):
+        """"""
+        data = (
+            other.data / self.data if isinstance(other, Quantity)
+            else other / self.data
+        )
+        meta = self.metadata.implement('truediv')(other, self)
+        return type(self)(data, **meta)
+
+    def __pow__(self, other):
+        """"""
+        data = (
+            self.data ** other.data if isinstance(other, Quantity)
+            else self.data ** other
+        )
+        meta = self.metadata.implement('pow')(self, other)
+        return type(self)(data, **meta)
+
+    def __rpow__(self, other):
+        """"""
+        data = (
+            other.data ** self.data if isinstance(other, Quantity)
+            else other ** self.data
+        )
+        meta = self.metadata.implement('pow')(other, self)
+        return type(self)(data, **meta)
 
 
 Scalar = interface.subclass('Scalar')
 """A concrete scalar quantity for testing."""
+
+
+# class Scalar(Quantity):
+#     """A concrete scalar quantity for testing."""
 
 
 @pytest.mark.quantity
@@ -40,7 +206,7 @@ def test_quantity_comparisons():
     """Test comparisons between two default quantities."""
     value = 2.0
     unit = 'm'
-    scalar = Quantity(value, unit)
+    q0 = Quantity(value, unit)
     cases = [
         (operator.lt, value + 1),
         (operator.le, value + 1),
@@ -53,14 +219,14 @@ def test_quantity_comparisons():
     ]
     for case in cases:
         opr, v = case
-        result = opr(scalar, Quantity(v, unit))
+        result = opr(q0, Quantity(v, unit))
         assert isinstance(result, bool)
         assert result
-    different = Quantity(v, 'J')
-    assert scalar != different
+    q1 = Quantity(v, 'J')
+    assert q0 != q1
     for opr in {operator.lt, operator.le, operator.gt, operator.ge}:
-        with pytest.raises(operations.OperandTypeError):
-            opr(scalar, different)
+        with pytest.raises(ValueError):
+            opr(q0, q1)
 
 
 @pytest.mark.quantity
@@ -95,7 +261,7 @@ def test_quantities_same_unit():
 
     # EXPONENTIAL
     opr = operator.pow
-    with pytest.raises(operations.OperandTypeError):
+    with pytest.raises(metadata.OperandTypeError):
         opr(*quantities)
 
 
@@ -115,7 +281,7 @@ def test_quantities_diff_unit():
         operator.sub,
     ]
     for opr in oprs:
-        with pytest.raises(operations.OperandTypeError):
+        with pytest.raises(ValueError):
             opr(*quantities)
 
     # MULTIPLICATION
@@ -130,7 +296,7 @@ def test_quantities_diff_unit():
 
     # EXPONENTIAL
     opr = operator.pow
-    with pytest.raises(operations.OperandTypeError):
+    with pytest.raises(metadata.OperandTypeError):
         opr(*quantities)
 
 
@@ -170,7 +336,7 @@ def test_quantity_number():
     expected = Quantity(opr(*values), unit)
     assert opr(quantity, value) == expected
     # reverse
-    with pytest.raises(operations.OperandTypeError):
+    with pytest.raises(metadata.OperandTypeError):
         opr(value, quantity)
 
     # EXPONENTIAL
@@ -179,7 +345,7 @@ def test_quantity_number():
     expected = Quantity(opr(*values), f'{unit}^{value}')
     assert opr(quantity, value) == expected
     # reverse
-    with pytest.raises(operations.OperandTypeError):
+    with pytest.raises(metadata.OperandTypeError):
         opr(value, quantity)
 
 

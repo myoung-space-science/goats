@@ -12,8 +12,9 @@ import numpy.typing
 from goats.core import aliased
 from goats.core import algebraic
 from goats.core import iterables
+from goats.core import metadata
 from goats.core import metric
-from goats.core import operations
+# from goats.core import operations
 from goats.core import utilities
 
 
@@ -294,40 +295,22 @@ class OperatorMixin:
             return
         return operator
 
-
-def mixin(*parameters: str, name: str='QuantityMixin', bases=(), **kwargs):
-    """Create a class that defines mixin operators for quantities."""
-    interface = operations.Interface(Quantity, *parameters)
-    rules = {
-        'numeric': [
-            (Quantity, Quantity),
-            (Quantity, Real),
-            (Real, Quantity),
-        ]
-    }
-    interface['numeric'].types.add(*rules['numeric'])
-    interface['__rtruediv__'].types.discard(Real, Quantity)
-    interface['__rpow__'].types.discard(Real, Quantity)
-    interface['__pow__'].types.discard(Quantity, Quantity)
-    return interface.subclass(name, *bases, **kwargs)
-
-
-interface = operations.Interface(Quantity, 'data', 'unit')
-rules = {
-    'numeric': [
-        (Quantity, Quantity),
-        (Quantity, Real),
-        (Real, Quantity),
-    ]
-}
-interface['numeric'].types.add(*rules['numeric'])
-interface['__rtruediv__'].types.discard(Real, Quantity)
-interface['__rpow__'].types.discard(Real, Quantity)
-interface['__pow__'].types.discard(Quantity, Quantity)
-QuantityMixin = interface.subclass(
-    'QuantityMixin',
-    exclude=['cast', '__round__', '__ceil__', '__floor__', '__trunc__']
-)
+# interface = operations.Interface(Quantity, 'data', 'unit')
+# rules = {
+#     'numeric': [
+#         (Quantity, Quantity),
+#         (Quantity, Real),
+#         (Real, Quantity),
+#     ]
+# }
+# interface['numeric'].types.add(*rules['numeric'])
+# interface['__rtruediv__'].types.discard(Real, Quantity)
+# interface['__rpow__'].types.discard(Real, Quantity)
+# interface['__pow__'].types.discard(Quantity, Quantity)
+# QuantityMixin = interface.subclass(
+#     'QuantityMixin',
+#     exclude=['cast', '__round__', '__ceil__', '__floor__', '__trunc__']
+# )
 """A mixin class that defines operators for quantifiable objects.
 
 This class implements the `~algebraic.Quantity` operators with the following
@@ -353,28 +336,21 @@ Notes on allowed binary arithmetic operations:
 """
 
 
-def operators(*parameters: str, **kwargs):
-    """"""
-    names = ['data', 'unit', *parameters]
-    interface = operations.Interface(Quantity, *names)
-    rules = {
-        'comparison': [
-            (Quantity, Quantity),
-            (Quantity, Real),
-            (Real, Quantity),
-        ],
-        'numeric': [
-            (Quantity, Quantity),
-            (Quantity, Real),
-            (Real, Quantity),
-        ],
-    }
-    for key, types in rules.items():
-        interface[key].types.add(*types)
-    interface['__rtruediv__'].types.discard(Real, Quantity)
-    interface['__rpow__'].types.discard(Real, Quantity)
-    interface['__pow__'].types.discard(Quantity, Quantity)
-    return operations.operators(interface, **kwargs)
+# class Subtype(typing.Generic[T]):
+#     """Generic type to indicate a subclass in type hints."""
+
+
+# Q = typing.TypeVar('Q', bound=Quantity)
+
+
+# def operators(
+#     __target: Q,
+#     *bases: typing.Type[T],
+#     include: typing.Iterable[str]=None,
+#     exclude: typing.Iterable[str]=None,
+# ) -> Subtype[Q]:
+#     """Create a mixin class of measurable operators."""
+
 
 
 class Scalar(Quantity):
