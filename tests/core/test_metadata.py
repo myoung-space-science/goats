@@ -110,12 +110,11 @@ def test_operator_factory():
     assert not factory.parameters
     factory.register('value', 'info')
     assert factory.parameters == ('value', 'info')
-    assert isinstance(factory['add'], metadata.Operation)
-    assert factory['add'] is factory['__add__']
-    assert factory['__add__'] is not factory['__radd__']
-    keys = ('add', '__add__')
+    assert isinstance(factory['mul'], metadata.Operation)
+    assert factory['mul'] is factory['multiply']
+    keys = ('mul', 'multiply')
     assert all(factory[key].supports(Base, float) for key in keys)
-    factory['__add__'].suppress(Base, float)
+    factory['multiply'].suppress(Base, float)
     for key in keys:
         assert not factory[key].supports(Base, float)
         assert factory[key].supports(Base, Base)

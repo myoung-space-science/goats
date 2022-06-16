@@ -312,11 +312,6 @@ class OperatorFactory(collections.abc.Mapping):
 
     def implement(self, name: str, method: typing.Callable=None):
         """Implement the named operator."""
-        # Notes:
-        # - `parameters` are the same for all operations
-        # - `types` are operation-specific
-        # - `strict` is operation-specific
-        # - if user doesn't pass `method`, we need to check for a default
         if name not in self:
             return self._default(method)
         operation = self[name]
@@ -399,23 +394,26 @@ class OperatorFactory(collections.abc.Mapping):
 
     @property
     def operations(self) -> typing.Mapping[str, Operation]:
-        """The operations defined here."""
+        """The operations defined here.
+        
+        Notes
+        -----
+        Operations are not the same as operators. For example, the special
+        operator methods `__truediv__`, `__rtruediv__`, and `__itruediv__`, as
+        well as the `numpy` ufunc `true_divide`, all correspond to the 'true
+        divide' operation. This aliased mapping of operations does not currently
+        support look-up by operator name in order to avoid misleading the user
+        into thinking there are different objects for different operators
+        corresponding to the same operation.
+        """
         if self._operations is None:
             operations = aliased.MutableMapping.fromkeys(OPERATIONS)
             for k, v in OPERATIONS.items():
-                definition = Operation(
+                operations[k] = Operation(
                     self._type,
                     *v.get('constraints', ()),
                     method=v.get('callable'),
                 )
-                # Use `copy` because definitions need to be independent.
-                operations[k] = definition.copy()
-                operators = v.get('operators', ())
-                if 'dunder' in operators:
-                    operations.alias(k, f'__{k}__')
-                    if 'numeric' in operators:
-                        operations[f'__r{k}__'] = definition.copy()
-                        operations[f'__i{k}__'] = definition.copy()
             self._operations = operations
         return self._operations
 
@@ -431,40 +429,32 @@ def sqrt(a):
 OPERATIONS: typing.Dict[str, dict] = {
     'int': {
         'callable': None,
-        'operators': ['dunder'],
     },
     'float': {
         'callable': None,
-        'operators': ['dunder'],
     },
     'abs': {
         'callable': abs,
         'aliases': ['absolute'],
-        'operators': ['dunder'],
     },
     'pos': {
         'callable': standard.pos,
         'aliases': ['positive'],
-        'operators': ['dunder'],
     },
     'neg': {
         'callable': standard.neg,
         'aliases': ['negative'],
-        'operators': ['dunder'],
     },
     'ceil': {
         'callable': math.ceil,
         'aliases': ['ceiling'],
-        'operators': ['dunder'],
     },
     'floor': {
         'callable': math.floor,
-        'operators': ['dunder'],
     },
     'trunc': {
         'callable': math.trunc,
         'aliases': ['truncate'],
-        'operators': ['dunder'],
     },
     'round': {
         'callable': round,
@@ -474,51 +464,42 @@ OPERATIONS: typing.Dict[str, dict] = {
         'callable': None,
         'aliases': ['less'],
         'constraints': ['strict'],
-        'operators': ['dunder'],
     },
     'le': {
         'callable': None,
         'aliases': ['less_equal', 'less equal'],
         'constraints': ['strict'],
-        'operators': ['dunder'],
     },
     'gt': {
         'callable': None,
         'aliases': ['greater'],
         'constraints': ['strict'],
-        'operators': ['dunder'],
     },
     'ge': {
         'callable': None,
         'aliases': ['greater_equal', 'greater equal'],
         'constraints': ['strict'],
-        'operators': ['dunder'],
     },
     'add': {
         'callable': standard.add,
         'constraints': ['strict'],
-        'operators': ['dunder', 'numeric'],
     },
     'sub': {
         'callable': standard.sub,
         'aliases': ['subtract'],
         'constraints': ['strict'],
-        'operators': ['dunder', 'numeric'],
     },
     'mul': {
         'callable': standard.mul,
         'aliases': ['multiply'],
-        'operators': ['dunder', 'numeric'],
     },
     'truediv': {
         'callable': standard.truediv,
         'aliases': ['true_divide', 'true divide'],
-        'operators': ['dunder', 'numeric'],
     },
     'pow': {
         'callable': pow,
         'aliases': ['power'],
-        'operators': ['dunder', 'numeric'],
     },
     'sqrt': {
         'callable': sqrt,
