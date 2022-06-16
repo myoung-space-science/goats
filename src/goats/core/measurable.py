@@ -81,6 +81,19 @@ class Quantifiable(algebraic.Quantity, iterables.ReprStrMixin):
         """Always true for a valid instance."""
         return True
 
+    def __eq__(self, other) -> bool:
+        """Determine if two quantifiable objects are equal."""
+        if isinstance(other, Quantifiable):
+            return (
+                other._amount == self._amount
+                and other._metric == self._metric
+            )
+        return other == self._amount
+
+    def __ne__(self, other):
+        """Determine if two quantifiable are not equal."""
+        return not self == other
+
 
 class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
     """A sequence of values and their associated unit."""
@@ -228,12 +241,6 @@ class Quantity(Quantifiable):
         self._amount *= new // self._metric
         self._metric = new
         return self
-
-    def __eq__(self, other) -> bool:
-        """Determine if two quantities are equal."""
-        if isinstance(other, Quantity):
-            return other.data == self.data and other.unit == self.unit
-        return other == self.data
 
 
 class OperatorMixin:
