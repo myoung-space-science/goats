@@ -208,8 +208,17 @@ class Quantity(Quantifiable):
             )
         pos = list(args)
         data = kwargs.get('data') or pos.pop(0)
-        unit = metric.Unit(kwargs.get('unit') or pos.pop(0) or '1')
-        return data, unit
+        unit = self._init_unit(pos, **kwargs)
+        return data, metric.Unit(unit)
+
+    def _init_unit(self, pos: list, **kwargs):
+        """Parse the unit attribute from arguments or use the default value."""
+        if given := kwargs.get('unit'):
+            return given
+        try:
+            return pos.pop(0)
+        except IndexError:
+            return '1'
 
     def convert(self, unit: metric.UnitLike):
         """Set the unit of this object's values."""
