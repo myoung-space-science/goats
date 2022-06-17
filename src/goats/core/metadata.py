@@ -310,6 +310,12 @@ class OperatorFactory(collections.abc.Mapping):
         self._parameters.extend(iterables.unique(*names))
         return self
 
+    def check(self, *args):
+        """Ensure that all arguments have consistent metadata values."""
+        for p in self.parameters:
+            if not consistent(p, *args):
+                raise ValueError(f"Inconsistent metadata for {p!r}")
+
     def implement(self, name: str, method: typing.Callable=None):
         """Implement the named operator."""
         if name not in self:
@@ -325,9 +331,7 @@ class OperatorFactory(collections.abc.Mapping):
             #   `method` because some operations (e.g., binary comparisons)
             #   require consistency even though they don't operate on metadata.
             if 'strict' in operation.constraints:
-                for p in self.parameters:
-                    if not consistent(p, *args):
-                        raise ValueError(f"Inconsistent metadata for {p!r}")
+                self.check(*args)
             # - If a method really is missing, we'll take that to mean there is
             #   no metadata to compute. This is a common case (e.g., type casts
             #   and binary comparisons).
