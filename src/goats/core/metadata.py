@@ -284,7 +284,7 @@ def consistent(name: str, *args):
 
 
 class OperatorFactory(collections.abc.Mapping):
-    """A factory for objects that operator on metadata."""
+    """A factory for objects that operate on metadata."""
 
     def __init__(self, __type: T, *parameters: str) -> None:
         """
