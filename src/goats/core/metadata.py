@@ -327,7 +327,7 @@ class OperatorFactory(collections.abc.Mapping):
             if 'strict' in operation.constraints:
                 for p in self.parameters:
                     if not consistent(p, *args):
-                        raise TypeError(f"Inconsistent metadata for {p!r}")
+                        raise ValueError(f"Inconsistent metadata for {p!r}")
             # - If a method really is missing, we'll take that to mean there is
             #   no metadata to compute. This is a common case (e.g., type casts
             #   and binary comparisons).
@@ -340,20 +340,31 @@ class OperatorFactory(collections.abc.Mapping):
                     f"Can't apply {method.__qualname__!r} to metadata"
                     f" with types {', '.join(t.__qualname__ for t in types)}"
                 ) from None
-            results = {}
-            for p in self.parameters:
-                values = [utilities.getattrval(arg, p) for arg in args]
-                try:
-                    results[p] = method(*values, **kwargs)
-                except TypeError as err:
-                    if all([hasattr(arg, p) for arg in args]):
-                        raise MetadataError(err) from err
-            return results
+            return {
+                p: self._compute(p, method, *args, **kwargs)
+                for p in self.parameters
+            }
         operator.__name__ = name
         operator.__doc__ = method.__doc__
         if callable(method):
             operator.__text_signature__ = str(inspect.signature(method))
         return operator
+
+    def _compute(self, name: str, method, *args, **kwargs):
+        """Compute a value for the named attribute."""
+        values = [utilities.getattrval(arg, name) for arg in args]
+        try:
+            return method(*values, **kwargs)
+        except TypeError as err:
+            # Note that len(args) == len(values) by definition
+            if len(args) == 1:
+                return values[0]
+            if all([hasattr(arg, name) for arg in args]):
+                raise MetadataError(err) from err
+            return next(
+                value for (arg, value) in zip(args, values)
+                if hasattr(arg, name)
+            )
 
     def consistent(self, name: str, *args):
         """Check consistency of a metadata attribute across `args`."""
