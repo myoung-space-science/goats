@@ -370,15 +370,6 @@ class OperatorFactory(collections.abc.Mapping):
                 if hasattr(arg, name)
             )
 
-    def consistent(self, name: str, *args):
-        """Check consistency of a metadata attribute across `args`."""
-        values = [utilities.getattrval(arg, name) for arg in args]
-        v0 = values[0]
-        return (
-            all(hasattr(arg, name) for arg in args)
-            and any([v != v0 for v in values])
-        )
-
     def _default(self, method: typing.Callable):
         """Apply `method` to the default implementation."""
         def operator(*args, **kwargs):
