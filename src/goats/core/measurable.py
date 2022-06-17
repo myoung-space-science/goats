@@ -178,15 +178,15 @@ class Quantity(Quantifiable):
     def __init__(self, *args, **kwargs) -> None:
         init = self._parse(*args, **kwargs)
         super().__init__(*init)
-        self.metadata = metadata.OperatorFactory(type(self), 'unit')
-        self.metadata['true divide'].suppress(Real, type(self))
-        self.metadata['power'].suppress(Real, type(self))
-        self.metadata['power'].suppress(type(self), type(self))
-        self.metadata['power'].suppress(
-            type(self),
-            typing.Iterable,
-            symmetric=True,
-        )
+        # self.metadata = metadata.OperatorFactory(type(self), 'unit')
+        # self.metadata['true divide'].suppress(Real, type(self))
+        # self.metadata['power'].suppress(Real, type(self))
+        # self.metadata['power'].suppress(type(self), type(self))
+        # self.metadata['power'].suppress(
+        #     type(self),
+        #     typing.Iterable,
+        #     symmetric=True,
+        # )
         display = {
             '__str__': {
                 'strings': ["{_amount}", "[{_metric}]"],
@@ -242,6 +242,23 @@ class Quantity(Quantifiable):
         self._amount *= new // self._metric
         self._metric = new
         return self
+
+    __metadata__ = 'unit'
+
+    _metadata_parameters = []
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        """Set up a metadata operator factory."""
+        super().__init_subclass__(**kwargs)
+        factory = metadata.OperatorFactory(cls)
+        factory['pow'].suppress(cls, cls)
+        parameters = [
+            name for c in cls.mro()[::-1]
+            if issubclass(c, Quantity)
+            for name in iterables.whole(c.__metadata__)
+        ]
+        factory.register(*parameters)
+        cls.metadata = factory
 
 
 class OperatorMixin:
@@ -336,21 +353,90 @@ Notes on allowed binary arithmetic operations:
 """
 
 
-# class Subtype(typing.Generic[T]):
-#     """Generic type to indicate a subclass in type hints."""
+class Subtype(typing.Generic[T]):
+    """Generic type to indicate a subclass in type hints."""
 
 
-# Q = typing.TypeVar('Q', bound=Quantity)
+Q = typing.TypeVar('Q', bound=Quantity)
 
 
-# def operators(
-#     __target: Q,
-#     *bases: typing.Type[T],
-#     include: typing.Iterable[str]=None,
-#     exclude: typing.Iterable[str]=None,
-# ) -> Subtype[Q]:
-#     """Create a mixin class of measurable operators."""
+def operators(
+    __target: typing.Type[Q],
+    *bases: typing.Type[T],
+    include: typing.Iterable[str]=None,
+    exclude: typing.Iterable[str]=None,
+) -> Subtype[Q]:
+    """Create a mixin class of measurable operators."""
 
+    # Notes:
+    # - Consider defining a method on `metadata.OperatorFactory` that just
+    #   checks attribute constency on the given operand(s). It wouldn't need to
+    #   know the operation name or method.
+    # - Consider defining a method on `metadata.Operation` that is equivalent to
+    #   the definition of `operator` within
+    #   `metadata.OperatorFactory.implement`. That would allow this function to
+    #   use `q.metadata[<name>].apply(<arguments>)`.
+    # - The functions below can be split into unary/binary for computing data
+    #   and check/compute for handling metadata:
+    #  - cast = unary + check
+    #  - arithmetic = unary + compute
+    #  - comparison = binary + check
+    #  - numeric = binary + compute
+
+    def unary(method, q: Q, **kwargs):
+        """Apply a unary operator to arguments."""
+        return method(q, **kwargs)
+
+    def binary(method, q: Q, b: B, **kwargs):
+        """Apply a binary operator to arguments."""
+        return (
+            method(q.data, b.data, **kwargs) if isinstance(b, Quantity)
+            else method(q.data, b, **kwargs)
+        )
+
+    def cast(name: str, method: typing.Type[T]):
+        """Implement a unary cast operator."""
+        def operator(q: Q) -> T:
+            data = method(q.data)
+            q.metadata.implement(name)(q) # consistency check
+            return data
+        return operator
+
+    def arithmetic(name: str, method: typing.Callable[[A], T]):
+        """Implement a unary arithmetic operator."""
+        def operator(q: Q, **kwargs) -> Q:
+            data = method(q.data, **kwargs)
+            meta = q.metadata.implement(name)(q, **kwargs)
+            return type(q)(data, **meta)
+        return operator
+
+    def comparison(name: str, method: typing.Callable[[A, B], bool]):
+        """Implement a binary comparison operator."""
+        def operator(q: Q, b: B) -> bool:
+            data = (
+                method(q.data, b.data) if isinstance(b, Quantity)
+                else method(q.data, b)
+            )
+            q.metadata.implement(name)(q, b) # consistency check
+            return data
+        return operator
+
+    def numeric(name: str, method: typing.Callable[[A, B], T]):
+        """Implement a binary numeric operator."""
+        def operator(q: Q, b: B, **kwargs) -> Q:
+            data = (
+                method(q.data, b.data, **kwargs) if isinstance(b, Quantity)
+                else method(q.data, b, **kwargs)
+            )
+            meta = q.metadata.implement(name)(q, b, **kwargs)
+            return type(q)(data, **meta)
+        return operator
+
+    definitions = {
+        '__int__': cast('int', int),
+        '__float__': cast('float', float),
+        '__abs__': arithmetic('abs', abs),
+    }
 
 
 class Scalar(Quantity):
