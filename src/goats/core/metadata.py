@@ -17,6 +17,18 @@ from goats.core import utilities
 T = typing.TypeVar('T')
 
 
+def consistent(name: str, *args):
+    """Check consistency of a metadata attribute across `args`."""
+    values = [
+        utilities.getattrval(arg, name) for arg in args
+        if hasattr(arg, name)
+    ]
+    if not values:
+        return True # trivial case
+    v0 = values[0]
+    return all([v == v0 for v in values])
+
+
 class NTypesError(Exception):
     """Inconsistent number of types in a new rule."""
 
@@ -140,18 +152,20 @@ class Operation(typing.Generic[T], iterables.ReprStrMixin):
     def __init__(
         self,
         __type: typing.Type[T],
-        *constraints: str,
-        method: typing.Callable=None,
+        *parameters: str,
+        name: str=None,
     ) -> None:
         self._type = __type
-        self.constraints = constraints
-        """Strings indicating operational constraints."""
-        self.method = method
-        """The default callable for computing metadata."""
+        self.parameters = parameters
+        """The names of metadata attributes."""
+        self.name = name
+        """The name of this operation, if any."""
         self.supported = set()
+        """The type(s) of operand(s) for which this operation is valid."""
         self.suppressed = set()
+        """The type(s) of operand(s) for which this operation is invalid."""
         self.nargs = None
-        """The number of required arguments in this context."""
+        """The number of required arguments in this operation."""
 
     @property
     def implemented(self):
@@ -162,8 +176,8 @@ class Operation(typing.Generic[T], iterables.ReprStrMixin):
         """Create a deep copy of this operation."""
         return Operation(
             self._type,
-            *self.constraints,
-            method=self.method,
+            *self.parameters,
+            name=self.name,
         )
 
     Types = typing.Union[
@@ -252,94 +266,15 @@ class Operation(typing.Generic[T], iterables.ReprStrMixin):
                 return True
         return self._type in types
 
-    def __eq__(self, __o):
-        """Determine if two operational contexts are equal."""
-        return (
-            isinstance(__o, Operation)
-            and __o._type == self._type
-            and __o.supported == self.supported
-            and __o.suppressed == self.suppressed
-            and __o.constraints == self.constraints
-        )
+    def evaluate(self, *args, **kwargs):
+        """Compute attribute values using the default method."""
+        method = REFERENCE[self.name]
+        return self.apply(method)(*args, **kwargs)
 
-
-class OperandTypeError(Exception):
-    """Operands are incompatible for a given operation."""
-
-
-class MetadataError(Exception):
-    """Error in computing metadata value."""
-
-
-def consistent(name: str, *args):
-    """Check consistency of a metadata attribute across `args`."""
-    values = [
-        utilities.getattrval(arg, name) for arg in args
-        if hasattr(arg, name)
-    ]
-    if not values:
-        return True # trivial case
-    v0 = values[0]
-    return all([v == v0 for v in values])
-
-
-class OperatorFactory(collections.abc.Mapping):
-    """A factory for objects that operate on metadata."""
-
-    def __init__(self, __type: T, *parameters: str) -> None:
-        """
-        Initialize this instance.
-
-        Parameters
-        ----------
-        *parameters : string
-            Zero or more strings representing the updatable attributes in each
-            operand to these operations.
-        """
-        self._type = __type
-        self._parameters = list(iterables.unique(*parameters))
-        self._operations = None
-
-    @property
-    def parameters(self):
-        """The names of updatable metadata attributes."""
-        return tuple(self._parameters)
-
-    def register(self, *names: str):
-        """Register additional names of metadata attributes."""
-        self._parameters.extend(iterables.unique(*names))
-        return self
-
-    def check(self, *args):
-        """Ensure that all arguments have consistent metadata values."""
-        for p in self.parameters:
-            if not consistent(p, *args):
-                raise ValueError(f"Inconsistent metadata for {p!r}")
-
-    def implement(self, name: str, method: typing.Callable=None):
-        """Implement the named operator."""
-        if name not in self:
-            return self._default(method)
-        operation = self[name]
-        # I would like to put this in something like `Operation.apply`, which
-        # would take `method` and return a callable equivalent to `operator`. We
-        # would still be able to update `operator.__name__` and
-        # `operator.__doc__` here.
-        method = method or operation.method
+    def apply(self, method: typing.Callable):
         def operator(*args, **kwargs):
-            # - Check operand consistency. This needs to happen before checking
-            #   `method` because some operations (e.g., binary comparisons)
-            #   require consistency even though they don't operate on metadata.
-            if 'strict' in operation.constraints:
-                self.check(*args)
-            # - If a method really is missing, we'll take that to mean there is
-            #   no metadata to compute. This is a common case (e.g., type casts
-            #   and binary comparisons).
-            if not method:
-                return None
-            # - At this point, we can proceed to process metadata.
             types = [type(arg) for arg in args]
-            if not operation.supports(*types):
+            if not self.supports(*types):
                 raise OperandTypeError(
                     f"Can't apply {method.__qualname__!r} to metadata"
                     f" with types {', '.join(t.__qualname__ for t in types)}"
@@ -348,7 +283,7 @@ class OperatorFactory(collections.abc.Mapping):
                 p: self._compute(p, method, *args, **kwargs)
                 for p in self.parameters
             }
-        operator.__name__ = name
+        operator.__name__ = self.name or f'__{method.__name__}__'
         operator.__doc__ = method.__doc__
         if callable(method):
             operator.__text_signature__ = str(inspect.signature(method))
@@ -369,6 +304,134 @@ class OperatorFactory(collections.abc.Mapping):
                 value for (arg, value) in zip(args, values)
                 if hasattr(arg, name)
             )
+
+    def consistent(self, *args):
+        """Ensure that all arguments have consistent metadata values."""
+        for p in self.parameters:
+            if not consistent(p, *args):
+                raise ValueError(f"Inconsistent metadata for {p!r}")
+
+    def __eq__(self, __o):
+        """Determine if two operational contexts are equal."""
+        return (
+            isinstance(__o, Operation)
+            and __o._type == self._type
+            and __o.supported == self.supported
+            and __o.suppressed == self.suppressed
+        )
+
+
+class OperandTypeError(Exception):
+    """Operands are incompatible for a given operation."""
+
+
+class MetadataError(Exception):
+    """Error in computing metadata value."""
+
+
+class OperatorFactory(collections.abc.Mapping):
+    """A factory for objects that operate on metadata."""
+
+    def __init__(
+        self,
+        __type: T,
+        *parameters: str,
+        defaults: typing.Dict[str, typing.Callable]=None,
+    ) -> None:
+        """
+        Initialize this instance.
+
+        Parameters
+        ----------
+        __type : type
+            The type of object to which these operators will apply.
+        *parameters : string
+            Zero or more strings representing the updatable attributes in each
+            operand to these operations.
+        """
+        self._type = __type
+        self._parameters = list(iterables.unique(*parameters))
+        # Use this instead of REFERENCE; maybe define an `aliased.NameMap`.
+        self.defaults = defaults or {}
+        self._checkable = None
+        self._generate = True
+        self._operations = None
+
+    @property
+    def parameters(self):
+        """The names of updatable metadata attributes."""
+        return tuple(self._parameters)
+
+    def register(self, *names: str):
+        """Register additional names of metadata attributes."""
+        self._parameters.extend(iterables.unique(*names))
+        self._generate = True
+        return self
+
+    def check(self, *operations: str, reset: bool=False):
+        """Check operand consistency on the named operations.
+        
+        Parameters
+        ----------
+        *operations : string
+            Zero or more names of operations on which to check that operands
+            have consistent attributes values.
+
+        reset : bool, default=False
+            If true, clear the existing set of operation names before
+            registering the new ones.
+        """
+        self._checkable = (
+            operations if reset else self.checkable | set(operations)
+        )
+        return self
+
+    @property
+    def checkable(self):
+        """The names of operations that require attribute consistency."""
+        if self._checkable is None:
+            self._checkable = set()
+        return set(self._checkable)
+
+    def compute(self, name: str, *args, **kwargs):
+        """Compute attribute values using the default method for `name`."""
+        if name in self.checkable:
+            self.consistent(*args)
+        if not (method := self.defaults.get(name)):
+            return None
+        operation = self[name]
+        return operation.apply(method)(*args, **kwargs)
+
+    # Deprecate?
+    def implement(self, name: str, method: typing.Callable=None):
+        """Implement the named operator."""
+        if name not in self:
+            return self._default(method)
+        operation = self[name]
+        method = method or REFERENCE[name]
+        def operator(*args, **kwargs):
+            # - Check operand consistency. This needs to happen before checking
+            #   `method` because some operations (e.g., binary comparisons)
+            #   require consistency even though they don't operate on metadata.
+            if name in self.checkable:
+                self.consistent(*args)
+            # - If a method really is missing, we'll take that to mean there is
+            #   no metadata to compute. This is a common case (e.g., type casts
+            #   and binary comparisons).
+            if not method:
+                return None
+            return operation.apply(method)(*args, **kwargs)
+        operator.__name__ = name
+        operator.__doc__ = method.__doc__
+        if callable(method):
+            operator.__text_signature__ = str(inspect.signature(method))
+        return operator
+
+    def consistent(self, *args):
+        """Ensure that all arguments have consistent metadata values."""
+        for p in self.parameters:
+            if not consistent(p, *args):
+                raise ValueError(f"Inconsistent metadata for {p!r}")
 
     def _default(self, method: typing.Callable):
         """Apply `method` to the default implementation."""
@@ -412,14 +475,15 @@ class OperatorFactory(collections.abc.Mapping):
         into thinking there are different objects for different operators
         corresponding to the same operation.
         """
-        if self._operations is None:
-            operations = aliased.MutableMapping.fromkeys(OPERATIONS)
-            for k, v in OPERATIONS.items():
+        if self._generate:
+            operations = aliased.MutableMapping.fromkeys(REFERENCE)
+            for k in REFERENCE:
                 operations[k] = Operation(
                     self._type,
-                    *v.get('constraints', ()),
-                    method=v.get('callable'),
+                    *self.parameters,
+                    name=k,
                 )
+            self._generate = False
             self._operations = operations
         return self._operations
 
@@ -432,7 +496,7 @@ def sqrt(a):
         return f'sqrt({a})'
 
 
-OPERATIONS: typing.Dict[str, dict] = {
+_reference: typing.Dict[str, dict] = {
     'int': {
         'callable': None,
     },
@@ -464,36 +528,35 @@ OPERATIONS: typing.Dict[str, dict] = {
     },
     'round': {
         'callable': round,
-        'operators': ['dunder'],
     },
     'lt': {
         'callable': None,
         'aliases': ['less'],
-        'constraints': ['strict'],
+        # 'constraints': ['strict'],
     },
     'le': {
         'callable': None,
         'aliases': ['less_equal', 'less equal'],
-        'constraints': ['strict'],
+        # 'constraints': ['strict'],
     },
     'gt': {
         'callable': None,
         'aliases': ['greater'],
-        'constraints': ['strict'],
+        # 'constraints': ['strict'],
     },
     'ge': {
         'callable': None,
         'aliases': ['greater_equal', 'greater equal'],
-        'constraints': ['strict'],
+        # 'constraints': ['strict'],
     },
     'add': {
         'callable': standard.add,
-        'constraints': ['strict'],
+        # 'constraints': ['strict'],
     },
     'sub': {
         'callable': standard.sub,
         'aliases': ['subtract'],
-        'constraints': ['strict'],
+        # 'constraints': ['strict'],
     },
     'mul': {
         'callable': standard.mul,
@@ -512,3 +575,4 @@ OPERATIONS: typing.Dict[str, dict] = {
         'aliases': ['square_root', 'square root'],
     },
 }
+REFERENCE = aliased.Mapping(_reference).squeeze(strict=True)
