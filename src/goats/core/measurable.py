@@ -267,79 +267,6 @@ def binary(method: typing.Callable):
     return operator
 
 
-# Could we repurpose `operations.py` to define a base `OperatorFactory` from
-# which `metadata.OperatorFactory` and this class inherit? Maybe also a base
-# `Operation`. That could be useful, for example, if we wanted to instantiate
-# this class with multiple operator factories.
-class OperatorFactory:
-    """A factory for objects that operate on measurable quantities."""
-
-    def __init__(
-        self,
-        __metadata: metadata.OperatorFactory,
-        operations: typing.Dict[str, typing.Callable],
-    ) -> None:
-        self.metadata = __metadata
-        self.operations = operations
-
-    def __getitem__(self, __k: str):
-        """Create an operator by key."""
-        if __k not in self.operations:
-            raise KeyError(f"Unknown operation {__k!r}") from None
-        method = self.operations[__k]
-        def operator(*args, **kwargs):
-            operands = [
-                i.data if isinstance(i, Quantity) else i
-                for i in args
-            ]
-            data = method(*operands, **kwargs)
-            if not (meta := self.metadata.compute(__k, *args, **kwargs)):
-                return data
-            New = type(next(arg for arg in args if isinstance(arg, Quantity)))
-            return New(data, **meta)
-        operator.__name__ = f'__{method.__name__}__'
-        operator.__doc__ = method.__doc__
-        operator.__text_signature__ = str(inspect.signature(method))
-        return operator
-
-    def cast(self, method: typing.Type[T]):
-        """Implement a unary cast operator."""
-        def operator(q: Q) -> T:
-            data = method(q.data)
-            return data
-        return operator
-
-    def arithmetic(self, name: str, method: typing.Callable[[A], T]):
-        """Implement a unary arithmetic operator."""
-        def operator(q: Q, **kwargs) -> Q:
-            data = method(q.data, **kwargs)
-            meta = self.metadata.implement(name)(q, **kwargs)
-            return type(q)(data, **meta)
-        return operator
-
-    def comparison(self, method: typing.Callable[[A, B], bool]):
-        """Implement a binary comparison operator."""
-        def operator(q: Q, b: B) -> bool:
-            data = (
-                method(q.data, b.data) if isinstance(b, Quantity)
-                else method(q.data, b)
-            )
-            self.metadata.check(q, b)
-            return data
-        return operator
-
-    def numeric(self, name: str, method: typing.Callable[[A, B], T]):
-        """Implement a binary numeric operator."""
-        def operator(q: Q, b: B, **kwargs) -> Q:
-            data = (
-                method(q.data, b.data, **kwargs) if isinstance(b, Quantity)
-                else method(q.data, b, **kwargs)
-            )
-            meta = self.metadata.implement(name)(q, b, **kwargs)
-            return type(q)(data, **meta)
-        return operator
-
-
 class Operators:
     """A mixin class to provide operators for measurable quantities."""
 
@@ -381,12 +308,37 @@ class Operators:
             # define the `__metadata__` attribute.
         ]
         factory.register(*iterables.unique(*parameters))
-        operators = OperatorFactory(factory, cls._operations)
         for operation in cls._operations:
-            setattr(cls, f'__{operation}__', operators[operation])
+            operator = cls.implement(operation, factory)
+            setattr(cls, f'__{operation}__', operator)
             if operation in cls._reverse:
-                setattr(cls, f'__r{operation}__', operators[operation])
+                setattr(cls, f'__r{operation}__', operator)
         cls.metadata = factory
+
+    @classmethod
+    def implement(cls, name: str, factory: metadata.OperatorFactory=None):
+        """Create an operator from the named operation."""
+        if name not in cls._operations:
+            raise KeyError(f"Unknown operation {name!r}") from None
+        method = cls._operations[name]
+        def operator(*args, **kwargs):
+            operands = [
+                i.data if isinstance(i, Quantity) else i
+                for i in args
+            ]
+            data = method(*operands, **kwargs)
+            meta = (
+                None if factory is None
+                else factory.compute(name, *args, **kwargs)
+            )
+            if meta is None:
+                return data
+            New = type(next(arg for arg in args if isinstance(arg, Quantity)))
+            return New(data, **meta)
+        operator.__name__ = f'__{method.__name__}__'
+        operator.__doc__ = method.__doc__
+        operator.__text_signature__ = str(inspect.signature(method))
+        return operator
 
 
 # interface = operations.Interface(Quantity, 'data', 'unit')
