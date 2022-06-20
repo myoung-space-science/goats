@@ -156,8 +156,7 @@ class Operation(typing.Generic[T], iterables.ReprStrMixin):
         name: str=None,
     ) -> None:
         self._type = __type
-        self.parameters = parameters
-        """The names of metadata attributes."""
+        self._parameters = list(parameters)
         self.name = name
         """The name of this operation, if any."""
         self.supported = set()
@@ -166,6 +165,11 @@ class Operation(typing.Generic[T], iterables.ReprStrMixin):
         """The type(s) of operand(s) for which this operation is invalid."""
         self.nargs = None
         """The number of required arguments in this operation."""
+
+    @property
+    def parameters(self):
+        """The names of metadata attributes."""
+        return tuple(self._parameters)
 
     @property
     def implemented(self):
@@ -179,6 +183,15 @@ class Operation(typing.Generic[T], iterables.ReprStrMixin):
             *self.parameters,
             name=self.name,
         )
+
+    def update(self, *parameters: str):
+        """Update the names of metadata attributes."""
+        if not parameters:
+            raise ValueError(
+                "Update requires at least one parameter."
+            ) from None
+        self._parameters.extend(parameters)
+        return self
 
     Types = typing.Union[
         type,
@@ -354,7 +367,6 @@ class OperatorFactory(collections.abc.Mapping):
         # Use this instead of REFERENCE; maybe define an `aliased.NameMap`.
         self.defaults = defaults or {}
         self._checkable = None
-        self._generate = True
         self._operations = None
 
     @property
@@ -365,7 +377,8 @@ class OperatorFactory(collections.abc.Mapping):
     def register(self, *names: str):
         """Register additional names of metadata attributes."""
         self._parameters.extend(iterables.unique(*names))
-        self._generate = True
+        for operation in self.operations.values():
+            operation.update(*names)
         return self
 
     def check(self, *operations: str, reset: bool=False):
@@ -475,7 +488,7 @@ class OperatorFactory(collections.abc.Mapping):
         into thinking there are different objects for different operators
         corresponding to the same operation.
         """
-        if self._generate:
+        if self._operations is None:
             operations = aliased.MutableMapping.fromkeys(REFERENCE)
             for k in REFERENCE:
                 operations[k] = Operation(
@@ -483,7 +496,6 @@ class OperatorFactory(collections.abc.Mapping):
                     *self.parameters,
                     name=k,
                 )
-            self._generate = False
             self._operations = operations
         return self._operations
 
