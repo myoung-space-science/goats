@@ -318,12 +318,6 @@ class Operation(typing.Generic[T], iterables.ReprStrMixin):
                 if hasattr(arg, name)
             )
 
-    def consistent(self, *args):
-        """Ensure that all arguments have consistent metadata values."""
-        for p in self.parameters:
-            if not consistent(p, *args):
-                raise ValueError(f"Inconsistent metadata for {p!r}")
-
     def __eq__(self, __o):
         """Determine if two operational contexts are equal."""
         return (
