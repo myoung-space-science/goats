@@ -400,16 +400,6 @@ class OperatorFactory(collections.abc.Mapping):
             self._checkable = set()
         return set(self._checkable)
 
-    def compute(self, name: str, *args, **kwargs):
-        """Compute attribute values using the default method for `name`."""
-        if name in self.checkable:
-            self.consistent(*args)
-        if not (method := self.defaults.get(name)):
-            return None
-        operation = self[name]
-        return operation.apply(method)(*args, **kwargs)
-
-    # Deprecate?
     def implement(self, name: str, method: typing.Callable=None):
         """Implement the named operator."""
         if name not in self:
