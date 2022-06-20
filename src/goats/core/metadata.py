@@ -279,13 +279,27 @@ class Operation(typing.Generic[T], iterables.ReprStrMixin):
                 return True
         return self._type in types
 
+    # NOTE: This is currently "in use" in datatypes.Array but it is antithetical
+    # to deprecating `REFERENCE` in favor of passing default callables to
+    # `OperatorFactory`. Consider returning to use of
+    # `OperatorFactory.implement(name)(*args, **kwargs)` in `Array` so we can
+    # deprecate this.
     def evaluate(self, *args, **kwargs):
         """Compute attribute values using the default method."""
         method = REFERENCE[self.name]
         return self.apply(method)(*args, **kwargs)
 
     def apply(self, method: typing.Callable):
+        """Create an operator by applying the given method."""
         def operator(*args, **kwargs):
+            # NOTE: If the method is not callable, we assume that there is no
+            # metadata to compute. This is a common case (e.g., type casts and
+            # binary comparisons). However, if it turns out to be misleading, we
+            # can raise an error for un-callable methods and force downstream
+            # code to define a trivial function that returns `None` for any
+            # arguments.
+            if not callable(method):
+                return None
             types = [type(arg) for arg in args]
             if not self.supports(*types):
                 raise OperandTypeError(
@@ -401,23 +415,25 @@ class OperatorFactory(collections.abc.Mapping):
         return set(self._checkable)
 
     def implement(self, name: str, method: typing.Callable=None):
-        """Implement the named operator."""
-        if name not in self:
+        """Implement the named operator.
+        
+        Notes
+        -----
+        The defined operator will check operand consistency (if the named
+        operation warrants it) before determining if the corresponding method is
+        appropriate for computing metadata because some operations (e.g., binary
+        comparisons) require consistency even though they don't operate on
+        metadata.
+        """
+        if method and name not in self:
             return self._default(method)
         operation = self[name]
-        method = method or REFERENCE[name]
+        method = method or self.defaults.get(name)
+        evaluate = operation.apply(method)
         def operator(*args, **kwargs):
-            # - Check operand consistency. This needs to happen before checking
-            #   `method` because some operations (e.g., binary comparisons)
-            #   require consistency even though they don't operate on metadata.
             if name in self.checkable:
                 self.consistent(*args)
-            # - If a method really is missing, we'll take that to mean there is
-            #   no metadata to compute. This is a common case (e.g., type casts
-            #   and binary comparisons).
-            if not method:
-                return None
-            return operation.apply(method)(*args, **kwargs)
+            return evaluate(*args, **kwargs)
         operator.__name__ = name
         operator.__doc__ = method.__doc__
         if callable(method):
