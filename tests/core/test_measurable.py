@@ -14,191 +14,22 @@ Quantified = interface.subclass('Quantified')
 """A concrete version of `~measurable.Quantifiable` for testing."""
 
 
-# class Quantified(measurable.Quantifiable):
-#     """A concrete version of `~measurable.Quantifiable` for testing."""
+class Quantity(measurable.Operators, measurable.Quantity):
+    """A concrete measurable quantity for testing."""
 
-
-# interface = operations.Interface(measurable.Quantity, 'data', 'unit')
-# rules = {
-#     'numeric': [
-#         (measurable.Quantity, measurable.Quantity),
-#         (measurable.Quantity, measurable.Real),
-#         (measurable.Real, measurable.Quantity),
-#     ]
-# }
-# interface['numeric'].types.add(*rules['numeric'])
-# interface['__rtruediv__'].types.discard(measurable.Real, measurable.Quantity)
-# interface['__rpow__'].types.discard(measurable.Real, measurable.Quantity)
-# interface['__pow__'].types.discard(measurable.Quantity, measurable.Quantity)
-# Quantity = interface.subclass(
-#     'Quantity',
-#     exclude=['cast', '__round__', '__ceil__', '__floor__', '__trunc__']
-# )
-# """A concrete quantity for testing."""
-
-
-# Mixin = measurable.operators(
-#     measurable.Quantity,
-#     exclude=['int', 'float', 'round', 'ceil', 'floor', 'trunc'],
-# )
-class Quantity(measurable.Quantity):
-    """A concrete quantity for testing."""
-
-    def __abs__(self):
-        """"""
-        data = abs(self.data)
-        meta = self.metadata.implement('abs')(self)
-        return type(self)(data, **meta)
-
-    def __pos__(self):
-        """"""
-        data = operator.pos(self.data)
-        meta = self.metadata.implement('pos')(self)
-        return type(self)(data, **meta)
-
-    def __neg__(self):
-        """"""
-        data = operator.neg(self.data)
-        meta = self.metadata.implement('neg')(self)
-        return type(self)(data, **meta)
-
-    def __lt__(self, other):
-        """"""
-        data = (
-            self.data < other.data if isinstance(other, Quantity)
-            else self.data < other
-        )
-        # consistency check only
-        self.metadata.implement('lt')(self, other)
-        return data
-
-    def __le__(self, other):
-        """"""
-        data = (
-            self.data <= other.data if isinstance(other, Quantity)
-            else self.data <= other
-        )
-        # consistency check only
-        self.metadata.implement('le')(self, other)
-        return data
-
-    def __gt__(self, other):
-        """"""
-        data = (
-            self.data > other.data if isinstance(other, Quantity)
-            else self.data > other
-        )
-        # consistency check only
-        self.metadata.implement('gt')(self, other)
-        return data
-
-    def __ge__(self, other):
-        """"""
-        data = (
-            self.data >= other.data if isinstance(other, Quantity)
-            else self.data >= other
-        )
-        # consistency check only
-        self.metadata.implement('ge')(self, other)
-        return data
-
-    def __add__(self, other):
-        """"""
-        data = (
-            self.data + other.data if isinstance(other, Quantity)
-            else self.data + other
-        )
-        meta = self.metadata.implement('add')(self, other)
-        return type(self)(data, **meta)
-
-    def __radd__(self, other):
-        """"""
-        data = (
-            other.data + self.data if isinstance(other, Quantity)
-            else other + self.data
-        )
-        meta = self.metadata.implement('add')(other, self)
-        return type(self)(data, **meta)
-
-    def __sub__(self, other):
-        """"""
-        data = (
-            self.data - other.data if isinstance(other, Quantity)
-            else self.data - other
-        )
-        meta = self.metadata.implement('sub')(self, other)
-        return type(self)(data, **meta)
-
-    def __rsub__(self, other):
-        """"""
-        data = (
-            other.data - self.data if isinstance(other, Quantity)
-            else other - self.data
-        )
-        meta = self.metadata.implement('sub')(other, self)
-        return type(self)(data, **meta)
-
-    def __mul__(self, other):
-        """"""
-        data = (
-            self.data * other.data if isinstance(other, Quantity)
-            else self.data * other
-        )
-        meta = self.metadata.implement('mul')(self, other)
-        return type(self)(data, **meta)
-
-    def __rmul__(self, other):
-        """"""
-        data = (
-            other.data * self.data if isinstance(other, Quantity)
-            else other * self.data
-        )
-        meta = self.metadata.implement('mul')(other, self)
-        return type(self)(data, **meta)
-
-    def __truediv__(self, other):
-        """"""
-        data = (
-            self.data / other.data if isinstance(other, Quantity)
-            else self.data / other
-        )
-        meta = self.metadata.implement('truediv')(self, other)
-        return type(self)(data, **meta)
-
-    def __rtruediv__(self, other):
-        """"""
-        data = (
-            other.data / self.data if isinstance(other, Quantity)
-            else other / self.data
-        )
-        meta = self.metadata.implement('truediv')(other, self)
-        return type(self)(data, **meta)
-
-    def __pow__(self, other):
-        """"""
-        data = (
-            self.data ** other.data if isinstance(other, Quantity)
-            else self.data ** other
-        )
-        meta = self.metadata.implement('pow')(self, other)
-        return type(self)(data, **meta)
-
-    def __rpow__(self, other):
-        """"""
-        data = (
-            other.data ** self.data if isinstance(other, Quantity)
-            else other ** self.data
-        )
-        meta = self.metadata.implement('pow')(other, self)
-        return type(self)(data, **meta)
+    __operators__ = [
+        '__abs__', '__pos__', '__neg__',
+        '__lt__', '__le__', '__gt__', '__ge__',
+        '__add__', '__radd__',
+        '__sub__', '__rsub__',
+        '__mul__', '__rmul__',
+        '__truediv__', '__rtruediv__',
+        '__pow__', '__rpow__',
+    ]
 
 
 Scalar = interface.subclass('Scalar')
 """A concrete scalar quantity for testing."""
-
-
-# class Scalar(Quantity):
-#     """A concrete scalar quantity for testing."""
 
 
 @pytest.mark.quantity

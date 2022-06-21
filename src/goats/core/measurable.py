@@ -239,9 +239,6 @@ B = typing.TypeVar('B')
 
 
 Q = typing.TypeVar('Q', bound=Quantity)
-X = typing.TypeVar('X')
-X = typing.Union[Q, typing.Any]
-
 
 
 def unary(method: typing.Callable):
@@ -270,75 +267,191 @@ def binary(method: typing.Callable):
 class Operators:
     """A mixin class to provide operators for measurable quantities."""
 
-    _metadata = {
+    _callables = {
+        'int': int,
+        'float': float,
         'abs': abs,
         'pos': standard.pos,
         'neg': standard.neg,
+        'lt': standard.lt,
+        'le': standard.le,
+        'gt': standard.gt,
+        'ge': standard.ge,
         'add': standard.add,
         'sub': standard.sub,
         'mul': standard.mul,
         'truediv': standard.truediv,
         'pow': pow,
     }
-    _operations = {
-        **_metadata,
-        'lt': standard.lt,
-        'le': standard.le,
-        'gt': standard.gt,
-        'ge': standard.ge,
-    }
-    _reverse = ['add', 'sub', 'mul', 'truediv', 'pow']
 
-    # Maybe let user pass default callables via a keyword here.
     def __init_subclass__(cls, **kwargs) -> None:
-        """Set up a metadata operator factory."""
+        """Define operators on a subclass of `~measurable.Quantity`."""
         super().__init_subclass__(**kwargs)
-        factory = metadata.OperatorFactory(cls, defaults=cls._metadata)
+        factory = metadata.OperatorFactory(cls, callables=cls._callables)
         factory.check('lt', 'le', 'gt', 'ge', 'add', 'sub')
         factory['true divide'].suppress(Real, Quantity)
         factory['power'].suppress(Quantity, Quantity)
         factory['power'].suppress(Real, Quantity)
         factory['power'].suppress(Quantity, typing.Iterable, symmetric=True)
-        parameters = [
-            name for c in cls.mro()[::-1]
-            if issubclass(c, Quantity)
-            for name in iterables.whole(c.__metadata__)
-            # TODO: This should probably be `getattr(c, '__metadata__', ())`
-            # instead of `c.__metadata__`, to handle subclasses that don't
-            # define the `__metadata__` attribute.
-        ]
+        parameters = cls._collect('__metadata__')
         factory.register(*iterables.unique(*parameters))
-        for operation in cls._operations:
-            operator = cls.implement(operation, factory)
-            setattr(cls, f'__{operation}__', operator)
-            if operation in cls._reverse:
-                setattr(cls, f'__r{operation}__', operator)
         cls.metadata = factory
+        operators = cls._collect('__operators__')
+        # Subclasses can declare which operators to implement by passing a list
+        # or tuple of string operator names or tuples of (name, callable) via
+        # `__operators__`.
+        for operator in operators:
+            if isinstance(operator, tuple):
+                name, datafunc = operator
+                operation, mode = cls._parse_input(name)
+            elif isinstance(operator, str):
+                name = operator
+                operation, mode = cls._parse_input(name)
+                datafunc = cls._callables[operation]
+            else:
+                raise TypeError(f"Invalid operator specification {operator!r}")
+            metafunc = factory.implement(operation)
+            setattr(cls, name, cls.implement(datafunc, metafunc, mode=mode))
 
     @classmethod
-    def implement(cls, name: str, factory: metadata.OperatorFactory=None):
+    def _collect(cls, __name: str):
+        """Internal helper for collecting special class attributes.
+        
+        This method iteratively collects the values of a named class attribute,
+        starting from a base class and progressing through successive subclasses
+        so that the order of the resultant list reflects the order of
+        inheritance.
+        """
+        ancestors = [c for c in cls.mro()[::-1] if issubclass(c, Quantity)]
+        return [
+            name for c in ancestors
+            for name in iterables.whole(getattr(c, __name, ()))
+        ]
+
+    @classmethod
+    def _parse_input(cls, user: str):
+        """Extract the operation name and mode from user input."""
+        if user in cls._callables:
+            return user, 'forward'
+        if (stripped := user.strip('__')) in cls._callables:
+            return stripped, 'forward'
+        if stripped[1:] in cls._callables:
+            token, name = stripped[0], stripped[1:]
+            if token == 'r':
+                return name, 'reverse'
+            if token == 'i':
+                return name, 'inplace'
+            return name, 'forward'
+        raise ValueError(f"Unknown operator {name!r}")
+
+    @typing.overload
+    @classmethod
+    def implement(
+        cls,
+        datafunc: typing.Callable[[Quantity], T],
+        metafunc: typing.Callable[[Quantity], None],
+    ) -> T: ...
+
+    @typing.overload
+    @classmethod
+    def implement(
+        cls,
+        datafunc: typing.Callable[[Quantity], T],
+        metafunc: typing.Callable[[Quantity], dict],
+    ) -> Quantity: ...
+
+    @typing.overload
+    @classmethod
+    def implement(
+        cls,
+        datafunc: typing.Callable[[typing.Any, typing.Any], T],
+        metafunc: typing.Callable[[Quantity, typing.Any], None],
+        *,
+        mode: str,
+    ) -> T: ...
+
+    @typing.overload
+    @classmethod
+    def implement(
+        cls,
+        datafunc: typing.Callable[[typing.Any, typing.Any], T],
+        metafunc: typing.Callable[[Quantity, typing.Any], dict],
+        *,
+        mode: typing.Union[
+            typing.Literal['forward'],
+            typing.Literal['inplace'],
+        ],
+    ) -> Quantity: ...
+
+    @typing.overload
+    @classmethod
+    def implement(
+        cls,
+        datafunc: typing.Callable[[typing.Any, typing.Any], T],
+        metafunc: typing.Callable[[typing.Any, Quantity], dict],
+        *,
+        mode: typing.Literal['reverse'],
+    ) -> Quantity: ...
+
+    @classmethod
+    def implement(cls, datafunc, metafunc, mode: str='forward'):
         """Create an operator from the named operation."""
-        if name not in cls._operations:
-            raise KeyError(f"Unknown operation {name!r}") from None
-        method = cls._operations[name]
         def operator(*args, **kwargs):
-            operands = [
+            operands = args[::-1] if mode == 'reverse' else args
+            values = [
                 i.data if isinstance(i, Quantity) else i
-                for i in args
+                for i in operands
             ]
-            data = method(*operands, **kwargs)
-            meta = (
-                None if factory is None
-                else factory.compute(name, *args, **kwargs)
-            )
-            if meta is None:
-                return data
-            New = type(next(arg for arg in args if isinstance(arg, Quantity)))
-            return New(data, **meta)
-        operator.__name__ = f'__{method.__name__}__'
-        operator.__doc__ = method.__doc__
-        operator.__text_signature__ = str(inspect.signature(method))
+            datavals = datafunc(*values, **kwargs)
+            metavals = metafunc(*operands, **kwargs)
+            if metavals is None:
+                return datavals
+            target = next(arg for arg in args if isinstance(arg, Quantity))
+            if mode == 'inplace':
+                utilities.setattrval(target, 'data', datavals)
+                for k, v in metavals:
+                    utilities.setattrval(target, k, v)
+                return target
+            return type(target)(datavals, **metavals)
+        operator.__name__ = f'__{datafunc.__name__}__'
+        operator.__doc__ = datafunc.__doc__
+        operator.__text_signature__ = str(inspect.signature(datafunc))
         return operator
+
+
+# Dev idea (not in use): pass methods for computing data and metadata to these functions instead of `Operators.implement`.
+def cast(data: typing.Type[T]):
+    """Implement a unary cast operator."""
+    def operator(q: Q) -> T:
+        return data(q.data)
+    return operator
+
+def arithmetic(data: typing.Callable[[A], T], meta):
+    """Implement a unary arithmetic operator."""
+    def operator(q: Q, **kwargs) -> Q:
+        return type(q)(data(q.data, **kwargs), **meta(q, **kwargs))
+    return operator
+
+def comparison(data: typing.Callable[[A, B], bool], check):
+    """Implement a binary comparison operator."""
+    def operator(q: Q, b: B) -> bool:
+        operands = [
+            i.data if isinstance(i, Quantity) else i
+            for i in (q, b)
+        ]
+        if check(q, b):
+            return data(*operands)
+    return operator
+
+def numeric(data: typing.Callable[[A, B], T], meta):
+    """Implement a binary numeric operator."""
+    def operator(q: Q, b: B, **kwargs) -> Q:
+        operands = [
+            i.data if isinstance(i, Quantity) else i
+            for i in (q, b)
+        ]
+        return type(q)(data(*operands, **kwargs), **meta(q, b, **kwargs))
+    return operator
 
 
 # interface = operations.Interface(Quantity, 'data', 'unit')
