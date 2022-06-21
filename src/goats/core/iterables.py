@@ -1230,12 +1230,17 @@ class whole(collections.abc.Collection, metaclass=NonStrIterable):
     numbers and strings equivalently to iterables of numbers and strings.
     """
 
-    def __init__(self, arg) -> None:
+    def __init__(
+        self,
+        arg: typing.Optional[typing.Union[T, typing.Iterable[T]]],
+    ) -> None:
         """Initialize a whole object from `arg`"""
         self.arg = self.parse(arg)
 
     @staticmethod
-    def parse(arg):
+    def parse(
+        arg: typing.Optional[typing.Union[T, typing.Iterable[T]]],
+    ) -> typing.List[T]:
         """Convert `arg` into a whole object.
 
         For most cases, this method will try to iterate over `arg`. If that
@@ -1254,9 +1259,9 @@ class whole(collections.abc.Collection, metaclass=NonStrIterable):
         except TypeError:
             return [arg]
         else:
-            return arg
+            return list(arg)
 
-    def __iter__(self) -> typing.Iterator[NonStrIterable]:
+    def __iter__(self) -> typing.Iterator[T]:
         return iter(self.arg)
 
     def __len__(self) -> int:
