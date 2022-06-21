@@ -357,7 +357,7 @@ class OperatorFactory(collections.abc.Mapping):
         self,
         __type: T,
         *parameters: str,
-        defaults: typing.Dict[str, typing.Callable]=None,
+        callables: typing.Dict[str, typing.Callable]=None,
     ) -> None:
         """
         Initialize this instance.
@@ -369,11 +369,14 @@ class OperatorFactory(collections.abc.Mapping):
         *parameters : string
             Zero or more strings representing the updatable attributes in each
             operand to these operations.
+        callable : dict
+            A mapping from string operation name to the default callable object
+            to use when computing attribute values.
         """
         self._type = __type
         self._parameters = list(iterables.unique(*parameters))
         # Use this instead of REFERENCE; maybe define an `aliased.NameMap`.
-        self.defaults = defaults or {}
+        self.callables = callables or {}
         self._checkable = None
         self._operations = None
 
@@ -428,7 +431,7 @@ class OperatorFactory(collections.abc.Mapping):
         if method and name not in self:
             return self._default(method)
         operation = self[name]
-        method = method or self.defaults.get(name)
+        method = method or self.callables.get(name)
         evaluate = operation.apply(method)
         def operator(*args, **kwargs):
             if name in self.checkable:
