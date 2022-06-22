@@ -307,19 +307,12 @@ class Operators:
         factory.register(*iterables.unique(*parameters))
         cls.metadata = factory
         operators = cls._collect('__operators__')
-        # Subclasses can declare which operators to implement by passing a list
-        # or tuple of string operator names or tuples of (name, callable) via
-        # `__operators__`.
         for operator in operators:
-            if isinstance(operator, tuple):
-                name, datafunc = operator
-                operation, mode = cls._parse_input(name)
-            elif isinstance(operator, str):
-                name = operator
-                operation, mode = cls._parse_input(name)
-                datafunc = cls._callables[operation]
-            else:
+            if not isinstance(operator, str):
                 raise TypeError(f"Invalid operator specification {operator!r}")
+            name = operator
+            operation, mode = cls._parse_input(name)
+            datafunc = cls._callables[operation]
             metafunc = factory.implement(operation)
             setattr(cls, name, cls.implement(datafunc, metafunc, mode=mode))
 
@@ -332,7 +325,7 @@ class Operators:
         so that the order of the resultant list reflects the order of
         inheritance.
         """
-        ancestors = [c for c in cls.mro()[::-1] if issubclass(c, Quantity)]
+        ancestors = cls.mro()[::-1]
         return [
             name for c in ancestors
             for name in iterables.whole(getattr(c, __name, ()))
