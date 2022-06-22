@@ -275,6 +275,10 @@ class Operators:
         'abs': abs,
         'pos': standard.pos,
         'neg': standard.neg,
+        'ceil': math.ceil,
+        'floor': math.floor,
+        'trunc': math.trunc,
+        'round': round,
         'lt': standard.lt,
         'le': standard.le,
         'gt': standard.gt,
@@ -287,7 +291,7 @@ class Operators:
     }
     _metadata = {
         **_callables,
-        **{k: None for k in ('lt', 'le', 'gt', 'ge')},
+        **{k: None for k in ('int', 'float', 'lt', 'le', 'gt', 'ge')},
     }
 
     def __init_subclass__(cls, **kwargs) -> None:
