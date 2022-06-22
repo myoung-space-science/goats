@@ -382,7 +382,7 @@ class Mapping(collections.abc.Mapping):
     @classmethod
     def fromkeys(
         cls,
-        mapping: typing.Mapping[str, typing.Mapping[str, typing.Any]],
+        __iterable: typing.Iterable,
         aliases: str='aliases',
         value: typing.Any=None,
     ): # How do I annotate this so it's correct for subclasses?
@@ -390,11 +390,14 @@ class Mapping(collections.abc.Mapping):
 
         Parameters
         ----------
-        user : mapping
-            Same as for `~aliases.Mapping.__init__`.
+        __iterable
+            A mapping capable of initializing `~aliases.Mapping`, an iterable
+            capable of initializing `~aliases.KeyMap`, or an instance of
+            `~aliases.KeyMap`.
 
         aliases : string
-            Same as for `~aliases.Mapping.__init__`.
+            Same as for `~aliases.Mapping.__init__`. Ignored of `__iterable` is
+            a `~aliased.KeyMap` or a non-mapping iterable.
 
         value : any
             The fill value to use for all items.
@@ -413,12 +416,25 @@ class Mapping(collections.abc.Mapping):
         >>> mapping = {
         ...     'a': {'aliases': ('A', 'a0'), 'n': 1, 'm': 'foo'},
         ...     'b': {'aliases': 'B', 'n': -4},
+        ...     'c': {'n': 42},
         ... }
         >>> amap = aliased.Mapping.fromkeys(mapping, value=-1.0)
         >>> amap
-        aliased.Mapping('a0 | a | A': -1.0, 'B | b': -1.0)
+        aliased.Mapping('a0 | a | A': -1.0, 'B | b': -1.0, 'c': -1.0)
+        >>> keys = [('a', 'A', 'a0'), ('B', 'b'), 'c']
+        >>> amap = aliased.Mapping.fromkeys(keys, value=-1.0)
+        >>> amap
+        aliased.Mapping('a0 | a | A': -1.0, 'B | b': -1.0, 'c': -1.0)
+        >>> keys = aliased.KeyMap(*keys)
+        >>> amap = aliased.Mapping.fromkeys(keys, value=-1.0)
+        >>> amap
+        aliased.Mapping('a0 | a | A': -1.0, 'B | b': -1.0, 'c': -1.0)
         """
-        keys = cls.extract_keys(mapping, aliases=aliases)
+        if (
+            isinstance(__iterable, KeyMap)
+            or not isinstance(__iterable, typing.Mapping)
+        ): return cls({k: value for k in __iterable})
+        keys = cls.extract_keys(__iterable, aliases=aliases)
         d = {k: value for k in keys}
         return cls(d)
 

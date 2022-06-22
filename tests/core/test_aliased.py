@@ -302,6 +302,12 @@ def test_mapping_fromkeys():
         'D': None,
     }
     assert mapping.flat == expected
+    keys = aliased.KeyMap(('a', 'A', 'a0'), ('b', 'B'), ('c', 'C'), 'D')
+    mapping = aliased.Mapping.fromkeys(keys)
+    assert mapping.flat == expected
+    keys = [('a', 'A', 'a0'), ('b', 'B'), ('c', 'C'), 'D']
+    mapping = aliased.Mapping.fromkeys(keys)
+    assert mapping.flat == expected
     mapping = aliased.Mapping.fromkeys(this, aliases='aliases', value=-4.5)
     expected = {
         'a': -4.5,
