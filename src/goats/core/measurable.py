@@ -420,7 +420,8 @@ class Operators:
             return type(target)(datavals, **metavals)
         operator.__name__ = f'__{datafunc.__name__}__'
         operator.__doc__ = datafunc.__doc__
-        operator.__text_signature__ = str(inspect.signature(datafunc))
+        if callable(datafunc) and not isinstance(datafunc, type):
+            operator.__text_signature__ = str(inspect.signature(datafunc))
         return operator
 
 

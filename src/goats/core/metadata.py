@@ -312,7 +312,7 @@ class Operation(typing.Generic[T], iterables.ReprStrMixin):
             }
         operator.__name__ = self.name or f'__{method.__name__}__'
         operator.__doc__ = method.__doc__
-        if callable(method):
+        if callable(method) and not isinstance(method, type):
             operator.__text_signature__ = str(inspect.signature(method))
         return operator
 
@@ -439,7 +439,7 @@ class OperatorFactory(collections.abc.Mapping):
             return evaluate(*args, **kwargs)
         operator.__name__ = name
         operator.__doc__ = method.__doc__
-        if callable(method):
+        if callable(method) and not isinstance(method, type):
             operator.__text_signature__ = str(inspect.signature(method))
         return operator
 
