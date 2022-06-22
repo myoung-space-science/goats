@@ -267,7 +267,29 @@ def binary(method: typing.Callable):
 
 
 class Operators:
-    """A mixin class to provide operators for measurable quantities."""
+    """A mixin class that defines operators for quantifiable objects.
+
+    This class implements the `~algebraic.Quantity` operators with the following
+    rules:
+        - unary `-`, `+`, and `abs` on an instance
+        - binary `+` and `-` between two instances with an identical metric
+        - binary `*` and `/` between two instances
+        - symmetric binary `*` between an instance and a number
+        - right-sided `/` and `**` between an instance and a number
+
+    Notes on allowed binary arithmetic operations:
+        - This class does not support floor division (`//`) in any form because
+          of the ambiguity it would create with `~metric.Unit` floor division.
+        - This class does not support floating-point division (`/`) in which the
+          left operand is not the same type or a subtype. The reason for this
+          choice is that the result may be ambiguous. For example, suppose we
+          have an instance called ``d`` with values ``[10.0, 20.0]`` and unit
+          ``cm``. Whereas the result of ``d / 2.0`` should clearly be a new
+          instance with values ``[5.0, 10.0]`` and the same unit, it is unclear
+          whether the values of ``2.0 / d`` should be element-wise ratios (i.e.,
+          ``[0.2, 0.1]``) or a single value (e.g., ``2.0 / ||d||``) and it is
+          not at all obvious what the unit or dimensions should be.
+    """
 
     _callables = {
         'int': int,
@@ -298,12 +320,6 @@ class Operators:
         """Define operators on a subclass of `~measurable.Quantity`."""
         super().__init_subclass__(**kwargs)
         factory = metadata.OperatorFactory(cls, callables=cls._metadata)
-        # TODO: How do we allow subclasses to distinguish between operations
-        # that need to check consistency before computing metadata (e.g., add)
-        # from those that only need to check consistency (e.g., lt)? We
-        # previously used a callable of `None` in `metadata.REFERENCE` to
-        # identify the latter type of operation but have since moved away from
-        # using that reference object to provide callables.
         factory.check('lt', 'le', 'gt', 'ge', 'add', 'sub')
         factory['true divide'].suppress(Real, Quantity)
         factory['power'].suppress(Quantity, Quantity)
@@ -462,47 +478,6 @@ def numeric(data: typing.Callable[[A, B], T], meta):
         ]
         return type(q)(data(*operands, **kwargs), **meta(q, b, **kwargs))
     return operator
-
-
-# interface = operations.Interface(Quantity, 'data', 'unit')
-# rules = {
-#     'numeric': [
-#         (Quantity, Quantity),
-#         (Quantity, Real),
-#         (Real, Quantity),
-#     ]
-# }
-# interface['numeric'].types.add(*rules['numeric'])
-# interface['__rtruediv__'].types.discard(Real, Quantity)
-# interface['__rpow__'].types.discard(Real, Quantity)
-# interface['__pow__'].types.discard(Quantity, Quantity)
-# QuantityMixin = interface.subclass(
-#     'QuantityMixin',
-#     exclude=['cast', '__round__', '__ceil__', '__floor__', '__trunc__']
-# )
-"""A mixin class that defines operators for quantifiable objects.
-
-This class implements the `~algebraic.Quantity` operators with the following
-rules:
-    - unary `-`, `+`, and `abs` on an instance
-    - binary `+` and `-` between two instances with an identical metric
-    - binary `*` and `/` between two instances
-    - symmetric binary `*` between an instance and a number
-    - right-sided `/` and `**` between an instance and a number
-
-Notes on allowed binary arithmetic operations:
-    - This class does not support floor division (`//`) in any form because
-        of the ambiguity it would create with `~metric.Unit` floor division.
-    - This class does not support floating-point division (`/`) in which the
-        left operand is not the same type or a subtype. The reason for this
-        choice is that the result may be ambiguous. For example, suppose we
-        have an instance called ``d`` with values ``[10.0, 20.0]`` and unit
-        ``cm``. Whereas the result of ``d / 2.0`` should clearly be a new
-        instance with values ``[5.0, 10.0]`` and the same unit, it is unclear
-        whether the values of ``2.0 / d`` should be element-wise ratios (i.e.,
-        ``[0.2, 0.1]``) or a single value (e.g., ``2.0 / ||d||``) and it is
-        not at all obvious what the unit or dimensions should be.
-"""
 
 
 class Subtype(typing.Generic[T]):
