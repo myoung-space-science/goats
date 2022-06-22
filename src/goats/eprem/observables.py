@@ -394,7 +394,7 @@ class Observables(iterables.MappingBase):
         self.names = self.primary + self.derived
         super().__init__(self.names)
         akeys = tuple(vkeys(aliased=True)) + tuple(fkeys(aliased=True))
-        self.aliases = aliased.KeyMap(akeys)
+        self.aliases = aliased.KeyMap(*akeys)
         self.dataset = dataset
         self.arguments = arguments
         self._cache = {}

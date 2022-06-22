@@ -134,6 +134,6 @@ _METADATA = {
 }
 
 
-ALIASES = aliased.KeyMap(_METADATA.keys())
+ALIASES = aliased.KeyMap(*_METADATA.keys())
 METADATA = aliased.Mapping(_METADATA)
 

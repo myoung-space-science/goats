@@ -803,15 +803,15 @@ class NameMap(iterables.MappingBase):
 class KeyMap(iterables.MappingBase):
     """A collection that associates common aliases."""
 
-    def __init__(self, __keys: typing.Iterable[Aliases]) -> None:
+    def __init__(self, *keys: Aliases) -> None:
         """
         Parameters
         ----------
-        __keys : iterable
+        keys
             An iterable collection of associated keys. Each key may be a string
             or an iterable of strings (including instances of `~MappingKey`).
         """
-        self._aliased = [MappingKey(key) for key in __keys]
+        self._aliased = [MappingKey(key) for key in keys]
         self._flat = [key for alias in self._aliased for key in alias]
         super().__init__(self._flat)
 

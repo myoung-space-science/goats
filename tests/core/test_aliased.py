@@ -23,7 +23,7 @@ def test_key():
 def test_keymap():
     """Test the collection that groups aliases."""
     original = [('a', 'A'), 'b', ['c', 'C']]
-    converted = aliased.KeyMap(original)
+    converted = aliased.KeyMap(*original)
     assert converted['a'] == aliased.MappingKey('a', 'A')
     assert converted['A'] == aliased.MappingKey('a', 'A')
     assert converted['b'] == aliased.MappingKey('b')
