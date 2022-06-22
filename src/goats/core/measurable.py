@@ -283,11 +283,21 @@ class Operators:
         'truediv': standard.truediv,
         'pow': pow,
     }
+    _metadata = {
+        **_callables,
+        **{k: None for k in ('lt', 'le', 'gt', 'ge')},
+    }
 
     def __init_subclass__(cls, **kwargs) -> None:
         """Define operators on a subclass of `~measurable.Quantity`."""
         super().__init_subclass__(**kwargs)
-        factory = metadata.OperatorFactory(cls, callables=cls._callables)
+        factory = metadata.OperatorFactory(cls, callables=cls._metadata)
+        # TODO: How do we allow subclasses to distinguish between operations
+        # that need to check consistency before computing metadata (e.g., add)
+        # from those that only need to check consistency (e.g., lt)? We
+        # previously used a callable of `None` in `metadata.REFERENCE` to
+        # identify the latter type of operation but have since moved away from
+        # using that reference object to provide callables.
         factory.check('lt', 'le', 'gt', 'ge', 'add', 'sub')
         factory['true divide'].suppress(Real, Quantity)
         factory['power'].suppress(Quantity, Quantity)
