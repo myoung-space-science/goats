@@ -287,7 +287,8 @@ def test_mapping_fromkeys():
     this = {
         'a': {'aliases': ('A', 'a0'), 'name': 'Annabez', 'k': ['Ka']},
         'b': {'aliases': 'B', 'name': 'Borb', 'k': ('Kb', 'KB')},
-        'C': {'aliases': ('c',), 'name': 'Chrunk'}
+        'C': {'aliases': ('c',), 'name': 'Chrunk'},
+        'D': {'name': 'Dilk'},
     }
     mapping = aliased.Mapping.fromkeys(this, aliases='aliases', value=None)
     expected = {
@@ -298,6 +299,7 @@ def test_mapping_fromkeys():
         'B': None,
         'C': None,
         'c': None,
+        'D': None,
     }
     assert mapping.flat == expected
     mapping = aliased.Mapping.fromkeys(this, aliases='aliases', value=-4.5)
@@ -309,6 +311,7 @@ def test_mapping_fromkeys():
         'B': -4.5,
         'C': -4.5,
         'c': -4.5,
+        'D': -4.5,
     }
     assert mapping.flat == expected
 
