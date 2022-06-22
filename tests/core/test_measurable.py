@@ -10,8 +10,20 @@ from goats.core import operations
 
 
 interface = operations.Interface(measurable.Quantifiable, '_amount', '_metric')
-Quantified = interface.subclass('Quantified')
-"""A concrete version of `~measurable.Quantifiable` for testing."""
+
+
+class Quantified(measurable.Operators, measurable.Quantifiable):
+    """A concrete version of `~measurable.Quantifiable` for testing."""
+
+    __operators__ = [
+        '__abs__', '__pos__', '__neg__',
+        '__lt__', '__le__', '__gt__', '__ge__',
+        '__add__', '__radd__',
+        '__sub__', '__rsub__',
+        '__mul__', '__rmul__',
+        '__truediv__', '__rtruediv__',
+        '__pow__', '__rpow__',
+    ]
 
 
 class Quantity(measurable.Operators, measurable.Quantity):
@@ -28,8 +40,13 @@ class Quantity(measurable.Operators, measurable.Quantity):
     ]
 
 
-Scalar = interface.subclass('Scalar')
-"""A concrete scalar quantity for testing."""
+class Scalar(Quantity):
+    """A concrete scalar quantity for testing."""
+
+    __operators__ = [
+        '__int__', '__float__',
+        '__ceil__', '__floor__', '__round__', '__trunc__',
+    ]
 
 
 @pytest.mark.quantity
