@@ -347,7 +347,7 @@ class Operators:
             if token == 'i':
                 return name, 'inplace'
             return name, 'forward'
-        raise ValueError(f"Unknown operator {name!r}")
+        raise ValueError(f"Unknown operator {user!r}")
 
     @typing.overload
     @classmethod
