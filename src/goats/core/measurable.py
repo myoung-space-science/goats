@@ -283,16 +283,21 @@ class Subtype(typing.Generic[T]):
 Q = typing.TypeVar('Q', bound=Quantity)
 
 
-class Operation:
+class Operation(abc.ABC):
     """A general operation on measurable quantities."""
 
-    def __init__(self, __callable: typing.Callable) -> None:
+    def __init__(self, __callable: typing.Callable[..., T]) -> None:
         self.callable = __callable
 
     @property
     def name(self):
         """The name of this operation."""
         return self.callable.__name__
+
+    @property
+    def method(self):
+        """The name of this operation's equivalent operator."""
+        return f'__{self.name}__'
 
     @property
     def doc(self):
@@ -307,72 +312,107 @@ class Operation:
         except ValueError:
             return None
 
+    @abc.abstractmethod
+    def evaluate(self, *args, **kwargs):
+        """Apply this operation's callable to these arguments."""
+        raise NotImplementedError
+
+    def implements(self, *args):
+        """True if the argument(s) implement(s) this operation."""
+        return self.method in getattr(args[0], '__measurable_operators__', ())
+
+    def document(self, operator: typing.Callable):
+        """Add documentation attributes to `operator`."""
+        operator.__name__ = f'__{self.name}__'
+        operator.__doc__ = self.doc
+        return operator
+
+
+class Default(Operation):
+    """The default operation."""
+
     def evaluate(self, *args, **kwargs):
         """Apply this operation's callable to these arguments."""
         return self.callable(*args, **kwargs)
 
 
-def cast(operation: Operation):
-    """Implement a unary cast operator."""
-    name = f'__{operation.name}__'
-    def operator(q: Q) -> T:
-        if not name in getattr(q, '__measurable_operators__', ()):
-            return NotImplemented
-        return operation.evaluate(q.data)
-    operator.__name__ = name
-    operator.__doc__ = operation.doc
-    operator.__text_signature__ = '(x, /)'
-    return operator
+class Cast(Operation):
+    """A unary type-case operation."""
+
+    def __init__(self, __callable: typing.Type[T]) -> None:
+        super().__init__(__callable)
+
+    def evaluate(self, q: Q):
+        return self.callable(q.data)
+
+    @property
+    def signature(self):
+        """The functional signature of this operation."""
+        return super().signature or '(x, /)'
 
 
-def arithmetic(operation: Operation):
-    """Implement a unary arithmetic operator."""
-    name = f'__{operation.name}__'
-    def operator(q: Q, **kwargs) -> Q:
-        if not name in getattr(q, '__measurable_operators__', ()):
-            return NotImplemented
-        data = operation.evaluate(q.data, **kwargs)
-        meta = q.metadata.implement(operation.name)(q, **kwargs)
+class Arithmetic(Operation):
+    """A unary arithmetic operation."""
+
+    def evaluate(self, q: Q, **kwargs):
+        data = self.callable(q.data, **kwargs)
+        meta = q.metadata.implement(self.name)(q, **kwargs)
         return type(q)(data, **meta)
-    operator.__name__ = name
-    operator.__doc__ = operation.doc
-    operator.__text_signature__ = operation.signature
-    return operator
 
 
-def comparison(operation: Operation):
-    """Implement a binary comparison operator."""
-    name = f'__{operation.name}__'
-    def operator(q0: Q, q1: typing.Union[Q, typing.Any]) -> bool:
-        if not name in getattr(q0, '__measurable_operators__', ()):
-            return NotImplemented
+class Comparison(Operation):
+    """A binary comparison operation."""
+
+    def evaluate(self, q0: Q, q1: typing.Union[Q, typing.Any]):
         operands = [i.data if isinstance(i, Quantity) else i for i in (q0, q1)]
         q0.metadata.constrain(q0, q1)
-        return operation.evaluate(*operands)
-    operator.__name__ = name
-    operator.__doc__ = operation.doc
-    operator.__text_signature__ = operation.signature
-    return operator
+        return self.callable(*operands)
 
 
-def numeric(operation: Operation, mode: str='forward'):
-    """Implement a binary numeric operator."""
-    m = 'r' if mode == 'reverse' else 'i' if mode == 'inplace' else ''
-    name = f'__{m}{operation.name}__'
-    def operator(q0: Q, q1: typing.Union[Q, typing.Any], **kwargs) -> Q:
-        if not name in getattr(q0, '__measurable_operators__', ()):
-            return NotImplemented
-        args = (q1, q0) if mode == 'reverse' else (q0, q1)
+class Numeric(Operation):
+    """A binary numeric operation."""
+
+    def __init__(
+        self,
+        __callable: typing.Callable[..., T],
+        mode: str='forward',
+    ) -> None:
+        super().__init__(__callable)
+        self.mode = mode
+
+    @property
+    def method(self):
+        """The name of this operation's equivalent operator."""
+        m = (
+            'r' if self.mode == 'reverse'
+            else 'i' if self.mode == 'inplace'
+            else ''
+        )
+        return f'__{m}{self.name}__'
+
+    def evaluate(self, q0: Q, q1: typing.Union[Q, typing.Any], **kwargs):
+        args = (q1, q0) if self.mode == 'reverse' else (q0, q1)
         operands = [i.data if isinstance(i, Quantity) else i for i in args]
-        data = operation.evaluate(*operands, **kwargs)
-        meta = q0.metadata.implement(operation.name)(*args, **kwargs)
-        if mode == 'inplace':
+        data = self.callable(*operands, **kwargs)
+        meta = q0.metadata.implement(self.name)(*args, **kwargs)
+        if self.mode == 'inplace':
             utilities.setattrval(q0, 'data', data)
             for k, v in meta:
                 utilities.setattrval(q0, k, v)
             return q0
         return type(q0)(data, **meta)
-    operator.__name__ = name
+
+
+O = typing.TypeVar('O', bound=Operation)
+
+
+def implement(operation: O):
+    """Define an arbitrary operator."""
+    def operator(*args: typing.Union[Q, typing.Any], **kwargs):
+        if not operation.implements(*args):
+            return NotImplemented
+        return operation.evaluate(*args, **kwargs)
+    operator.__name__ = operation.method
     operator.__doc__ = operation.doc
     operator.__text_signature__ = operation.signature
     return operator
@@ -415,34 +455,34 @@ class OperatorMixin:
     a subclass will cause `~measurable.OperatorMixin` to implement those
     operators.
     """
-    __int__ = cast(Operation(int))
-    __float__ = cast(Operation(float))
-    __abs__ = arithmetic(Operation(abs))
-    __pos__ = arithmetic(Operation(standard.pos))
-    __neg__ = arithmetic(Operation(standard.neg))
-    __round__ = arithmetic(Operation(round))
-    __ceil__ = arithmetic(Operation(math.ceil))
-    __floor__ = arithmetic(Operation(math.floor))
-    __trunc__ = arithmetic(Operation(math.trunc))
-    __lt__ = comparison(Operation(standard.lt))
-    __le__ = comparison(Operation(standard.le))
-    __gt__ = comparison(Operation(standard.gt))
-    __ge__ = comparison(Operation(standard.ge))
-    __add__ = numeric(Operation(standard.add))
-    __radd__ = numeric(Operation(standard.add), mode='reverse')
-    __iadd__ = numeric(Operation(standard.add), mode='inplace')
-    __sub__ = numeric(Operation(standard.sub))
-    __rsub__ = numeric(Operation(standard.sub), mode='reverse')
-    __isub__ = numeric(Operation(standard.sub), mode='inplace')
-    __mul__ = numeric(Operation(standard.mul))
-    __rmul__ = numeric(Operation(standard.mul), mode='reverse')
-    __imul__ = numeric(Operation(standard.mul), mode='inplace')
-    __truediv__ = numeric(Operation(standard.truediv))
-    __rtruediv__ = numeric(Operation(standard.truediv), mode='reverse')
-    __itruediv__ = numeric(Operation(standard.truediv), mode='inplace')
-    __pow__ = numeric(Operation(standard.pow))
-    __rpow__ = numeric(Operation(standard.pow), mode='reverse')
-    __ipow__ = numeric(Operation(standard.pow), mode='inplace')
+    __int__ = implement(Cast(int))
+    __float__ = implement(Cast(float))
+    __abs__ = implement(Arithmetic(abs))
+    __pos__ = implement(Arithmetic(standard.pos))
+    __neg__ = implement(Arithmetic(standard.neg))
+    __round__ = implement(Arithmetic(round))
+    __ceil__ = implement(Arithmetic(math.ceil))
+    __floor__ = implement(Arithmetic(math.floor))
+    __trunc__ = implement(Arithmetic(math.trunc))
+    __lt__ = implement(Comparison(standard.lt))
+    __le__ = implement(Comparison(standard.le))
+    __gt__ = implement(Comparison(standard.gt))
+    __ge__ = implement(Comparison(standard.ge))
+    __add__ = implement(Numeric(standard.add))
+    __radd__ = implement(Numeric(standard.add, mode='reverse'))
+    __iadd__ = implement(Numeric(standard.add, mode='inplace'))
+    __sub__ = implement(Numeric(standard.sub))
+    __rsub__ = implement(Numeric(standard.sub, mode='reverse'))
+    __isub__ = implement(Numeric(standard.sub, mode='inplace'))
+    __mul__ = implement(Numeric(standard.mul))
+    __rmul__ = implement(Numeric(standard.mul, mode='reverse'))
+    __imul__ = implement(Numeric(standard.mul, mode='inplace'))
+    __truediv__ = implement(Numeric(standard.truediv))
+    __rtruediv__ = implement(Numeric(standard.truediv, mode='reverse'))
+    __itruediv__ = implement(Numeric(standard.truediv, mode='inplace'))
+    __pow__ = implement(Numeric(standard.pow))
+    __rpow__ = implement(Numeric(standard.pow, mode='reverse'))
+    __ipow__ = implement(Numeric(standard.pow, mode='inplace'))
 
 
 class Scalar(Quantity):
