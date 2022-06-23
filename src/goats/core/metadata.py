@@ -435,7 +435,7 @@ class OperatorFactory(collections.abc.Mapping):
         evaluate = operation.apply(method)
         def operator(*args, **kwargs):
             if name in self.checkable:
-                self.consistent(*args)
+                self.constrain(*args)
             return evaluate(*args, **kwargs)
         operator.__name__ = name
         operator.__doc__ = method.__doc__
@@ -443,11 +443,20 @@ class OperatorFactory(collections.abc.Mapping):
             operator.__text_signature__ = str(inspect.signature(method))
         return operator
 
-    def consistent(self, *args):
+    def constrain(self, *args):
         """Ensure that all arguments have consistent metadata values."""
         for p in self.parameters:
             if not consistent(p, *args):
                 raise ValueError(f"Inconsistent metadata for {p!r}")
+
+    def consistent(self, *args):
+        """True if all arguments have consistent metadata values."""
+        try:
+            self.constrain(*args)
+        except ValueError:
+            return False
+        else:
+            return True
 
     def _default(self, method: typing.Callable):
         """Apply `method` to the default implementation."""
@@ -503,6 +512,8 @@ class OperatorFactory(collections.abc.Mapping):
         return self._operations
 
 
+# TODO: Move this logic to `measurable` for `Quantity`, and a function decorated
+# by `Variable.implements` in `datatypes`.
 def sqrt(a):
     """Square-root implementation for metadata."""
     try:
