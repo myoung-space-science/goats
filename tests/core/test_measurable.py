@@ -6,16 +6,12 @@ import pytest
 from goats.core import measurable
 from goats.core import metric
 from goats.core import metadata
-from goats.core import operations
 
 
-interface = operations.Interface(measurable.Quantifiable, '_amount', '_metric')
-
-
-class Quantified(measurable.Operators, measurable.Quantifiable):
+class Quantified(measurable.OperatorMixin, measurable.Quantifiable):
     """A concrete version of `~measurable.Quantifiable` for testing."""
 
-    __operators__ = [
+    __measurable_operators__ = [
         '__abs__', '__pos__', '__neg__',
         '__lt__', '__le__', '__gt__', '__ge__',
         '__add__', '__radd__',
@@ -26,10 +22,10 @@ class Quantified(measurable.Operators, measurable.Quantifiable):
     ]
 
 
-class Quantity(measurable.Operators, measurable.Quantity):
+class Quantity(measurable.OperatorMixin, measurable.Quantity):
     """A concrete measurable quantity for testing."""
 
-    __operators__ = [
+    __measurable_operators__ = [
         '__abs__', '__pos__', '__neg__',
         '__lt__', '__le__', '__gt__', '__ge__',
         '__add__', '__radd__',
@@ -43,7 +39,7 @@ class Quantity(measurable.Operators, measurable.Quantity):
 class Scalar(Quantity):
     """A concrete scalar quantity for testing."""
 
-    __operators__ = [
+    __measurable_operators__ = [
         '__int__', '__float__',
         '__ceil__', '__floor__', '__round__', '__trunc__',
     ]

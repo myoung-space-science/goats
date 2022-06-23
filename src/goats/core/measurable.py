@@ -157,6 +157,47 @@ class Quantity(Quantifiable):
 
     __metadata__: typing.ClassVar = 'unit'
 
+    _callables = {
+        'int': None,
+        'float': None,
+        'abs': abs,
+        'pos': standard.pos,
+        'neg': standard.neg,
+        'ceil': math.ceil,
+        'floor': math.floor,
+        'trunc': math.trunc,
+        'round': round,
+        'lt': None,
+        'le': None,
+        'gt': None,
+        'ge': None,
+        'add': standard.add,
+        'sub': standard.sub,
+        'mul': standard.mul,
+        'truediv': standard.truediv,
+        'pow': pow,
+    }
+
+    def __init_subclass__(cls) -> None:
+        """Support metadata operations on a measurable quantity."""
+        super().__init_subclass__()
+        # Consider creating an `operations.OperatorFactory` that takes a dict of
+        # callables, then subclassing `metadata.OperatorFactory` in such a way
+        # that it passes standard callables to `operations.OperatorFactory`.
+        factory = metadata.OperatorFactory(cls, callables=cls._callables)
+        factory.check('lt', 'le', 'gt', 'ge', 'add', 'sub')
+        factory['true divide'].suppress(Real, Quantity)
+        factory['power'].suppress(Quantity, Quantity)
+        factory['power'].suppress(Real, Quantity)
+        factory['power'].suppress(Quantity, typing.Iterable, symmetric=True)
+        ancestors = cls.mro()[::-1]
+        parameters = [
+            name for c in ancestors
+            for name in iterables.whole(getattr(c, '__metadata__', ()))
+        ]
+        factory.register(*iterables.unique(*parameters))
+        cls.metadata = factory
+
     @typing.overload
     def __init__(
         self: Instance,
@@ -233,38 +274,117 @@ class Quantity(Quantifiable):
 
 
 T = typing.TypeVar('T')
-A = typing.TypeVar('A')
-B = typing.TypeVar('B')
+
+
+class Subtype(typing.Generic[T]):
+    """Generic type to indicate a subclass in type hints."""
 
 
 Q = typing.TypeVar('Q', bound=Quantity)
 
 
-def unary(method: typing.Callable):
-    """Implement a unary operator from `method`."""
-    def operator(q: Quantity, **kwargs):
-        return method(q, **kwargs)
-    operator.__name__ = f'__{method.__name__}__'
-    operator.__doc__ = method.__doc__
-    operator.__text_signature__ = str(inspect.signature(method))
+class Operation:
+    """A general operation on measurable quantities."""
+
+    def __init__(self, __callable: typing.Callable) -> None:
+        self.callable = __callable
+
+    @property
+    def name(self):
+        """The name of this operation."""
+        return self.callable.__name__
+
+    @property
+    def doc(self):
+        """The description of this operation."""
+        return self.callable.__doc__
+
+    @property
+    def signature(self):
+        """The functional signature of this operation."""
+        try:
+            return str(inspect.signature(self.callable))
+        except ValueError:
+            return None
+
+    def evaluate(self, *args, **kwargs):
+        """Apply this operation's callable to these arguments."""
+        return self.callable(*args, **kwargs)
+
+
+def cast(operation: Operation):
+    """Implement a unary cast operator."""
+    name = f'__{operation.name}__'
+    def operator(q: Q) -> T:
+        if not name in getattr(q, '__measurable_operators__', ()):
+            return NotImplemented
+        return operation.evaluate(q.data)
+    operator.__name__ = name
+    operator.__doc__ = operation.doc
+    operator.__text_signature__ = '(x, /)'
     return operator
 
 
-def binary(method: typing.Callable):
-    """Implement a binary operator from `method`."""
-    def operator(q: Quantity, b: B, **kwargs):
-        return (
-            method(q.data, b.data, **kwargs) if isinstance(b, Quantity)
-            else method(q.data, b, **kwargs)
-        )
-    operator.__name__ = f'__{method.__name__}__'
-    operator.__doc__ = method.__doc__
-    operator.__text_signature__ = str(inspect.signature(method))
+def arithmetic(operation: Operation):
+    """Implement a unary arithmetic operator."""
+    name = f'__{operation.name}__'
+    def operator(q: Q, **kwargs) -> Q:
+        if not name in getattr(q, '__measurable_operators__', ()):
+            return NotImplemented
+        data = operation.evaluate(q.data, **kwargs)
+        meta = q.metadata.implement(operation.name)(q, **kwargs)
+        return type(q)(data, **meta)
+    operator.__name__ = name
+    operator.__doc__ = operation.doc
+    operator.__text_signature__ = operation.signature
     return operator
 
 
-class Operators:
-    """A mixin class that defines operators for quantifiable objects.
+def comparison(operation: Operation):
+    """Implement a binary comparison operator."""
+    name = f'__{operation.name}__'
+    def operator(q0: Q, q1: typing.Union[Q, typing.Any]) -> bool:
+        if not name in getattr(q0, '__measurable_operators__', ()):
+            return NotImplemented
+        operands = [i.data if isinstance(i, Quantity) else i for i in (q0, q1)]
+        q0.metadata.constrain(q0, q1)
+        return operation.evaluate(*operands)
+    operator.__name__ = name
+    operator.__doc__ = operation.doc
+    operator.__text_signature__ = operation.signature
+    return operator
+
+
+def numeric(operation: Operation, mode: str='forward'):
+    """Implement a binary numeric operator."""
+    m = 'r' if mode == 'reverse' else 'i' if mode == 'inplace' else ''
+    name = f'__{m}{operation.name}__'
+    def operator(q0: Q, q1: typing.Union[Q, typing.Any], **kwargs) -> Q:
+        if not name in getattr(q0, '__measurable_operators__', ()):
+            return NotImplemented
+        args = (q1, q0) if mode == 'reverse' else (q0, q1)
+        operands = [i.data if isinstance(i, Quantity) else i for i in args]
+        data = operation.evaluate(*operands, **kwargs)
+        meta = q0.metadata.implement(operation.name)(*args, **kwargs)
+        if mode == 'inplace':
+            utilities.setattrval(q0, 'data', data)
+            for k, v in meta:
+                utilities.setattrval(q0, k, v)
+            return q0
+        return type(q0)(data, **meta)
+    operator.__name__ = name
+    operator.__doc__ = operation.doc
+    operator.__text_signature__ = operation.signature
+    return operator
+
+
+# OperatorMixin notes:
+# - Concrete subclasses need to overload abstract operators.
+# - Want to provide a flexible mixin option.
+# - Mixin option can't shadow downstream mixins (e.g., numpy).
+# - Mixin option needs to know which metadata attributes to update.
+class OperatorMixin:
+    """A mixin class that defines operators for measurable quantities.
 
     This class implements the `~algebraic.Quantity` operators with the following
     rules:
@@ -288,279 +408,41 @@ class Operators:
           not at all obvious what the unit or dimensions should be.
     """
 
-    _callables = {
-        'int': int,
-        'float': float,
-        'abs': abs,
-        'pos': standard.pos,
-        'neg': standard.neg,
-        'ceil': math.ceil,
-        'floor': math.floor,
-        'trunc': math.trunc,
-        'round': round,
-        'lt': standard.lt,
-        'le': standard.le,
-        'gt': standard.gt,
-        'ge': standard.ge,
-        'add': standard.add,
-        'sub': standard.sub,
-        'mul': standard.mul,
-        'truediv': standard.truediv,
-        'pow': pow,
-    }
-    _metadata = {
-        **_callables,
-        **{k: None for k in ('int', 'float', 'lt', 'le', 'gt', 'ge')},
-    }
-
-    def __init_subclass__(cls, **kwargs) -> None:
-        """Define operators on a subclass of `~measurable.Quantity`."""
-        super().__init_subclass__(**kwargs)
-        factory = metadata.OperatorFactory(cls, callables=cls._metadata)
-        factory.check('lt', 'le', 'gt', 'ge', 'add', 'sub')
-        factory['true divide'].suppress(Real, Quantity)
-        factory['power'].suppress(Quantity, Quantity)
-        factory['power'].suppress(Real, Quantity)
-        factory['power'].suppress(Quantity, typing.Iterable, symmetric=True)
-        parameters = cls._collect('__metadata__')
-        factory.register(*iterables.unique(*parameters))
-        cls.metadata = factory
-        operators = cls._collect('__operators__')
-        for operator in operators:
-            if not isinstance(operator, str):
-                raise TypeError(f"Invalid operator specification {operator!r}")
-            name = operator
-            operation, mode = cls._parse_input(name)
-            datafunc = cls._callables[operation]
-            metafunc = factory.implement(operation)
-            setattr(cls, name, cls.implement(datafunc, metafunc, mode=mode))
-
-    @classmethod
-    def _collect(cls, __name: str):
-        """Internal helper for collecting special class attributes.
-        
-        This method iteratively collects the values of a named class attribute,
-        starting from a base class and progressing through successive subclasses
-        so that the order of the resultant list reflects the order of
-        inheritance.
-        """
-        ancestors = cls.mro()[::-1]
-        return [
-            name for c in ancestors
-            for name in iterables.whole(getattr(c, __name, ()))
-        ]
-
-    @classmethod
-    def _parse_input(cls, user: str):
-        """Extract the operation name and mode from user input."""
-        if user in cls._callables:
-            return user, 'forward'
-        if (stripped := user.strip('__')) in cls._callables:
-            return stripped, 'forward'
-        if stripped[1:] in cls._callables:
-            token, name = stripped[0], stripped[1:]
-            if token == 'r':
-                return name, 'reverse'
-            if token == 'i':
-                return name, 'inplace'
-            return name, 'forward'
-        raise ValueError(f"Unknown operator {user!r}")
-
-    @typing.overload
-    @classmethod
-    def implement(
-        cls,
-        datafunc: typing.Callable[[Quantity], T],
-        metafunc: typing.Callable[[Quantity], None],
-    ) -> T: ...
-
-    @typing.overload
-    @classmethod
-    def implement(
-        cls,
-        datafunc: typing.Callable[[Quantity], T],
-        metafunc: typing.Callable[[Quantity], dict],
-    ) -> Quantity: ...
-
-    @typing.overload
-    @classmethod
-    def implement(
-        cls,
-        datafunc: typing.Callable[[typing.Any, typing.Any], T],
-        metafunc: typing.Callable[[Quantity, typing.Any], None],
-        *,
-        mode: str,
-    ) -> T: ...
-
-    @typing.overload
-    @classmethod
-    def implement(
-        cls,
-        datafunc: typing.Callable[[typing.Any, typing.Any], T],
-        metafunc: typing.Callable[[Quantity, typing.Any], dict],
-        *,
-        mode: typing.Union[
-            typing.Literal['forward'],
-            typing.Literal['inplace'],
-        ],
-    ) -> Quantity: ...
-
-    @typing.overload
-    @classmethod
-    def implement(
-        cls,
-        datafunc: typing.Callable[[typing.Any, typing.Any], T],
-        metafunc: typing.Callable[[typing.Any, Quantity], dict],
-        *,
-        mode: typing.Literal['reverse'],
-    ) -> Quantity: ...
-
-    @classmethod
-    def implement(cls, datafunc, metafunc, mode: str='forward'):
-        """Create an operator from the named operation."""
-        def operator(*args, **kwargs):
-            operands = args[::-1] if mode == 'reverse' else args
-            values = [
-                i.data if isinstance(i, Quantity) else i
-                for i in operands
-            ]
-            datavals = datafunc(*values, **kwargs)
-            metavals = metafunc(*operands, **kwargs)
-            if metavals is None:
-                return datavals
-            target = next(arg for arg in args if isinstance(arg, Quantity))
-            if mode == 'inplace':
-                utilities.setattrval(target, 'data', datavals)
-                for k, v in metavals:
-                    utilities.setattrval(target, k, v)
-                return target
-            return type(target)(datavals, **metavals)
-        operator.__name__ = f'__{datafunc.__name__}__'
-        operator.__doc__ = datafunc.__doc__
-        if callable(datafunc) and not isinstance(datafunc, type):
-            operator.__text_signature__ = str(inspect.signature(datafunc))
-        return operator
-
-
-# Dev idea (not in use): pass methods for computing data and metadata to these functions instead of `Operators.implement`.
-def cast(data: typing.Type[T]):
-    """Implement a unary cast operator."""
-    def operator(q: Q) -> T:
-        return data(q.data)
-    return operator
-
-def arithmetic(data: typing.Callable[[A], T], meta):
-    """Implement a unary arithmetic operator."""
-    def operator(q: Q, **kwargs) -> Q:
-        return type(q)(data(q.data, **kwargs), **meta(q, **kwargs))
-    return operator
-
-def comparison(data: typing.Callable[[A, B], bool], check):
-    """Implement a binary comparison operator."""
-    def operator(q: Q, b: B) -> bool:
-        operands = [
-            i.data if isinstance(i, Quantity) else i
-            for i in (q, b)
-        ]
-        if check(q, b):
-            return data(*operands)
-    return operator
-
-def numeric(data: typing.Callable[[A, B], T], meta):
-    """Implement a binary numeric operator."""
-    def operator(q: Q, b: B, **kwargs) -> Q:
-        operands = [
-            i.data if isinstance(i, Quantity) else i
-            for i in (q, b)
-        ]
-        return type(q)(data(*operands, **kwargs), **meta(q, b, **kwargs))
-    return operator
-
-
-class Subtype(typing.Generic[T]):
-    """Generic type to indicate a subclass in type hints."""
-
-
-Q = typing.TypeVar('Q', bound=Quantity)
-
-
-# def operators(
-#     __target: typing.Type[Q],
-#     *bases: typing.Type[T],
-#     include: typing.Iterable[str]=None,
-#     exclude: typing.Iterable[str]=None,
-# ) -> Subtype[Q]:
-#     """Create a mixin class of measurable operators."""
-
-#     # Notes:
-#     # - Consider defining a method on `metadata.OperatorFactory` that just
-#     #   checks attribute constency on the given operand(s). It wouldn't need to
-#     #   know the operation name or method.
-#     # - Consider defining a method on `metadata.Operation` that is equivalent to
-#     #   the definition of `operator` within
-#     #   `metadata.OperatorFactory.implement`. That would allow this function to
-#     #   use `q.metadata[<name>].apply(<arguments>)`.
-#     # - The functions below can be split into unary/binary for computing data
-#     #   and check/compute for handling metadata:
-#     #  - cast = unary + check
-#     #  - arithmetic = unary + compute
-#     #  - comparison = binary + check
-#     #  - numeric = binary + compute
-
-#     def unary(method, q: Q, **kwargs):
-#         """Apply a unary operator to arguments."""
-#         return method(q, **kwargs)
-
-#     def binary(method, q: Q, b: B, **kwargs):
-#         """Apply a binary operator to arguments."""
-#         return (
-#             method(q.data, b.data, **kwargs) if isinstance(b, Quantity)
-#             else method(q.data, b, **kwargs)
-#         )
-
-#     def cast(name: str, method: typing.Type[T]):
-#         """Implement a unary cast operator."""
-#         def operator(q: Q) -> T:
-#             data = method(q.data)
-#             q.metadata.implement(name)(q) # consistency check
-#             return data
-#         return operator
-
-#     def arithmetic(name: str, method: typing.Callable[[A], T]):
-#         """Implement a unary arithmetic operator."""
-#         def operator(q: Q, **kwargs) -> Q:
-#             data = method(q.data, **kwargs)
-#             meta = q.metadata.implement(name)(q, **kwargs)
-#             return type(q)(data, **meta)
-#         return operator
-
-#     def comparison(name: str, method: typing.Callable[[A, B], bool]):
-#         """Implement a binary comparison operator."""
-#         def operator(q: Q, b: B) -> bool:
-#             data = (
-#                 method(q.data, b.data) if isinstance(b, Quantity)
-#                 else method(q.data, b)
-#             )
-#             q.metadata.implement(name)(q, b) # consistency check
-#             return data
-#         return operator
-
-#     def numeric(name: str, method: typing.Callable[[A, B], T]):
-#         """Implement a binary numeric operator."""
-#         def operator(q: Q, b: B, **kwargs) -> Q:
-#             data = (
-#                 method(q.data, b.data, **kwargs) if isinstance(b, Quantity)
-#                 else method(q.data, b, **kwargs)
-#             )
-#             meta = q.metadata.implement(name)(q, b, **kwargs)
-#             return type(q)(data, **meta)
-#         return operator
-
-#     definitions = {
-#         '__int__': cast('int', int),
-#         '__float__': cast('float', float),
-#         '__abs__': arithmetic('abs', abs),
-#     }
+    __measurable_operators__ = None
+    """The operators that this mixin should implement.
+    
+    Assigning a list or tuple of operator names to `__measurable_operators__` on
+    a subclass will cause `~measurable.OperatorMixin` to implement those
+    operators.
+    """
+    __int__ = cast(Operation(int))
+    __float__ = cast(Operation(float))
+    __abs__ = arithmetic(Operation(abs))
+    __pos__ = arithmetic(Operation(standard.pos))
+    __neg__ = arithmetic(Operation(standard.neg))
+    __round__ = arithmetic(Operation(round))
+    __ceil__ = arithmetic(Operation(math.ceil))
+    __floor__ = arithmetic(Operation(math.floor))
+    __trunc__ = arithmetic(Operation(math.trunc))
+    __lt__ = comparison(Operation(standard.lt))
+    __le__ = comparison(Operation(standard.le))
+    __gt__ = comparison(Operation(standard.gt))
+    __ge__ = comparison(Operation(standard.ge))
+    __add__ = numeric(Operation(standard.add))
+    __radd__ = numeric(Operation(standard.add), mode='reverse')
+    __iadd__ = numeric(Operation(standard.add), mode='inplace')
+    __sub__ = numeric(Operation(standard.sub))
+    __rsub__ = numeric(Operation(standard.sub), mode='reverse')
+    __isub__ = numeric(Operation(standard.sub), mode='inplace')
+    __mul__ = numeric(Operation(standard.mul))
+    __rmul__ = numeric(Operation(standard.mul), mode='reverse')
+    __imul__ = numeric(Operation(standard.mul), mode='inplace')
+    __truediv__ = numeric(Operation(standard.truediv))
+    __rtruediv__ = numeric(Operation(standard.truediv), mode='reverse')
+    __itruediv__ = numeric(Operation(standard.truediv), mode='inplace')
+    __pow__ = numeric(Operation(standard.pow))
+    __rpow__ = numeric(Operation(standard.pow), mode='reverse')
+    __ipow__ = numeric(Operation(standard.pow), mode='inplace')
 
 
 class Scalar(Quantity):
