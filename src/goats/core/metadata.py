@@ -375,10 +375,10 @@ class OperatorFactory(collections.abc.Mapping):
         """
         self._type = __type
         self._parameters = list(iterables.unique(*parameters))
-        # Use this instead of REFERENCE; maybe define an `aliased.NameMap`.
-        self.callables = callables or {}
         self._checkable = None
         self._operations = None
+        self.callables = aliased.MutableMapping.fromkeys(self.operations)
+        self.callables.update(callables)
 
     @property
     def parameters(self):
