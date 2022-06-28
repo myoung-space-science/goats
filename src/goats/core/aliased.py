@@ -31,13 +31,7 @@ class MappingKey(collections.abc.Set, iterables.ReprStrMixin):
 
     @classmethod
     def _from_iterable(cls, it):
-        try:
-            length = len(it)
-        except TypeError:
-            length = None
-        if length == 1 and not isinstance(it[0], str):
-            return set(it[0])
-        return set(it)
+        return iterables.unwrap(it, wrap=set)
 
     def __iter__(self) -> typing.Iterator:
         return iter(self._aliases)

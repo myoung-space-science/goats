@@ -18,6 +18,10 @@ def test_key():
     assert key - 't2' == aliased.MappingKey('t0', 't1')
     assert aliased.MappingKey('a', 'b') == aliased.MappingKey('b', 'a')
     assert not aliased.MappingKey('')
+    assert key == ('t0', 't1', 't2')
+    assert key == ['t0', 't1', 't2']
+    assert aliased.MappingKey('2') == '2'
+    assert aliased.MappingKey(2) == 2
 
 
 def test_keymap():
