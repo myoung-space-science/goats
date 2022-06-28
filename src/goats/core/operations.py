@@ -882,51 +882,6 @@ def restrict(__f: typing.Callable, *types: type, reverse: bool=False):
     return operator
 
 
-def symbolic(symbol: str, reverse: bool=False, strict: bool=False):
-    """Implement a symbolic operation."""
-    # TODO: Refactor `fwd` and `rev` by extracting common code.
-    def fwd(a, b):
-        """Symbolically combine `a` with `b`."""
-        if isinstance(b, typing.Iterable) and not isinstance(b, str):
-            return [f'{i}{symbol}{j}' for i in a for j in b]
-        try:
-            return [f'{i}{symbol}{fractions.Fraction(b)}' for i in a]
-        except ValueError:
-            return [f'{i}{symbol}{b}' for i in a]
-    def rev(a, b):
-        """Symbolically combine `b` with `a`."""
-        if isinstance(a, typing.Iterable) and not isinstance(a, str):
-            return [f'{i}{symbol}{j}' for i in b for j in a]
-        try:
-            return [f'{fractions.Fraction(a)}{symbol}{i}' for i in b]
-        except ValueError:
-            return [f'{a}{symbol}{i}' for i in b]
-    def operator(self, other):
-        if not self or not other:
-            # nullspace
-            return ['']
-        if strict:
-            if not isinstance(other, type(self)):
-                # e.g., 'a | A' + 2 -> undefined
-                raise TypeError(
-                    f"Can't apply {symbol} "
-                    f"to {type(self)!r} and {type(other)!r}"
-                ) from None
-            if other == self:
-                # e.g., 'a | A' + 'a | A' -> 'a | A'
-                return self
-        if other == self:
-            # e.g., 'a | A' * 'a | A' -> 'a*a | A*A'
-            return [f'{i}{symbol}{i}' for i in self]
-        # e.g., 'a | A' + 'b | B' -> 'a+b | a+B | A+b | A+B'
-        # e.g., 'a | A' * 'b | B' -> 'a*b | a*B | A*b | A*B'
-        # e.g., 'a | A' * 2 -> 'a*2 | A*2'
-        return rev(other, self) if reverse else fwd(self, other)
-    s = f"other {symbol} self" if reverse else f"self {symbol} other"
-    operator.__doc__ = f"Called for {s}"
-    return operator
-
-
 class Interface(collections.abc.Mapping):
     """Top-level interface to arithmetic operations."""
 

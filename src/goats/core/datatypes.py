@@ -1,6 +1,7 @@
 import abc
 import collections.abc
 import contextlib
+import fractions
 import numbers
 import operator as standard
 import typing
@@ -114,16 +115,78 @@ class Name(collections.abc.Collection, iterables.ReprStrMixin):
         self._aliases = self._aliases | aliases
         return self
 
-    __add__ = operations.symbolic('+', strict=True)
-    __radd__ = operations.symbolic('+', strict=True, reverse=True)
-    __sub__ = operations.symbolic('-', strict=True)
-    __rsub__ = operations.symbolic('-', strict=True, reverse=True)
-    __mul__ = operations.symbolic('*')
-    __rmul__ = operations.symbolic('*', reverse=True)
-    __truediv__ = operations.symbolic('/')
-    __rtruediv__ = operations.symbolic('/', reverse=True)
-    __pow__ = operations.symbolic('^')
-    __rpow__ = operations.symbolic('^', reverse=True)
+    def _implement(symbol: str, reverse: bool=False, strict: bool=False):
+        """Implement a symbolic operation.
+
+        This function creates a new function that symbolically represents the
+        result of applying an operator to two operands, `a` and `b`.
+        
+        Parameters
+        ----------
+        symbol : string
+            The string representation of the operator.
+
+        reverse : bool, default=False
+            If true, apply the operation to reflected operands.
+
+        strict : bool, default=False
+            If true, require that `b` be an instance of `a`'s type or a subtype.
+
+        Raises
+        ------
+        TypeError
+            `strict` is true and `b` is not an instance of `a`'s type or a
+            subtype.
+
+        Notes
+        -----
+        * The nullspace for names is the empty string.
+        * 'a | A' + 2 -> undefined
+        * 'a | A' + 'a | A' -> 'a | A' when `strict` is true
+        * 'a | A' * 'a | A' -> 'a*a | A*A' when `strict` is false
+        * 'a | A' + 'b | B' -> 'a+b | a+B | A+b | A+B'
+        * 'a | A' * 'b | B' -> 'a*b | a*B | A*b | A*B'
+        * 'a | A' * 2 -> 'a*2 | A*2'
+        """
+        def compute(a, b):
+            """Symbolically combine `a` and `b`."""
+            x, y = (b, a) if reverse else (a, b)
+            if isinstance(y, typing.Iterable) and not isinstance(y, str):
+                return [f'{i}{symbol}{j}' for i in x for j in y]
+            try:
+                fixed = fractions.Fraction(y)
+            except ValueError:
+                fixed = y
+            t = '{1}{s}{0}' if reverse else '{0}{s}{1}'
+            return [t.format(i, fixed, s=symbol) for i in x]
+        def operator(self, that):
+            if not self or not that:
+                return ['']
+            if strict:
+                if not isinstance(that, type(self)):
+                    raise TypeError(
+                        f"Can't apply {symbol} "
+                        f"to {type(self)!r} and {type(that)!r}"
+                    ) from None
+                if that == self:
+                    return self
+            if that == self:
+                return [f'{i}{symbol}{i}' for i in self]
+            return compute(that, self) if reverse else compute(self, that)
+        s = f"other {symbol} self" if reverse else f"self {symbol} other"
+        operator.__doc__ = f"Called for {s}"
+        return operator
+
+    __add__ = _implement('+', strict=True)
+    __radd__ = _implement('+', strict=True, reverse=True)
+    __sub__ = _implement('-', strict=True)
+    __rsub__ = _implement('-', strict=True, reverse=True)
+    __mul__ = _implement('*')
+    __rmul__ = _implement('*', reverse=True)
+    __truediv__ = _implement('/')
+    __rtruediv__ = _implement('/', reverse=True)
+    __pow__ = _implement('^')
+    __rpow__ = _implement('^', reverse=True)
 
     def __bool__(self) -> bool:
         return bool(self._aliases)
