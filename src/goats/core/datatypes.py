@@ -1,7 +1,6 @@
 import abc
 import collections.abc
 import contextlib
-import fractions
 import numbers
 import operator as standard
 import typing
@@ -115,60 +114,16 @@ class Name(collections.abc.Collection, iterables.ReprStrMixin):
         self._aliases = self._aliases | aliases
         return self
 
-    def _implement(symbol: str, reverse: bool=False, strict: bool=False):
-        """Implement a symbolic operation."""
-        # TODO: Refactor `fwd` and `rev` by extracting common code.
-        def fwd(a, b):
-            """Symbolically combine `a` with `b`."""
-            if isinstance(b, typing.Iterable) and not isinstance(b, str):
-                return [f'{i}{symbol}{j}' for i in a for j in b]
-            try:
-                return [f'{i}{symbol}{fractions.Fraction(b)}' for i in a]
-            except ValueError:
-                return [f'{i}{symbol}{b}' for i in a]
-        def rev(a, b):
-            """Symbolically combine `b` with `a`."""
-            if isinstance(a, typing.Iterable) and not isinstance(a, str):
-                return [f'{i}{symbol}{j}' for i in b for j in a]
-            try:
-                return [f'{fractions.Fraction(a)}{symbol}{i}' for i in b]
-            except ValueError:
-                return [f'{a}{symbol}{i}' for i in b]
-        def operator(self, other):
-            if not self or not other:
-                # nullspace
-                return ['']
-            if strict:
-                if not isinstance(other, Name):
-                    # e.g., 'a | A' + 2 -> undefined
-                    raise TypeError(
-                        f"Can't apply {symbol} "
-                        f"to {type(self)!r} and {type(other)!r}"
-                    ) from None
-                if other == self:
-                    # e.g., 'a | A' + 'a | A' -> 'a | A'
-                    return self
-            if other == self:
-                # e.g., 'a | A' * 'a | A' -> 'a*a | A*A'
-                return [f'{i}{symbol}{i}' for i in self]
-            # e.g., 'a | A' + 'b | B' -> 'a+b | a+B | A+b | A+B'
-            # e.g., 'a | A' * 'b | B' -> 'a*b | a*B | A*b | A*B'
-            # e.g., 'a | A' * 2 -> 'a*2 | A*2'
-            return rev(other, self) if reverse else fwd(self, other)
-        s = f"other {symbol} self" if reverse else f"self {symbol} other"
-        operator.__doc__ = f"Called for {s}"
-        return operator
-
-    __add__ = _implement('+', strict=True)
-    __radd__ = _implement('+', strict=True, reverse=True)
-    __sub__ = _implement('-', strict=True)
-    __rsub__ = _implement('-', strict=True, reverse=True)
-    __mul__ = _implement('*')
-    __rmul__ = _implement('*', reverse=True)
-    __truediv__ = _implement('/')
-    __rtruediv__ = _implement('/', reverse=True)
-    __pow__ = _implement('^')
-    __rpow__ = _implement('^', reverse=True)
+    __add__ = operations.symbolic('+', strict=True)
+    __radd__ = operations.symbolic('+', strict=True, reverse=True)
+    __sub__ = operations.symbolic('-', strict=True)
+    __rsub__ = operations.symbolic('-', strict=True, reverse=True)
+    __mul__ = operations.symbolic('*')
+    __rmul__ = operations.symbolic('*', reverse=True)
+    __truediv__ = operations.symbolic('/')
+    __rtruediv__ = operations.symbolic('/', reverse=True)
+    __pow__ = operations.symbolic('^')
+    __rpow__ = operations.symbolic('^', reverse=True)
 
     def __bool__(self) -> bool:
         return bool(self._aliases)
