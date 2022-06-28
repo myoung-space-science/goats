@@ -1199,16 +1199,26 @@ def test_name():
 def test_name_builtin():
     """Test operations between a name metadata object and a built-in object."""
     name = datatypes.Name('a', 'A')
+    others = ['2', 2]
+    # Addition and subtraction require two instances.
     cases = {
-        operator.add: {'symbol': '+', 'others': ['b', 2]},
-        operator.sub: {'symbol': '-', 'others': ['b', 2]},
-        operator.mul: {'symbol': '*', 'others': ['b', 2]},
-        operator.truediv: {'symbol': '/', 'others': ['b', 2]},
-        pow: {'symbol': '^','others': [2]},
+        operator.add: '+',
+        operator.sub: '-',
     }
-    for method, test in cases.items():
-        s = test['symbol']
-        for other in test['others']:
+    for method in cases:
+        for other in others:
+            with pytest.raises(TypeError):
+                method(name, other)
+            with pytest.raises(TypeError):
+                method(other, name)
+    # Multiplication, division, and exponentiation are valid with numbers.
+    cases = {
+        operator.mul: '*',
+        operator.truediv: '/',
+        pow: '^',
+    }
+    for method, s in cases.items():
+        for other in others:
             expected = datatypes.Name(*[f'{i}{s}{other}' for i in name])
             assert method(name, other) == expected
             expected = datatypes.Name(*[f'{other}{s}{i}' for i in name])
