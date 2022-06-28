@@ -110,8 +110,14 @@ class Name(collections.abc.Collection, iterables.ReprStrMixin):
     def __init__(self, *aliases: str) -> None:
         self._aliases = aliased.MappingKey(*aliases)
 
+    def add(self, aliases: typing.Union[str, typing.Iterable[str]]):
+        """Add `aliases` to this name."""
+        self._aliases = self._aliases | aliases
+        return self
+
     def _implement(symbol: str, reverse: bool=False, identity: bool=False):
         """Implement a symbolic operation."""
+        # TODO: Refactor `fwd` and `rev` by extracting common code.
         def fwd(a, b):
             """Symbolically combine `a` with `b`."""
             if isinstance(b, typing.Iterable) and not isinstance(b, str):
@@ -130,12 +136,30 @@ class Name(collections.abc.Collection, iterables.ReprStrMixin):
                 return [f'{a}{symbol}{i}' for i in b]
         def operator(self, other):
             if not self or not other:
+                # nullspace
                 return ['']
-        if self == other:
-            return [f'{i}{symbol}{i}' for i in self]
-        if isinstance(other, typing.Iterable) and not isinstance(other, str):
-            return [f'{i}{symbol}{j}' for i in self for j in other]
-        return [f'{i}{symbol}{other}' for i in self._aliases]
+            if self == other:
+                if identity:
+                    # e.g., 'a | A' + 'a | A' -> 'a | A'
+                    return self
+                # e.g., 'a | A' * 'a | A' -> 'a*a | A*A' (no 'a*A' or 'A*a')
+                return [f'{i}{symbol}{i}' for i in self]
+            # e.g., 'a | A' * 'b | B' -> 'a*b | a*B | A*b | A*B'
+            return rev(other, self) if reverse else fwd(self, other)
+        s = f"other {symbol} self" if reverse else f"self {symbol} other"
+        operator.__doc__ = f"Called for {s}"
+        return operator
+
+    __add__ = _implement('+', identity=True)
+    __radd__ = _implement('+', identity=True, reverse=True)
+    __sub__ = _implement('-', identity=True)
+    __rsub__ = _implement('-', identity=True, reverse=True)
+    __mul__ = _implement('*')
+    __rmul__ = _implement('*', reverse=True)
+    __truediv__ = _implement('/')
+    __rtruediv__ = _implement('/', reverse=True)
+    __pow__ = _implement('^')
+    __rpow__ = _implement('^', reverse=True)
 
     def __bool__(self) -> bool:
         return bool(self._aliases)
