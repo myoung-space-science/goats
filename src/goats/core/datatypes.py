@@ -115,7 +115,7 @@ class Name(collections.abc.Collection, iterables.ReprStrMixin):
         self._aliases = self._aliases | aliases
         return self
 
-    def _implement(symbol: str, reverse: bool=False, identity: bool=False):
+    def _implement(symbol: str, reverse: bool=False, strict: bool=False):
         """Implement a symbolic operation."""
         # TODO: Refactor `fwd` and `rev` by extracting common code.
         def fwd(a, b):
@@ -138,42 +138,20 @@ class Name(collections.abc.Collection, iterables.ReprStrMixin):
             if not self or not other:
                 # nullspace
                 return ['']
-            # Motivating examples:
-            # - 'a | A' + 2 -> undefined
-            # - 'a | A' + 'a | A' -> 'a | A'
-            # - 'a | A' + 'b | B' -> 'a+b | a+B | A+b | A+B'
-            # - 'a | A' * 2 -> 'a*2 | A*2'
-            # - 'a | A' * 'a | A' -> 'a*a | A*A'
-            # - 'a | A' * 'b | B' -> 'a*b | a*B | A*b | A*B'
-            # Logic:
-            # - if strict:
-            #  - if other is instance:
-            #   - if self == other:
-            #    - return self
-            #   - else:
-            #    - return outer product with other
-            #  - else:
-            #   - raise TypeError
-            # - else:
-            #  - if self == other:
-            #   - return inner product with self
-            #  - else:
-            #   - return outer product with other
-            if identity:
-                if isinstance(other, Name):
-                    if other == self:
-                        # e.g., 'a | A' + 'a | A' -> 'a | A'
-                        return self
-                    # e.g.,'a | A' + 'b | B' -> 'a+b | a+B | A+b | A+B'
-                    return rev(other, self) if reverse else fwd(self, other)
-                # e.g., 'a | A' + 2 -> undefined
-                raise TypeError(
-                    f"Can't apply {symbol} "
-                    f"to {type(self)!r} and {type(other)!r}"
-                ) from None
+            if strict:
+                if not isinstance(other, Name):
+                    # e.g., 'a | A' + 2 -> undefined
+                    raise TypeError(
+                        f"Can't apply {symbol} "
+                        f"to {type(self)!r} and {type(other)!r}"
+                    ) from None
+                if other == self:
+                    # e.g., 'a | A' + 'a | A' -> 'a | A'
+                    return self
             if other == self:
                 # e.g., 'a | A' * 'a | A' -> 'a*a | A*A'
                 return [f'{i}{symbol}{i}' for i in self]
+            # e.g., 'a | A' + 'b | B' -> 'a+b | a+B | A+b | A+B'
             # e.g., 'a | A' * 'b | B' -> 'a*b | a*B | A*b | A*B'
             # e.g., 'a | A' * 2 -> 'a*2 | A*2'
             return rev(other, self) if reverse else fwd(self, other)
@@ -181,10 +159,10 @@ class Name(collections.abc.Collection, iterables.ReprStrMixin):
         operator.__doc__ = f"Called for {s}"
         return operator
 
-    __add__ = _implement('+', identity=True)
-    __radd__ = _implement('+', identity=True, reverse=True)
-    __sub__ = _implement('-', identity=True)
-    __rsub__ = _implement('-', identity=True, reverse=True)
+    __add__ = _implement('+', strict=True)
+    __radd__ = _implement('+', strict=True, reverse=True)
+    __sub__ = _implement('-', strict=True)
+    __rsub__ = _implement('-', strict=True, reverse=True)
     __mul__ = _implement('*')
     __rmul__ = _implement('*', reverse=True)
     __truediv__ = _implement('/')
