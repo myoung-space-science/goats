@@ -22,10 +22,13 @@ def unique(*items: T) -> typing.List[T]:
     return collection
 
 
+W = typing.TypeVar('W', bound=typing.Iterable)
+
+
 def unwrap(
-    obj: typing.Union[T, typing.Iterable],
-    wrap: type=None,
-) -> typing.Union[T, list, tuple]:
+    obj: typing.Union[T, typing.Iterable[T]],
+    wrap: typing.Type[W]=None,
+) -> typing.Union[T, W]:
     """Remove redundant outer lists and tuples.
 
     This function will strip away enclosing instances of ``list`` or ``tuple``,
