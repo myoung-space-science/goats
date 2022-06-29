@@ -185,7 +185,7 @@ class Quantity(Quantifiable):
         # callables, then subclassing `metadata.OperatorFactory` in such a way
         # that it passes standard callables to `operations.OperatorFactory`.
         factory = metadata.OperatorFactory(cls, callables=cls._callables)
-        factory.check('lt', 'le', 'gt', 'ge', 'add', 'sub')
+        factory.check('lt', 'le', 'gt', 'ge')
         factory['true divide'].suppress(Real, Quantity)
         factory['power'].suppress(Quantity, Quantity)
         factory['power'].suppress(Real, Quantity)
