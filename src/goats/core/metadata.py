@@ -353,12 +353,7 @@ class MetadataError(Exception):
 class OperatorFactory(collections.abc.Mapping):
     """A factory for objects that operate on metadata."""
 
-    def __init__(
-        self,
-        __type: T,
-        *parameters: str,
-        callables: typing.Dict[str, typing.Callable]=None,
-    ) -> None:
+    def __init__(self, __type: T, *parameters: str) -> None:
         """
         Initialize this instance.
 
@@ -369,16 +364,11 @@ class OperatorFactory(collections.abc.Mapping):
         *parameters : string
             Zero or more strings representing the updatable attributes in each
             operand to these operations.
-        callable : dict
-            A mapping from string operation name to the default callable object
-            to use when computing attribute values.
         """
         self._type = __type
         self._parameters = list(iterables.unique(*parameters))
         self._checkable = None
         self._operations = None
-        self.callables = aliased.MutableMapping.fromkeys(self.operations)
-        self.callables.update(callables)
 
     @property
     def parameters(self):
@@ -431,7 +421,7 @@ class OperatorFactory(collections.abc.Mapping):
         if method and name not in self:
             return self._default(method)
         operation = self[name]
-        method = method or self.callables.get(name)
+        method = method or REFERENCE.get(name)
         evaluate = operation.apply(method)
         def operator(*args, **kwargs):
             if name in self.checkable:

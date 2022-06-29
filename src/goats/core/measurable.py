@@ -155,34 +155,10 @@ class Quantity(Quantifiable):
 
     __metadata__: typing.ClassVar = 'unit'
 
-    _callables = {
-        'int': None,
-        'float': None,
-        'abs': abs,
-        'pos': standard.pos,
-        'neg': standard.neg,
-        'ceil': math.ceil,
-        'floor': math.floor,
-        'trunc': math.trunc,
-        'round': round,
-        'lt': None,
-        'le': None,
-        'gt': None,
-        'ge': None,
-        'add': standard.add,
-        'sub': standard.sub,
-        'mul': standard.mul,
-        'truediv': standard.truediv,
-        'pow': pow,
-    }
-
     def __init_subclass__(cls) -> None:
         """Support metadata operations on a measurable quantity."""
         super().__init_subclass__()
-        # Consider creating an `operations.OperatorFactory` that takes a dict of
-        # callables, then subclassing `metadata.OperatorFactory` in such a way
-        # that it passes standard callables to `operations.OperatorFactory`.
-        factory = metadata.OperatorFactory(cls, callables=cls._callables)
+        factory = metadata.OperatorFactory(cls)
         factory.check('lt', 'le', 'gt', 'ge')
         factory['true divide'].suppress(Real, Quantity)
         factory['power'].suppress(Quantity, Quantity)
