@@ -512,16 +512,6 @@ class OperatorFactory(collections.abc.Mapping):
         return self._operations
 
 
-# TODO: Move this logic to `measurable` for `Quantity`, and a function decorated
-# by `Variable.implements` in `datatypes`.
-def sqrt(a):
-    """Square-root implementation for metadata."""
-    try:
-        return pow(a, 0.5)
-    except TypeError:
-        return f'sqrt({a})'
-
-
 _reference: typing.Dict[str, dict] = {
     'int': {
         'callable': None,
@@ -558,31 +548,25 @@ _reference: typing.Dict[str, dict] = {
     'lt': {
         'callable': None,
         'aliases': ['less'],
-        # 'constraints': ['strict'],
     },
     'le': {
         'callable': None,
         'aliases': ['less_equal', 'less equal'],
-        # 'constraints': ['strict'],
     },
     'gt': {
         'callable': None,
         'aliases': ['greater'],
-        # 'constraints': ['strict'],
     },
     'ge': {
         'callable': None,
         'aliases': ['greater_equal', 'greater equal'],
-        # 'constraints': ['strict'],
     },
     'add': {
         'callable': standard.add,
-        # 'constraints': ['strict'],
     },
     'sub': {
         'callable': standard.sub,
         'aliases': ['subtract'],
-        # 'constraints': ['strict'],
     },
     'mul': {
         'callable': standard.mul,
@@ -595,10 +579,6 @@ _reference: typing.Dict[str, dict] = {
     'pow': {
         'callable': pow,
         'aliases': ['power'],
-    },
-    'sqrt': {
-        'callable': sqrt,
-        'aliases': ['square_root', 'square root'],
     },
 }
 REFERENCE = aliased.Mapping(_reference).squeeze(strict=True)
