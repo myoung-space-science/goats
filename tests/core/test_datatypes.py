@@ -11,6 +11,8 @@ import pytest
 from goats.core import datatypes
 from goats.core import measurable
 from goats.core import metric
+from goats.core import metadata
+from goats.core import operations
 
 
 @pytest.mark.scalar
@@ -23,8 +25,6 @@ def test_scalar_scalar_comparisons():
         (operator.lt, value + 1),
         (operator.le, value + 1),
         (operator.le, value),
-        (operator.eq, value),
-        (operator.ne, value + 1),
         (operator.gt, value - 1),
         (operator.ge, value - 1),
         (operator.ge, value),
@@ -32,8 +32,11 @@ def test_scalar_scalar_comparisons():
     for case in cases:
         opr, v = case
         assert opr(scalar, datatypes.Scalar(v, unit))
-        with pytest.raises(TypeError):
+        with pytest.raises(ValueError):
             opr(scalar, datatypes.Scalar(v, 'J'))
+    assert scalar == datatypes.Scalar(value, unit)
+    assert scalar != datatypes.Scalar(value+1, unit)
+    assert scalar != datatypes.Scalar(value, 'J')
 
 
 @pytest.mark.scalar
@@ -126,7 +129,7 @@ def test_scalar_binary():
         assert opr(value, scalar) == expected
     # between two instances with different units
     for opr in oprs:
-        with pytest.raises(TypeError):
+        with pytest.raises(metric.UnitError):
             opr(*scalars_diff)
 
     # MULTIPLICATION
@@ -155,7 +158,7 @@ def test_scalar_binary():
     expected = datatypes.Scalar(opr(*values_same), 'm')
     assert opr(scalar, value) == expected
     # reverse
-    with pytest.raises(TypeError):
+    with pytest.raises(metadata.OperandTypeError):
         opr(value, scalar)
     # between two instances with different units
     expected = datatypes.Scalar(opr(*values_diff), 'm / J')
@@ -164,14 +167,14 @@ def test_scalar_binary():
     # EXPONENTIAL
     opr = operator.pow
     # between two instances with the same unit
-    with pytest.raises(TypeError):
+    with pytest.raises(metadata.OperandTypeError):
         opr(*scalars_same)
     # between an instance and a number
     # ...forward
     expected = datatypes.Scalar(opr(*values_same), f'm^{value}')
     assert opr(scalar, value) == expected
     # ...reverse
-    with pytest.raises(TypeError):
+    with pytest.raises(metadata.OperandTypeError):
         opr(value, scalar)
 
 
@@ -191,18 +194,18 @@ def test_vector_operators():
     v0 = datatypes.Vector([3.0, 6.0], 'm')
     v1 = datatypes.Vector([1.0, 3.0], 'm')
     v2 = datatypes.Vector([1.0, 3.0], 'J')
-    assert vectors_equal(v0 + v1, datatypes.Vector([4.0, 9.0], 'm'))
-    assert vectors_equal(v0 - v1, datatypes.Vector([2.0, 3.0], 'm'))
-    assert vectors_equal(v0 * v1, datatypes.Vector([3.0, 18.0], 'm^2'))
-    assert vectors_equal(v0 / v1, datatypes.Vector([3.0, 2.0], '1'))
-    assert vectors_equal(v0 / v2, datatypes.Vector([3.0, 2.0], 'm / J'))
-    assert vectors_equal(v0 ** 2, datatypes.Vector([9.0, 36.0], 'm^2'))
-    assert vectors_equal(10.0 * v0, datatypes.Vector([30.0, 60.0], 'm'))
-    assert vectors_equal(v0 * 10.0, datatypes.Vector([30.0, 60.0], 'm'))
-    assert vectors_equal(v0 / 10.0, datatypes.Vector([0.3, 0.6], 'm'))
-    with pytest.raises(TypeError):
+    assert v0 + v1 == datatypes.Vector([4.0, 9.0], 'm')
+    assert v0 - v1 == datatypes.Vector([2.0, 3.0], 'm')
+    assert v0 * v1 == datatypes.Vector([3.0, 18.0], 'm^2')
+    assert v0 / v1 == datatypes.Vector([3.0, 2.0], '1')
+    assert v0 / v2 == datatypes.Vector([3.0, 2.0], 'm / J')
+    assert v0 ** 2 == datatypes.Vector([9.0, 36.0], 'm^2')
+    assert 10.0 * v0 == datatypes.Vector([30.0, 60.0], 'm')
+    assert v0 * 10.0 == datatypes.Vector([30.0, 60.0], 'm')
+    assert v0 / 10.0 == datatypes.Vector([0.3, 0.6], 'm')
+    with pytest.raises(metadata.OperandTypeError):
         1.0 / v0
-    with pytest.raises(measurable.ComparisonError):
+    with pytest.raises(metric.UnitError):
         v0 + v2
 
 
@@ -212,7 +215,7 @@ def test_scalar_display():
     scalar = datatypes.Scalar(1.234, unit='m')
     assert str(scalar) == "1.234 [m]"
     assert repr(scalar).endswith("Scalar(1.234, unit='m')")
-    scalar.unit('cm')
+    scalar.convert('cm')
     assert str(scalar) == "123.4 [cm]"
     assert repr(scalar).endswith("Scalar(123.4, unit='cm')")
 
@@ -223,7 +226,7 @@ def test_vector_display():
     vector = datatypes.Vector(1.234, unit='m')
     assert str(vector) == "[1.234] [m]"
     assert repr(vector).endswith("Vector([1.234], unit='m')")
-    vector.unit('cm')
+    vector.convert('cm')
     assert str(vector) == "[123.4] [cm]"
     assert repr(vector).endswith("Vector([123.4], unit='cm')")
 
@@ -247,36 +250,24 @@ def test_vector_unit():
     check_units(datatypes.Vector, [1, 2], 'm', 'cm')
 
 
-Obj = typing.TypeVar(
-    'Obj',
-    typing.Type[datatypes.Scalar],
-    typing.Type[datatypes.Vector],
-)
-Obj = typing.Union[
-    typing.Type[datatypes.Scalar],
-    typing.Type[datatypes.Vector],
-]
+Obj = typing.Union[datatypes.Scalar, datatypes.Vector]
 
 
 def check_units(
-    obj: Obj,
+    obj: typing.Type[Obj],
     amount: measurable.Real,
     reference: str,
     new: str,
 ) -> None:
     """Extracted for testing the unit attribute on Measured subclasses."""
     original = obj(amount, reference)
-    assert original.unit() == reference
-    updated = original.unit(new)
+    assert original.unit == reference
+    updated = original.convert(new)
     assert updated is original
-    assert updated.unit() == new
+    assert updated.unit == new
     factor = metric.Unit(new) // metric.Unit(reference)
-    equal = (
-        vectors_equal if isinstance(updated, datatypes.Vector)
-        else operator.eq
-    )
-    assert equal(updated, obj(rescale(amount, factor), new))
-    assert obj(amount).unit() == '1'
+    assert updated == obj(rescale(amount, factor), new)
+    assert obj(amount).unit == '1'
 
 
 def rescale(amount, factor):
@@ -287,47 +278,42 @@ def rescale(amount, factor):
         return [factor * value for value in amount]
 
 
-def vectors_equal(v0: datatypes.Vector, v1: datatypes.Vector):
-    """Helper function for determining if two vectors are equal."""
-    return all(v0 == v1)
-
-
 @pytest.mark.variable
 def test_variable():
     """Test the object that represents a variable."""
     v0 = datatypes.Variable([3.0, 4.5], unit='m', axes=['x'])
     v1 = datatypes.Variable([[1.0], [2.0]], unit='J', axes=['x', 'y'])
     assert numpy.array_equal(v0, [3.0, 4.5])
-    assert v0.unit() == metric.Unit('m')
+    assert v0.unit == metric.Unit('m')
     assert list(v0.axes) == ['x']
     assert v0.naxes == 1
     assert numpy.array_equal(v1, [[1.0], [2.0]])
-    assert v1.unit() == metric.Unit('J')
+    assert v1.unit == metric.Unit('J')
     assert list(v1.axes) == ['x', 'y']
     assert v1.naxes == 2
     r = v0 + v0
     expected = [6.0, 9.0]
     assert numpy.array_equal(r, expected)
-    assert r.unit() == v0.unit()
+    assert r.unit == v0.unit
     r = v0 * v1
     expected = [[3.0 * 1.0], [4.5 * 2.0]]
     assert numpy.array_equal(r, expected)
-    assert r.unit() == metric.Unit('m * J')
+    assert r.unit == metric.Unit('m * J')
     r = v0 / v1
     expected = [[3.0 / 1.0], [4.5 / 2.0]]
     assert numpy.array_equal(r, expected)
-    assert r.unit() == metric.Unit('m / J')
+    assert r.unit == metric.Unit('m / J')
     r = v0 ** 2
     expected = [3.0 ** 2, 4.5 ** 2]
     assert numpy.array_equal(r, expected)
-    assert r.unit() == metric.Unit('m^2')
+    assert r.unit == metric.Unit('m^2')
     reference = datatypes.Variable(v0)
     assert reference is not v0
-    v0_cm = v0.unit('cm')
+    v0_cm = v0.convert('cm')
     assert v0_cm is v0
     expected = 100 * reference
     assert numpy.array_equal(v0_cm, expected)
-    assert v0_cm.unit() == metric.Unit('cm')
+    assert v0_cm.unit == metric.Unit('cm')
     assert v0_cm.axes == reference.axes
 
 
@@ -523,10 +509,10 @@ def test_variable_mul_div(
         expected = reduce(a0, a1, opr, axes=(v0.axes, v1.axes))
         assert numpy.array_equal(new, expected), msg
         assert sorted(new.axes) == case['axes'], msg
-        algebraic = opr(v0.unit(), v1.unit())
-        formatted = f'({v0.unit()}){sym}({v1.unit()})'
+        algebraic = opr(v0.unit, v1.unit)
+        formatted = f'({v0.unit}){sym}({v1.unit})'
         for unit in (algebraic, formatted):
-            assert new.unit() == unit, msg
+            assert new.unit == unit, msg
 
 
 @pytest.mark.variable
@@ -535,41 +521,19 @@ def test_variable_pow(
     arr: typing.Dict[str, list],
 ) -> None:
     """Test the ability to exponentiate a datatypes.Variable instance."""
-    opr = operator.pow
     v0 = var['reference']
-    a0 = arr['reference']
-    cases = [
-        {
-            'p': 3,
-            'rtype': datatypes.Variable,
-        },
-        {
-            'p': a0,
-            'rtype': numpy.ndarray,
-        },
-    ]
-    msg = f"Failed for {opr}"
-    for case in cases:
-        p = case['p']
-        rtype = case['rtype']
-        new = opr(v0, p)
-        assert isinstance(new, rtype)
-        if rtype == datatypes.Variable:
-            expected = reduce(numpy.array(v0), p, operator.pow)
-            assert numpy.array_equal(new, expected), msg
-            assert new.axes == var['reference'].axes, msg
-            algebraic = opr(v0.unit(), 3)
-            formatted = f'({v0.unit()})^{p}'
-            for unit in (algebraic, formatted):
-                assert new.unit() == unit, msg
-        elif rtype == numpy.ndarray:
-            expected = opr(numpy.array(a0), numpy.array(a0))
-            assert numpy.array_equal(new, expected), msg
-        else:
-            raise TypeError(
-                f"Unexpected return type {type(new)}"
-                f" for operand types {type(v0)} and {type(p)}"
-            ) from None
+    p = 3
+    new = v0 ** p
+    assert isinstance(new, datatypes.Variable)
+    expected = reduce(numpy.array(v0), p, pow)
+    assert numpy.array_equal(new, expected)
+    assert new.axes == var['reference'].axes
+    algebraic = v0.unit ** p
+    formatted = f'({v0.unit})^{p}'
+    for unit in algebraic, formatted:
+        assert new.unit == unit
+    with pytest.raises(metadata.OperandTypeError):
+        v0 ** arr['reference']
 
 
 @pytest.mark.variable
@@ -581,10 +545,10 @@ def test_variable_add_sub(
     v0 = var['reference']
     a0 = arr['reference']
     a1 = arr['samedims']
-    v1 = datatypes.Variable(a1, unit=v0.unit(), axes=v0.axes)
+    v1 = datatypes.Variable(a1, unit=v0.unit, axes=v0.axes)
     v2 = datatypes.Variable(
         arr['different'],
-        unit=v0.unit(),
+        unit=v0.unit,
         axes=var['different'].axes,
     )
     for opr in (operator.add, operator.sub):
@@ -593,7 +557,7 @@ def test_variable_add_sub(
         expected = reduce(a0, a1, opr, axes=(v0.axes, v1.axes))
         assert isinstance(new, datatypes.Variable), msg
         assert numpy.array_equal(new, expected), msg
-        assert new.unit() == v0.unit(), msg
+        assert new.unit == v0.unit, msg
         assert new.axes == v0.axes, msg
         with pytest.raises(ValueError): # numpy broadcasting error
             opr(v0, v2)
@@ -604,11 +568,11 @@ def test_variable_units(var: typing.Dict[str, datatypes.Variable]):
     """Test the ability to update a variable's unit."""
     v0 = var['reference']
     reference = datatypes.Variable(v0)
-    v0_km = v0.convert_to('km')
+    v0_km = v0.convert('km')
     assert isinstance(v0_km, datatypes.Variable)
     assert v0_km is v0
     assert v0_km is not reference
-    assert v0_km.unit() == 'km'
+    assert v0_km.unit == 'km'
     assert v0_km.axes == reference.axes
     assert numpy.array_equal(v0_km[:], 1e-3 * reference[:])
 
@@ -660,15 +624,11 @@ def test_numerical_operations(var: typing.Dict[str, datatypes.Variable]):
     ]
     assert numpy.array_equal(new, expected)
 
-    # left-sided division, addition, and subtraction create a new instance
-    new = 10.0 / var['reference']
-    assert isinstance(new, numpy.ndarray)
-    expected = [
-        # 3 x 2
-        [+(10.0/1.0), +(10.0/2.0)],
-        [+(10.0/2.0), -(10.0/3.0)],
-        [-(10.0/4.0), +(10.0/6.0)],
-    ]
+    # left-sided division is not supported because of metadata ambiguity
+    with pytest.raises(metadata.OperandTypeError):
+        10.0 / var['reference']
+
+    # left-sided addition and subtraction create a new instance
     new = 10.0 + var['reference']
     assert isinstance(new, datatypes.Variable)
     expected = [
@@ -726,20 +686,20 @@ def test_variable_getitem(var: typing.Dict[str, datatypes.Variable]):
 def test_variable_names():
     """A variable may have zero or more names."""
     default = datatypes.Variable([1], unit='m', axes=['d0'])
-    assert not default.names
+    assert not default.name
     names = ('v0', 'var')
-    variable = datatypes.Variable([1], *names, unit='m', axes=['d0'])
-    assert all(name in variable.names for name in names)
+    variable = datatypes.Variable([1], unit='m', name=names, axes=['d0'])
+    assert all(name in variable.name for name in names)
 
 
 @pytest.mark.variable
 def test_variable_rename():
     """A user may rename a variable."""
-    v = datatypes.Variable([1], 'Name', unit='m', axes=['d0'])
-    assert list(v.names) == ['Name']
-    v.rename('var', update=True)
-    assert all(name in v.names for name in ('Name', 'var'))
-    assert list(v.rename('v0').names) == ['v0']
+    v = datatypes.Variable([1], unit='m', name='Name', axes=['d0'])
+    assert list(v.name) == ['Name']
+    v.alias('var')
+    assert all(name in v.name for name in ('Name', 'var'))
+    assert list(v.alias('v0', reset=True).name) == ['v0']
 
 
 @pytest.mark.xfail
@@ -769,11 +729,11 @@ def test_assumption():
     aliases = 'this', 'a0'
     assumption = datatypes.Assumption(values, unit, *aliases)
     assert assumption.unit == unit
-    assert all(alias in assumption.name() for alias in aliases)
+    assert all(alias in assumption.name for alias in aliases)
     scalars = [datatypes.Scalar(value, unit) for value in values]
     assert assumption[:] == scalars
-    converted = assumption.unit('cm')
-    assert converted.unit() == 'cm'
+    converted = assumption.convert('cm')
+    assert converted.unit == 'cm'
     assert converted[:] == [100.0 * scalar for scalar in scalars]
 
 
@@ -818,8 +778,8 @@ def make_variable(**attrs):
     """Helper for making a variable from components."""
     return datatypes.Variable(
         attrs['data'],
-        attrs['name'],
         unit=attrs.get('unit'),
+        name=attrs['name'],
         axes=attrs.get('axes'),
     )
 
@@ -851,6 +811,7 @@ def call_func(
         assert numpy.array_equal(result, expected), msg
 
 
+@pytest.mark.variable
 def test_add_number(components):
     ref = [components[i] for i in (0, 1)]
     var = [make_variable(**component) for component in ref]
@@ -858,7 +819,7 @@ def test_add_number(components):
     operands = [var[0], num]
     expected = ref[0]['data'] + num
     attrs = {k: ref[0][k] for k in ('unit', 'axes')}
-    attrs['names'] = {ref[0]['name']}
+    attrs['name'] = ref[0]['name']
     call_func(
         operator.add,
         datatypes.Variable,
@@ -868,6 +829,7 @@ def test_add_number(components):
     )
 
 
+@pytest.mark.variable
 def test_sub_number(components):
     ref = [components[i] for i in (0, 1)]
     var = [make_variable(**component) for component in ref]
@@ -875,7 +837,7 @@ def test_sub_number(components):
     operands = [var[0], num]
     expected = ref[0]['data'] - num
     attrs = {k: ref[0][k] for k in ('unit', 'axes')}
-    attrs['names'] = {ref[0]['name']}
+    attrs['name'] = ref[0]['name']
     call_func(
         operator.sub,
         datatypes.Variable,
@@ -885,13 +847,14 @@ def test_sub_number(components):
     )
 
 
+@pytest.mark.variable
 def test_add_variable(components):
     ref = [components[i] for i in (0, 1)]
     var = [make_variable(**component) for component in ref]
     operands = [var[0], var[1]]
     expected = ref[0]['data'] + ref[1]['data']
     attrs = {k: ref[0][k] for k in ('unit', 'axes')}
-    attrs['names'] = {f"{ref[0]['name']} + {ref[1]['name']}"}
+    attrs['name'] = f"{ref[0]['name']} + {ref[1]['name']}"
     call_func(
         operator.add,
         datatypes.Variable,
@@ -901,13 +864,14 @@ def test_add_variable(components):
     )
 
 
+@pytest.mark.variable
 def test_sub_variable(components):
     ref = [components[i] for i in (0, 1)]
     var = [make_variable(**component) for component in ref]
     operands = [var[0], var[1]]
     expected = ref[0]['data'] - ref[1]['data']
     attrs = {k: ref[0][k] for k in ('unit', 'axes')}
-    attrs['names'] = {f"{ref[0]['name']} - {ref[1]['name']}"}
+    attrs['name'] = f"{ref[0]['name']} - {ref[1]['name']}"
     call_func(
         operator.sub,
         datatypes.Variable,
@@ -917,6 +881,7 @@ def test_sub_variable(components):
     )
 
 
+@pytest.mark.variable
 def test_mul_same_shape(components):
     ref = [components[i] for i in (0, 1)]
     var = [make_variable(**component) for component in ref]
@@ -925,7 +890,7 @@ def test_mul_same_shape(components):
     attrs = {
         'unit': f"{ref[0]['unit']} * {ref[1]['unit']}",
         'axes': ('x', 'y'),
-        'names': {f"{ref[0]['name']} * {ref[1]['name']}"},
+        'name': f"{ref[0]['name']} * {ref[1]['name']}",
     }
     call_func(
         operator.mul,
@@ -936,6 +901,7 @@ def test_mul_same_shape(components):
     )
 
 
+@pytest.mark.variable
 def test_mul_diff_shape(components):
     ref = [components[i] for i in (0, 2)]
     var = [make_variable(**component) for component in ref]
@@ -947,7 +913,7 @@ def test_mul_diff_shape(components):
     attrs = {
         'unit': f"{ref[0]['unit']} * {ref[1]['unit']}",
         'axes': ('x', 'y', 'z'),
-        'names': {f"{ref[0]['name']} * {ref[1]['name']}"},
+        'name': f"{ref[0]['name']} * {ref[1]['name']}",
         'shape': (3, 4, 5),
     }
     call_func(
@@ -959,6 +925,7 @@ def test_mul_diff_shape(components):
     )
 
 
+@pytest.mark.variable
 def test_div_same_shape(components):
     ref = [components[i] for i in (0, 1)]
     var = [make_variable(**component) for component in ref]
@@ -967,7 +934,7 @@ def test_div_same_shape(components):
     attrs = {
         'unit': f"{ref[0]['unit']} / {ref[1]['unit']}",
         'axes': ('x', 'y'),
-        'names': {f"{ref[0]['name']} / {ref[1]['name']}"},
+        'name': f"{ref[0]['name']} / {ref[1]['name']}",
     }
     call_func(
         operator.truediv,
@@ -978,6 +945,7 @@ def test_div_same_shape(components):
     )
 
 
+@pytest.mark.variable
 def test_div_diff_shape(components):
     ref = [components[i] for i in (0, 2)]
     var = [make_variable(**component) for component in ref]
@@ -989,7 +957,7 @@ def test_div_diff_shape(components):
     attrs = {
         'unit': f"{ref[0]['unit']} / {ref[1]['unit']}",
         'axes': ('x', 'y', 'z'),
-        'names': {f"{ref[0]['name']} / {ref[1]['name']}"},
+        'name': f"{ref[0]['name']} / {ref[1]['name']}",
         'shape': (3, 4, 5),
     }
     call_func(
@@ -1001,6 +969,7 @@ def test_div_diff_shape(components):
     )
 
 
+@pytest.mark.variable
 def test_pow_number(components):
     ref = components[0]
     var = make_variable(**ref)
@@ -1010,7 +979,7 @@ def test_pow_number(components):
     attrs = {
         'unit': f"{ref['unit']}^{num}",
         'axes': ref['axes'],
-        'names': {f"{ref['name']}^{num}"},
+        'name': f"{ref['name']}^{num}",
     }
     call_func(
         operator.pow,
@@ -1021,28 +990,23 @@ def test_pow_number(components):
     )
 
 
+@pytest.mark.variable
 def test_pow_array(components):
     ref = components[0]
     var = make_variable(**ref)
     operands = [var, ref['data']]
-    result = var ** ref['data']
-    assert isinstance(result, numpy.ndarray)
-    expected = ref['data'] ** ref['data']
-    call_func(
-        operator.pow,
-        numpy.ndarray,
-        *operands,
-        expected=expected,
-    )
+    with pytest.raises(metadata.OperandTypeError):
+        var ** ref['data']
 
 
+@pytest.mark.variable
 def test_sqrt(components):
     ref = components[0]
     expected = numpy.sqrt(ref['data'])
     attrs = {
-        'unit': f"sqrt({ref['unit']})",
+        'unit': f"{ref['unit']}^1/2",
         'axes': ref['axes'],
-        'names': {f"sqrt({ref['name']})"},
+        'name': f"{ref['name']}^1/2",
     }
     call_func(
         numpy.sqrt,
@@ -1053,13 +1017,14 @@ def test_sqrt(components):
     )
 
 
+@pytest.mark.variable
 def test_squeeze(components):
     ref = components[3]
     expected = numpy.squeeze(ref['data'])
     attrs = {
         'unit': ref['unit'],
         'axes': ('x', 'z'),
-        'names': {ref['name']},
+        'name': ref['name'],
     }
     call_func(
         numpy.squeeze,
@@ -1070,6 +1035,7 @@ def test_squeeze(components):
     )
 
 
+@pytest.mark.variable
 def test_axis_mean(components):
     ref = components[4]
     cases = [
@@ -1082,7 +1048,7 @@ def test_axis_mean(components):
         attrs = {
             'unit': ref['unit'],
             'axes': axes,
-            'names': {f"mean({ref['name']})"},
+            'name': f"mean({ref['name']})",
         }
         call_func(
             numpy.mean,
@@ -1094,6 +1060,7 @@ def test_axis_mean(components):
         )
 
 
+@pytest.mark.variable
 def test_full_mean(components):
     ref = components[4]
     call_func(

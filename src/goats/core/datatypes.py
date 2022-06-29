@@ -1,4 +1,3 @@
-import abc
 import collections.abc
 import contextlib
 import fractions
@@ -15,93 +14,6 @@ from goats.core import metric
 from goats.core import measurable
 from goats.core import operations
 from goats.core import utilities
-
-
-def same_attrs(*names: str):
-    """Enforce attribute equality."""
-    def constrain(*v: Variable):
-        v0 = v[0]
-        if len(v) == 1:
-            return True
-        vi = v[1:]
-        return all(
-            getattr(i, name) == getattr(v0, name)
-            for name in names for i in vi
-        )
-    return constrain
-
-
-def attr_updater(x: typing.Union[typing.Callable, str]):
-    """Update a `Variable` attribute via `x`."""
-    def inner(*v: Variable):
-        if callable(x):
-            return x(*v)
-        if isinstance(x, str):
-            maps = [iterables.DisplayMap(i) for i in v]
-            return x.format_map(*maps)
-    return inner
-
-
-@typing.runtime_checkable
-class HasAxes(typing.Protocol):
-    """Abstract protocol for objects with `axes`."""
-
-    @property
-    @abc.abstractmethod
-    def axes(self) -> typing.Iterable[str]:
-        """The names of indexable axes in this object's array."""
-        pass
-
-
-def unique_axes(*args: HasAxes):
-    """Compute unique axes while preserving order."""
-    axes = (axis for arg in args for axis in arg.axes)
-    unique = []
-    for axis in axes:
-        if axis not in unique:
-            unique.append(axis)
-    return unique
-
-
-class Ufunc(iterables.ReprStrMixin):
-    """An object that manages use of a `numpy` universal function."""
-
-    def __init__(self, ufunc: numpy.ufunc) -> None:
-        self.ufunc = ufunc
-        self.name = ufunc.__name__
-        self._recipes = None
-
-    @property
-    def recipes(self) -> typing.Optional[dict]:
-        """The updaters for supported argument types."""
-        if self._recipes is None:
-            self._recipes = _opr_rules.get(self.name)
-        return self._recipes
-
-    def attr_updates(self, *args):
-        """Updated attributes for `args`, based on this function."""
-        if self.recipes:
-            # If we get here, there is an entry for `name`.
-            recipe = self._get_recipe(*args)
-            if recipe is None:
-                return NotImplemented
-            # If we get here, there is a recipe for the argument type(s).
-            for constraint in recipe.get('constraints', ()):
-                constraint(*args)
-            updaters = recipe.get('updaters', {})
-            return {k: updater(*args) for k, updater in updaters.items()}
-
-    def _get_recipe(self, *args) -> dict:
-        """Attempt to find an appropriate recipe for the given args."""
-        types = tuple(type(arg) for arg in args)
-        if types in self.recipes:
-            return self.recipes[types]
-        for key, recipe in self.recipes.items():
-            if all(issubclass(t, k) for t, k in zip(types, key)):
-                return recipe
-
-    def __str__(self) -> str:
-        return self.name
 
 
 _metadata_mixins = (
@@ -192,14 +104,14 @@ class Name(collections.abc.Collection, *_metadata_mixins):
         operator.__doc__ = f"Called for {s}"
         return operator
 
-    __add__ = _implement('+', strict=True)
-    __radd__ = _implement('+', strict=True, reverse=True)
-    __sub__ = _implement('-', strict=True)
-    __rsub__ = _implement('-', strict=True, reverse=True)
-    __mul__ = _implement('*')
-    __rmul__ = _implement('*', reverse=True)
-    __truediv__ = _implement('/')
-    __rtruediv__ = _implement('/', reverse=True)
+    __add__ = _implement(' + ', strict=True)
+    __radd__ = _implement(' + ', strict=True, reverse=True)
+    __sub__ = _implement(' - ', strict=True)
+    __rsub__ = _implement(' - ', strict=True, reverse=True)
+    __mul__ = _implement(' * ')
+    __rmul__ = _implement(' * ', reverse=True)
+    __truediv__ = _implement(' / ')
+    __rtruediv__ = _implement(' / ', reverse=True)
     __pow__ = _implement('^')
     __rpow__ = _implement('^', reverse=True)
 
@@ -230,16 +142,24 @@ class Name(collections.abc.Collection, *_metadata_mixins):
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
-Operators = measurable.operators(
-    'name',
-    exclude=['cast', '__round__', '__ceil__', '__floor__', '__trunc__']
-)
-class Quantity(Operators, measurable.Quantity):
+class Quantity(measurable.OperatorMixin, measurable.Quantity):
     """A measurable quantity with a name.
     
     This class is a concrete implementation of `~measurable.Quantity` that uses
     operator implementations provided by `~operations.Interface`.
     """
+
+    __metadata__ = 'name'
+
+    __measurable_operators__ = [
+        '__abs__', '__pos__', '__neg__',
+        '__lt__', '__le__', '__gt__', '__ge__',
+        '__add__', '__radd__',
+        '__sub__', '__rsub__',
+        '__mul__', '__rmul__',
+        '__truediv__', '__rtruediv__',
+        '__pow__', '__rpow__',
+    ]
 
     @typing.overload
     def __init__(
@@ -260,7 +180,6 @@ class Quantity(Operators, measurable.Quantity):
     def __init__(self, *args, **kwargs) -> None:
         *base, self._name = self._parse_quantity(*args, **kwargs)
         super().__init__(*base)
-        self.metadata.register('name')
         if self._name:
             self.display['__str__']['strings'].insert(0, "'{name}': ")
             self.display['__repr__']['strings'].insert(1, "'{name}'")
@@ -275,19 +194,28 @@ class Quantity(Operators, measurable.Quantity):
             )
         pos = list(args)
         data = kwargs.get('data') or pos.pop(0)
-        unit = metric.Unit(kwargs.get('unit') or pos.pop(0) or '1')
-        name = Name(
-            args[2] if len(args) == 3
-            else kwargs.get('name') or ''
-        )
-        return data, unit, name
+        unit = self._init_unit(pos, **kwargs)
+        name = self._init_name(pos, **kwargs)
+        return data, metric.Unit(unit), Name(name)
 
-    def name(self, *new: str, reset: bool=False):
-        """Get, set, or add to this object's name(s)."""
-        if not new:
-            return self._name
-        name = new if reset else self._name | new
-        self._name = aliased.MappingKey(name)
+    def _init_name(self, pos: list, **kwargs):
+        """Parse the name attribute from arguments or use the default value."""
+        if given := kwargs.get('name'):
+            return given
+        try:
+            return pos.pop(0)
+        except IndexError:
+            return ''
+
+    @property
+    def name(self):
+        """This quantity's name."""
+        return self._name
+
+    def alias(self, *updates: str, reset: bool=False):
+        """Set or add to this object's name(s)."""
+        aliases = updates if reset else self._name.add(updates)
+        self._name = Name(*aliases)
         return self
 
 
@@ -298,6 +226,12 @@ class Scalar(Quantity):
     defines the magic method `__measure__` in order to directly support
     `~measurables.measure`.
     """
+
+    __measurable_operators__ = [
+        '__int__', '__float__',
+        '__ceil__', '__floor__', '__round__', '__trunc__',
+    ]
+
     def __init__(
         self,
         data: numbers.Real,
@@ -309,7 +243,7 @@ class Scalar(Quantity):
     def __measure__(self):
         """Create a measurement from this scalar's value and unit."""
         value = iterables.whole(self.data)
-        return measurable.Measurement(value, self.unit())
+        return measurable.Measurement(value, self.unit)
 
 
 measurable.Scalar.register(Scalar)
@@ -342,7 +276,7 @@ class Vector(Quantity):
             index += len(self)
         values = self.data[index]
         iter_values = isinstance(values, typing.Iterable)
-        unit = self.unit()
+        unit = self.unit
         return (
             [Scalar(value, unit) for value in values] if iter_values
             else Scalar(values, unit)
@@ -350,7 +284,15 @@ class Vector(Quantity):
 
     def __measure__(self):
         """Create a measurement from this vector's values and unit."""
-        return measurable.Measurement(self.data, self.unit())
+        return measurable.Measurement(self.data, self.unit)
+
+    def __eq__(self, other: typing.Any):
+        """True if two instances have the same data and attributes."""
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        if not self.unit == other.unit:
+            return False
+        return numpy.array_equal(other, self)
 
 
 measurable.Vector.register(Vector)
@@ -368,29 +310,19 @@ IndexLike = typing.Union[typing.Iterable[int], slice, type(Ellipsis)]
 Instance = typing.TypeVar('Instance', bound='Array')
 
 
-# Notes:
-# - It's better to put the numpy mixin first in the MRO because it will convert
-#   list or tuple data to an array when it needs to. If `Quantity` were first,
-#   we could end up in an unimplemented situation such as `list` + `int`, or we
-#   would have to convert input data to an array in `__init__`, which is out of
-#   the question due the the potential size of dataset arrays.
-# - This means that this class will ignore many or all of the mixin operators we
-#   defined on `Quantity`.
-# - Is it worth defining mixin operators for `Quantity`? Other than this class,
-#   they support `Scalar` and `Vector`. Are those actually useful? They're
-#   status as "virtual concrete" implementations of corresponding `measurable`
-#   classes smells kind of weird, anyway.
 class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
     """Base class for array-like objects."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._scale = 1.0
-        # self._old_scale = self._scale
         self._rescale = False
         self._array = None
 
-    def _update_unit(self, unit: metric.UnitLike=None):
+    def convert(self, unit: metric.UnitLike):
+        """Set the unit of this object's values."""
+        if unit == self._metric:
+            return self
         new = metric.Unit(unit)
         self._scale *= new // self._metric
         self._metric = new
@@ -401,7 +333,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         """True if two instances have the same data and attributes."""
         if not isinstance(other, type(self)):
             return NotImplemented
-        if not self.unit() == other.unit():
+        if not self.unit == other.unit:
             return False
         return numpy.array_equal(other, self)
 
@@ -460,7 +392,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         """
         result = self._get_array(indices)
         Type = Scalar if isinstance(result, numbers.Number) else Array
-        return Type(result, unit=self.unit(), name=self.name())
+        return Type(result, unit=self.unit, name=self.name)
 
     def _subscript_custom(self, args):
         """Perform array subscription specific to this object.
@@ -496,7 +428,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
 
     _HANDLED_TYPES = (numpy.ndarray, numbers.Number, list)
 
-    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+    def __array_ufunc__(self, ufunc, method, *args, **kwargs):
         """Provide support for `numpy` universal functions.
 
         See https://numpy.org/doc/stable/reference/arrays.classes.html for more
@@ -510,15 +442,15 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         -----
         This method first ensures that the input types (as well as the type of
         `out`, if passed via keyword) are supported types. It then extracts
-        arrays from any inputs that are an instance of this class or a subclass
-        and applies `ufunc`. If `ufunc` is one of a pre-defined set of methods
-        that would cause an attribute of this class to become ambiguous or
-        undefined, this method will immediately return the result of applying
-        `ufunc`. Otherwise, this method will return a new instance with zero or
-        more attributes that have been modified in a `ufunc`-specific way (e.g.,
-        multiplying two instances' units when `ufunc` is 'multiply'). The
-        default behavior is therefore to return a new instance with unmodified
-        attributes.
+        appropriate operands from any arguments that are an instance of this
+        class or a subclass and applies `ufunc`. If `ufunc` is one of a
+        pre-defined set of methods that would cause an attribute of this class
+        to become ambiguous or undefined, this method return the result of
+        applying `ufunc`. Otherwise, this method will return a new instance with
+        zero or more attributes that have been modified in a `ufunc`-specific
+        way (e.g., multiplying two instances' units when `ufunc` is 'multiply').
+        The default behavior is therefore to return a new instance with
+        unmodified attributes.
         """
         out = kwargs.get('out', ())
         # NOTE: `NDArrayOperatorsMixin` recommends using the actual class (i.e.,
@@ -526,7 +458,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         # don't override __array_ufunc__ to support `Array` instances. We could
         # define a base `_HANDLED_TYPES`, then update an instance attribute
         # (e.g., `_ufunc_types`) in `__init__` and refer to that here.
-        for x in inputs + out:
+        for x in args + out:
             if not isinstance(x, self._HANDLED_TYPES + (type(self),)):
                 return NotImplemented
         if out:
@@ -535,20 +467,21 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
                 else x for x in out
             )
         name = ufunc.__name__
-        arrays = self._ufunc_hook(ufunc, *inputs)
-        data = getattr(ufunc, method)(*arrays, **kwargs)
-        try:
-            metadata = self.metadata.implement(name)(*inputs, **kwargs)
-        except TypeError:
-            metadata = None
+        operands = self._ufunc_hook(ufunc, *args)
+        compute = getattr(ufunc, method)
+        data = compute(*operands, **kwargs)
+        if name in self.metadata:
+            meta = self.metadata.implement(name)(*args, **kwargs)
+        else:
+            meta = self.metadata.implement(name, compute)(*args, **kwargs)
         if type(data) is tuple:
             return tuple(
-                self._new_from_func(x, updates=metadata)
+                self._new_from_func(x, updates=meta)
                 for x in data
             )
         if method == 'at':
             return None
-        return self._new_from_func(data, updates=metadata)
+        return self._new_from_func(data, updates=meta)
 
     def _ufunc_hook(self, ufunc, *inputs):
         """Convert input arrays into arrays appropriate to `ufunc`."""
@@ -634,6 +567,9 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         tries to access a large portion of the full array; this is a possible
         area for optimization.
         """
+        # NOTE: The use of `rescale` is one option. Another would be to keep a
+        # copy of `scale` in `old_scale` and enter this block if `scale`
+        # changes.
         if self._array is None or self._rescale:
             array = self._load_array(index) * self._scale
             self._rescale = False
@@ -669,17 +605,17 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
     def _copy_with(self, **updates):
         """Create a new instance from the current attributes."""
         data = updates.get('data', self.data)
-        unit = updates.get('unit', self.unit())
-        name = updates.get('name', self.name())
+        unit = updates.get('unit', self.unit)
+        name = updates.get('name', self.name)
         return Array(data, unit=unit, name=name)
 
     # def __str__(self) -> str:
     #     """A simplified representation of this object."""
     #     # Consider using the `numpy` string helper functions.
     #     attrs = [
-    #         f"unit='{self.unit()}'",
+    #         f"unit='{self.unit}'",
     #     ]
-    #     return f"'{self.name()}': {', '.join(attrs)}"
+    #     return f"'{self.name}': {', '.join(attrs)}"
 
     # def __repr__(self) -> str:
     #     """An unambiguous representation of this object."""
@@ -807,6 +743,8 @@ Instance = typing.TypeVar('Instance', bound='Variable')
 class Variable(Array):
     """A class representing a dataset variable."""
 
+    __metadata__ = 'axes'
+
     @typing.overload
     def __init__(
         self: Instance,
@@ -845,7 +783,6 @@ class Variable(Array):
             )
         self.display['__str__']['strings'].append("axes={axes}")
         self.display['__repr__']['strings'].append("axes={axes}")
-        self.metadata.register('axes')
 
     def _parse_variable(self, *args, **kwargs):
         """Parse input arguments to initialize this instance."""
@@ -856,7 +793,7 @@ class Variable(Array):
                 for name in ['data', 'unit', 'name', 'axes']
             )
         if (
-            len(args) == 2 or (len(args) == 1 and len(kwargs) == 1)
+            (len(args) == 2 or (len(args) == 1 and len(kwargs) == 1))
             and isinstance(args[0], Array)
         ):
             array = args[0]
@@ -924,10 +861,10 @@ class Variable(Array):
     # def __str__(self) -> str:
     #     """A simplified representation of this object."""
     #     attrs = [
-    #         f"unit='{self.unit()}'",
+    #         f"unit='{self.unit}'",
     #         f"axes={self.axes}",
     #     ]
-    #     return f"'{self.name()}': {', '.join(attrs)}"
+    #     return f"'{self.name}': {', '.join(attrs)}"
 
 
 @Variable.implements(numpy.squeeze)
@@ -938,7 +875,7 @@ def _squeeze(v: Variable, **kwargs):
         a for a, d in zip(v.axes, v.shape)
         if d != 1
     )
-    return Variable(data, unit=v.unit(), name=v.name(), axes=axes)
+    return Variable(data, unit=v.unit, name=v.name, axes=axes)
 
 
 @Variable.implements(numpy.mean)
@@ -949,126 +886,11 @@ def _mean(v: Variable, **kwargs):
     if axis is None:
         return data
     axes = tuple(a for a in v.axes if v.axes.index(a) != axis)
-    name = [f"mean({name})" for name in v.name()]
-    return Variable(data, unit=v.unit(), name=name, axes=axes)
+    name = [f"mean({name})" for name in v.name]
+    return Variable(data, unit=v.unit, name=name, axes=axes)
 
 
 measurable.Quantity.register(Variable)
-
-
-def _extend_arrays(
-    a: Variable,
-    b: Variable,
-) -> typing.Tuple[numpy.ndarray]:
-    """Extract arrays with extended axes.
-
-    This method determines the set of unique axes shared by variables `a` and
-    `b`, then extracts arrays suitable for computing a product or ratio that has
-    the full set of axes.
-    """
-    axes = a.axes.merge(b.axes)
-    tmp = {**b.shape_dict, **a.shape_dict}
-    full_shape = tuple(tmp[d] for d in axes)
-    idx = numpy.ix_(*[range(i) for i in full_shape])
-    a_idx = tuple(idx[axes.index(d)] for d in a.shape_dict)
-    a_arr = a._get_array(a_idx)
-    b_idx = tuple(idx[axes.index(d)] for d in b.shape_dict)
-    b_arr = b._get_array(b_idx)
-    return a_arr, b_arr
-
-
-_opr_rules = {
-    'add': {
-        (Variable, measurable.Real): {},
-        (Variable, Variable): {
-            'constraints': [same_attrs('axes', 'unit')],
-            'updaters': {
-                'name': attr_updater('{0.name} + {1.name}'),
-            }
-        },
-        (measurable.Real, Variable): {},
-    },
-    'subtract': {
-        (Variable, measurable.Real): {},
-        (Variable, Variable): {
-            'constraints': [same_attrs('axes', 'unit')],
-            'updaters': {
-                'name': attr_updater('{0.name} - {1.name}'),
-            }
-        },
-        (measurable.Real, Variable): {},
-    },
-    'multiply': {
-        (Variable, measurable.Real): {},
-        (Variable, Variable): {
-            'updaters': {
-                'unit': attr_updater('{0.unit} * {1.unit}'),
-                'axes': unique_axes,
-                'name': attr_updater('{0.name} * {1.name}'),
-            }
-        },
-        (measurable.Real, Variable): {},
-    },
-    'true_divide': {
-        (Variable, measurable.Real): {},
-        (Variable, Variable): {
-            'updaters': {
-                'unit': attr_updater('{0.unit} / ({1.unit})'),
-                'axes': unique_axes,
-                'name': attr_updater('{0.name} / {1.name}'),
-            }
-        },
-    },
-    'power': {
-        (Variable, numbers.Real): {
-            'updaters': {
-                'unit': attr_updater('({0.unit})^{1}'),
-                'name': attr_updater('{0.name}^{1}'),
-            },
-        },
-    },
-    'sqrt': {
-        (Variable,): {
-            'updaters': {
-                'unit': attr_updater('sqrt({0.unit})'),
-                'name': attr_updater('sqrt({0.name})'),
-            },
-        },
-    },
-}
-
-
-_native_rtype = {
-    'arccos',
-    'arccosh',
-    'arcsin',
-    'arcsinh',
-    'arctan',
-    'arctan2',
-    'arctanh',
-    'cos',
-    'cosh',
-    'sin',
-    'sinh',
-    'tan',
-    'tanh',
-    'log',
-    'log10',
-    'log1p',
-    'log2',
-    'exp',
-    'exp2',
-    'expm1',
-    'floor_divide',
-}
-"""Universal functions that result in a `numpy` or built-in return type.
-
-When any of the universal functions in this set act on an instance of
-`Variable`, the result will be the same as if it had acted on the underlying
-data array. The reason for this behavior may vary from function to function, but
-will typically be related to causing an attribute to become ambiguous or
-undefined.
-"""
 
 
 class Assumption(Vector):
@@ -1084,10 +906,10 @@ class Assumption(Vector):
         iter_values = isinstance(values, typing.Iterable)
         return (
             [
-                Scalar(value, unit=self.unit(), name=self.name())
+                Scalar(value, unit=self.unit, name=self.name)
                 for value in values
             ] if iter_values
-            else Scalar(values, unit=self.unit(), name=self.name())
+            else Scalar(values, unit=self.unit, name=self.name)
         )
 
     def __float__(self):
@@ -1334,7 +1156,7 @@ class Axis(iterables.ReprStrMixin):
         """A simplified representation of this object."""
         string = f"'{self.names}': size={self.size}"
         unit = (
-            str(self.reference.unit())
+            str(self.reference.unit)
             if isinstance(self.reference, measurable.Quantity)
             else None
         )
