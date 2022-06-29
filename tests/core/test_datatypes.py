@@ -1202,8 +1202,8 @@ def test_name_builtin():
     others = ['2', 2]
     # Addition and subtraction require two instances.
     cases = {
-        operator.add: '+',
-        operator.sub: '-',
+        operator.add: ' + ',
+        operator.sub: ' - ',
     }
     for method in cases:
         for other in others:
@@ -1213,8 +1213,8 @@ def test_name_builtin():
                 method(other, name)
     # Multiplication, division, and exponentiation are valid with numbers.
     cases = {
-        operator.mul: '*',
-        operator.truediv: '/',
+        operator.mul: ' * ',
+        operator.truediv: ' / ',
         pow: '^',
     }
     for method, s in cases.items():
@@ -1229,10 +1229,10 @@ def test_name_name():
     """Test operations between two name metadata objects."""
     name = datatypes.Name('a', 'A')
     cases = {
-        operator.add: '+',
-        operator.sub: '-',
-        operator.mul: '*',
-        operator.truediv: '/',
+        operator.add: ' + ',
+        operator.sub: ' - ',
+        operator.mul: ' * ',
+        operator.truediv: ' / ',
     }
     for method, s in cases.items():
         other = datatypes.Name('b', 'B')
@@ -1244,12 +1244,12 @@ def test_same_name():
     """Test operations on a name metadata object with itself."""
     name = datatypes.Name('a', 'A')
     additive = {
-        operator.add: '+',
-        operator.sub: '-',
+        operator.add: ' + ',
+        operator.sub: ' - ',
     }
     multiplicative = {
-        operator.mul: '*',
-        operator.truediv: '/',
+        operator.mul: ' * ',
+        operator.truediv: ' / ',
     }
     for method in additive:
         assert method(name, name) == name
@@ -1263,10 +1263,10 @@ def test_empty_names():
     n0 = datatypes.Name('')
     n1 = datatypes.Name('')
     cases = {
-        operator.add: '+',
-        operator.sub: '-',
-        operator.mul: '*',
-        operator.truediv: '/',
+        operator.add: ' + ',
+        operator.sub: ' - ',
+        operator.mul: ' * ',
+        operator.truediv: ' / ',
     }
     for method in cases:
         assert method(n0, n1) == datatypes.Name('')
