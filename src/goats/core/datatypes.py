@@ -104,7 +104,13 @@ class Ufunc(iterables.ReprStrMixin):
         return self.name
 
 
-class Name(collections.abc.Collection, iterables.ReprStrMixin):
+_metadata_mixins = (
+    numpy.lib.mixins.NDArrayOperatorsMixin,
+    iterables.ReprStrMixin,
+)
+
+
+class Name(collections.abc.Collection, *_metadata_mixins):
     """The name attribute of a data quantity."""
 
     def __init__(self, *aliases: str) -> None:
@@ -114,6 +120,15 @@ class Name(collections.abc.Collection, iterables.ReprStrMixin):
         """Add `aliases` to this name."""
         self._aliases = self._aliases | aliases
         return self
+
+    def __array_ufunc__(self, ufunc, method, *args, **kwargs):
+        """Provide support for `numpy` universal functions."""
+        if func := getattr(self, f'_ufunc_{ufunc.__name__}', None):
+            return func(*args, **kwargs)
+
+    def _ufunc_sqrt(self, arg):
+        """Implement the square-root function for a name."""
+        return arg**'1/2'
 
     def _implement(symbol: str, reverse: bool=False, strict: bool=False):
         """Implement a symbolic operation.
