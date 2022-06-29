@@ -279,15 +279,14 @@ class Operation(typing.Generic[T], iterables.ReprStrMixin):
                 return True
         return self._type in types
 
-    # NOTE: This is currently "in use" in datatypes.Array but it is antithetical
-    # to deprecating `REFERENCE` in favor of passing default callables to
-    # `OperatorFactory`. Consider returning to use of
-    # `OperatorFactory.implement(name)(*args, **kwargs)` in `Array` so we can
-    # deprecate this.
     def evaluate(self, *args, **kwargs):
         """Compute attribute values using the default method."""
-        method = REFERENCE[self.name]
-        return self.apply(method)(*args, **kwargs)
+        return self.operator(*args, **kwargs)
+
+    @property
+    def operator(self):
+        """The operator created from this operation's default callable."""
+        return self.apply(REFERENCE[self.name])
 
     def apply(self, method: typing.Callable):
         """Create an operator by applying the given method."""
@@ -361,13 +360,13 @@ class OperatorFactory(collections.abc.Mapping):
         ----------
         __type : type
             The type of object to which these operators will apply.
+
         *parameters : string
             Zero or more strings representing the updatable attributes in each
             operand to these operations.
         """
         self._type = __type
         self._parameters = list(iterables.unique(*parameters))
-        self._checkable = None
         self._operations = None
 
     @property
@@ -382,58 +381,11 @@ class OperatorFactory(collections.abc.Mapping):
             operation.update(*names)
         return self
 
-    def check(self, *operations: str, reset: bool=False):
-        """Check operand consistency on the named operations.
-        
-        Parameters
-        ----------
-        *operations : string
-            Zero or more names of operations on which to check that operands
-            have consistent attributes values.
+    def implement(self, method: typing.Callable):
+        """Apply `method` to the default implementation."""
+        return Operation(self._type, *self.parameters).apply(method)
 
-        reset : bool, default=False
-            If true, clear the existing set of operation names before
-            registering the new ones.
-        """
-        self._checkable = (
-            operations if reset else self.checkable | set(operations)
-        )
-        return self
-
-    @property
-    def checkable(self):
-        """The names of operations that require attribute consistency."""
-        if self._checkable is None:
-            self._checkable = set()
-        return set(self._checkable)
-
-    def implement(self, name: str, method: typing.Callable=None):
-        """Implement the named operator.
-        
-        Notes
-        -----
-        The defined operator will check operand consistency (if the named
-        operation warrants it) before determining if the corresponding method is
-        appropriate for computing metadata because some operations (e.g., binary
-        comparisons) require consistency even though they don't operate on
-        metadata.
-        """
-        if method and name not in self:
-            return self._default(method)
-        operation = self[name]
-        method = method or REFERENCE.get(name)
-        evaluate = operation.apply(method)
-        def operator(*args, **kwargs):
-            if name in self.checkable:
-                self.constrain(*args)
-            return evaluate(*args, **kwargs)
-        operator.__name__ = name
-        operator.__doc__ = method.__doc__
-        if callable(method) and not isinstance(method, type):
-            operator.__text_signature__ = str(inspect.signature(method))
-        return operator
-
-    def constrain(self, *args):
+    def check(self, *args):
         """Ensure that all arguments have consistent metadata values."""
         for p in self.parameters:
             if not consistent(p, *args):
@@ -442,25 +394,11 @@ class OperatorFactory(collections.abc.Mapping):
     def consistent(self, *args):
         """True if all arguments have consistent metadata values."""
         try:
-            self.constrain(*args)
+            self.check(*args)
         except ValueError:
             return False
         else:
             return True
-
-    def _default(self, method: typing.Callable):
-        """Apply `method` to the default implementation."""
-        def operator(*args, **kwargs):
-            """Compute metadata attribute values if possible."""
-            results = {}
-            for p in self.parameters:
-                values = [utilities.getattrval(arg, p) for arg in args]
-                with contextlib.suppress(TypeError):
-                    results[p] = method(*values, **kwargs)
-            return results
-        operator.__name__ = f'__{method.__name__}__'
-        operator.__doc__ = method.__doc__
-        return operator
 
     def __getitem__(self, __k: str):
         """Retrieve the appropriate operation context."""

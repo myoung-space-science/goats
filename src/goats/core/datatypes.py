@@ -471,9 +471,9 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         compute = getattr(ufunc, method)
         data = compute(*operands, **kwargs)
         if name in self.metadata:
-            meta = self.metadata.implement(name)(*args, **kwargs)
+            meta = self.metadata[name].evaluate(*args, **kwargs)
         else:
-            meta = self.metadata.implement(name, compute)(*args, **kwargs)
+            meta = self.metadata.implement(compute)(*args, **kwargs)
         if type(data) is tuple:
             return tuple(
                 self._new_from_func(x, updates=meta)

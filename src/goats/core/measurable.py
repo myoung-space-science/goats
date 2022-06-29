@@ -159,7 +159,6 @@ class Quantity(Quantifiable):
         """Support metadata operations on a measurable quantity."""
         super().__init_subclass__()
         factory = metadata.OperatorFactory(cls)
-        factory.check('lt', 'le', 'gt', 'ge')
         factory['true divide'].suppress(Real, Quantity)
         factory['power'].suppress(Quantity, Quantity)
         factory['power'].suppress(Real, Quantity)
@@ -316,7 +315,7 @@ class Default(Operation):
 
 
 class Cast(Operation):
-    """A unary type-case operation."""
+    """A unary type-cast operation."""
 
     def __init__(self, __callable: typing.Type[T]) -> None:
         super().__init__(__callable)
@@ -335,7 +334,7 @@ class Arithmetic(Operation):
 
     def evaluate(self, q: Q, **kwargs):
         data = self.callable(q.data, **kwargs)
-        meta = q.metadata.implement(self.name)(q, **kwargs)
+        meta = q.metadata[self.name].evaluate(q, **kwargs)
         return type(q)(data, **meta)
 
 
@@ -344,7 +343,7 @@ class Comparison(Operation):
 
     def evaluate(self, q0: Q, q1: typing.Union[Q, typing.Any]):
         operands = [i.data if isinstance(i, Quantity) else i for i in (q0, q1)]
-        q0.metadata.constrain(q0, q1)
+        q0.metadata.check(q0, q1)
         return self.callable(*operands)
 
 
@@ -373,7 +372,7 @@ class Numeric(Operation):
         args = (q1, q0) if self.mode == 'reverse' else (q0, q1)
         operands = [i.data if isinstance(i, Quantity) else i for i in args]
         data = self.callable(*operands, **kwargs)
-        meta = q0.metadata.implement(self.name)(*args, **kwargs)
+        meta = q0.metadata[self.name].evaluate(*args, **kwargs)
         if self.mode == 'inplace':
             utilities.setattrval(q0, 'data', data)
             for k, v in meta:
