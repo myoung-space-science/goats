@@ -316,8 +316,13 @@ class Operation(abc.ABC):
         raise NotImplementedError
 
     def implements(self, *args):
-        """True if the argument(s) implement(s) this operation."""
-        return self.method in getattr(args[0], '__measurable_operators__', ())
+        """True if the first argument implements this operation."""
+        ancestors = args[0].__class__.mro()[::-1]
+        operators = [
+            name for c in ancestors
+            for name in iterables.whole(getattr(c, '__measurable_operators__', ()))
+        ]
+        return self.method in operators
 
     def document(self, operator: typing.Callable):
         """Add documentation attributes to `operator`."""
