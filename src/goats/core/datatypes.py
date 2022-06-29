@@ -760,16 +760,14 @@ class Dimensions(collections.abc.Sequence, iterables.ReprStrMixin):
         for b in others:
             if isinstance(b, Dimensions):
                 names.extend(b.names)
-        return Dimensions(*operations.unique(*names))
+        return Dimensions(*iterables.unique(*names))
 
     __mul__ = merge
     """Called for self * other."""
+    __rmul__ = merge
+    """Called for other * self."""
     __truediv__ = merge
     """Called for self / other."""
-
-    def __pow__(self, other, **kwargs):
-        """Called for self ** other."""
-        return self
 
     def __eq__(self, other):
         """True if self and other represent the same axes."""
