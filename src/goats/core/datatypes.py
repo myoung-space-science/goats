@@ -470,10 +470,11 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         operands = self._ufunc_hook(ufunc, *args)
         compute = getattr(ufunc, method)
         data = compute(*operands, **kwargs)
-        if name in self.metadata:
-            meta = self.metadata[name].evaluate(*args, **kwargs)
-        else:
-            meta = self.metadata.implement(compute)(*args, **kwargs)
+        evaluate = (
+            self.metadata[name].evaluate if name in self.metadata
+            else self.metadata.implement(compute)
+        )
+        meta = evaluate(*args, **kwargs)
         if type(data) is tuple:
             return tuple(
                 self._new_from_func(x, updates=meta)
