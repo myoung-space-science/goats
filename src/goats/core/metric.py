@@ -1729,6 +1729,15 @@ class Unit(algebraic.Expression):
         """Compute the inverse of self // other."""
         return 1.0 / self.__floordiv__(other)
 
+    def __array_ufunc__(self, ufunc, method, *args, **kwargs):
+        """Provide support for `numpy` universal functions."""
+        if func := getattr(self, f'_ufunc_{ufunc.__name__}', None):
+            return func(*args, **kwargs)
+
+    def _ufunc_sqrt(self, arg):
+        """Implement the square-root function for a unit."""
+        return arg**0.5
+
     def restrict(method: typing.Callable, reverse: bool=False):
         """Restrict allowed operand types for an operation."""
         return operations.restrict(method, str, reverse=reverse)
