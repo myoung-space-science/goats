@@ -11,7 +11,7 @@ def test_constants():
             mapping = physical.Constants(system)
             c = mapping[key]
             assert float(c) == d['value']
-            assert c.unit() == d['unit']
+            assert c.unit == d['unit']
 
 
 def test_elements():
