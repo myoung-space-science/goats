@@ -64,8 +64,6 @@ class Quantifiable(algebraic.Quantity, iterables.ReprStrMixin):
     metric.
     """
 
-    __metadata__: typing.ClassVar = '_metric'
-
     def __init__(
         self,
         __amount: Real,
