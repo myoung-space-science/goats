@@ -192,8 +192,7 @@ class Quantity(Quantifiable):
         """Initialize this instance from an existing one."""
 
     def __init__(self, *args, **kwargs) -> None:
-        data, unit = self._parse_init_args(list(args), kwargs)
-        super().__init__(data, unit)
+        self._init_from_args(*args, **kwargs)
         display = {
             '__str__': {
                 'strings': ["{_amount}", "[{_metric}]"],
@@ -216,24 +215,26 @@ class Quantity(Quantifiable):
         """This quantity's metric unit."""
         return self._metric
 
-    # Should `data` be positional only?
-    def _parse_init_args(self, pos: list, kwargs: dict):
-        """Parse input arguments to initialize this instance."""
-        if not kwargs and len(pos) == 1 and isinstance(pos[0], type(self)):
-            obj = pos[0]
-            names = ['data'] + list(self.__metadata_attributes__)
-            return tuple(utilities.getattrval(obj, name) for name in names)
-        parsed = [
-            kwargs.get('data') or pos.pop(0)
-        ] + self._get_init(pos, kwargs)
-        return tuple(parsed)
+    def _init_from_args(self, *args, **kwargs):
+        """Initialize this instance from user arguments."""
+        data, unit, *_ = self._parse_args(*args, **kwargs)
+        super().__init__(data, metric.Unit(unit))
 
-    def _get_init(self, pos: list, kwargs: dict):
-        """Get an attributes from user arguments."""
-        return [
-            t(kwargs.get(name) or self._next_arg(pos, d))
-            for name, (t, d) in self.__metadata_attributes__.items()
-        ]
+    def _parse_args(self, *args, **kwargs):
+        """Parse initialization arguments."""
+        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
+            return self._init_from_instance(args[0])
+        return self._init_from_values(list(args), kwargs)
+
+    def _init_from_instance(self, instance: Instance):
+        """Initialize this instance from an existing instance."""
+        return instance.data, instance.unit
+
+    def _init_from_values(self, pos: list, kwd: dict):
+        """Initialize this instance from explicit values."""
+        data = kwd.get('data') or pos.pop(0)
+        unit = kwd.pop('unit', None) or self._next_arg(pos, '1')
+        return data, unit
 
     def _next_arg(self, pos: list, default: T):
         """Get the next positional argument or use the default value."""
