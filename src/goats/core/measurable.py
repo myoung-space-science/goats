@@ -192,7 +192,8 @@ class Quantity(Quantifiable):
         """Initialize this instance from an existing one."""
 
     def __init__(self, *args, **kwargs) -> None:
-        self._init_from_args(list(args), kwargs)
+        data, unit = self._parse_init_args(list(args), kwargs)
+        super().__init__(data, unit)
         display = {
             '__str__': {
                 'strings': ["{_amount}", "[{_metric}]"],
@@ -215,12 +216,6 @@ class Quantity(Quantifiable):
         """This quantity's metric unit."""
         return self._metric
 
-    def _init_from_args(self, pos: list, kwargs: dict):
-        """Initialize this instance's attributes from arguments."""
-        data, unit, *rest = self._parse_init_args(pos, kwargs)
-        super().__init__(data, unit)
-        return rest
-
     # Should `data` be positional only?
     def _parse_init_args(self, pos: list, kwargs: dict):
         """Parse input arguments to initialize this instance."""
@@ -230,28 +225,22 @@ class Quantity(Quantifiable):
             return tuple(utilities.getattrval(obj, name) for name in names)
         parsed = [
             kwargs.get('data') or pos.pop(0)
-        ] + [
-            self._get_init(pos, kwargs, k, *v)
-            for k, v in self.__metadata_attributes__.items()
-        ]
+        ] + self._get_init(pos, kwargs)
         return tuple(parsed)
 
-    def _get_init(
-        self,
-        pos: list,
-        kwargs: dict,
-        name: str,
-        newtype: T,
-        default: typing.Any,
-    ) -> T:
-        """Get an attribute from arguments or use the default value."""
-        if given := kwargs.get(name):
-            return newtype(given)
+    def _get_init(self, pos: list, kwargs: dict):
+        """Get an attributes from user arguments."""
+        return [
+            t(kwargs.get(name) or self._next_arg(pos, d))
+            for name, (t, d) in self.__metadata_attributes__.items()
+        ]
+
+    def _next_arg(self, pos: list, default: T):
+        """Get the next positional argument or use the default value."""
         try:
-            value = pos.pop(0)
+            return pos.pop(0)
         except IndexError:
-            value = default
-        return newtype(value)
+            return default
 
     def convert(self, unit: metric.UnitLike):
         """Set the unit of this object's values."""
