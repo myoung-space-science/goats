@@ -178,34 +178,16 @@ class Quantity(measurable.OperatorMixin, measurable.Quantity):
         """Initialize this instance from an existing one."""
 
     def __init__(self, *args, **kwargs) -> None:
-        *base, self._name = self._parse_quantity(*args, **kwargs)
+        *base, self._name = self._parse_init_args(
+            list(args),
+            kwargs,
+            unit=(metric.Unit, '1'),
+            name=(Name, ''),
+        )
         super().__init__(*base)
         if self._name:
             self.display['__str__']['strings'].insert(0, "'{name}': ")
             self.display['__repr__']['strings'].insert(1, "'{name}'")
-
-    def _parse_quantity(self, *args, **kwargs):
-        """Parse input arguments to initialize this instance."""
-        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
-            instance = args[0]
-            return tuple(
-                utilities.getattrval(instance, name)
-                for name in ['data', 'unit', 'name']
-            )
-        pos = list(args)
-        data = kwargs.get('data') or pos.pop(0)
-        unit = self._init_unit(pos, **kwargs)
-        name = self._init_name(pos, **kwargs)
-        return data, metric.Unit(unit), Name(name)
-
-    def _init_name(self, pos: list, **kwargs):
-        """Parse the name attribute from arguments or use the default value."""
-        if given := kwargs.get('name'):
-            return given
-        try:
-            return pos.pop(0)
-        except IndexError:
-            return ''
 
     @property
     def name(self):
@@ -772,7 +754,13 @@ class Variable(Array):
         """Create a new variable from an existing variable."""
 
     def __init__(self, *args, **kwargs) -> None:
-        *base, self.axes = self._parse_variable(*args, **kwargs)
+        *base, self.axes = self._parse_init_args(
+            list(args),
+            kwargs,
+            unit=(metric.Unit, '1'),
+            name=(Name, ''),
+            axes=(Dimensions, ())
+        )
         super().__init__(*base)
         """The names of indexable axes in this variable's array."""
         self.naxes = len(self.axes)
@@ -785,36 +773,17 @@ class Variable(Array):
         self.display['__str__']['strings'].append("axes={axes}")
         self.display['__repr__']['strings'].append("axes={axes}")
 
-    def _parse_variable(self, *args, **kwargs):
-        """Parse input arguments to initialize this instance."""
-        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
-            instance = args[0]
-            return tuple(
-                utilities.getattrval(instance, name)
-                for name in ['data', 'unit', 'name', 'axes']
-            )
-        if (
-            (len(args) == 2 or (len(args) == 1 and len(kwargs) == 1))
-            and isinstance(args[0], Array)
-        ):
-            array = args[0]
-            data, unit, name = [
+    def _parse_init_args(self, pos: list, kwargs: dict, **meta):
+        n = len(pos)
+        two_args = n == 2 or (n == 1 and len(kwargs) == 1)
+        if two_args and isinstance(pos[0], Array):
+            array = pos.pop(0)
+            args = [
                 utilities.getattrval(array, name)
                 for name in ['data', 'unit', 'name']
             ]
-        else:
-            pos = list(args)
-            data = kwargs.get('data') or pos.pop(0)
-            unit = metric.Unit(kwargs.get('unit') or pos.pop(0) or '1')
-            name = Name(
-                args[2] if len(args) == 3
-                else kwargs.get('name') or ''
-            )
-        axes = Dimensions(
-            args[3] if len(args) == 4
-            else kwargs.get('axes') or ()
-        )
-        return data, unit, name, axes
+            pos = list(args) + pos
+        return super()._parse_init_args(pos, kwargs, **meta)
 
     def _ufunc_hook(self, ufunc, *inputs):
         """Convert input arrays into arrays appropriate to `ufunc`."""

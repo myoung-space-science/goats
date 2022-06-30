@@ -132,6 +132,9 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
         return f"{values} [{self._unit}]"
 
 
+T = typing.TypeVar('T')
+
+
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
@@ -187,7 +190,11 @@ class Quantity(Quantifiable):
         """Initialize this instance from an existing one."""
 
     def __init__(self, *args, **kwargs) -> None:
-        init = self._parse(*args, **kwargs)
+        init = self._parse_init_args(
+            list(args),
+            kwargs,
+            unit=(metric.Unit, '1'),
+        )
         super().__init__(*init)
         display = {
             '__str__': {
@@ -211,30 +218,34 @@ class Quantity(Quantifiable):
         """This quantity's metric unit."""
         return self._metric
 
-    Attrs = typing.TypeVar('Attrs', bound=tuple)
-    Attrs = typing.Tuple[Real, metric.UnitLike]
-
-    def _parse(self, *args, **kwargs) -> Attrs:
+    # Should `data` be positional only?
+    def _parse_init_args(self, pos: list, kwargs: dict, **meta):
         """Parse input arguments to initialize this instance."""
-        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
-            instance = args[0]
-            return tuple(
-                getattr(instance, name)
-                for name in ('_amount', '_metric')
-            )
-        pos = list(args)
-        data = kwargs.get('data') or pos.pop(0)
-        unit = self._init_unit(pos, **kwargs)
-        return data, metric.Unit(unit)
+        if not kwargs and len(pos) == 1 and isinstance(pos[0], type(self)):
+            obj = pos[0]
+            names = ['data'] + list(meta)
+            return tuple(utilities.getattrval(obj, name) for name in names)
+        parsed = [
+            kwargs.get('data') or pos.pop(0)
+        ] + [self._get_init(pos, kwargs, k, *v) for k, v in meta.items()]
+        return tuple(parsed)
 
-    def _init_unit(self, pos: list, **kwargs):
-        """Parse the unit attribute from arguments or use the default value."""
-        if given := kwargs.get('unit'):
-            return given
+    def _get_init(
+        self,
+        pos: list,
+        kwargs: dict,
+        name: str,
+        newtype: T,
+        default: typing.Any,
+    ) -> T:
+        """Get an attribute from arguments or use the default value."""
+        if given := kwargs.get(name):
+            return newtype(given)
         try:
-            return pos.pop(0)
+            value = pos.pop(0)
         except IndexError:
-            return '1'
+            value = default
+        return newtype(value)
 
     def convert(self, unit: metric.UnitLike):
         """Set the unit of this object's values."""
@@ -244,9 +255,6 @@ class Quantity(Quantifiable):
         self._amount *= new // self._metric
         self._metric = new
         return self
-
-
-T = typing.TypeVar('T')
 
 
 class Subtype(typing.Generic[T]):
