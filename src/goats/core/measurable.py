@@ -156,7 +156,7 @@ class Quantity(Quantifiable):
     `~metric.Unit` class.
     """
 
-    __metadata__: typing.ClassVar = 'unit'
+    __metadata__: typing.ClassVar = {'unit': (metric.Unit, '1')}
 
     def __init_subclass__(cls) -> None:
         """Support metadata operations on a measurable quantity."""
@@ -167,12 +167,14 @@ class Quantity(Quantifiable):
         factory['power'].suppress(Real, Quantity)
         factory['power'].suppress(Quantity, typing.Iterable, symmetric=True)
         ancestors = cls.mro()[::-1]
-        parameters = [
-            name for c in ancestors
-            for name in iterables.whole(getattr(c, '__metadata__', ()))
-        ]
-        factory.register(*iterables.unique(*parameters))
+        attributes = {
+            k: v
+            for ancestor in ancestors
+            for k, v in getattr(ancestor, '__metadata__', {}).items()
+        }
+        factory.register(*iterables.unique(*attributes))
         cls.metadata = factory
+        cls.__metadata_attributes__ = attributes
 
     @typing.overload
     def __init__(
@@ -190,12 +192,7 @@ class Quantity(Quantifiable):
         """Initialize this instance from an existing one."""
 
     def __init__(self, *args, **kwargs) -> None:
-        init = self._parse_init_args(
-            list(args),
-            kwargs,
-            unit=(metric.Unit, '1'),
-        )
-        super().__init__(*init)
+        self._init_from_args(list(args), kwargs)
         display = {
             '__str__': {
                 'strings': ["{_amount}", "[{_metric}]"],
@@ -218,16 +215,25 @@ class Quantity(Quantifiable):
         """This quantity's metric unit."""
         return self._metric
 
+    def _init_from_args(self, pos: list, kwargs: dict):
+        """Initialize this instance's attributes from arguments."""
+        data, unit, *rest = self._parse_init_args(pos, kwargs)
+        super().__init__(data, unit)
+        return rest
+
     # Should `data` be positional only?
-    def _parse_init_args(self, pos: list, kwargs: dict, **meta):
+    def _parse_init_args(self, pos: list, kwargs: dict):
         """Parse input arguments to initialize this instance."""
         if not kwargs and len(pos) == 1 and isinstance(pos[0], type(self)):
             obj = pos[0]
-            names = ['data'] + list(meta)
+            names = ['data'] + list(self.__metadata_attributes__)
             return tuple(utilities.getattrval(obj, name) for name in names)
         parsed = [
             kwargs.get('data') or pos.pop(0)
-        ] + [self._get_init(pos, kwargs, k, *v) for k, v in meta.items()]
+        ] + [
+            self._get_init(pos, kwargs, k, *v)
+            for k, v in self.__metadata_attributes__.items()
+        ]
         return tuple(parsed)
 
     def _get_init(

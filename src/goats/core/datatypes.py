@@ -149,7 +149,7 @@ class Quantity(measurable.OperatorMixin, measurable.Quantity):
     operator implementations provided by `~operations.Interface`.
     """
 
-    __metadata__ = 'name'
+    __metadata__ = {'name': (Name, '')}
 
     __measurable_operators__ = [
         '__abs__', '__pos__', '__neg__',
@@ -178,16 +178,15 @@ class Quantity(measurable.OperatorMixin, measurable.Quantity):
         """Initialize this instance from an existing one."""
 
     def __init__(self, *args, **kwargs) -> None:
-        *base, self._name = self._parse_init_args(
-            list(args),
-            kwargs,
-            unit=(metric.Unit, '1'),
-            name=(Name, ''),
-        )
-        super().__init__(*base)
+        super().__init__(*args, **kwargs)
         if self._name:
             self.display['__str__']['strings'].insert(0, "'{name}': ")
             self.display['__repr__']['strings'].insert(1, "'{name}'")
+
+    def _init_from_args(self, pos: list, kwargs: dict):
+        name, *rest = super()._init_from_args(pos, kwargs)
+        self._name = name
+        return rest
 
     @property
     def name(self):
@@ -726,7 +725,7 @@ Instance = typing.TypeVar('Instance', bound='Variable')
 class Variable(Array):
     """A class representing a dataset variable."""
 
-    __metadata__ = 'axes'
+    __metadata__ = {'axes': (Dimensions, ())}
 
     @typing.overload
     def __init__(
@@ -754,14 +753,7 @@ class Variable(Array):
         """Create a new variable from an existing variable."""
 
     def __init__(self, *args, **kwargs) -> None:
-        *base, self.axes = self._parse_init_args(
-            list(args),
-            kwargs,
-            unit=(metric.Unit, '1'),
-            name=(Name, ''),
-            axes=(Dimensions, ())
-        )
-        super().__init__(*base)
+        super().__init__(*args, **kwargs)
         """The names of indexable axes in this variable's array."""
         self.naxes = len(self.axes)
         """The number of indexable axes in this variable's array."""
@@ -773,7 +765,12 @@ class Variable(Array):
         self.display['__str__']['strings'].append("axes={axes}")
         self.display['__repr__']['strings'].append("axes={axes}")
 
-    def _parse_init_args(self, pos: list, kwargs: dict, **meta):
+    def _init_from_args(self, pos: list, kwargs: dict):
+        axes, *rest = super()._init_from_args(pos, kwargs)
+        self.axes = axes
+        return rest
+
+    def _parse_init_args(self, pos: list, kwargs: dict):
         n = len(pos)
         two_args = n == 2 or (n == 1 and len(kwargs) == 1)
         if two_args and isinstance(pos[0], Array):
@@ -783,7 +780,7 @@ class Variable(Array):
                 for name in ['data', 'unit', 'name']
             ]
             pos = list(args) + pos
-        return super()._parse_init_args(pos, kwargs, **meta)
+        return super()._parse_init_args(pos, kwargs)
 
     def _ufunc_hook(self, ufunc, *inputs):
         """Convert input arrays into arrays appropriate to `ufunc`."""
