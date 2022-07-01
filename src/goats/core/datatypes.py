@@ -595,18 +595,6 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         name = updates.get('name', self.name)
         return Array(data, unit=unit, name=name)
 
-    # def __str__(self) -> str:
-    #     """A simplified representation of this object."""
-    #     # Consider using the `numpy` string helper functions.
-    #     attrs = [
-    #         f"unit='{self.unit}'",
-    #     ]
-    #     return f"'{self.name}': {', '.join(attrs)}"
-
-    # def __repr__(self) -> str:
-    #     """An unambiguous representation of this object."""
-    #     return f"{self.__class__.__qualname__}({self})"
-
     @classmethod
     def implements(cls, numpy_function):
         """Register an `__array_function__` implementation for this class.
@@ -830,14 +818,6 @@ class Variable(Array):
         array = super()._copy_with(**updates)
         axes = updates.get('axes', self.axes)
         return Variable(array, axes=axes)
-
-    # def __str__(self) -> str:
-    #     """A simplified representation of this object."""
-    #     attrs = [
-    #         f"unit='{self.unit}'",
-    #         f"axes={self.axes}",
-    #     ]
-    #     return f"'{self.name}': {', '.join(attrs)}"
 
 
 @Variable.implements(numpy.squeeze)
