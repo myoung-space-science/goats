@@ -454,7 +454,8 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
             self.metadata[name].evaluate if name in self.metadata
             else self.metadata.implement(compute)
         )
-        meta = evaluate(*args, **kwargs)
+        kwds = {k: v for k, v in kwargs.items() if k != 'out'}
+        meta = evaluate(*args, **kwds)
         if type(data) is tuple:
             return tuple(
                 self._new_from_func(x, updates=meta)
