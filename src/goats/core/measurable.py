@@ -563,8 +563,9 @@ def measure(*args):
     Otherwise, it will attempt to parse `args` into one or more values and a
     corresponding unit.
     """
-    if len(args) == 1 and isinstance(args[0], Measurable):
-        return args[0].__measure__()
+    first = args[0]
+    if len(args) == 1 and isinstance(first, Measurable):
+        return first.__measure__()
     parsed = parse_measurable(args, distribute=False)
     return Measurement(parsed[:-1], parsed[-1])
 
