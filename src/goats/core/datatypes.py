@@ -438,17 +438,12 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         unmodified attributes.
         """
         out = kwargs.get('out', ())
-        # NOTE: `NDArrayOperatorsMixin` recommends using the actual class (i.e.,
-        # `Array` in this case) instead of `type(self)` to allow subclasses that
-        # don't override __array_ufunc__ to support `Array` instances. We could
-        # define a base `_HANDLED_TYPES`, then update an instance attribute
-        # (e.g., `_ufunc_types`) in `__init__` and refer to that here.
         for x in args + out:
-            if not isinstance(x, self._HANDLED_TYPES + (type(self),)):
+            if not isinstance(x, self._HANDLED_TYPES + (Array,)):
                 return NotImplemented
         if out:
             kwargs['out'] = tuple(
-                x._get_array() if isinstance(x, type(self))
+                x._get_array() if isinstance(x, Array)
                 else x for x in out
             )
         name = ufunc.__name__
@@ -472,7 +467,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
     def _ufunc_hook(self, ufunc, *inputs):
         """Convert input arrays into arrays appropriate to `ufunc`."""
         return tuple(
-            x._get_array() if isinstance(x, type(self))
+            x._get_array() if isinstance(x, Array)
             else x for x in inputs
         )
 
@@ -490,19 +485,19 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         The initial `issubclass` check allows subclasses that don't override
         `__array_function__` to handle objects of this type.
         """
-        accepted = (type(self), numpy.ndarray, numpy.ScalarType)
+        accepted = (Array, numpy.ndarray, numpy.ScalarType)
         if not all(issubclass(ti, accepted) for ti in types):
             return NotImplemented
         if func in self._HANDLED_FUNCTIONS:
             result = self._HANDLED_FUNCTIONS[func](*args, **kwargs)
             return self._new_from_func(result)
         args = tuple(
-            arg._get_array() if isinstance(arg, type(self))
+            arg._get_array() if isinstance(arg, Array)
             else arg for arg in args
         )
         types = tuple(
             ti for ti in types
-            if not issubclass(ti, type(self))
+            if not issubclass(ti, Array)
         )
         data = self._get_array()
         arr = data.__array_function__(func, types, args, kwargs)
