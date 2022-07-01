@@ -242,9 +242,13 @@ class ReprStrMixin:
     def display(self) -> typing.Dict[str, typing.Dict[str, typing.List[str]]]:
         """The attributes to display for each method."""
         if self._display is None:
+            empty = {
+                'strings': [''],
+                'separator': ', ',
+            }
             self._display = {
-                '__str__': {},
-                '__repr__': {},
+                '__str__': empty.copy(),
+                '__repr__': empty.copy(),
             }
         return self._display
 
@@ -261,9 +265,9 @@ class ReprStrMixin:
 
     def _get_display(self, method: str):
         """Helper method for `__str__` and `__repr__`."""
-        strings = self.display[method].get('strings', [''])
+        strings = self.display[method]['strings']
         parts = [string.format_map(DisplayMap(self)) for string in strings]
-        separator = self.display[method].get('separator', ', ')
+        separator = self.display[method]['separator']
         return separator.join(parts)
 
 
