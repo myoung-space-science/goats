@@ -325,8 +325,6 @@ class Interface(base.Interface):
 
     def _update_assumption(self, this):
         """Update a single assumption from user input."""
-        if len(this) > 1:
-            raise ValueError("Can't use a multi-valued assumption") from None
         if isinstance(this, datatypes.Assumption):
             this = this[0]
         if isinstance(this, measurable.Measurement):
@@ -335,7 +333,10 @@ class Interface(base.Interface):
             unit = MKS.get_unit(unit=this.unit)
             return this.convert(unit)
         measured = measurable.measure(this)
-        assumption = [self._update_assumption(v) for v in measured[:]]
+        if len(measured) > 1:
+            raise ValueError("Can't use a multi-valued assumption") from None
+        vector = datatypes.Vector(measured.values, unit=measured.unit)
+        assumption = [self._update_assumption(v) for v in vector[:]]
         return assumption[0] if len(assumption) == 1 else assumption
 
     def apply(self, constraints: typing.Mapping):
