@@ -299,6 +299,10 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         self._scale = 1.0
         self._rescale = False
         self._array = None
+        # TODO: Display current array values in `__str__` and `__repr__`. At the
+        # moment, they use either `data` or `_amount`, which reflects the
+        # initial values. The internal values are correct but they printed
+        # strings are misleading.
 
     def convert(self, unit: metric.UnitLike):
         """Set the unit of this object's values."""
