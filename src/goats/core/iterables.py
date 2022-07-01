@@ -239,7 +239,7 @@ class ReprStrMixin:
     _display = None
 
     @property
-    def display(self):
+    def display(self) -> typing.Dict[str, typing.Dict[str, typing.List[str]]]:
         """The attributes to display for each method."""
         if self._display is None:
             self._display = {
