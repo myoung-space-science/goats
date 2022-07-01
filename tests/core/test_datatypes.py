@@ -12,7 +12,6 @@ from goats.core import datatypes
 from goats.core import measurable
 from goats.core import metric
 from goats.core import metadata
-from goats.core import operations
 
 
 @pytest.mark.scalar
