@@ -203,6 +203,11 @@ class Quantity(measurable.OperatorMixin, measurable.Quantity):
         self._name = Name(*aliases)
         return self
 
+    def __measure__(self):
+        """Create a measurement from this quantity's data and unit."""
+        value = iterables.whole(self.data)
+        return measurable.Measurement(value, self.unit)
+
 
 class Scalar(Quantity):
     """A single-valued data-type quantity.
@@ -224,11 +229,6 @@ class Scalar(Quantity):
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None:
         super().__init__(float(data), unit=unit, name=name)
-
-    def __measure__(self):
-        """Create a measurement from this scalar's value and unit."""
-        value = iterables.whole(self.data)
-        return measurable.Measurement(value, self.unit)
 
 
 measurable.Scalar.register(Scalar)
@@ -266,10 +266,6 @@ class Vector(Quantity):
             [Scalar(value, unit) for value in values] if iter_values
             else Scalar(values, unit)
         )
-
-    def __measure__(self):
-        """Create a measurement from this vector's values and unit."""
-        return measurable.Measurement(self.data, self.unit)
 
     def __eq__(self, other: typing.Any):
         """True if two instances have the same data and attributes."""
