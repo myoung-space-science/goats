@@ -46,8 +46,8 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
 
     def __init__(self, dataset: datasets.DatasetView) -> None:
         self.variables = datasets.Variables(dataset)
-        mass = self.variables['mass'].convert_to('nuc')
-        charge = self.variables['charge'].convert_to('e')
+        mass = self.variables['mass'].convert('nuc')
+        charge = self.variables['charge'].convert('e')
         self.symbols = physical.elements(mass, charge)
         # TODO: Consider using reference arrays in methods, with the possible
         # exception of `_build_shell`.
