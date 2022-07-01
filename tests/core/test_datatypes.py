@@ -1072,11 +1072,11 @@ def test_full_mean(components):
 
 def test_dimensions_object():
     """Make sure axes names behave as expected in operations."""
-    assert len(datatypes.Dimensions()) == 0
+    assert len(datatypes.Axes()) == 0
     names = ['a', 'b', 'c']
     for i, name in enumerate(names, start=1):
         subset = names[:i]
-        dimensions = datatypes.Dimensions(*subset)
+        dimensions = datatypes.Axes(*subset)
         assert len(dimensions) == i
         assert all(name in dimensions for name in subset)
         assert dimensions[i-1] == name
@@ -1085,9 +1085,9 @@ def test_dimensions_object():
 def test_dimensions_init():
     """Test various ways to initialize dimensions metadata."""
     names = ['a', 'b', 'c']
-    assert len(datatypes.Dimensions(names)) == 3
-    assert len(datatypes.Dimensions(*names)) == 3
-    assert len(datatypes.Dimensions([names])) == 3
+    assert len(datatypes.Axes(names)) == 3
+    assert len(datatypes.Axes(*names)) == 3
+    assert len(datatypes.Axes([names])) == 3
     invalid = [
         [1, 2, 3],
         [[1], [2], [3]],
@@ -1095,14 +1095,14 @@ def test_dimensions_init():
     ]
     for case in invalid:
         with pytest.raises(TypeError):
-            datatypes.Dimensions(*case)
+            datatypes.Axes(*case)
 
 
 def test_dimensions_operators():
     """Test built-in operations on dimensions metadata."""
-    xy = datatypes.Dimensions('x', 'y')
-    yz = datatypes.Dimensions('y', 'z')
-    zw = datatypes.Dimensions('z', 'w')
+    xy = datatypes.Axes('x', 'y')
+    yz = datatypes.Axes('y', 'z')
+    zw = datatypes.Axes('z', 'w')
     pairs = {
         (xy, xy): {
             operator.add: xy,
@@ -1125,8 +1125,8 @@ def test_dimensions_operators():
     # multiplication and division should concatenate unique dimensions
     for opr in (operator.mul, operator.truediv):
         assert opr(xy, xy) == xy
-        assert opr(xy, yz) == datatypes.Dimensions('x', 'y', 'z')
-        assert opr(xy, zw) == datatypes.Dimensions('x', 'y', 'z', 'w')
+        assert opr(xy, yz) == datatypes.Axes('x', 'y', 'z')
+        assert opr(xy, zw) == datatypes.Axes('x', 'y', 'z', 'w')
     # exponentiation is not valid
     with pytest.raises(TypeError):
         pow(xy, xy)
@@ -1139,19 +1139,19 @@ def test_dimensions_operators():
 
 def test_dimensions_merge():
     """Test the ability to extract unique dimensions in order."""
-    xy = datatypes.Dimensions('x', 'y')
-    yz = datatypes.Dimensions('y', 'z')
-    zw = datatypes.Dimensions('z', 'w')
-    assert xy.merge(xy) == datatypes.Dimensions('x', 'y')
-    assert xy.merge(yz) == datatypes.Dimensions('x', 'y', 'z')
-    assert yz.merge(xy) == datatypes.Dimensions('y', 'z', 'x')
-    assert xy.merge(zw) == datatypes.Dimensions('x', 'y', 'z', 'w')
-    assert zw.merge(xy) == datatypes.Dimensions('z', 'w', 'x', 'y')
-    assert yz.merge(zw) == datatypes.Dimensions('y', 'z', 'w')
-    assert zw.merge(yz) == datatypes.Dimensions('z', 'w', 'y')
-    assert xy.merge(yz, zw) == datatypes.Dimensions('x', 'y', 'z', 'w')
+    xy = datatypes.Axes('x', 'y')
+    yz = datatypes.Axes('y', 'z')
+    zw = datatypes.Axes('z', 'w')
+    assert xy.merge(xy) == datatypes.Axes('x', 'y')
+    assert xy.merge(yz) == datatypes.Axes('x', 'y', 'z')
+    assert yz.merge(xy) == datatypes.Axes('y', 'z', 'x')
+    assert xy.merge(zw) == datatypes.Axes('x', 'y', 'z', 'w')
+    assert zw.merge(xy) == datatypes.Axes('z', 'w', 'x', 'y')
+    assert yz.merge(zw) == datatypes.Axes('y', 'z', 'w')
+    assert zw.merge(yz) == datatypes.Axes('z', 'w', 'y')
+    assert xy.merge(yz, zw) == datatypes.Axes('x', 'y', 'z', 'w')
     assert xy.merge(1.1) == xy
-    assert xy.merge(yz, 1.1) == datatypes.Dimensions('x', 'y', 'z')
+    assert xy.merge(yz, 1.1) == datatypes.Axes('x', 'y', 'z')
 
 
 def test_name():

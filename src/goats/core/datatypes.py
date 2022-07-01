@@ -625,9 +625,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         return decorator
 
 
-# I really want to call this `Axes`, but that will require first renaming the
-# existing `Axes` class.
-class Dimensions(collections.abc.Sequence, iterables.ReprStrMixin):
+class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
     """A representation of one or more axis names."""
 
     def __init__(self, *names: str) -> None:
@@ -643,7 +641,7 @@ class Dimensions(collections.abc.Sequence, iterables.ReprStrMixin):
         )
 
     @property
-    def names(self): # Try to prevent accidentially changing names.
+    def names(self):
         """The names of these axes."""
         return tuple(self._names)
 
@@ -663,9 +661,9 @@ class Dimensions(collections.abc.Sequence, iterables.ReprStrMixin):
         """Return the unique axis names in order."""
         names = list(a.names)
         for b in others:
-            if isinstance(b, Dimensions):
+            if isinstance(b, Axes):
                 names.extend(b.names)
-        return Dimensions(*iterables.unique(*names))
+        return Axes(*iterables.unique(*names))
 
     __mul__ = merge
     """Called for self * other."""
@@ -677,7 +675,7 @@ class Dimensions(collections.abc.Sequence, iterables.ReprStrMixin):
     def __eq__(self, other):
         """True if self and other represent the same axes."""
         return (
-            isinstance(other, Dimensions) and other.names == self.names
+            isinstance(other, Axes) and other.names == self.names
             or (
                 isinstance(other, str)
                 and len(self) == 1
@@ -760,7 +758,7 @@ class Variable(Array):
             name = kwargs.pop('name', None) or self._next_arg(pos, '')
             axes = kwargs.pop('axes', None) or self._next_arg(pos, ())
         super().__init__(data, unit, name)
-        self.axes = Dimensions(axes)
+        self.axes = Axes(axes)
         self.naxes = len(self.axes)
         """The number of indexable axes in this variable's array."""
         if self.naxes != self.ndim:
