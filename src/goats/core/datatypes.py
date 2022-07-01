@@ -178,23 +178,20 @@ class Quantity(measurable.OperatorMixin, measurable.Quantity):
         """Initialize this instance from an existing one."""
 
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
+            instance = args[0]
+            data, unit, name = instance.data, instance.unit, instance.name
+        else:
+            pos = list(args)
+            data = kwargs.get('data') or pos.pop(0)
+            unit = kwargs.pop('unit', None) or self._next_arg(pos, '1')
+            name = kwargs.pop('name', None) or self._next_arg(pos, '')
+        self._name = Name(name)
+        super().__init__(data, unit)
+        self._name = Name(name)
         if self._name:
             self.display['__str__']['strings'].insert(0, "'{name}': ")
             self.display['__repr__']['strings'].insert(1, "'{name}'")
-
-    def _init_from_args(self, *args, **kwargs):
-        data, unit, name, *_ = self._parse_args(*args, **kwargs)
-        super()._init_from_args(data, unit)
-        self._name = Name(name)
-
-    def _init_from_instance(self, instance: Instance):
-        return *super()._init_from_instance(instance), instance.name
-
-    def _init_from_values(self, pos: list, kwd: dict):
-        base = super()._init_from_values(pos, kwd)
-        name = kwd.pop('name', None) or self._next_arg(pos, '')
-        return *base, name
 
     @property
     def name(self):
@@ -761,7 +758,27 @@ class Variable(Array):
         """Create a new variable from an existing variable."""
 
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
+            instance = args[0]
+            data, unit, name = instance.data, instance.unit, instance.name
+            axes = instance.axes
+        else:
+            pos = list(args)
+            n = len(pos)
+            two_args = n == 2 or (n == 1 and len(kwargs) == 1)
+            if two_args and isinstance(pos[0], Array):
+                array = pos.pop(0)
+                args = [
+                    getattr(array, name)
+                    for name in ('data', 'unit', 'name')
+                ]
+                pos = list(args) + pos
+            data = kwargs.get('data') or pos.pop(0)
+            unit = kwargs.pop('unit', None) or self._next_arg(pos, '1')
+            name = kwargs.pop('name', None) or self._next_arg(pos, '')
+            axes = kwargs.pop('axes', None) or self._next_arg(pos, ())
+        super().__init__(data, unit, name)
+        self.axes = Dimensions(axes)
         self.naxes = len(self.axes)
         """The number of indexable axes in this variable's array."""
         if self.naxes != self.ndim:
@@ -771,29 +788,6 @@ class Variable(Array):
             )
         self.display['__str__']['strings'].append("axes={axes}")
         self.display['__repr__']['strings'].append("axes={axes}")
-
-    def _init_from_args(self, *args, **kwargs):
-        data, unit, name, axes, *_ = self._parse_args(*args, **kwargs)
-        super()._init_from_args(data, unit, name)
-        self.axes = Dimensions(axes)
-        """The names of indexable axes in this variable's array."""
-
-    def _init_from_instance(self, instance: Instance):
-        return *super()._init_from_instance(instance), instance.axes
-
-    def _init_from_values(self, pos: list, kwd: dict):
-        n = len(pos)
-        two_args = n == 2 or (n == 1 and len(kwd) == 1)
-        if two_args and isinstance(pos[0], Array):
-            array = pos.pop(0)
-            args = [
-                getattr(array, name)
-                for name in ('data', 'unit', 'name')
-            ]
-            pos = list(args) + pos
-        base = super()._init_from_values(pos, kwd)
-        axes = kwd.pop('axes', None) or self._next_arg(pos, ())
-        return *base, axes
 
     def _ufunc_hook(self, ufunc, *inputs):
         """Convert input arrays into arrays appropriate to `ufunc`."""
