@@ -8,7 +8,7 @@ import numpy as np
 from goats.core import algebraic
 from goats.core import aliased
 from goats.core import iterables
-from goats.core import operations
+from goats.core import metadata
 
 
 _prefixes = [
@@ -1740,7 +1740,7 @@ class Unit(algebraic.Expression):
 
     def restrict(method: typing.Callable, reverse: bool=False):
         """Restrict allowed operand types for an operation."""
-        return operations.restrict(method, str, reverse=reverse)
+        return metadata.restrict(method, str, reverse=reverse)
 
     __mul__ = restrict(standard.mul)
     __rmul__ = restrict(standard.mul, reverse=True)

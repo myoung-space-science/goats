@@ -510,3 +510,41 @@ _reference: typing.Dict[str, dict] = {
     },
 }
 REFERENCE = aliased.Mapping(_reference).squeeze(strict=True)
+
+
+def identity(__operator: typing.Callable):
+    """Create an operator that immediately returns its argument."""
+    def operator(*args: T):
+        first = args[0]
+        for arg in args:
+            if type(arg) == type(first) and arg != first:
+                return NotImplemented
+        return first
+    operator.__name__ = f'__{__operator.__name__}__'
+    operator.__doc__ = __operator.__doc__
+    return operator
+
+
+def suppress(__operator: typing.Callable):
+    """Unconditionally suppress an operation."""
+    def operator(*args, **kwargs):
+        return NotImplemented
+    operator.__name__ = f'__{__operator.__name__}__'
+    operator.__doc__ = __operator.__doc__
+    return operator
+
+
+def restrict(__f: typing.Callable, *types: type, reverse: bool=False):
+    """Restrict allowed operand types for an operation."""
+    s = 'r' if reverse else ''
+    name = f"__{s}{__f.__name__}__"
+    def operator(a, b, **kwargs):
+        method = getattr(super(type(a), a), name)
+        if not isinstance(b, (type(a), *types)):
+            return NotImplemented
+        return method(b, **kwargs)
+    operator.__name__ = name
+    operator.__doc__ = __f.__doc__
+    return operator
+
+

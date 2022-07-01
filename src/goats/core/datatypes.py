@@ -12,8 +12,7 @@ from goats.core import aliased
 from goats.core import iterables
 from goats.core import metric
 from goats.core import measurable
-from goats.core import operations
-from goats.core import utilities
+from goats.core import metadata
 
 
 _metadata_mixins = (
@@ -146,7 +145,7 @@ class Quantity(measurable.OperatorMixin, measurable.Quantity):
     """A measurable quantity with a name.
     
     This class is a concrete implementation of `~measurable.Quantity` that uses
-    operator implementations provided by `~operations.Interface`.
+    operator implementations provided by `~measurable.OperatorMixin`.
     """
 
     __metadata__ = 'name'
@@ -665,16 +664,16 @@ class Dimensions(collections.abc.Sequence, iterables.ReprStrMixin):
         """The names of these axes."""
         return tuple(self._names)
 
-    __abs__ = operations.identity(abs)
+    __abs__ = metadata.identity(abs)
     """Called for abs(self)."""
-    __pos__ = operations.identity(standard.pos)
+    __pos__ = metadata.identity(standard.pos)
     """Called for +self."""
-    __neg__ = operations.identity(standard.neg)
+    __neg__ = metadata.identity(standard.neg)
     """Called for -self."""
 
-    __add__ = operations.identity(standard.add)
+    __add__ = metadata.identity(standard.add)
     """Called for self + other."""
-    __sub__ = operations.identity(standard.sub)
+    __sub__ = metadata.identity(standard.sub)
     """Called for self - other."""
 
     def merge(a, *others):
