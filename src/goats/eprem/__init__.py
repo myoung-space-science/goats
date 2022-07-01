@@ -125,11 +125,11 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
     ) -> datatypes.Coordinates:
         """Build an arbitrary coordinate object."""
         result = measurable.measure(targets)
-        vector = datatypes.Vector(result.values, result.unit)
-        values = (
-            vector.convert(reference.unit)
-            if vector.unit.dimension == reference.unit.dimension
-            else vector
+        array = datatypes.Array(result.values, unit=result.unit)
+        values = numpy.array(
+            array.convert(reference.unit)
+            if array.unit.dimension == reference.unit.dimension
+            else array
         )
         indices = [
             numerical.find_nearest(reference, float(value)).index

@@ -310,6 +310,10 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         self._rescale = True
         return self
 
+    def __measure__(self):
+        """Create a measurement from this array's data and unit."""
+        return measurable.Measurement(self._get_array(), self.unit)
+
     def __eq__(self, other: typing.Any):
         """True if two instances have the same data and attributes."""
         if not isinstance(other, type(self)):
@@ -934,7 +938,7 @@ class Indices(collections.abc.Sequence, iterables.ReprStrMixin):
 class IndexMap(Indices):
     """A sequence of indices in correspondence with values of any type."""
 
-    __slots__ = ('values',)
+    __slots__ = ('_values',)
 
     def __init__(
         self,
@@ -942,12 +946,17 @@ class IndexMap(Indices):
         values: typing.Iterable[typing.Any],
     ) -> None:
         super().__init__(indices)
-        self.values = tuple(values)
+        self._values = values
         nv = len(self.values)
         ni = len(self.indices)
         if nv != ni:
             errmsg = f"number of values ({nv}) != number of indices ({ni})"
             raise TypeError(errmsg)
+
+    @property
+    def values(self):
+        """The values corresponding to indices."""
+        return tuple(self._values)
 
     def __eq__(self, other):
         return (
@@ -976,10 +985,18 @@ class Coordinates(IndexMap):
         super().__init__(indices, values)
         self._unit = unit
 
-    def unit(self, unit: metric.UnitLike=None):
+    @property
+    def values(self):
+        """The values of this coordinate."""
+        return numpy.array(self._values)
+
+    @property
+    def unit(self):
+        """The metric unit of this coordinate's values."""
+        return metric.Unit(self._unit)
+
+    def convert(self, unit: metric.UnitLike):
         """Convert this object to the new unit, if possible."""
-        if not unit:
-            return self._unit
         if unit == self._unit:
             return self
         scale = metric.Unit(unit) // self._unit
