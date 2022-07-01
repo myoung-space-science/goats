@@ -197,16 +197,6 @@ class Quantity(Quantifiable):
         self.display['__repr__'].strings = ["{_amount}", "unit='{_metric}'"]
         self.display['__repr__'].separator = ', '
 
-    def _parse_args(self, *args, **kwargs):
-        """Parse initialization arguments."""
-        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
-            instance = args[0]
-            return instance.data, instance.unit
-        pos = list(args)
-        data = kwargs.get('data') or pos.pop(0)
-        unit = kwargs.pop('unit', None) or self._next_arg(pos, '1')
-        return data, unit
-
     @property
     def data(self):
         """This quantity's data."""
