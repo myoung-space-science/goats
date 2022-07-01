@@ -190,7 +190,7 @@ class Quantity(Quantifiable):
         else:
             pos = list(args)
             data = kwargs.get('data') or pos.pop(0)
-            unit = kwargs.pop('unit', None) or self._next_arg(pos, '1')
+            unit = kwargs.pop('unit', None) or iterables.pop(pos, '1')
         super().__init__(data, metric.Unit(unit))
         self.display['__str__'].strings = ["{_amount}", "[{_metric}]"]
         self.display['__str__'].separator = ' '
@@ -206,13 +206,6 @@ class Quantity(Quantifiable):
     def unit(self):
         """This quantity's metric unit."""
         return self._metric
-
-    def _next_arg(self, pos: list, default: T):
-        """Get the next positional argument or use the default value."""
-        try:
-            return pos.pop(0)
-        except IndexError:
-            return default
 
     def convert(self, unit: metric.UnitLike):
         """Set the unit of this object's values."""

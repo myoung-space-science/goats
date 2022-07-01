@@ -1408,3 +1408,9 @@ def class_attribute(__cls: type, name: str):
     ]
 
 
+def pop(__x: list, default: T):
+    """Pop from a list or use the default value."""
+    try:
+        return __x.pop(0)
+    except IndexError:
+        return default

@@ -183,8 +183,8 @@ class Quantity(measurable.OperatorMixin, measurable.Quantity):
         else:
             pos = list(args)
             data = kwargs.get('data') or pos.pop(0)
-            unit = kwargs.pop('unit', None) or self._next_arg(pos, '1')
-            name = kwargs.pop('name', None) or self._next_arg(pos, '')
+            unit = kwargs.pop('unit', None) or iterables.pop(pos, '1')
+            name = kwargs.pop('name', None) or iterables.pop(pos, '')
         self._name = Name(name)
         super().__init__(data, unit)
         self._name = Name(name)
@@ -750,9 +750,9 @@ class Variable(Array):
                 ]
                 pos = list(args) + pos
             data = kwargs.get('data') or pos.pop(0)
-            unit = kwargs.pop('unit', None) or self._next_arg(pos, '1')
-            name = kwargs.pop('name', None) or self._next_arg(pos, '')
-            axes = kwargs.pop('axes', None) or self._next_arg(pos, ())
+            unit = kwargs.pop('unit', None) or iterables.pop(pos, '1')
+            name = kwargs.pop('name', None) or iterables.pop(pos, '')
+            axes = kwargs.pop('axes', None) or iterables.pop(pos, ())
         super().__init__(data, unit, name)
         self.axes = Axes(axes)
         self.naxes = len(self.axes)
