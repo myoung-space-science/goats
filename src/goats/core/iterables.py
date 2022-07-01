@@ -1365,3 +1365,27 @@ def extract_single(args):
         n = None
     return args[0] if n == 1 else args
 
+
+def class_attribute(__cls: type, name: str):
+    """Collect values of a class attribute across a class hierarchy.
+    
+    This function builds a list of values of the named attribute by iteratively
+    searching classes in the `__cls` method resolution order (MRO), all the way
+    back to :builtin:``object``. If a parent class does not have the attribute,
+    this function simply skips it.
+
+    Parameters
+    ----------
+    __cls : type
+        The class at the tip of the hierarchy.
+
+    name : string
+        The name of the attribute to collect.
+    """
+    ancestors = __cls.mro()[::-1]
+    return [
+        attr for ancestor in ancestors
+        for attr in whole(getattr(ancestor, name, ()))
+    ]
+
+

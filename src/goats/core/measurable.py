@@ -166,11 +166,7 @@ class Quantity(Quantifiable):
         factory['power'].suppress(Quantity, Quantity)
         factory['power'].suppress(Real, Quantity)
         factory['power'].suppress(Quantity, typing.Iterable, symmetric=True)
-        ancestors = cls.mro()[::-1]
-        parameters = [
-            name for c in ancestors
-            for name in iterables.whole(getattr(c, '__metadata__', ()))
-        ]
+        parameters = iterables.class_attribute(cls, '__metadata__')
         factory.register(*iterables.unique(*parameters))
         cls.metadata = factory
 
@@ -286,11 +282,8 @@ class Operation(abc.ABC):
 
     def implements(self, *args):
         """True if the first argument implements this operation."""
-        ancestors = args[0].__class__.mro()[::-1]
-        operators = [
-            name for c in ancestors
-            for name in iterables.whole(getattr(c, '__measurable_operators__', ()))
-        ]
+        c = type(args[0])
+        operators = iterables.class_attribute(c, '__measurable_operators__')
         return self.method in operators
 
     def document(self, operator: typing.Callable):

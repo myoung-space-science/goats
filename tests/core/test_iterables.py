@@ -388,3 +388,16 @@ def test_extract_single():
     assert iterables.extract_single([1]) == 1
     assert iterables.extract_single(1) == 1
 
+
+def test_class_attribute():
+    """Test the function that collects a class attribute."""
+    class A:
+        attr = 'a'
+    class B(A):
+        attr = 'b'
+    class C(B):
+        attr = 'c'
+    assert iterables.class_attribute(A, 'attr') == ['a']
+    assert iterables.class_attribute(B, 'attr') == ['a', 'b']
+    assert iterables.class_attribute(C, 'attr') == ['a', 'b', 'c']
+
