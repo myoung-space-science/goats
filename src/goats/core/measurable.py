@@ -93,9 +93,19 @@ class Quantifiable(algebraic.Quantity, iterables.ReprStrMixin):
 
 
 class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
-    """A sequence of values and their associated unit."""
+    """A sequence of values and their associated unit.
+    
+    Notes
+    -----
+    * The function `~measurable.measure` returns an instance of this class.
+    * A `~measurable.Measurement` is not a subclass of `~measurable.Quantity`,
+      even though it has real values and a unit, because it does not require or
+      define any of the `~algebraic.Quantity` operators. Its existence outside
+      of the `~measurable.Quantity` hierarchy is consistent with the notion that
+      it is the result of measuring a measurable quantity, rather than an object
+      that exists to be measured.
+    """
 
-    # Should this use `__new__` since it's immutable?
     def __init__(
         self,
         values: typing.Iterable[numbers.Real],
