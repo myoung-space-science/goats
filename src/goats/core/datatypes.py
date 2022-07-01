@@ -149,7 +149,7 @@ class Quantity(measurable.OperatorMixin, measurable.Quantity):
     operator implementations provided by `~operations.Interface`.
     """
 
-    __metadata__ = {'name': (Name, '')}
+    __metadata__ = 'name'
 
     __measurable_operators__ = [
         '__abs__', '__pos__', '__neg__',
@@ -730,7 +730,7 @@ Instance = typing.TypeVar('Instance', bound='Variable')
 class Variable(Array):
     """A class representing a dataset variable."""
 
-    __metadata__ = {'axes': (Dimensions, ())}
+    __metadata__ = 'axes'
 
     @typing.overload
     def __init__(

@@ -156,7 +156,7 @@ class Quantity(Quantifiable):
     `~metric.Unit` class.
     """
 
-    __metadata__: typing.ClassVar = {'unit': (metric.Unit, '1')}
+    __metadata__: typing.ClassVar = 'unit'
 
     def __init_subclass__(cls) -> None:
         """Support metadata operations on a measurable quantity."""
@@ -167,14 +167,12 @@ class Quantity(Quantifiable):
         factory['power'].suppress(Real, Quantity)
         factory['power'].suppress(Quantity, typing.Iterable, symmetric=True)
         ancestors = cls.mro()[::-1]
-        attributes = {
-            k: v
-            for ancestor in ancestors
-            for k, v in getattr(ancestor, '__metadata__', {}).items()
-        }
-        factory.register(*iterables.unique(*attributes))
+        parameters = [
+            name for c in ancestors
+            for name in iterables.whole(getattr(c, '__metadata__', ()))
+        ]
+        factory.register(*iterables.unique(*parameters))
         cls.metadata = factory
-        cls.__metadata_attributes__ = attributes
 
     @typing.overload
     def __init__(
