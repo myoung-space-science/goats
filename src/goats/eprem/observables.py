@@ -325,19 +325,22 @@ class Interface(base.Interface):
 
     def _update_assumption(self, this):
         """Update a single assumption from user input."""
-        if isinstance(this, datatypes.Assumption):
-            this = this[0]
-        if isinstance(this, measurable.Measurement):
-            this = datatypes.Scalar(this.values[0], unit=this.unit)
+        scalar = self._force_scalar(this)
+        unit = MKS.get_unit(unit=scalar.unit)
+        return scalar.convert(unit)
+
+    def _force_scalar(self, this) -> measurable.Scalar:
+        """Make sure `this` is a `~measurable.Scalar`."""
         if isinstance(this, measurable.Scalar):
-            unit = MKS.get_unit(unit=this.unit)
-            return this.convert(unit)
+            return this
+        if isinstance(this, datatypes.Assumption):
+            return this[0]
+        if isinstance(this, measurable.Measurement):
+            return datatypes.Scalar(this.values[0], unit=this.unit)
         measured = measurable.measure(this)
         if len(measured) > 1:
             raise ValueError("Can't use a multi-valued assumption") from None
-        vector = datatypes.Vector(measured.values, unit=measured.unit)
-        assumption = [self._update_assumption(v) for v in vector[:]]
-        return assumption[0] if len(assumption) == 1 else assumption
+        return self._force_scalar(measured)
 
     def apply(self, constraints: typing.Mapping):
         """Construct the target variable within the given constraints."""
