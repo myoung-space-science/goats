@@ -233,22 +233,37 @@ class DisplayMap:
         return str(this)
 
 
+class Display:
+    """Updatable attributes for display methods."""
+
+    def __init__(
+        self,
+        strings: typing.List[str]=None,
+        separator: str=None,
+    ) -> None:
+        self.strings = strings
+        self.separator = separator
+
+    def __repr__(self) -> str:
+        attrs = [
+            f"strings={self.strings!r}",
+            f"separator={self.separator!r}",
+        ]
+        return f"{self.__class__.__qualname__}({', '.join(attrs)})"
+
+
 class ReprStrMixin:
     """A mixin class that provides support for `__repr__` and `__str__`."""
 
     _display = None
 
     @property
-    def display(self) -> typing.Dict[str, typing.Dict[str, typing.List[str]]]:
+    def display(self):
         """The attributes to display for each method."""
         if self._display is None:
-            empty = {
-                'strings': [''],
-                'separator': ', ',
-            }
             self._display = {
-                '__str__': empty.copy(),
-                '__repr__': empty.copy(),
+                '__str__': Display([], ', '),
+                '__repr__': Display([], ', '),
             }
         return self._display
 
@@ -265,9 +280,9 @@ class ReprStrMixin:
 
     def _get_display(self, method: str):
         """Helper method for `__str__` and `__repr__`."""
-        strings = self.display[method]['strings']
+        strings = self.display[method].strings
         parts = [string.format_map(DisplayMap(self)) for string in strings]
-        separator = self.display[method]['separator']
+        separator = self.display[method].separator
         return separator.join(parts)
 
 

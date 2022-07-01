@@ -189,8 +189,8 @@ class Quantity(measurable.OperatorMixin, measurable.Quantity):
         super().__init__(data, unit)
         self._name = Name(name)
         if self._name:
-            self.display['__str__']['strings'].insert(0, "'{name}': ")
-            self.display['__repr__']['strings'].insert(1, "'{name}'")
+            self.display['__str__'].strings.insert(0, "'{name}': ")
+            self.display['__repr__'].strings.insert(1, "'{name}'")
 
     @property
     def name(self):
@@ -766,8 +766,8 @@ class Variable(Array):
                 f"Number of axes ({self.naxes})"
                 f" must equal number of array dimensions ({self.ndim})"
             )
-        self.display['__str__']['strings'].append("axes={axes}")
-        self.display['__repr__']['strings'].append("axes={axes}")
+        self.display['__str__'].strings.append("axes={axes}")
+        self.display['__repr__'].strings.append("axes={axes}")
 
     def _ufunc_hook(self, ufunc, *inputs):
         """Convert input arrays into arrays appropriate to `ufunc`."""
@@ -888,8 +888,8 @@ class Option(iterables.ReprStrMixin):
         self._value = value
         self._name = aliased.MappingKey(name)
         if self._name:
-            self.display['__str__']['strings'].insert(0, "'{name}': ")
-            self.display['__repr__']['strings'].insert(1, "'{name}'")
+            self.display['__str__'].strings.insert(0, "'{name}': ")
+            self.display['__repr__'].strings.insert(1, "'{name}'")
 
     def __eq__(self, other):
         """True if `other` is equivalent to this option's value."""

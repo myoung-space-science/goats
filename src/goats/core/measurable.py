@@ -71,10 +71,8 @@ class Quantifiable(algebraic.Quantity, iterables.ReprStrMixin):
     ) -> None:
         self._amount = __amount
         self._metric = __metric
-        self.display['__str__'].update(
-            strings=["{_amount} {_metric}"],
-            separator=' ',
-        )
+        self.display['__str__'].strings.append("{_amount} {_metric}")
+        self.display['__str__'].separator = ' '
 
     def __bool__(self) -> bool:
         """Always true for a valid instance."""
@@ -194,17 +192,10 @@ class Quantity(Quantifiable):
             data = kwargs.get('data') or pos.pop(0)
             unit = kwargs.pop('unit', None) or self._next_arg(pos, '1')
         super().__init__(data, metric.Unit(unit))
-        display = {
-            '__str__': {
-                'strings': ["{_amount}", "[{_metric}]"],
-                'separator': ' ',
-            },
-            '__repr__': {
-                'strings': ["{_amount}", "unit='{_metric}'"],
-                'separator': ', ',
-            },
-        }
-        self.display.update(display)
+        self.display['__str__'].strings = ["{_amount}", "[{_metric}]"]
+        self.display['__str__'].separator = ' '
+        self.display['__repr__'].strings = ["{_amount}", "unit='{_metric}'"]
+        self.display['__repr__'].separator = ', '
 
     def _parse_args(self, *args, **kwargs):
         """Parse initialization arguments."""
