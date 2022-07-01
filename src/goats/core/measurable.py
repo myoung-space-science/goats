@@ -247,10 +247,6 @@ class Quantity(Quantifiable):
         return self
 
 
-class Subtype(typing.Generic[T]):
-    """Generic type to indicate a subclass in type hints."""
-
-
 Q = typing.TypeVar('Q', bound=Quantity)
 
 
