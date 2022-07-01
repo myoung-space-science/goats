@@ -325,10 +325,10 @@ class Interface(base.Interface):
 
     def _update_assumption(self, scalar):
         """Update a single assumption from user input."""
-        if isinstance(scalar, measured.Scalar):
+        if isinstance(scalar, measurable.Scalar):
             unit = MKS.get_unit(unit=scalar.unit())
             return scalar.unit(unit)
-        measured = measured.measure(scalar)
+        measured = measurable.measure(scalar)
         assumption = [self._update_assumption(v) for v in measured[:]]
         return assumption[0] if len(assumption) == 1 else assumption
 
