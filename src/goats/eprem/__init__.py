@@ -125,10 +125,10 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
     ) -> datatypes.Coordinates:
         """Build an arbitrary coordinate object."""
         result = measurable.measure(targets)
-        vector = measurable.Vector(result.values, result.unit)
+        vector = datatypes.Vector(result.values, result.unit)
         values = (
-            vector.unit(reference.unit)
-            if vector.unit().dimension == reference.unit.dimension
+            vector.convert(reference.unit)
+            if vector.unit.dimension == reference.unit.dimension
             else vector
         )
         indices = [
