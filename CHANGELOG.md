@@ -1,5 +1,18 @@
 # Changelog
 
+## Next
+
+- Redefine most of datatypes.py based on new measurable.py.
+- Create metadata.py to support operations on metadata for measurable quantities.
+- Overhaul object hierarchy in measurables.py and rename to measurable.py.
+- Change `base.Observable`: add `update` method, redefine `observe`, and remove `reset`.
+- Initialize `datatypes.Variable` with zero or more aliased names.
+- Extract `datatypes.Array` from `datatypes.Variable`.
+- Extract measurables.py from quantities.py
+- Rename quantities.py to metric.py
+- Rename objects in metric.py, including renaming `MetricSystem` to `System`.
+
+
 ## v0.0.22 (29Mar2022)
 
 - Add `goats.__init__.Environment.path`.
