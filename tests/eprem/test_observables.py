@@ -102,7 +102,7 @@ def test_parameter_access(stream: eprem.Stream) -> None:
         for alias in aliases:
             argument = stream[alias]
             assert isinstance(argument, datatypes.Assumption)
-            assert alias in argument.aliases
+            assert alias in argument.name
             assert float(argument) == expected['value']
             assert argument.unit == expected['unit']
 

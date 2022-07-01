@@ -38,7 +38,7 @@ class Observation(iterables.ReprStrMixin):
         assumptions: typing.Mapping[str, measurable.Scalar]=None,
     ) -> None:
         self._data = data
-        self.name = data.names
+        self.name = data.name
         self._indices = indices
         self._assumptions = assumptions or {}
         self._axes = None
@@ -82,7 +82,7 @@ class Observation(iterables.ReprStrMixin):
         """Get or set the unit of this observation's data values."""
         if not new:
             return self._data.unit
-        self._data = self._data.convert_to(new)
+        self._data = self._data.convert(new)
         return self
 
     def __eq__(self, other) -> bool:

@@ -146,7 +146,7 @@ class Application:
         with different units will always compare false by triggering a
         `quantities.ComparisonError`.
         """
-        return any(alias in self.reference for alias in variable.names)
+        return any(alias in self.reference for alias in variable.name)
 
     def _need_interp(self, axis: str):
         """True if we need to interpolate over this axis."""
@@ -198,8 +198,8 @@ class Application:
             )
         return datatypes.Variable(
             array,
-            *variable.names,
             unit=variable.unit,
+            name=variable.name,
             axes=variable.axes,
         )
 
@@ -310,7 +310,7 @@ class Interface(base.Interface):
             indices = axis(*iterables.whole(indices))
         if isinstance(indices, datatypes.Coordinates):
             unit = MKS.get_unit(unit=indices.unit)
-            return indices.with_unit(unit)
+            return indices.convert(unit)
         return indices
 
     def update_assumptions(self, constraints: typing.Mapping):
