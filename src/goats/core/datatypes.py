@@ -712,7 +712,7 @@ class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
         return self.names[__i]
 
     def __str__(self) -> str:
-        return ', '.join(str(name) for name in self.names)
+        return f"[{', '.join(repr(name) for name in self.names)}]"
 
 
 Instance = typing.TypeVar('Instance', bound='Variable')
