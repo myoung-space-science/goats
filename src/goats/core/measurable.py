@@ -202,9 +202,9 @@ class Quantity(Quantifiable):
             data = kwargs.get('data') or pos.pop(0)
             unit = kwargs.pop('unit', None) or iterables.pop(pos, '1')
         super().__init__(data, metric.Unit(unit))
-        self.display['__str__'].strings = ["{_amount}", "[{_metric}]"]
+        self.display['__str__'].strings = ["{data}", "[{unit}]"]
         self.display['__str__'].separator = ' '
-        self.display['__repr__'].strings = ["{_amount}", "unit='{_metric}'"]
+        self.display['__repr__'].strings = ["{data}", "unit='{unit}'"]
         self.display['__repr__'].separator = ', '
 
     @property
