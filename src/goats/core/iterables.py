@@ -220,36 +220,26 @@ def show_at_most(
     return separator.join(str(v) for v in truncated)
 
 
+@typing.runtime_checkable
+class Displayable(typing.Protocol):
+    """Protocol for classes that use `~iterables.ReprStrMixin`."""
+
+    @property
+    @abc.abstractmethod
+    def display(self) -> dict: ...
+
+
 class DisplayMap:
     """An attribute mapping for string formatting."""
 
-    def __init__(self, instance) -> None:
+    def __init__(self, instance: Displayable) -> None:
         self._instance = instance
 
     def __getitem__(self, name: str) -> str:
         """Get the named attribute and call it if necessary."""
-        attr = getattr(self._instance, name)
+        attr = getattr(self._instance, self._instance.display[name])
         this = attr() if callable(attr) else attr
         return str(this)
-
-
-class Display:
-    """Updatable attributes for display methods."""
-
-    def __init__(
-        self,
-        strings: typing.List[str]=None,
-        separator: str=None,
-    ) -> None:
-        self.strings = strings
-        self.separator = separator
-
-    def __repr__(self) -> str:
-        attrs = [
-            f"strings={self.strings!r}",
-            f"separator={self.separator!r}",
-        ]
-        return f"{self.__class__.__qualname__}({', '.join(attrs)})"
 
 
 class ReprStrMixin:
@@ -262,8 +252,8 @@ class ReprStrMixin:
         """The attributes to display for each method."""
         if self._display is None:
             self._display = {
-                '__str__': Display([], ', '),
-                '__repr__': Display([], ', '),
+                '__str__': '',
+                '__repr__': '',
             }
         return self._display
 
@@ -280,10 +270,8 @@ class ReprStrMixin:
 
     def _get_display(self, method: str):
         """Helper method for `__str__` and `__repr__`."""
-        strings = self.display[method].strings
-        parts = [string.format_map(DisplayMap(self)) for string in strings]
-        separator = self.display[method].separator
-        return separator.join(parts)
+        target = self.display[method]
+        return target.format_map(DisplayMap(self))
 
 
 class RequiredAttrMeta(abc.ABCMeta):
