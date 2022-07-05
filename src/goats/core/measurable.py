@@ -71,8 +71,9 @@ class Quantifiable(algebraic.Quantity, iterables.ReprStrMixin):
     ) -> None:
         self._amount = __amount
         self._metric = __metric
-        self.display['__str__'].strings.append("{_amount} {_metric}")
-        self.display['__str__'].separator = ' '
+        self.display['_amount'] = '_amount'
+        self.display['_metric'] = '_metric'
+        self.display['__str__'] = "{_amount} {_metric}"
 
     def __bool__(self) -> bool:
         """Always true for a valid instance."""
@@ -202,10 +203,10 @@ class Quantity(Quantifiable):
             data = kwargs.get('data') or pos.pop(0)
             unit = kwargs.pop('unit', None) or iterables.pop(pos, '1')
         super().__init__(data, metric.Unit(unit))
-        self.display['__str__'].strings = ["{data}", "[{unit}]"]
-        self.display['__str__'].separator = ' '
-        self.display['__repr__'].strings = ["{data}", "unit='{unit}'"]
-        self.display['__repr__'].separator = ', '
+        self.display['data'] = 'data'
+        self.display['unit'] = 'unit'
+        self.display['__str__'] = "{data} [{unit}]"
+        self.display['__repr__'] = "{data}, unit='{unit}'"
 
     @property
     def data(self):

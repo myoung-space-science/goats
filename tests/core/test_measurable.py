@@ -46,6 +46,14 @@ class Scalar(Quantity):
 
 
 @pytest.mark.quantity
+def test_quantity_display():
+    """Test the results of printing a quantity."""
+    q = Quantity(1.2, unit='m')
+    assert str(q) == "1.2 [m]"
+    assert repr(q).endswith("Quantity(1.2, unit='m')")
+
+
+@pytest.mark.quantity
 def test_quantity_comparisons():
     """Test comparisons between two default quantities."""
     value = 2.0
