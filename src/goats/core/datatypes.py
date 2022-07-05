@@ -299,10 +299,16 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         self._scale = 1.0
         self._rescale = False
         self._array = None
-        # TODO: Display current array values in `__str__` and `__repr__`. At the
-        # moment, they use either `data` or `_amount`, which reflects the
-        # initial values. The internal values are correct but they printed
-        # strings are misleading.
+        self.display['__str__'].strings = ["{_data_array}", "[{unit}]"]
+        self.display['__repr__'].strings = ["{_data_array}", "unit='{unit}'"]
+        if self._name:
+            self.display['__str__'].strings.insert(0, "'{name}': ")
+            self.display['__repr__'].strings.insert(1, "'{name}'")
+
+    @property
+    def _data_array(self):
+        """Data array for internal use."""
+        return self._get_array()
 
     def convert(self, unit: metric.UnitLike):
         """Set the unit of this object's values."""
