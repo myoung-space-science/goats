@@ -278,6 +278,14 @@ def rescale(amount, factor):
 
 
 @pytest.mark.variable
+def test_variable_display():
+    """Test the results of printing a variable."""
+    v = datatypes.Variable([1.2], unit='m', name='V', axes=['x'])
+    assert str(v) == "'V': [1.2] [m] axes=['x']"
+    assert repr(v).endswith("Variable([1.2], unit='m', name='V', axes=['x'])")
+
+
+@pytest.mark.variable
 def test_variable():
     """Test the object that represents a variable."""
     v0 = datatypes.Variable([3.0, 4.5], unit='m', axes=['x'])

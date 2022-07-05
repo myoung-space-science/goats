@@ -189,8 +189,9 @@ class Quantity(measurable.OperatorMixin, measurable.Quantity):
         super().__init__(data, unit)
         self._name = Name(name)
         if self._name:
-            self.display['__str__'].strings.insert(0, "'{name}': ")
-            self.display['__repr__'].strings.insert(1, "'{name}'")
+            self.display['name'] = 'name'
+            self.display['__str__'] = "'{name}': {data} [{unit}]"
+            self.display['__repr__'] = "{data}, unit='{unit}', name='{name}'"
 
     @property
     def name(self):
@@ -299,11 +300,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         self._scale = 1.0
         self._rescale = False
         self._array = None
-        self.display['__str__'].strings = ["{_data_array}", "[{unit}]"]
-        self.display['__repr__'].strings = ["{_data_array}", "unit='{unit}'"]
-        if self._name:
-            self.display['__str__'].strings.insert(0, "'{name}': ")
-            self.display['__repr__'].strings.insert(1, "'{name}'")
+        self.display['data'] = '_data_array'
 
     @property
     def _data_array(self):
@@ -777,8 +774,11 @@ class Variable(Array):
                 f"Number of axes ({self.naxes})"
                 f" must equal number of array dimensions ({self.ndim})"
             )
-        self.display['__str__'].strings.append("axes={axes}")
-        self.display['__repr__'].strings.append("axes={axes}")
+        if self._name:
+            self.display['name'] = 'name'
+            self.display['axes'] = 'axes'
+            self.display['__str__'] = "'{name}': {data} [{unit}] axes={axes}"
+            self.display['__repr__'] = "{data}, unit='{unit}', name='{name}', axes={axes}"
 
     def _ufunc_hook(self, ufunc, *inputs):
         """Convert input arrays into arrays appropriate to `ufunc`."""
