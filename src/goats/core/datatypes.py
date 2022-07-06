@@ -190,8 +190,8 @@ class Quantity(measurable.OperatorMixin, measurable.Quantity):
         self._name = Name(name)
         if self._name:
             self.display['name'] = 'name'
-            self.display['__str__'] = "'{name}': {data} [{unit}]"
-            self.display['__repr__'] = "{data}, unit='{unit}', name='{name}'"
+            self.display['__str__'].insert(0, "'{name}':")
+            self.display['__repr__'].insert(2, "name='{name}'")
 
     @property
     def name(self):
@@ -774,11 +774,9 @@ class Variable(Array):
                 f"Number of axes ({self.naxes})"
                 f" must equal number of array dimensions ({self.ndim})"
             )
-        if self._name:
-            self.display['name'] = 'name'
-            self.display['axes'] = 'axes'
-            self.display['__str__'] = "'{name}': {data} [{unit}] axes={axes}"
-            self.display['__repr__'] = "{data}, unit='{unit}', name='{name}', axes={axes}"
+        self.display['axes'] = 'axes'
+        self.display['__str__'].append("axes={axes}")
+        self.display['__repr__'].append("axes={axes}")
 
     def _ufunc_hook(self, ufunc, *inputs):
         """Convert input arrays into arrays appropriate to `ufunc`."""

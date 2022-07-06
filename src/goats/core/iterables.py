@@ -242,6 +242,46 @@ class DisplayMap:
         return str(this)
 
 
+class DisplayString(collections.UserString):
+    """A list-like representation of a display string."""
+
+    def __init__(self, seq: object) -> None:
+        super().__init__(seq)
+        self.separator = ' '
+
+    def __getitem__(self, __i: typing.SupportsIndex):
+        """Get a substring by index."""
+        parts = self.data.split(self.separator)
+        return parts[__i]
+
+    def append(self, substring: str):
+        """Append `substring` to the end of this display."""
+        parts = self.data.split(self.separator)
+        parts.append(substring)
+        self.data = self.separator.join(parts)
+
+    def insert(self, index: int, substring: str):
+        """Insert `substring` into this display at `index`."""
+        parts = self.data.split(self.separator)
+        parts.insert(index, substring)
+        self.data = self.separator.join(parts)
+
+    def format_map(self, mapping: typing.Mapping[str, typing.Any]) -> str:
+        return self.data.format_map(mapping)
+
+
+class Display(collections.UserDict):
+    """A dict-like object for string representations."""
+
+    def __init__(self, **kwargs):
+        mapping = {'__str__': '', '__repr__': '', **kwargs}
+        super().__init__(mapping)
+
+    def __setitem__(self, __k: str, __s: str) -> None:
+        v = DisplayString(__s) if __k in {'__str__', '__repr__'} else __s
+        self.data[__k] = v
+
+
 class ReprStrMixin:
     """A mixin class that provides support for `__repr__` and `__str__`."""
 
@@ -251,10 +291,7 @@ class ReprStrMixin:
     def display(self):
         """The attributes to display for each method."""
         if self._display is None:
-            self._display = {
-                '__str__': '',
-                '__repr__': '',
-            }
+            self._display = Display()
         return self._display
 
     def __str__(self) -> str:

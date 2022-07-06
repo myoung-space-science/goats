@@ -207,6 +207,7 @@ class Quantity(Quantifiable):
         self.display['unit'] = 'unit'
         self.display['__str__'] = "{data} [{unit}]"
         self.display['__repr__'] = "{data}, unit='{unit}'"
+        self.display['__repr__'].separator = ', '
 
     @property
     def data(self):
