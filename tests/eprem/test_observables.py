@@ -110,10 +110,10 @@ def test_parameter_access(stream: eprem.Stream) -> None:
 def test_observation_unit(stream: eprem.Stream):
     """Change the unit of an observation's values."""
     obs = stream['r'].observe()
-    assert obs.unit() == 'm'
+    assert obs.unit == 'm'
     old = np.array(obs)
-    obs.unit('au')
-    assert obs.unit() == 'au'
+    obs.convert('au')
+    assert obs.unit == 'au'
     new = np.array(obs)
     assert np.allclose(old, new * float(physical.mks['au']))
 

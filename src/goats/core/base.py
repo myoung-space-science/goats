@@ -59,6 +59,11 @@ class Observation(iterables.ReprStrMixin):
         return self._data[item]
 
     @property
+    def unit(self):
+        """The metric unit of this observation's data."""
+        return self._data.unit
+
+    @property
     def axes(self):
         """The indexable axes of this observation's array."""
         if self._axes is None:
@@ -78,10 +83,8 @@ class Observation(iterables.ReprStrMixin):
                 self._parameters = self._assumptions.keys()
         return self._parameters
 
-    def unit(self, new: typing.Union[str, metric.Unit]=None):
-        """Get or set the unit of this observation's data values."""
-        if not new:
-            return self._data.unit
+    def convert(self, new: metric.UnitLike):
+        """Set the unit of this observation's data values."""
         self._data = self._data.convert(new)
         return self
 
