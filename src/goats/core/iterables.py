@@ -277,6 +277,18 @@ class Display(collections.UserDict):
         mapping = {'__str__': '', '__repr__': '', **kwargs}
         super().__init__(mapping)
 
+    @typing.overload
+    def __getitem__(
+        self,
+        __k: typing.Literal['__str__', '__repr__'],
+    ) -> DisplayString: ...
+
+    @typing.overload
+    def __getitem__(self, __k: str) -> str: ...
+
+    def __getitem__(self, __k):
+        return super().__getitem__(__k)
+
     def __setitem__(self, __k: str, __s: str) -> None:
         v = DisplayString(__s) if __k in {'__str__', '__repr__'} else __s
         self.data[__k] = v
