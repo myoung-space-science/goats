@@ -897,8 +897,8 @@ class Option(iterables.ReprStrMixin):
         self._value = value
         self._name = aliased.MappingKey(name)
         if self._name:
-            self.display['__str__'].strings.insert(0, "'{name}': ")
-            self.display['__repr__'].strings.insert(1, "'{name}'")
+            self.display['__str__'].insert(0, "'{name}': ")
+            self.display['__repr__'].insert(1, "'{name}'")
 
     def __eq__(self, other):
         """True if `other` is equivalent to this option's value."""
