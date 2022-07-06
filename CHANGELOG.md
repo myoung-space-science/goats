@@ -1,6 +1,6 @@
 # Changelog
 
-## Next
+## v0.0.23 (06Jul2022)
 
 - Redefine most of datatypes.py based on new measurable.py.
 - Create metadata.py to support operations on metadata for measurable quantities.
