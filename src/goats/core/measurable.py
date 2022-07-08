@@ -218,8 +218,8 @@ class Quantifiable(algebraic.Quantity, iterables.ReprStrMixin):
         pass
 
 
-class ScalarOperators(Quantifiable):
-    """A single-valued measurable quantity"""
+class ScalarOperatorMixin(Quantifiable):
+    """Operators for single-valued measurable quantities."""
 
     def __int__(self):
         """Called for int(self)."""
@@ -396,7 +396,7 @@ class Quantity(Quantified, UnitMixin):
         return Measurement(value, self.unit)
 
 
-class Scalar(Quantity, ScalarOperators):
+class Scalar(Quantity, ScalarOperatorMixin):
     """A single-valued measurable quantity"""
 
     @typing.overload
