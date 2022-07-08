@@ -361,7 +361,8 @@ class Quantity(Quantified, UnitMixin):
     @typing.overload
     def __init__(
         self: Instance,
-        data: Real,
+        __data: Real,
+        *,
         unit: metric.UnitLike=None,
     ) -> None: ...
 
@@ -371,15 +372,14 @@ class Quantity(Quantified, UnitMixin):
         instance: Instance,
     ) -> None: ...
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, __data, **kwargs) -> None:
         """Initialize this instance from arguments or an existing instance."""
-        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
-            instance = args[0]
+        if not kwargs and isinstance(__data, type(self)):
+            instance = __data
             data, unit = instance.data, instance.unit
         else:
-            pos = list(args)
-            data = kwargs.get('data') or pos.pop(0)
-            unit = kwargs.pop('unit', None) or iterables.pop(pos, '1')
+            data = __data
+            unit = kwargs.get('unit', '1')
         super().__init__(data, unit=metric.Unit(unit))
         self.display['data'] = 'data'
         self.display['unit'] = 'unit'
@@ -402,7 +402,8 @@ class Scalar(Quantity, ScalarOperatorMixin):
     @typing.overload
     def __init__(
         self: Instance,
-        data: numbers.Real,
+        __data: numbers.Real,
+        *,
         unit: metric.UnitLike=None,
     ) -> None: ...
 

@@ -101,7 +101,7 @@ def test_quantities_diff_unit():
     """Test operations on default quantities with different units."""
     value = 2.0
     units = ['m', 'J']
-    quantities = [measurable.Quantity(value, unit) for unit in units]
+    quantities = [measurable.Quantity(value, unit=unit) for unit in units]
 
     # ADDITIVE
     oprs = [
@@ -191,16 +191,21 @@ def test_quantity_unit():
 @pytest.mark.quantity
 def test_initialize_quantity():
     """Test the initialization behavior of Quantity."""
-    cases = {
-        'standard': [[1.1, 'm'], {}, {'data': 1.1, 'unit': 'm'}],
-        'default unit': [[1.1], {}, {'data': 1.1, 'unit': '1'}],
-        'keyword unit': [[1.1], {'unit': 'm'}, {'data': 1.1, 'unit': 'm'}],
-    }
-    for name, (args, kwargs, expected) in cases.items():
-        q = measurable.Quantity(*args, **kwargs)
-        msg = f'Failed for {name}'
-        assert q.data == expected['data'], msg
-        assert q.unit == expected['unit'], msg
+    unit = 'm'
+    cases = [
+        1,
+        1.1,
+        [1.1],
+        [1, 2],
+        [1.1, 2.3],
+    ]
+    for data in cases:
+        q = measurable.Quantity(data, unit=unit)
+        assert q.data == data
+        assert q.unit == unit
+        with pytest.raises(TypeError):
+            # metadata arguments are keyword only
+            measurable.Quantity(data, unit)
 
 
 @pytest.mark.quantity
