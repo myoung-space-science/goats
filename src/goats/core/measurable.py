@@ -218,6 +218,34 @@ class Quantifiable(algebraic.Quantity, iterables.ReprStrMixin):
         pass
 
 
+class ScalarOperators(Quantifiable):
+    """A single-valued measurable quantity"""
+
+    def __int__(self):
+        """Called for int(self)."""
+        return self._call(int, 'cast')
+
+    def __float__(self):
+        """Called for float(self)."""
+        return self._call(float, 'cast')
+
+    def __round__(self):
+        """Called for round(self)."""
+        return self._call(round, 'arithmetic')
+
+    def __floor__(self):
+        """Called for math.floor(self)."""
+        return self._call(math.floor, 'arithmetic')
+
+    def __ceil__(self):
+        """Called for math.ceil(self)."""
+        return self._call(math.ceil, 'arithmetic')
+
+    def __trunc__(self):
+        """Called for math.trunc(self)."""
+        return self._call(math.trunc, 'arithmetic')
+
+
 class Quantified(Quantifiable):
     """A concrete realization of a quantifiable object.
 
@@ -369,32 +397,26 @@ class Quantity(Quantified, UnitMixin):
         return Measurement(value, self.unit)
 
 
-class Scalar(Quantity):
+class Scalar(Quantity, ScalarOperators):
     """A single-valued measurable quantity"""
 
-    def __int__(self):
-        """Called for int(self)."""
-        return self._call(int, 'cast')
+    @typing.overload
+    def __init__(
+        self: Instance,
+        data: numbers.Real,
+        unit: metric.UnitLike=None,
+    ) -> None:
+        """Initialize this instance from arguments."""
 
-    def __float__(self):
-        """Called for float(self)."""
-        return self._call(float, 'cast')
+    @typing.overload
+    def __init__(
+        self: Instance,
+        instance: Instance,
+    ) -> None:
+        """Initialize this instance from an existing one."""
 
-    def __round__(self):
-        """Called for round(self)."""
-        return self._call(round, 'arithmetic')
-
-    def __floor__(self):
-        """Called for math.floor(self)."""
-        return self._call(math.floor, 'arithmetic')
-
-    def __ceil__(self):
-        """Called for math.ceil(self)."""
-        return self._call(math.ceil, 'arithmetic')
-
-    def __trunc__(self):
-        """Called for math.trunc(self)."""
-        return self._call(math.trunc, 'arithmetic')
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
 
 @typing.runtime_checkable
