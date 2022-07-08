@@ -1,3 +1,4 @@
+import abc
 import math
 import operator as standard
 import typing
@@ -12,7 +13,7 @@ from goats.core import metric
 
 # This could become `measurable.Quantity`, which would make the name more
 # consistent with `algebraic.Quantity`.
-class Quantified(algebraic.Quantity, iterables.ReprStrMixin):
+class Quantifiable(algebraic.Quantity, iterables.ReprStrMixin):
     """An object with data and metdata."""
 
     def __init__(self, __data: measurable.Real, **meta) -> None:
@@ -20,11 +21,6 @@ class Quantified(algebraic.Quantity, iterables.ReprStrMixin):
         for k, v in meta.items():
             setattr(self, f'_{k}', v)
         self.attrs = list(meta)
-        factory = metadata.OperatorFactory(type(self), *meta)
-        factory['true divide'].suppress(measurable.Real, Quantified)
-        factory['power'].suppress(measurable.Real, Quantified)
-        factory['power'].suppress(Quantified, typing.Iterable, symmetric=True)
-        self.meta = factory
 
     def __str__(self) -> str:
         mapped = {k: getattr(self, k, None) for k in self.attrs}
@@ -97,18 +93,6 @@ class Quantified(algebraic.Quantity, iterables.ReprStrMixin):
         """Called for self >= other."""
         return self._call(standard.ge, 'comparison', other)
 
-    def __eq__(self, other) -> bool:
-        """Called for self == other."""
-        if not isinstance(other, Quantified):
-            return other == self.data
-        if other.data != self.data:
-            return False
-        for name in self.meta:
-            v = getattr(self, name)
-            if hasattr(other, name) and getattr(other, name) != v:
-                return False
-        return True
-
     def __ne__(self, other) -> bool:
         """Called for self != other."""
         return not self == other
@@ -173,8 +157,35 @@ class Quantified(algebraic.Quantity, iterables.ReprStrMixin):
         """Called for self **= other."""
         return self._call(standard.pow, 'inplace', other)
 
-    # Make this abstract and force concrete subclass to define metadata? If so,
-    # need to also move `__eq__`.
+    @abc.abstractmethod
+    def _call(self, func: typing.Callable, mode: str, *others, **kwargs):
+        """Implement a standard operation."""
+        pass
+
+
+class Quantified(Quantifiable):
+    """A concrete realization of a quantifiable object."""
+
+    def __init__(self, __data: measurable.Real, **meta) -> None:
+        super().__init__(__data, **meta)
+        factory = metadata.OperatorFactory(type(self), *meta)
+        factory['true divide'].suppress(measurable.Real, Quantifiable)
+        factory['power'].suppress(measurable.Real, Quantifiable)
+        factory['power'].suppress(Quantifiable, typing.Iterable, symmetric=True)
+        self.meta = factory
+
+    def __eq__(self, other) -> bool:
+        """Called for self == other."""
+        if not isinstance(other, Quantifiable):
+            return other == self.data
+        if other.data != self.data:
+            return False
+        for name in self.meta:
+            v = getattr(self, name)
+            if hasattr(other, name) and getattr(other, name) != v:
+                return False
+        return True
+
     def _call(self, func: typing.Callable, mode: str, *others, **kwargs):
         """Implement a standard operation."""
         name = func.__name__
@@ -188,14 +199,14 @@ class Quantified(algebraic.Quantity, iterables.ReprStrMixin):
             self.meta.check(self, *others)
             operands = [self] + list(*others)
             args = [
-                i.data if isinstance(i, Quantified) else i
+                i.data if isinstance(i, Quantifiable) else i
                 for i in operands
             ]
             return func(*args)
         if mode == 'forward':
             operands = [self] + list(others)
             args = [
-                i.data if isinstance(i, Quantified) else i
+                i.data if isinstance(i, Quantifiable) else i
                 for i in operands
             ]
             data = func(*args, **kwargs)
@@ -204,7 +215,7 @@ class Quantified(algebraic.Quantity, iterables.ReprStrMixin):
         if mode == 'reverse':
             operands = others[::-1] + [self]
             args = [
-                i.data if isinstance(i, Quantified) else i
+                i.data if isinstance(i, Quantifiable) else i
                 for i in operands
             ]
             data = func(*args, **kwargs)
@@ -213,7 +224,7 @@ class Quantified(algebraic.Quantity, iterables.ReprStrMixin):
         if mode == 'inplace':
             operands = [self] + list(others)
             args = [
-                i.data if isinstance(i, Quantified) else i
+                i.data if isinstance(i, Quantifiable) else i
                 for i in operands
             ]
             data = func(*args, **kwargs)
