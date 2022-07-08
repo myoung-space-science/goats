@@ -306,9 +306,3 @@ class Quantity(Quantified, Distinguishable, Locatable):
         }
         super().__init__(__data, **meta)
 
-
-# q = Quantity([1.1], unit='m', name='Q', axes='x')
-# q.convert('cm')
-# q.alias('q0')
-# q.axes
-
