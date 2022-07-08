@@ -289,14 +289,23 @@ class Operation(typing.Generic[T], iterables.ReprStrMixin):
         return self.apply(REFERENCE[self.name])
 
     def apply(self, method: typing.Callable):
-        """Create an operator by applying the given method."""
+        """Create an operator by applying the given method.
+        
+        Parameters
+        ----------
+        method : callable
+            The callable object that should operate on metadata attributes.
+
+        Notes
+        -----
+        * If the method is not callable, this method assumes that there is no
+          metadata to compute. This is the case, for example, with type casts
+          and binary comparisons.
+        """
         def operator(*args, **kwargs):
-            # NOTE: If the method is not callable, we assume that there is no
-            # metadata to compute. This is a common case (e.g., type casts and
-            # binary comparisons). However, if it turns out to be misleading, we
-            # can raise an error for un-callable methods and force downstream
-            # code to define a trivial function that returns `None` for any
-            # arguments.
+            # NOTE: A more conservative approach would be to raise an error for
+            # un-callable methods and force downstream code to define a trivial
+            # function that returns `None` for any arguments.
             if not callable(method):
                 return None
             types = [type(arg) for arg in args]
