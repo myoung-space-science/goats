@@ -363,17 +363,16 @@ class Quantity(Quantified, UnitMixin):
         self: Instance,
         data: Real,
         unit: metric.UnitLike=None,
-    ) -> None:
-        """Initialize this instance from arguments."""
+    ) -> None: ...
 
     @typing.overload
     def __init__(
         self: Instance,
         instance: Instance,
-    ) -> None:
-        """Initialize this instance from an existing one."""
+    ) -> None: ...
 
     def __init__(self, *args, **kwargs) -> None:
+        """Initialize this instance from arguments or an existing instance."""
         if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
             instance = args[0]
             data, unit = instance.data, instance.unit
@@ -405,15 +404,13 @@ class Scalar(Quantity, ScalarOperators):
         self: Instance,
         data: numbers.Real,
         unit: metric.UnitLike=None,
-    ) -> None:
-        """Initialize this instance from arguments."""
+    ) -> None: ...
 
     @typing.overload
     def __init__(
         self: Instance,
         instance: Instance,
-    ) -> None:
-        """Initialize this instance from an existing one."""
+    ) -> None: ...
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
