@@ -369,11 +369,6 @@ def implement(operation: O):
     return operator
 
 
-# OperatorMixin notes:
-# - Concrete subclasses need to overload abstract operators.
-# - Want to provide a flexible mixin option.
-# - Mixin option can't shadow downstream mixins (e.g., numpy).
-# - Mixin option needs to know which metadata attributes to update.
 class OperatorMixin:
     """A mixin class that defines operators for measurable quantities.
 
