@@ -8,47 +8,30 @@ from goats.core import metric
 from goats.core import metadata
 
 
-class Quantified(measurable.OperatorMixin, measurable.Quantifiable):
-    """A concrete version of `~measurable.Quantifiable` for testing."""
+class Quantified(measurable.Quantified):
+    """A concrete version of `~measurable.Quantified` for testing."""
 
-    __measurable_operators__ = [
-        '__abs__', '__pos__', '__neg__',
-        '__lt__', '__le__', '__gt__', '__ge__',
-        '__add__', '__radd__',
-        '__sub__', '__rsub__',
-        '__mul__', '__rmul__',
-        '__truediv__', '__rtruediv__',
-        '__pow__', '__rpow__',
+    def __eq__(self, other):
+        return False
+
+    def _call(self, *args, **kwargs):
+        raise NotImplementedError("Just for testing")
+
+
+def test_quantified_bool():
+    """Quantified objects are always truthy."""
+    cases = [
+        Quantified(1),
+        Quantified(0),
     ]
-
-
-class Quantity(measurable.OperatorMixin, measurable.Quantity):
-    """A concrete measurable quantity for testing."""
-
-    __measurable_operators__ = [
-        '__abs__', '__pos__', '__neg__',
-        '__lt__', '__le__', '__gt__', '__ge__',
-        '__add__', '__radd__',
-        '__sub__', '__rsub__',
-        '__mul__', '__rmul__',
-        '__truediv__', '__rtruediv__',
-        '__pow__', '__rpow__',
-    ]
-
-
-class Scalar(Quantity):
-    """A concrete scalar quantity for testing."""
-
-    __measurable_operators__ = [
-        '__int__', '__float__',
-        '__ceil__', '__floor__', '__round__', '__trunc__',
-    ]
+    for case in cases:
+        assert bool(case)
 
 
 @pytest.mark.quantity
 def test_quantity_display():
     """Test the results of printing a quantity."""
-    q = Quantity(1.2, unit='m')
+    q = measurable.Quantity(1.2, unit='m')
     assert str(q) == "1.2 [m]"
     assert repr(q).endswith("Quantity(1.2, unit='m')")
 
@@ -58,7 +41,7 @@ def test_quantity_comparisons():
     """Test comparisons between two default quantities."""
     value = 2.0
     unit = 'm'
-    q0 = Quantity(value, unit)
+    q0 = measurable.Quantity(value, unit=unit)
     cases = [
         (operator.lt, value + 1),
         (operator.le, value + 1),
@@ -71,10 +54,10 @@ def test_quantity_comparisons():
     ]
     for case in cases:
         opr, v = case
-        result = opr(q0, Quantity(v, unit))
+        result = opr(q0, measurable.Quantity(v, unit=unit))
         assert isinstance(result, bool)
         assert result
-    q1 = Quantity(v, 'J')
+    q1 = measurable.Quantity(v, unit='J')
     assert q0 != q1
     for opr in {operator.lt, operator.le, operator.gt, operator.ge}:
         with pytest.raises(ValueError):
@@ -84,12 +67,9 @@ def test_quantity_comparisons():
 @pytest.mark.quantity
 def test_quantities_same_unit():
     """Test operations on default quantities with the same unit."""
-    cases = [
-        (2.0, 'm'),
-        (3.5, 'm'),
-    ]
-    quantities = [Quantity(*args) for args in cases]
-    values = [k[0] for k in cases]
+    values = [2.0, 3.5]
+    unit='m'
+    quantities = [measurable.Quantity(value, unit=unit) for value in values]
 
     # ADDITIVE
     oprs = [
@@ -98,17 +78,17 @@ def test_quantities_same_unit():
     ]
     unit = 'm'
     for opr in oprs:
-        expected = Quantity(opr(*values), unit)
+        expected = measurable.Quantity(opr(*values), unit=unit)
         assert opr(*quantities) == expected
 
     # MULTIPLICATION
     opr = operator.mul
-    expected = Quantity(opr(*values), 'm^2')
+    expected = measurable.Quantity(opr(*values), unit='m^2')
     assert opr(*quantities) == expected
 
     # DIVISION
     opr = operator.truediv
-    expected = Quantity(opr(*values), '1')
+    expected = measurable.Quantity(opr(*values), unit='1')
     assert opr(*quantities) == expected
 
     # EXPONENTIAL
@@ -120,12 +100,9 @@ def test_quantities_same_unit():
 @pytest.mark.quantity
 def test_quantities_diff_unit():
     """Test operations on default quantities with different units."""
-    cases = [
-        (2.0, 'm'),
-        (2.0, 'J'),
-    ]
-    quantities = [Quantity(*args) for args in cases]
-    values = [k[0] for k in cases]
+    value = 2.0
+    units = ['m', 'J']
+    quantities = [measurable.Quantity(value, unit) for unit in units]
 
     # ADDITIVE
     oprs = [
@@ -138,12 +115,12 @@ def test_quantities_diff_unit():
 
     # MULTIPLICATION
     opr = operator.mul
-    expected = Quantity(opr(*values), 'm * J')
+    expected = measurable.Quantity(opr(value, value), unit='m * J')
     assert opr(*quantities) == expected
 
     # DIVISION
     opr = operator.truediv
-    expected = Quantity(opr(*values), 'm / J')
+    expected = measurable.Quantity(opr(value, value), unit='m / J')
     assert opr(*quantities) == expected
 
     # EXPONENTIAL
@@ -157,7 +134,7 @@ def test_quantity_number():
     """Test operations on a default quantity and a number."""
     values = [2.0, 3.5]
     unit = 'm'
-    quantity = Quantity(values[0], unit)
+    quantity = measurable.Quantity(values[0], unit=unit)
     value = values[1]
 
     # ADDITIVE
@@ -167,25 +144,25 @@ def test_quantity_number():
     ]
     for opr in oprs:
         # forward
-        expected = Quantity(opr(*values), unit)
+        expected = measurable.Quantity(opr(*values), unit=unit)
         assert opr(quantity, value) == expected
         # reverse
-        expected = Quantity(opr(*values[::-1]), unit)
+        expected = measurable.Quantity(opr(*values[::-1]), unit=unit)
         assert opr(value, quantity) == expected
 
     # MULTIPLICATION
     opr = operator.mul
     # forward
-    expected = Quantity(opr(*values), unit)
+    expected = measurable.Quantity(opr(*values), unit=unit)
     assert opr(quantity, value) == expected
     # reverse
-    expected = Quantity(opr(*values[::-1]), unit)
+    expected = measurable.Quantity(opr(*values[::-1]), unit=unit)
     assert opr(value, quantity) == expected
 
     # DIVISION
     opr = operator.truediv
     # forward
-    expected = Quantity(opr(*values), unit)
+    expected = measurable.Quantity(opr(*values), unit=unit)
     assert opr(quantity, value) == expected
     # reverse
     with pytest.raises(metadata.OperandTypeError):
@@ -194,7 +171,7 @@ def test_quantity_number():
     # EXPONENTIAL
     opr = operator.pow
     # forward
-    expected = Quantity(opr(*values), f'{unit}^{value}')
+    expected = measurable.Quantity(opr(*values), unit=f'{unit}^{value}')
     assert opr(quantity, value) == expected
     # reverse
     with pytest.raises(metadata.OperandTypeError):
@@ -204,9 +181,10 @@ def test_quantity_number():
 @pytest.mark.quantity
 def test_quantity_unit():
     """Test getting and setting a quantity's unit."""
-    q = Quantity(1, 'm') # use int to avoid failing due to precision
+    # NOTE: use an integer to avoid failing due to precision
+    q = measurable.Quantity(1, unit='m')
     assert q.unit == 'm'
-    assert q.convert('cm') == Quantity(100, 'cm')
+    assert q.convert('cm') == measurable.Quantity(100, unit='cm')
     with pytest.raises(metric.UnitConversionError):
         q.convert('J')
 
@@ -220,7 +198,7 @@ def test_initialize_quantity():
         'keyword unit': [[1.1], {'unit': 'm'}, {'data': 1.1, 'unit': 'm'}],
     }
     for name, (args, kwargs, expected) in cases.items():
-        q = Quantity(*args, **kwargs)
+        q = measurable.Quantity(*args, **kwargs)
         msg = f'Failed for {name}'
         assert q.data == expected['data'], msg
         assert q.unit == expected['unit'], msg
@@ -229,8 +207,8 @@ def test_initialize_quantity():
 @pytest.mark.quantity
 def test_quantity_idempotence():
     """Test initializing a concrete quantity from an existing instance."""
-    q0 = Quantity(1.5, 'm')
-    q1 = Quantity(q0)
+    q0 = measurable.Quantity(1.5, unit='m')
+    q1 = measurable.Quantity(q0)
     assert q1 is not q0
     assert q1 == q0
 
@@ -238,7 +216,7 @@ def test_quantity_idempotence():
 def test_scalar_cast():
     """Test the type-casting operators on a scalar quantity."""
     value = 1.5
-    scalar = Scalar(value, 'm')
+    scalar = measurable.Scalar(value, unit='m')
     assert float(scalar) == value
     assert int(scalar) == int(value)
 
@@ -247,18 +225,8 @@ def test_scalar_unary():
     """Test the unary operators on a scalar quantity."""
     value = 1.5
     unit = 'm'
-    scalar = Scalar(value, unit)
-    assert round(scalar) == Scalar(round(value), unit)
-
-
-def test_quantified_bool():
-    """Quantified objects are always truthy."""
-    cases = [
-        Quantified(1, 'quantum'),
-        Quantified(0, 'quantum'),
-    ]
-    for case in cases:
-        assert bool(case)
+    scalar = measurable.Scalar(value, unit=unit)
+    assert round(scalar) == measurable.Scalar(round(value), unit=unit)
 
 
 unity = '1'
