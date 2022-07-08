@@ -417,6 +417,16 @@ class Dataset:
             return ordered + extra
         raise ValueError(f"Unrecognized mode {mode!r}")
 
+    def get_indices(self, name: str, **user):
+        """Extract indexing objects for the named variable."""
+        variable = self.variables.get(name)
+        if not variable:
+            return ()
+        return tuple(
+            self.axes[axis](*user.get(axis, ()))
+            for axis in variable.axes
+        )
+
 
 substitutions = {
     'julian date': 'day',
