@@ -363,6 +363,11 @@ class Quantity(Quantified, UnitMixin):
     def apply_conversion(self, new: metric.Unit):
         self._data *= new // self._unit
 
+    def __measure__(self):
+        """Create a measurement from this quantity's data and unit."""
+        value = iterables.whole(self.data)
+        return Measurement(value, self.unit)
+
 
 class Scalar(Quantity):
     """A single-valued measurable quantity"""
