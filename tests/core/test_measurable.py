@@ -1,4 +1,3 @@
-import math
 import operator
 
 import pytest
