@@ -239,7 +239,6 @@ class Quantified(Quantifiable):
 class Measurable:
     """Mixin class for quantities with a unit."""
 
-    _data: measurable.Real=None
     _unit: metric.UnitLike=None
 
     @property
@@ -252,9 +251,14 @@ class Measurable:
         if unit == self._unit:
             return self
         new = metric.Unit(unit)
-        self._data *= new // self._unit
+        self.apply_conversion(new)
         self._unit = new
         return self
+
+    @abc.abstractmethod
+    def apply_conversion(self, new: metric.Unit):
+        """Update data values for unit conversion."""
+        pass
 
 
 class Identifiable:
@@ -305,4 +309,7 @@ class Quantity(Quantified, Distinguishable, Locatable):
             'axes': datatypes.Axes(axes or ()),
         }
         super().__init__(__data, **meta)
+
+    def apply_conversion(self, new: metric.Unit):
+        self._data *= new // self._unit
 
