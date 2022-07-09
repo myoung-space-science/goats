@@ -372,15 +372,14 @@ class Quantity(Quantified, UnitMixin):
         instance: Instance,
     ) -> None: ...
 
-    def __init__(self, __data, **kwargs) -> None:
+    def __init__(self, __data, **meta) -> None:
         """Initialize this instance from arguments or an existing instance."""
-        if not kwargs and isinstance(__data, type(self)):
-            instance = __data
-            data, unit = instance.data, instance.unit
+        if isinstance(__data, type(self)):
+            data, unit = __data.data, __data.unit
         else:
             data = __data
-            unit = kwargs.get('unit', '1')
-        super().__init__(data, unit=metric.Unit(unit))
+            unit = metric.Unit(meta.pop('unit', '1'))
+        super().__init__(data, unit=metric.Unit(unit), **meta)
         self.display['data'] = 'data'
         self.display['unit'] = 'unit'
         self.display['__str__'] = "{data} [{unit}]"
