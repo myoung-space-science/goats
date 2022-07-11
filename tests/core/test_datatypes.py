@@ -19,7 +19,7 @@ def test_scalar_scalar_comparisons():
     """Test comparisons between two scalars."""
     value = 2.0
     unit = 'm'
-    scalar = datatypes.Scalar(value, unit)
+    scalar = datatypes.Scalar(value, unit=unit)
     cases = [
         (operator.lt, value + 1),
         (operator.le, value + 1),
@@ -30,12 +30,12 @@ def test_scalar_scalar_comparisons():
     ]
     for case in cases:
         opr, v = case
-        assert opr(scalar, datatypes.Scalar(v, unit))
+        assert opr(scalar, datatypes.Scalar(v, unit=unit))
         with pytest.raises(ValueError):
-            opr(scalar, datatypes.Scalar(v, 'J'))
-    assert scalar == datatypes.Scalar(value, unit)
-    assert scalar != datatypes.Scalar(value+1, unit)
-    assert scalar != datatypes.Scalar(value, 'J')
+            opr(scalar, datatypes.Scalar(v, unit='J'))
+    assert scalar == datatypes.Scalar(value, unit=unit)
+    assert scalar != datatypes.Scalar(value+1, unit=unit)
+    assert scalar != datatypes.Scalar(value, unit='J')
 
 
 @pytest.mark.scalar
@@ -43,7 +43,7 @@ def test_scalar_number_comparisons():
     """Test comparisons between a scalar and a number."""
     value = 2.0
     unit = 'm'
-    scalar = datatypes.Scalar(value, unit)
+    scalar = datatypes.Scalar(value, unit=unit)
     cases = [
         (operator.lt, operator.gt, value + 1),
         (operator.le, operator.ge, value + 1),
@@ -64,7 +64,7 @@ def test_scalar_number_comparisons():
 def test_scalar_cast():
     """Test numeric casting operations on a scalar."""
     value = 2.0
-    scalar = datatypes.Scalar(value, 'm')
+    scalar = datatypes.Scalar(value, unit='m')
     for dtype in {int, float}:
         number = dtype(scalar)
         assert isinstance(number, dtype)
@@ -76,7 +76,7 @@ def test_scalar_unary():
     """Test unary arithmetic operations on a scalar."""
     value = 2.0
     unit = 'm'
-    scalar = datatypes.Scalar(value, unit)
+    scalar = datatypes.Scalar(value, unit=unit)
     oprs = [
         operator.neg,
         operator.pos,
@@ -88,7 +88,7 @@ def test_scalar_unary():
     ]
     for opr in oprs:
         result = opr(scalar)
-        assert result == datatypes.Scalar(opr(value), unit)
+        assert result == datatypes.Scalar(opr(value), unit=unit)
 
 
 @pytest.mark.scalar
@@ -99,7 +99,10 @@ def test_scalar_binary():
         (3.5, 'm'),
         (2.0, 'J'),
     ]
-    instances = {args: datatypes.Scalar(*args) for args in cases}
+    instances = {
+        args: datatypes.Scalar(args[0], unit=args[1])
+        for args in cases
+    }
     same_unit = cases[0], cases[1]
     diff_unit = cases[0], cases[2]
     scalars_same = [instances[k] for k in same_unit]
@@ -117,14 +120,14 @@ def test_scalar_binary():
     unit = 'm'
     for opr in oprs:
         # between two instances with same unit
-        expected = datatypes.Scalar(opr(*values_same), unit)
+        expected = datatypes.Scalar(opr(*values_same), unit=unit)
         assert opr(*scalars_same) == expected
         # between an instance and a number
         # ...forward
-        expected = datatypes.Scalar(opr(*values_same), unit)
+        expected = datatypes.Scalar(opr(*values_same), unit=unit)
         assert opr(scalar, value) == expected
         # ...reverse
-        expected = datatypes.Scalar(opr(*values_same[::-1]), unit)
+        expected = datatypes.Scalar(opr(*values_same[::-1]), unit=unit)
         assert opr(value, scalar) == expected
     # between two instances with different units
     for opr in oprs:
@@ -134,33 +137,33 @@ def test_scalar_binary():
     # MULTIPLICATION
     opr = operator.mul
     # between two instances with same unit
-    expected = datatypes.Scalar(opr(*values_same), 'm^2')
+    expected = datatypes.Scalar(opr(*values_same), unit='m^2')
     assert opr(*scalars_same) == expected
     # between an instance and a number
     # ...forward
-    expected = datatypes.Scalar(opr(*values_same), 'm')
+    expected = datatypes.Scalar(opr(*values_same), unit='m')
     assert opr(scalar, value) == expected
     # reverse
-    expected = datatypes.Scalar(opr(*values_same[::-1]), 'm')
+    expected = datatypes.Scalar(opr(*values_same[::-1]), unit='m')
     assert opr(value, scalar) == expected
     # between two instances with different units
-    expected = datatypes.Scalar(opr(*values_diff), 'm * J')
+    expected = datatypes.Scalar(opr(*values_diff), unit='m * J')
     assert opr(*scalars_diff) == expected
 
     # DIVISION
     opr = operator.truediv
     # between two instances with same unit
-    expected = datatypes.Scalar(opr(*values_same), '1')
+    expected = datatypes.Scalar(opr(*values_same), unit='1')
     assert opr(*scalars_same) == expected
     # between an instance and a number
     # ...forward
-    expected = datatypes.Scalar(opr(*values_same), 'm')
+    expected = datatypes.Scalar(opr(*values_same), unit='m')
     assert opr(scalar, value) == expected
     # reverse
     with pytest.raises(metadata.OperandTypeError):
         opr(value, scalar)
     # between two instances with different units
-    expected = datatypes.Scalar(opr(*values_diff), 'm / J')
+    expected = datatypes.Scalar(opr(*values_diff), unit='m / J')
     assert opr(*scalars_diff) == expected
 
     # EXPONENTIAL
@@ -170,7 +173,7 @@ def test_scalar_binary():
         opr(*scalars_same)
     # between an instance and a number
     # ...forward
-    expected = datatypes.Scalar(opr(*values_same), f'm^{value}')
+    expected = datatypes.Scalar(opr(*values_same), unit=f'm^{value}')
     assert opr(scalar, value) == expected
     # ...reverse
     with pytest.raises(metadata.OperandTypeError):
@@ -190,18 +193,18 @@ def test_scalar_bitwise():
 @pytest.mark.vector
 def test_vector_operators():
     """Test the updated operators on the vector object."""
-    v0 = datatypes.Vector([3.0, 6.0], 'm')
-    v1 = datatypes.Vector([1.0, 3.0], 'm')
-    v2 = datatypes.Vector([1.0, 3.0], 'J')
-    assert v0 + v1 == datatypes.Vector([4.0, 9.0], 'm')
-    assert v0 - v1 == datatypes.Vector([2.0, 3.0], 'm')
-    assert v0 * v1 == datatypes.Vector([3.0, 18.0], 'm^2')
-    assert v0 / v1 == datatypes.Vector([3.0, 2.0], '1')
-    assert v0 / v2 == datatypes.Vector([3.0, 2.0], 'm / J')
-    assert v0 ** 2 == datatypes.Vector([9.0, 36.0], 'm^2')
-    assert 10.0 * v0 == datatypes.Vector([30.0, 60.0], 'm')
-    assert v0 * 10.0 == datatypes.Vector([30.0, 60.0], 'm')
-    assert v0 / 10.0 == datatypes.Vector([0.3, 0.6], 'm')
+    v0 = datatypes.Vector([3.0, 6.0], unit='m')
+    v1 = datatypes.Vector([1.0, 3.0], unit='m')
+    v2 = datatypes.Vector([1.0, 3.0], unit='J')
+    assert v0 + v1 == datatypes.Vector([4.0, 9.0], unit='m')
+    assert v0 - v1 == datatypes.Vector([2.0, 3.0], unit='m')
+    assert v0 * v1 == datatypes.Vector([3.0, 18.0], unit='m^2')
+    assert v0 / v1 == datatypes.Vector([3.0, 2.0], unit='1')
+    assert v0 / v2 == datatypes.Vector([3.0, 2.0], unit='m / J')
+    assert v0 ** 2 == datatypes.Vector([9.0, 36.0], unit='m^2')
+    assert 10.0 * v0 == datatypes.Vector([30.0, 60.0], unit='m')
+    assert v0 * 10.0 == datatypes.Vector([30.0, 60.0], unit='m')
+    assert v0 / 10.0 == datatypes.Vector([0.3, 0.6], unit='m')
     with pytest.raises(metadata.OperandTypeError):
         1.0 / v0
     with pytest.raises(metric.UnitError):
@@ -233,8 +236,8 @@ def test_vector_display():
 @pytest.mark.vector
 def test_vector_init():
     """Test initializing with iterable and non-iterable values."""
-    expected = sorted(datatypes.Vector([1.1], 'm'))
-    assert sorted(datatypes.Vector(1.1, 'm')) == expected
+    expected = sorted(datatypes.Vector([1.1], unit='m'))
+    assert sorted(datatypes.Vector(1.1, unit='m')) == expected
 
 
 @pytest.mark.scalar
@@ -259,13 +262,13 @@ def check_units(
     new: str,
 ) -> None:
     """Extracted for testing the unit attribute on Measured subclasses."""
-    original = obj(amount, reference)
+    original = obj(amount, unit=reference)
     assert original.unit == reference
     updated = original.convert(new)
     assert updated is original
     assert updated.unit == new
     factor = metric.Unit(new) // metric.Unit(reference)
-    assert updated == obj(rescale(amount, factor), new)
+    assert updated == obj(rescale(amount, factor), unit=new)
     assert obj(amount).unit == '1'
 
 
@@ -680,7 +683,7 @@ def test_variable_getitem(var: typing.Dict[str, datatypes.Variable]):
         assert sliced is not v
         expected = numpy.array([[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
         assert numpy.array_equal(sliced, expected)
-    assert v[0, 0] == datatypes.Scalar(+1.0, v.unit)
+    assert v[0, 0] == datatypes.Scalar(+1.0, unit=v.unit)
     assert numpy.array_equal(v[0, :], [+1.0, +2.0])
     assert numpy.array_equal(v[:, 0], [+1.0, +2.0, -4.0])
     assert numpy.array_equal(v[:, 0:1], [[+1.0], [+2.0], [-4.0]])
@@ -786,7 +789,7 @@ def make_variable(**attrs):
     return datatypes.Variable(
         attrs['data'],
         unit=attrs.get('unit'),
-        name=attrs['name'],
+        name=attrs.get('name'),
         axes=attrs.get('axes'),
     )
 

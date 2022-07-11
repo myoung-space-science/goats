@@ -138,60 +138,10 @@ class Name(collections.abc.Collection, *_metadata_mixins):
         return str(self._aliases)
 
 
-Instance = typing.TypeVar('Instance', bound='Quantity')
+class NameMixin:
+    """Mixin class for quantities with a name."""
 
-
-class Quantity(measurable.OperatorMixin, measurable.Quantity):
-    """A measurable quantity with a name.
-    
-    This class is a concrete implementation of `~measurable.Quantity` that uses
-    operator implementations provided by `~measurable.OperatorMixin`.
-    """
-
-    __metadata__ = 'name'
-
-    __measurable_operators__ = [
-        '__abs__', '__pos__', '__neg__',
-        '__lt__', '__le__', '__gt__', '__ge__',
-        '__add__', '__radd__',
-        '__sub__', '__rsub__',
-        '__mul__', '__rmul__',
-        '__truediv__', '__rtruediv__',
-        '__pow__', '__rpow__',
-    ]
-
-    @typing.overload
-    def __init__(
-        self: Instance,
-        data: measurable.Real,
-        unit: metric.UnitLike=None,
-        name: typing.Union[str, typing.Iterable[str]]=None,
-    ) -> None:
-        """Initialize this instance from arguments."""
-
-    @typing.overload
-    def __init__(
-        self: Instance,
-        instance: Instance,
-    ) -> None:
-        """Initialize this instance from an existing one."""
-
-    def __init__(self, *args, **kwargs) -> None:
-        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
-            instance = args[0]
-            data, unit, name = instance.data, instance.unit, instance.name
-        else:
-            pos = list(args)
-            data = kwargs.get('data') or pos.pop(0)
-            unit = kwargs.pop('unit', None) or iterables.pop(pos, '1')
-            name = kwargs.pop('name', None) or iterables.pop(pos, '')
-        self._name = Name(name)
-        super().__init__(data, unit)
-        self._name = Name(name)
-        if self._name:
-            self.display['name'] = 'name'
-            self.display['__str__'].insert(0, "'{name}':")
-            self.display['__repr__'].insert(2, "name='{name}'")
+    _name: Name=None
 
     @property
     def name(self):
@@ -204,53 +154,92 @@ class Quantity(measurable.OperatorMixin, measurable.Quantity):
         self._name = Name(*aliases)
         return self
 
-    def __measure__(self):
-        """Create a measurement from this quantity's data and unit."""
-        value = iterables.whole(self.data)
-        return measurable.Measurement(value, self.unit)
+
+Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
-class Scalar(Quantity):
-    """A single-valued data-type quantity.
-    
-    This class is a virtual concrete implementation of `~measurable.Scalar`. It
-    defines the magic method `__measure__` in order to directly support
-    `~measurables.measure`.
-    """
+class Quantity(measurable.Quantity, NameMixin):
+    """A measurable quantity with a name."""
 
-    __measurable_operators__ = [
-        '__int__', '__float__',
-        '__ceil__', '__floor__', '__round__', '__trunc__',
-    ]
-
+    @typing.overload
     def __init__(
-        self,
-        data: numbers.Real,
+        self: Instance,
+        __data: measurable.Real,
+        *,
         unit: metric.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
-    ) -> None:
-        super().__init__(float(data), unit=unit, name=name)
+    ) -> None: ...
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        instance: Instance,
+    ) -> None: ...
+
+    def __init__(self, __data, **meta) -> None:
+        """Initialize this instance from arguments or an existing instance."""
+        super().__init__(__data, **meta)
+        parsed = self.parse_attrs(__data, meta, name='')
+        self._name = Name(parsed['name'])
+        self.meta.register('name')
+        if self._name:
+            self.display['name'] = 'name'
+            self.display['__str__'].insert(0, "'{name}':")
+            self.display['__repr__'].insert(2, "name='{name}'")
 
 
-measurable.Scalar.register(Scalar)
+class Scalar(Quantity, measurable.ScalarOperatorMixin):
+    """A single-valued named quantity."""
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        __data: numbers.Real,
+        *,
+        unit: metric.UnitLike=None,
+        name: typing.Union[str, typing.Iterable[str]]=None,
+    ) -> None: ...
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        instance: Instance,
+    ) -> None: ...
+
+    def __init__(self, __data, **meta) -> None:
+        super().__init__(float(__data), **meta)
 
 
 class Vector(Quantity):
-    """A multi-valued measurable quantity.
+    """A multi-valued named quantity.
 
-    This class is a virtual concrete implementation of `~measurable.Vector` that
-    uses local definitions of `__len__` and `__getitem__`. It defines the magic
-    method `__measure__` in order to directly support `~measurables.measure`.
+    Notes
+    -----
+    This class converts `data` into a `numpy.ndarray` via a `list` during
+    instantiation. It may therefore become a bottleneck for large 1-D objects
+    and may produce unexpected results for higher-dimension objects. In those
+    cases, an array-like class derived from `~measurable.Quantified` that
+    incorporates native `numpy` operators may be more appropriate.
     """
 
+    @typing.overload
     def __init__(
         self,
-        data: typing.Union[measurable.Real, numpy.typing.ArrayLike],
+        __data: typing.Union[measurable.Real, numpy.typing.ArrayLike],
+        *,
         unit: metric.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
-    ) -> None:
-        array = numpy.asfarray(list(iterables.whole(data)))
-        super().__init__(array, unit=unit, name=name)
+    ) -> None: ...
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        instance: Instance,
+    ) -> None: ...
+
+    def __init__(self, __data, **meta) -> None:
+        array = numpy.asfarray(list(iterables.whole(__data)))
+        super().__init__(array, **meta)
 
     def __len__(self) -> int:
         """Called for len(self)."""
@@ -264,8 +253,8 @@ class Vector(Quantity):
         iter_values = isinstance(values, typing.Iterable)
         unit = self.unit
         return (
-            [Scalar(value, unit) for value in values] if iter_values
-            else Scalar(values, unit)
+            [Scalar(value, unit=unit) for value in values] if iter_values
+            else Scalar(values, unit=unit)
         )
 
     def __eq__(self, other: typing.Any):
@@ -275,9 +264,6 @@ class Vector(Quantity):
         if not self.unit == other.unit:
             return False
         return numpy.array_equal(other, self)
-
-
-measurable.Vector.register(Vector)
 
 
 IndexLike = typing.TypeVar(
@@ -300,22 +286,14 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         self._scale = 1.0
         self._rescale = False
         self._array = None
+        self._ndim = None
+        self._shape = None
         self.display['data'] = '_data_array'
 
-    @property
-    def _data_array(self):
-        """Data array for internal use."""
-        return self._get_array()
-
-    def convert(self, unit: metric.UnitLike):
-        """Set the unit of this object's values."""
-        if unit == self._metric:
-            return self
-        new = metric.Unit(unit)
-        self._scale *= new // self._metric
-        self._metric = new
+    def apply_conversion(self, new: metric.Unit):
+        self._scale *= new // self._unit
+        self._unit = new
         self._rescale = True
-        return self
 
     def __measure__(self):
         """Create a measurement from this array's data and unit."""
@@ -331,20 +309,25 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
 
     def __len__(self):
         """Called for len(self)."""
-        if method := self._get_base_attr('__len__'):
+        if method := self._get_base_attr('__len__', '_data_array'):
             return method()
-        return len(self._amount)
+        return len(self.data)
 
-    def __getattr__(self, name: str):
-        """Access an attribute of the underlying data object or array."""
-        if attr := self._get_base_attr(name):
-            self.__dict__[name] = attr
-            return attr
-        raise AttributeError(name)
+    @property
+    def ndim(self) -> int:
+        """The number of dimensions in this array."""
+        if self._ndim is None:
+            self._ndim = self._get_base_attr('ndim', 'data', '_data_array')
+        return self._ndim
 
-    _search_attrs = ('_amount', '_get_array')
+    @property
+    def shape(self) -> int:
+        """The length of each dimension in this array."""
+        if self._shape is None:
+            self._shape = self._get_base_attr('shape', 'data', '_data_array')
+        return self._shape
 
-    def _get_base_attr(self, name: str):
+    def _get_base_attr(self, name: str, *search: str):
         """Helper method to efficiently access underlying attributes.
 
         This method will first search the underlying data object for the named
@@ -352,12 +335,17 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         loading the full dataset. If that search fails, this method will attempt
         to retrieve the named attribute from the actual dataset array.
         """
-        targets = [getattr(self, name) for name in self._search_attrs]
+        targets = [getattr(self, name) for name in search]
         for target in targets:
             with contextlib.suppress(AttributeError):
                 attr = target() if callable(target) else target
                 if value := getattr(attr, name):
                     return value
+
+    @property
+    def _data_array(self):
+        """Current data array for internal use."""
+        return self._get_array()
 
     _builtin = (int, slice, type(...))
 
@@ -458,8 +446,8 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         compute = getattr(ufunc, method)
         data = compute(*operands, **kwargs)
         evaluate = (
-            self.metadata[name].evaluate if name in self.metadata
-            else self.metadata.implement(compute)
+            self.meta[name].evaluate if name in self.meta
+            else self.meta.implement(compute)
         )
         kwds = {k: v for k, v in kwargs.items() if k != 'out'}
         meta = evaluate(*args, **kwds)
@@ -712,18 +700,28 @@ class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
         return f"[{', '.join(repr(name) for name in self.names)}]"
 
 
+class AxesMixin:
+    """Mixin class for quantities with axes."""
+
+    _axes: Axes=None
+
+    @property
+    def axes(self):
+        """This quantity's indexable axes."""
+        return self._axes
+
+
 Instance = typing.TypeVar('Instance', bound='Variable')
 
 
-class Variable(Array):
+class Variable(Array, AxesMixin):
     """A class representing a dataset variable."""
-
-    __metadata__ = 'axes'
 
     @typing.overload
     def __init__(
         self: Instance,
-        data: numpy.typing.ArrayLike,
+        __data: numpy.typing.ArrayLike,
+        *,
         unit: typing.Union[str, metric.Unit]=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
         axes: typing.Iterable[str]=None,
@@ -733,7 +731,8 @@ class Variable(Array):
     @typing.overload
     def __init__(
         self: Instance,
-        array: Array,
+        __data: Array,
+        *,
         axes: typing.Iterable[str]=None,
     ) -> None:
         """Create a new variable from an array."""
@@ -745,28 +744,11 @@ class Variable(Array):
     ) -> None:
         """Create a new variable from an existing variable."""
 
-    def __init__(self, *args, **kwargs) -> None:
-        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
-            instance = args[0]
-            data, unit, name = instance.data, instance.unit, instance.name
-            axes = instance.axes
-        else:
-            pos = list(args)
-            n = len(pos)
-            two_args = n == 2 or (n == 1 and len(kwargs) == 1)
-            if two_args and isinstance(pos[0], Array):
-                array = pos.pop(0)
-                args = [
-                    getattr(array, name)
-                    for name in ('data', 'unit', 'name')
-                ]
-                pos = list(args) + pos
-            data = kwargs.get('data') or pos.pop(0)
-            unit = kwargs.pop('unit', None) or iterables.pop(pos, '1')
-            name = kwargs.pop('name', None) or iterables.pop(pos, '')
-            axes = kwargs.pop('axes', None) or iterables.pop(pos, ())
-        super().__init__(data, unit, name)
-        self.axes = Axes(axes)
+    def __init__(self, __data, **meta) -> None:
+        super().__init__(__data, **meta)
+        parsed = self.parse_attrs(__data, meta, axes=())
+        self._axes = Axes(parsed['axes'])
+        self.meta.register('axes')
         self.naxes = len(self.axes)
         """The number of indexable axes in this variable's array."""
         if self.naxes != self.ndim:
@@ -777,6 +759,12 @@ class Variable(Array):
         self.display['axes'] = 'axes'
         self.display['__str__'].append("axes={axes}")
         self.display['__repr__'].append("axes={axes}")
+
+    def parse_attrs(self, this, meta: dict, **targets):
+        if isinstance(this, Array) and not isinstance(this, Variable):
+            meta.update({k: getattr(this, k) for k in ('unit', 'name')})
+            this = this.data
+        return super().parse_attrs(this, meta, **targets)
 
     def _ufunc_hook(self, ufunc, *inputs):
         """Convert input arrays into arrays appropriate to `ufunc`."""
@@ -843,9 +831,6 @@ def _mean(v: Variable, **kwargs):
     axes = tuple(a for a in v.axes if v.axes.index(a) != axis)
     name = [f"mean({name})" for name in v.name]
     return Variable(data, unit=v.unit, name=name, axes=axes)
-
-
-measurable.Quantity.register(Variable)
 
 
 class Assumption(Vector):

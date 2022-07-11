@@ -345,8 +345,10 @@ class PlasmaSpecies(iterables.ReprStrMixin):
         if self._mass is None:
             base = self._symbol.rstrip('+-')
             element = _elements.find(base, unique=True)
+            value = element['mass']
             unit = 'nucleon'
-            self._mass = datatypes.Scalar(element['mass'], unit)
+            aliases = ['m', 'mass']
+            self._mass = datatypes.Scalar(value, unit=unit, name=aliases)
         return self._mass
 
     @property
@@ -362,7 +364,8 @@ class PlasmaSpecies(iterables.ReprStrMixin):
             sign = self._symbol.lstrip(base)
             value = sum(float(f"{s}1.0") for s in sign)
             unit = 'e'
-            self._charge = datatypes.Scalar(value, unit)
+            aliases = ['q', 'charge']
+            self._charge = datatypes.Scalar(value, unit=unit, name=aliases)
         return self._charge
 
     @property
