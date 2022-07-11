@@ -296,7 +296,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
 
     def __measure__(self):
         """Create a measurement from this array's data and unit."""
-        return measurable.Measurement(self._get_array(), self.unit)
+        return measurable.Measurement(self._data_array, self.unit)
 
     def __eq__(self, other: typing.Any):
         """True if two instances have the same data and attributes."""
@@ -437,7 +437,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
                 return NotImplemented
         if out:
             kwargs['out'] = tuple(
-                x._get_array() if isinstance(x, Array)
+                x._data_array if isinstance(x, Array)
                 else x for x in out
             )
         name = ufunc.__name__
@@ -462,7 +462,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
     def _ufunc_hook(self, ufunc, *inputs):
         """Convert input arrays into arrays appropriate to `ufunc`."""
         return tuple(
-            x._get_array() if isinstance(x, Array)
+            x._data_array if isinstance(x, Array)
             else x for x in inputs
         )
 
@@ -487,14 +487,14 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
             result = self._HANDLED_FUNCTIONS[func](*args, **kwargs)
             return self._new_from_func(result)
         args = tuple(
-            arg._get_array() if isinstance(arg, Array)
+            arg._data_array if isinstance(arg, Array)
             else arg for arg in args
         )
         types = tuple(
             ti for ti in types
             if not issubclass(ti, Array)
         )
-        data = self._get_array()
+        data = self._data_array
         arr = data.__array_function__(func, types, args, kwargs)
         return self._new_from_func(arr)
 
@@ -519,7 +519,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         `netCDF4.Dataset`. See
         https://github.com/mcgibbon/python-examples/blob/master/scripts/file-io/load_netCDF4_full.py
         """
-        data = self._get_array()
+        data = self._data_array
         return numpy.asanyarray(data, *args, **kwargs)
 
     def _get_array(self, index: IndexLike=None):
@@ -779,7 +779,7 @@ class Variable(Array, AxesMixin):
                 arrays.append(v._get_array(idx))
             return arrays
         return tuple(
-            x._get_array() if isinstance(x, type(self))
+            x._data_array if isinstance(x, type(self))
             else x for x in inputs
         )
     def __getitem__(self, *args: IndexLike):
@@ -809,7 +809,7 @@ class Variable(Array, AxesMixin):
 @Variable.implements(numpy.squeeze)
 def _squeeze(v: Variable, **kwargs):
     """Remove singular axes."""
-    data = v._get_array().squeeze(**kwargs)
+    data = v._data_array.squeeze(**kwargs)
     axes = tuple(
         a for a, d in zip(v.axes, v.shape)
         if d != 1
@@ -820,7 +820,7 @@ def _squeeze(v: Variable, **kwargs):
 @Variable.implements(numpy.mean)
 def _mean(v: Variable, **kwargs):
     """Compute the mean of the underlying array."""
-    data = v._get_array().mean(**kwargs)
+    data = v._data_array.mean(**kwargs)
     axis = kwargs.get('axis')
     if axis is None:
         return data
