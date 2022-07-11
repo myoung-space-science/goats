@@ -101,24 +101,16 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
         return f"{values} [{self._unit}]"
 
 
-class Quantifiable(algebraic.Quantity, iterables.ReprStrMixin):
-    """An object with data and metdata."""
-
-    def __init__(self, __data: Real, **meta) -> None:
-        # Consider removing data attributes, which subclasses can define, and
-        # moving this class to metadata.py
-        self._data = __data
-        for k, v in meta.items():
-            setattr(self, f'_{k}', v)
-
-    @property
-    def data(self):
-        """This quantity's data."""
-        return self._data
+class Quantifiable(algebraic.Quantity):
+    """ABC for measurable quantities."""
 
     def __bool__(self) -> bool:
         """Always true for a valid instance."""
         return True
+
+    def __ne__(self, other) -> bool:
+        """Called for self != other."""
+        return not self == other
 
     def __abs__(self):
         """Called for abs(self)."""
@@ -147,10 +139,6 @@ class Quantifiable(algebraic.Quantity, iterables.ReprStrMixin):
     def __ge__(self, other) -> bool:
         """Called for self >= other."""
         return self._call(standard.ge, 'comparison', other)
-
-    def __ne__(self, other) -> bool:
-        """Called for self != other."""
-        return not self == other
 
     def __add__(self, other):
         """Called for self + other."""
@@ -246,7 +234,7 @@ class ScalarOperatorMixin(Quantifiable):
         return self._call(math.trunc, 'arithmetic')
 
 
-class Quantified(Quantifiable):
+class Quantified(Quantifiable, iterables.ReprStrMixin):
     """A concrete realization of a quantifiable object.
 
     This class implements the `~algebraic.Quantity` operators (via
@@ -271,18 +259,23 @@ class Quantified(Quantifiable):
           not at all obvious what the unit or dimensions should be.
     """
 
-    def __init__(self, __data: Real, **meta) -> None:
-        super().__init__(__data, **meta)
-        factory = metadata.OperatorFactory(type(self), *meta)
+    def __init__(self, __data: Real) -> None:
+        self._data = __data
+        factory = metadata.OperatorFactory(type(self))
         factory['true divide'].suppress(Real, Quantifiable)
         factory['power'].suppress(Quantifiable, Quantifiable)
         factory['power'].suppress(Real, Quantifiable)
         factory['power'].suppress(Quantifiable, typing.Iterable, symmetric=True)
         self.meta = factory
 
+    @property
+    def data(self):
+        """This quantity's data."""
+        return self._data
+
     def __eq__(self, other) -> bool:
         """Called for self == other."""
-        if not isinstance(other, Quantifiable):
+        if not isinstance(other, Quantified):
             return other == self.data
         if other.data != self.data:
             return False
@@ -378,8 +371,10 @@ class Quantity(Quantified, UnitMixin):
             data, unit = __data.data, __data.unit
         else:
             data = __data
-            unit = metric.Unit(meta.pop('unit', '1'))
-        super().__init__(data, unit=metric.Unit(unit), **meta)
+            unit = meta.pop('unit', '1')
+        super().__init__(data)
+        setattr(self, '_unit', metric.Unit(unit))
+        self.meta.register('unit')
         self.display['data'] = 'data'
         self.display['unit'] = 'unit'
         self.display['__str__'] = "{data} [{unit}]"
