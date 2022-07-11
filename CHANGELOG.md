@@ -1,5 +1,11 @@
 # Changelog
 
+## Next
+
+- New hierachy of measurable quantities determined by metadata attributes.
+- New mixins for metadata attributes.
+- Refactor initialization of measurable quantities.
+
 ## v0.0.23 (06Jul2022)
 
 - Redefine most of datatypes.py based on new measurable.py.
