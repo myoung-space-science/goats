@@ -367,19 +367,22 @@ class Quantity(Quantified, UnitMixin):
 
     def __init__(self, __data, **meta) -> None:
         """Initialize this instance from arguments or an existing instance."""
-        if isinstance(__data, type(self)):
-            data, unit = __data.data, __data.unit
-        else:
-            data = __data
-            unit = meta.pop('unit', '1')
-        super().__init__(data)
-        setattr(self, '_unit', metric.Unit(unit))
+        parsed = self.parse_init_args(__data, meta, unit='1')
+        setattr(self, '_unit', metric.Unit(parsed['unit']))
         self.meta.register('unit')
         self.display['data'] = 'data'
         self.display['unit'] = 'unit'
         self.display['__str__'] = "{data} [{unit}]"
         self.display['__repr__'] = "{data}, unit='{unit}'"
         self.display['__repr__'].separator = ', '
+
+    def parse_init_args(self, this, meta: dict, **defaults):
+        """Set instance attributes from initialization arguments."""
+        if isinstance(this, type(self)):
+            super().__init__(this.data)
+            return {k: getattr(this, k) for k in defaults}
+        super().__init__(this)
+        return {k: meta.get(k, v) for k, v in defaults.items()}
 
     def apply_conversion(self, new: metric.Unit):
         self._data *= new // self._unit
