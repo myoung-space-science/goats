@@ -2,6 +2,8 @@
 
 ## Next
 
+## v0.0.24 (11Jul2022)
+
 - New hierachy of measurable quantities determined by metadata attributes.
 - New mixins for metadata attributes.
 - Refactor initialization of measurable quantities.
