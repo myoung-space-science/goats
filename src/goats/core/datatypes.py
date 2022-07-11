@@ -284,16 +284,15 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._scale = 1.0
-        self._rescale = False
+        self._old_scale = None
         self._array = None
         self._ndim = None
         self._shape = None
         self.display.register(data='_data_array')
 
     def apply_conversion(self, new: metric.Unit):
+        self._old_scale = self._scale
         self._scale *= new // self._unit
-        self._unit = new
-        self._rescale = True
 
     def __measure__(self):
         """Create a measurement from this array's data and unit."""
@@ -544,12 +543,9 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         tries to access a large portion of the full array; this is a possible
         area for optimization.
         """
-        # NOTE: The use of `rescale` is one option. Another would be to keep a
-        # copy of `scale` in `old_scale` and enter this block if `scale`
-        # changes.
-        if self._array is None or self._rescale:
+        if self._scale != self._old_scale:
             array = self._load_array(index) * self._scale
-            self._rescale = False
+            self._old_scale = self._scale
             if index is not None:
                 return array
             self._array = array
