@@ -377,8 +377,7 @@ class Quantity(Quantified, UnitMixin):
         parsed = self.parse_attrs(__data, meta, unit='1')
         self._unit = metric.Unit(parsed['unit'])
         self.meta.register('unit')
-        self.display['data'] = 'data'
-        self.display['unit'] = 'unit'
+        self.display.register('data', 'unit')
         self.display['__str__'] = "{data} [{unit}]"
         self.display['__repr__'] = "{data}, unit='{unit}'"
         self.display['__repr__'].separator = ', '

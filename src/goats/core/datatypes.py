@@ -183,7 +183,7 @@ class Quantity(measurable.Quantity, NameMixin):
         self._name = Name(parsed['name'])
         self.meta.register('name')
         if self._name:
-            self.display['name'] = 'name'
+            self.display.register('name')
             self.display['__str__'].insert(0, "'{name}':")
             self.display['__repr__'].insert(2, "name='{name}'")
 
@@ -288,7 +288,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         self._array = None
         self._ndim = None
         self._shape = None
-        self.display['data'] = '_data_array'
+        self.display.register(data='_data_array')
 
     def apply_conversion(self, new: metric.Unit):
         self._scale *= new // self._unit
@@ -756,7 +756,7 @@ class Variable(Array, AxesMixin):
                 f"Number of axes ({self.naxes})"
                 f" must equal number of array dimensions ({self.ndim})"
             )
-        self.display['axes'] = 'axes'
+        self.display.register('axes')
         self.display['__str__'].append("axes={axes}")
         self.display['__repr__'].append("axes={axes}")
 
@@ -882,12 +882,12 @@ class Option(NameMixin, iterables.ReprStrMixin):
         self.value = __value
         """The value of this optional parameter."""
         self._name = aliased.MappingKey(name or '')
-        self.display['value'] = 'value'
+        self.display.register('value')
         self.display['__str__'] = "{value}"
         self.display['__repr__'] = "{value}"
         self.display['__repr__'].separator = ', '
         if self._name:
-            self.display['name'] = 'name'
+            self.display.register('name')
             self.display['__str__'].insert(0, "'{name}': ")
             self.display['__repr__'].insert(1, "'{name}'")
 
