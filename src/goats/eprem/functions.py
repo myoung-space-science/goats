@@ -67,8 +67,8 @@ class Function(iterables.ReprStrMixin):
         data = self.method(*arrays, *floats)
         return datatypes.Variable(
             data,
-            self.name,
             unit=metric.Unit(unit),
+            name=self.name,
             axes=self.axes,
         )
 

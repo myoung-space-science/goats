@@ -747,8 +747,8 @@ class Arguments(aliased.Mapping):
         value = parameter['value']
         aliases = self.alias(key, include=True)
         if unit := parameter['unit']:
-            return datatypes.Assumption(value, unit, aliases)
-        return datatypes.Option(value, aliases)
+            return datatypes.Assumption(value, unit=unit, name=aliases)
+        return datatypes.Option(value, name=aliases)
 
     def _build_mapping(self, runtime: Runtime):
         """Build the mapping of available parameters."""
