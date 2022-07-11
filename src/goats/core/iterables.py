@@ -290,8 +290,27 @@ class Display(collections.UserDict):
         return super().__getitem__(__k)
 
     def __setitem__(self, __k: str, __s: str) -> None:
-        v = DisplayString(__s) if __k in {'__str__', '__repr__'} else __s
-        self.data[__k] = v
+        if __k not in {'__str__', '__repr__'}:
+            raise KeyError(f"Can't set value of {__k!r}")
+        self.data[__k] = DisplayString(__s)
+
+    def register(self, *names: str, **pairs: str):
+        """Set or update which attributes to show.
+        
+        Parameters
+        ----------
+        *names : iterable of strings
+            Zero or more names of attributes to include in the display.
+
+        **pairs : dict
+            Zero or more key-value pairs in which the key is the name of an
+            attribute in the current display and the value is the name of the
+            attribute to use in its place.
+        """
+        for name in names:
+            self.data[name] = name
+        for name, alias in pairs.items():
+            self.data[name] = alias
 
 
 class ReprStrMixin:
