@@ -329,7 +329,7 @@ class Quantified(Quantifiable, iterables.ReprStrMixin):
 class UnitMixin:
     """Mixin class for quantities with a unit."""
 
-    _unit: metric.UnitLike=None
+    _unit: metric.Unit=None
 
     @property
     def unit(self):
