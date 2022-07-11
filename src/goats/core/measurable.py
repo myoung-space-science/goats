@@ -338,11 +338,10 @@ class UnitMixin:
 
     def convert(self, unit: metric.UnitLike):
         """Set the unit of this object's values."""
-        if unit == self._unit:
-            return self
-        new = metric.Unit(unit)
-        self.apply_conversion(new)
-        self._unit = new
+        if unit != self._unit:
+            new = metric.Unit(unit)
+            self.apply_conversion(new)
+            self._unit = new
         return self
 
     @abc.abstractmethod
