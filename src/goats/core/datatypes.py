@@ -871,34 +871,31 @@ class Assumption(Vector):
         raise TypeError(errmsg) from None
 
 
-class Option(iterables.ReprStrMixin):
+class Option(NameMixin, iterables.ReprStrMixin):
     """An unmeasurable parameter argument."""
 
     def __init__(
         self,
-        value,
+        __value,
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None:
-        self._value = value
-        self._name = aliased.MappingKey(name)
+        self.value = __value
+        """The value of this optional parameter."""
+        self._name = aliased.MappingKey(name or '')
+        self.display['value'] = 'value'
+        self.display['__str__'] = "{value}"
+        self.display['__repr__'] = "{value}"
+        self.display['__repr__'].separator = ', '
         if self._name:
+            self.display['name'] = 'name'
             self.display['__str__'].insert(0, "'{name}': ")
             self.display['__repr__'].insert(1, "'{name}'")
 
     def __eq__(self, other):
         """True if `other` is equivalent to this option's value."""
         if isinstance(other, Option):
-            return other._value == self._value
-        return other == self._value
-
-    def name(self, *new: str, reset: bool=False):
-        """Get, set, or add to this object's name(s)."""
-        if not new:
-            return self._name
-        name = new if reset else self._name | new
-        self._name = aliased.MappingKey(name)
-        return self
-
+            return other.value == self.value
+        return other == self.value
 
 
 class Indices(collections.abc.Sequence, iterables.ReprStrMixin):
