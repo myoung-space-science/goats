@@ -11,7 +11,6 @@ import numpy.typing
 from goats.core import algebraic
 from goats.core import iterables
 from goats.core import metadata
-from goats.core import metric
 
 
 Self = typing.TypeVar('Self', bound='SupportsNeg')
@@ -70,7 +69,7 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
     def __init__(
         self,
         values: typing.Iterable[numbers.Real],
-        unit: metric.UnitLike,
+        unit: metadata.UnitLike,
     ) -> None:
         self._values = values
         self._unit = unit
@@ -337,7 +336,7 @@ class Quantity(Quantified, metadata.UnitMixin):
         self: Instance,
         __data: Real,
         *,
-        unit: metric.UnitLike=None,
+        unit: metadata.UnitLike=None,
     ) -> None: ...
 
     @typing.overload
@@ -380,7 +379,7 @@ class Scalar(Quantity, ScalarOperatorMixin):
         self: Instance,
         __data: numbers.Real,
         *,
-        unit: metric.UnitLike=None,
+        unit: metadata.UnitLike=None,
     ) -> None: ...
 
     @typing.overload
@@ -440,7 +439,7 @@ def ismeasurable(this):
         return False
     if iterables.allinstance(args, numbers.Number):
         return True
-    if isinstance(args[-1], metric.UnitLike):
+    if isinstance(args[-1], metadata.UnitLike):
         arg0 = args[0]
         values = arg0 if isinstance(arg0, typing.Iterable) else args[:-1]
         if iterables.allinstance(values, numbers.Number):

@@ -11,7 +11,7 @@ from goats.core import aliased
 from goats.core import datatypes
 from goats.core import iterables
 from goats.core import measurable
-from goats.core import metric
+from goats.core import metadata
 from goats.core import indexing
 from goats.core import spelling
 
@@ -20,7 +20,7 @@ from goats.core import spelling
 class Observed(typing.Protocol):
     """Specification of an observed quantity."""
 
-    unit: metric.Unit
+    unit: metadata.Unit
     """The unit of the observed values"""
 
     @abc.abstractmethod
@@ -83,7 +83,7 @@ class Observation(iterables.ReprStrMixin):
                 self._parameters = self._assumptions.keys()
         return self._parameters
 
-    def convert(self, new: metric.UnitLike):
+    def convert(self, new: metadata.UnitLike):
         """Set the unit of this observation's data values."""
         self._data = self._data.convert(new)
         return self

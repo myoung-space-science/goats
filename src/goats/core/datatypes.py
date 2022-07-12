@@ -8,7 +8,6 @@ import numpy.typing
 
 from goats.core import aliased
 from goats.core import iterables
-from goats.core import metric
 from goats.core import measurable
 from goats.core import metadata
 
@@ -24,7 +23,7 @@ class Quantity(measurable.Quantity, metadata.NameMixin):
         self: Instance,
         __data: measurable.Real,
         *,
-        unit: metric.UnitLike=None,
+        unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None: ...
 
@@ -54,7 +53,7 @@ class Scalar(Quantity, measurable.ScalarOperatorMixin):
         self: Instance,
         __data: numbers.Real,
         *,
-        unit: metric.UnitLike=None,
+        unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None: ...
 
@@ -85,7 +84,7 @@ class Vector(Quantity):
         self,
         __data: typing.Union[measurable.Real, numpy.typing.ArrayLike],
         *,
-        unit: metric.UnitLike=None,
+        unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None: ...
 
@@ -147,7 +146,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         self._shape = None
         self.display.register(data='_array')
 
-    def apply_conversion(self, new: metric.Unit):
+    def apply_conversion(self, new: metadata.UnitLike):
         self._cached['scale'] = self._scale
         self._scale *= new // self._unit
 
@@ -500,7 +499,7 @@ class Variable(Array, metadata.AxesMixin):
         self: Instance,
         __data: numpy.typing.ArrayLike,
         *,
-        unit: typing.Union[str, metric.Unit]=None,
+        unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
         axes: typing.Iterable[str]=None,
     ) -> None:
@@ -749,7 +748,7 @@ class Coordinates(IndexMap):
         self,
         indices: typing.Iterable[int],
         values: typing.Iterable[typing.Any],
-        unit: typing.Union[str, metric.Unit],
+        unit: metadata.UnitLike,
     ) -> None:
         super().__init__(indices, values)
         self._unit = unit
@@ -762,13 +761,13 @@ class Coordinates(IndexMap):
     @property
     def unit(self):
         """The metric unit of this coordinate's values."""
-        return metric.Unit(self._unit)
+        return metadata.Unit(self._unit)
 
-    def convert(self, unit: metric.UnitLike):
+    def convert(self, unit: metadata.UnitLike):
         """Convert this object to the new unit, if possible."""
         if unit == self._unit:
             return self
-        scale = metric.Unit(unit) // self._unit
+        scale = metadata.Unit(unit) // self._unit
         self.values = [value * scale for value in self.values]
         self._unit = unit
         return self
