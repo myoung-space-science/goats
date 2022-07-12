@@ -524,24 +524,16 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         return self._get_array()
 
     def _get_array(self, index: IndexLike=None):
-        """Access array data via index or slice notation.
+        """Access scaled array data via index or slice notation.
         
-        If `index` is ``None`` or an empty iterable, this method will produce
-        the entire array. Otherwise, it will create the requested subarray from
-        `self.data`. It will always attempt to read an existing array from
-        memory: In the first case, it will check for an existing full array
-        before loading from disk; in the second case, it will use the existing
-        partial array if `index` has not changed from the previous call, and it
-        will attempt to subscript an existing full array before loading the
-        requested partial array from disk. Finally, this method will rescale the
-        array if the unit has changed since the previous call.
-        
-        The reasoning behind this algorithm is as follows: If we need to load
-        the full array at any point, we may as well save it because subscripting
-        an in-memory `numpy.ndarray` is much faster than re-reading from disk
-        for large arrays. However, we should avoid reading in the full array if
-        the caller only wants a small portion of it; in these cases, reusing the
-        partial array is only meaningful if the indices haven't changed.
+        Notes
+        -----
+        - This method represents the internal interface to the underlying array.
+        - General users should subscript instances via the standard bracket
+          syntax.
+        - This method defers the process of loading the appropriate array
+          without any numerical scaling to `self._load_array()`, then rescales
+          the result if the unit has changed.
         """
         array = self._load_array(index)
         if self._scale == self._cached.get('scale'):
@@ -549,42 +541,33 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         return self._scale * array
 
     def _load_array(self, index=None):
-        """Get the unscaled array from disk or memory."""
+        """Get the unscaled array from disk or memory.
+
+        If `index` is ``None`` or an empty iterable, this method will produce
+        the entire array. Otherwise, it will create the requested subarray from
+        `self.data`. It will always attempt to use a cached version of the full
+        array before loading from disk.
+        
+        The reasoning behind this algorithm is as follows: If we need to load
+        the full array at any point, we may as well save it because subscripting
+        an in-memory `numpy.ndarray` is much faster than re-reading from disk
+        for large arrays. However, we should avoid reading in the full array if
+        the caller only wants a small portion of it. We don't cache these
+        subarrays because reusing a subarray is only meaningful if the indices
+        haven't changed. Furthermore, accessing a subarray via bracket syntax
+        creates a new object, at which point the subarray becomes the new
+        object's full array.
+        """
         if iterables.missing(index):
-            # empty index => full array
             if 'full_array' in self._cached:
-                # we already have it in memory
                 return self._cached['full_array']
-            # we need to load it from disk and save it
             array = self._read_array()
             self._cached['full_array'] = array
             return array
-        # non-empty index => partial array
-        if self._same_index(index):
-            # it's the same as last time, so use the cached array
-            return self._cached['array']
-        # the index has changed
         if 'full_array' in self._cached:
-            # we can subscript the full array in memory
             idx = numpy.index_exp[index]
-            array = self._cached['full_array'][idx]
-        else:
-            # we need to load a partial array from disk
-            array = self._read_array(index)
-        # save the index and partial array for next time
-        self._cached['index'] = index
-        self._cached['array'] = array
-        return array
-
-    def _same_index(self, index):
-        """True if `index` matches the cached version."""
-        if 'index' not in self._cached:
-            return False
-        cached = self._cached['index']
-        try:
-            return all(numpy.array_equal(i, c) for i, c in zip(index, cached))
-        except TypeError:
-            return index == cached
+            return self._cached['full_array'][idx]
+        return self._read_array(index)
 
     def _read_array(self, index: IndexLike=None):
         """Read the array data from disk.
