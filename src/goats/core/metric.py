@@ -2,7 +2,7 @@ import abc
 import collections.abc
 import typing
 
-import numpy as np
+import numpy
 
 from goats.core import algebraic
 from goats.core import aliased
@@ -731,7 +731,7 @@ _QUANTITIES = {
 # NOTE: Defined here to avoid a circular import with physical.py.
 C = 2.99792458e10
 """The speed of light in cm/s."""
-PI = np.pi
+PI = numpy.pi
 """The ratio of a circle's circumference to its diameter."""
 
 
