@@ -1,4 +1,5 @@
 import numbers
+import operator as standard
 import typing
 
 import pytest
@@ -119,5 +120,29 @@ def test_operator_factory():
         assert not factory[key].supports(Base, float)
         assert factory[key].supports(Base, Base)
         assert factory[key].supports(float, Base)
+
+
+def test_unit_add():
+    """Test the use of '+' between units."""
+    apply_additive(standard.add)
+
+
+def test_unit_sub():
+    """Test the use of '-' between units."""
+    apply_additive(standard.sub)
+
+
+def apply_additive(opr):
+    """Apply an additive operator between units."""
+    meter = metadata.Unit('m')
+    assert opr(meter, metadata.Unit('m')) == metadata.Unit('m')
+    for number in [1, 1.0]:
+        with pytest.raises(TypeError):
+            opr(meter, number)
+    for arg in ['J', '1']:
+        with pytest.raises(metadata.DimensionMismatch):
+            opr(meter, metadata.Unit(arg))
+    with pytest.raises(metadata.ScaleMismatch):
+        opr(meter, metadata.Unit('cm'))
 
 

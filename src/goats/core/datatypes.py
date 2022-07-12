@@ -1,10 +1,7 @@
 import collections.abc
 import contextlib
-import fractions
 import numbers
-import operator as standard
 import typing
-import warnings
 
 import numpy
 import numpy.typing
@@ -16,150 +13,10 @@ from goats.core import measurable
 from goats.core import metadata
 
 
-_metadata_mixins = (
-    numpy.lib.mixins.NDArrayOperatorsMixin,
-    iterables.ReprStrMixin,
-)
-
-
-class Name(collections.abc.Collection, *_metadata_mixins):
-    """The name attribute of a data quantity."""
-
-    def __init__(self, *aliases: str) -> None:
-        self._aliases = aliased.MappingKey(*aliases)
-
-    def add(self, aliases: typing.Union[str, typing.Iterable[str]]):
-        """Add `aliases` to this name."""
-        self._aliases = self._aliases | aliases
-        return self
-
-    def __array_ufunc__(self, ufunc, method, *args, **kwargs):
-        """Provide support for `numpy` universal functions."""
-        if func := getattr(self, f'_ufunc_{ufunc.__name__}', None):
-            return func(*args, **kwargs)
-
-    def _ufunc_sqrt(self, arg):
-        """Implement the square-root function for a name."""
-        return arg**'1/2'
-
-    def _implement(symbol: str, reverse: bool=False, strict: bool=False):
-        """Implement a symbolic operation.
-
-        This function creates a new function that symbolically represents the
-        result of applying an operator to two operands, `a` and `b`.
-        
-        Parameters
-        ----------
-        symbol : string
-            The string representation of the operator.
-
-        reverse : bool, default=False
-            If true, apply the operation to reflected operands.
-
-        strict : bool, default=False
-            If true, require that `b` be an instance of `a`'s type or a subtype.
-
-        Raises
-        ------
-        TypeError
-            `strict` is true and `b` is not an instance of `a`'s type or a
-            subtype.
-
-        Notes
-        -----
-        * The nullspace for names is the empty string.
-        * 'a | A' + 2 -> undefined
-        * 'a | A' + 'a | A' -> 'a | A' when `strict` is true
-        * 'a | A' * 'a | A' -> 'a*a | A*A' when `strict` is false
-        * 'a | A' + 'b | B' -> 'a+b | a+B | A+b | A+B'
-        * 'a | A' * 'b | B' -> 'a*b | a*B | A*b | A*B'
-        * 'a | A' * 2 -> 'a*2 | A*2'
-        """
-        def compute(a, b):
-            """Symbolically combine `a` and `b`."""
-            x, y = (b, a) if reverse else (a, b)
-            if isinstance(y, typing.Iterable) and not isinstance(y, str):
-                return [f'{i}{symbol}{j}' for i in x for j in y]
-            try:
-                fixed = fractions.Fraction(y)
-            except ValueError:
-                fixed = y
-            t = '{1}{s}{0}' if reverse else '{0}{s}{1}'
-            return [t.format(i, fixed, s=symbol) for i in x]
-        def operator(self, that):
-            if not self or not that:
-                return ['']
-            if strict:
-                if not isinstance(that, type(self)):
-                    raise TypeError(
-                        f"Can't apply {symbol} "
-                        f"to {type(self)!r} and {type(that)!r}"
-                    ) from None
-                if that == self:
-                    return self
-            if that == self:
-                return [f'{i}{symbol}{i}' for i in self]
-            return compute(that, self) if reverse else compute(self, that)
-        s = f"other {symbol} self" if reverse else f"self {symbol} other"
-        operator.__doc__ = f"Called for {s}"
-        return operator
-
-    __add__ = _implement(' + ', strict=True)
-    __radd__ = _implement(' + ', strict=True, reverse=True)
-    __sub__ = _implement(' - ', strict=True)
-    __rsub__ = _implement(' - ', strict=True, reverse=True)
-    __mul__ = _implement(' * ')
-    __rmul__ = _implement(' * ', reverse=True)
-    __truediv__ = _implement(' / ')
-    __rtruediv__ = _implement(' / ', reverse=True)
-    __pow__ = _implement('^')
-    __rpow__ = _implement('^', reverse=True)
-
-    def __bool__(self) -> bool:
-        return bool(self._aliases)
-
-    def __contains__(self, __x) -> bool:
-        return __x in self._aliases
-
-    def __iter__(self) -> typing.Iterator:
-        return iter(self._aliases)
-
-    def __len__(self) -> int:
-        return len(self._aliases)
-
-    def __eq__(self, __o) -> bool:
-        if isinstance(__o, Name):
-            return __o._aliases == self._aliases
-        try:
-            return __o == self._aliases
-        except TypeError:
-            return False
-
-    def __str__(self) -> str:
-        return str(self._aliases)
-
-
-class NameMixin:
-    """Mixin class for quantities with a name."""
-
-    _name: Name=None
-
-    @property
-    def name(self):
-        """This quantity's name."""
-        return self._name
-
-    def alias(self, *updates: str, reset: bool=False):
-        """Set or add to this object's name(s)."""
-        aliases = updates if reset else self._name.add(updates)
-        self._name = Name(*aliases)
-        return self
-
-
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
-class Quantity(measurable.Quantity, NameMixin):
+class Quantity(measurable.Quantity, metadata.NameMixin):
     """A measurable quantity with a name."""
 
     @typing.overload
@@ -181,7 +38,7 @@ class Quantity(measurable.Quantity, NameMixin):
         """Initialize this instance from arguments or an existing instance."""
         super().__init__(__data, **meta)
         parsed = self.parse_attrs(__data, meta, name='')
-        self._name = Name(parsed['name'])
+        self._name = metadata.Name(parsed['name'])
         self.meta.register('name')
         if self._name:
             self.display.register('name')
@@ -632,100 +489,10 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         return decorator
 
 
-class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
-    """A representation of one or more axis names."""
-
-    def __init__(self, *names: str) -> None:
-        self._names = self._init(*names)
-
-    def _init(self, *args):
-        names = iterables.unwrap(args, wrap=tuple)
-        if all(isinstance(name, str) for name in names):
-            return names
-        raise TypeError(
-            f"Can't initialize instance of {type(self)}"
-            f" with {names!r}"
-        )
-
-    @property
-    def names(self):
-        """The names of these axes."""
-        return tuple(self._names)
-
-    __abs__ = metadata.identity(abs)
-    """Called for abs(self)."""
-    __pos__ = metadata.identity(standard.pos)
-    """Called for +self."""
-    __neg__ = metadata.identity(standard.neg)
-    """Called for -self."""
-
-    __add__ = metadata.identity(standard.add)
-    """Called for self + other."""
-    __sub__ = metadata.identity(standard.sub)
-    """Called for self - other."""
-
-    def merge(a, *others):
-        """Return the unique axis names in order."""
-        names = list(a.names)
-        for b in others:
-            if isinstance(b, Axes):
-                names.extend(b.names)
-        return Axes(*iterables.unique(*names))
-
-    __mul__ = merge
-    """Called for self * other."""
-    __rmul__ = merge
-    """Called for other * self."""
-    __truediv__ = merge
-    """Called for self / other."""
-
-    def __eq__(self, other):
-        """True if self and other represent the same axes."""
-        return (
-            isinstance(other, Axes) and other.names == self.names
-            or (
-                isinstance(other, str)
-                and len(self) == 1
-                and other == self.names[0]
-            )
-            or (
-                isinstance(other, typing.Iterable)
-                and len(other) == len(self)
-                and all(i in self for i in other)
-            )
-        )
-
-    def __hash__(self):
-        """Support use as a mapping key."""
-        return hash(self.names)
-
-    def __len__(self) -> int:
-        """Called for len(self)."""
-        return len(self.names)
-
-    def __getitem__(self, __i: typing.SupportsIndex):
-        """Called for index-based access."""
-        return self.names[__i]
-
-    def __str__(self) -> str:
-        return f"[{', '.join(repr(name) for name in self.names)}]"
-
-
-class AxesMixin:
-    """Mixin class for quantities with axes."""
-
-    _axes: Axes=None
-
-    @property
-    def axes(self):
-        """This quantity's indexable axes."""
-        return self._axes
-
-
 Instance = typing.TypeVar('Instance', bound='Variable')
 
 
-class Variable(Array, AxesMixin):
+class Variable(Array, metadata.AxesMixin):
     """A class representing a dataset variable."""
 
     @typing.overload
@@ -758,7 +525,7 @@ class Variable(Array, AxesMixin):
     def __init__(self, __data, **meta) -> None:
         super().__init__(__data, **meta)
         parsed = self.parse_attrs(__data, meta, axes=())
-        self._axes = Axes(parsed['axes'])
+        self._axes = metadata.Axes(parsed['axes'])
         self.meta.register('axes')
         self.naxes = len(self.axes)
         """The number of indexable axes in this variable's array."""
@@ -882,7 +649,7 @@ class Assumption(Vector):
         raise TypeError(errmsg) from None
 
 
-class Option(NameMixin, iterables.ReprStrMixin):
+class Option(metadata.NameMixin, iterables.ReprStrMixin):
     """An unmeasurable parameter argument."""
 
     def __init__(

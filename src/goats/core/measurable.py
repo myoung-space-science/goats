@@ -83,7 +83,7 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
     @property
     def unit(self):
         """This measurement's unit."""
-        return metric.Unit(self._unit)
+        return metadata.Unit(self._unit)
 
     def __len__(self) -> int:
         return len(self._values)
@@ -326,34 +326,10 @@ class Quantified(Quantifiable, iterables.ReprStrMixin):
         raise ValueError(f"Unknown operator mode {mode!r}")
 
 
-class UnitMixin:
-    """Mixin class for quantities with a unit."""
-
-    _unit: metric.Unit=None
-
-    @property
-    def unit(self):
-        """This quantity's metric unit."""
-        return self._unit
-
-    def convert(self, unit: metric.UnitLike):
-        """Set the unit of this object's values."""
-        if unit != self._unit:
-            new = metric.Unit(unit)
-            self.apply_conversion(new)
-            self._unit = new
-        return self
-
-    @abc.abstractmethod
-    def apply_conversion(self, new: metric.Unit):
-        """Update data values for unit conversion."""
-        pass
-
-
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
-class Quantity(Quantified, UnitMixin):
+class Quantity(Quantified, metadata.UnitMixin):
     """A measurable quantity."""
 
     @typing.overload
@@ -374,7 +350,7 @@ class Quantity(Quantified, UnitMixin):
         """Initialize this instance from arguments or an existing instance."""
         super().__init__(__data)
         parsed = self.parse_attrs(__data, meta, unit='1')
-        self._unit = metric.Unit(parsed['unit'])
+        self._unit = metadata.Unit(parsed['unit'])
         self.meta.register('unit')
         self.display.register('data', 'unit')
         self.display['__str__'] = "{data} [{unit}]"
@@ -387,7 +363,7 @@ class Quantity(Quantified, UnitMixin):
             return {k: getattr(this, k) for k in targets}
         return {k: meta.get(k, v) for k, v in targets.items()}
 
-    def apply_conversion(self, new: metric.Unit):
+    def apply_conversion(self, new: metadata.Unit):
         self._data *= new // self._unit
 
     def __measure__(self):
@@ -525,7 +501,7 @@ def parse_measurable(args, distribute: bool=False):
 
     # Count the number of distinct unit-like objects.
     types = [type(arg) for arg in unwrapped]
-    n_units = sum(types.count(t) for t in (str, metric.Unit))
+    n_units = sum(types.count(t) for t in (str, metadata.Unit))
 
     # Raise an error for multiple units.
     if n_units > 1:
@@ -586,8 +562,8 @@ def _callback_parse(unwrapped, distribute: bool):
 def ensure_unit(args):
     """Extract the given unit or assume the quantity is unitless."""
     last = args[-1]
-    implicit = not any(isinstance(arg, (str, metric.Unit)) for arg in args)
-    explicit = last in ['1', metric.Unit('1')]
+    implicit = not any(isinstance(arg, (str, metadata.Unit)) for arg in args)
+    explicit = last in ['1', metadata.Unit('1')]
     if implicit or explicit:
         return '1'
     return str(last)

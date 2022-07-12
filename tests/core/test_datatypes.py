@@ -10,7 +10,6 @@ import pytest
 
 from goats.core import datatypes
 from goats.core import measurable
-from goats.core import metric
 from goats.core import metadata
 
 
@@ -131,7 +130,7 @@ def test_scalar_binary():
         assert opr(value, scalar) == expected
     # between two instances with different units
     for opr in oprs:
-        with pytest.raises(metric.UnitError):
+        with pytest.raises(metadata.UnitError):
             opr(*scalars_diff)
 
     # MULTIPLICATION
@@ -207,7 +206,7 @@ def test_vector_operators():
     assert v0 / 10.0 == datatypes.Vector([0.3, 0.6], unit='m')
     with pytest.raises(metadata.OperandTypeError):
         1.0 / v0
-    with pytest.raises(metric.UnitError):
+    with pytest.raises(metadata.UnitError):
         v0 + v2
 
 
@@ -267,7 +266,7 @@ def check_units(
     updated = original.convert(new)
     assert updated is original
     assert updated.unit == new
-    factor = metric.Unit(new) // metric.Unit(reference)
+    factor = metadata.Unit(new) // metadata.Unit(reference)
     assert updated == obj(rescale(amount, factor), unit=new)
     assert obj(amount).unit == '1'
 
@@ -294,11 +293,11 @@ def test_variable():
     v0 = datatypes.Variable([3.0, 4.5], unit='m', axes=['x'])
     v1 = datatypes.Variable([[1.0], [2.0]], unit='J', axes=['x', 'y'])
     assert numpy.array_equal(v0, [3.0, 4.5])
-    assert v0.unit == metric.Unit('m')
+    assert v0.unit == metadata.Unit('m')
     assert list(v0.axes) == ['x']
     assert v0.naxes == 1
     assert numpy.array_equal(v1, [[1.0], [2.0]])
-    assert v1.unit == metric.Unit('J')
+    assert v1.unit == metadata.Unit('J')
     assert list(v1.axes) == ['x', 'y']
     assert v1.naxes == 2
     r = v0 + v0
@@ -308,22 +307,22 @@ def test_variable():
     r = v0 * v1
     expected = [[3.0 * 1.0], [4.5 * 2.0]]
     assert numpy.array_equal(r, expected)
-    assert r.unit == metric.Unit('m * J')
+    assert r.unit == metadata.Unit('m * J')
     r = v0 / v1
     expected = [[3.0 / 1.0], [4.5 / 2.0]]
     assert numpy.array_equal(r, expected)
-    assert r.unit == metric.Unit('m / J')
+    assert r.unit == metadata.Unit('m / J')
     r = v0 ** 2
     expected = [3.0 ** 2, 4.5 ** 2]
     assert numpy.array_equal(r, expected)
-    assert r.unit == metric.Unit('m^2')
+    assert r.unit == metadata.Unit('m^2')
     reference = datatypes.Variable(v0)
     assert reference is not v0
     v0_cm = v0.convert('cm')
     assert v0_cm is v0
     expected = 100 * reference
     assert numpy.array_equal(v0_cm, expected)
-    assert v0_cm.unit == metric.Unit('cm')
+    assert v0_cm.unit == metadata.Unit('cm')
     assert v0_cm.axes == reference.axes
 
 
@@ -1083,11 +1082,11 @@ def test_full_mean(components):
 
 def test_dimensions_object():
     """Make sure axes names behave as expected in operations."""
-    assert len(datatypes.Axes()) == 0
+    assert len(metadata.Axes()) == 0
     names = ['a', 'b', 'c']
     for i, name in enumerate(names, start=1):
         subset = names[:i]
-        dimensions = datatypes.Axes(*subset)
+        dimensions = metadata.Axes(*subset)
         assert len(dimensions) == i
         assert all(name in dimensions for name in subset)
         assert dimensions[i-1] == name
@@ -1096,9 +1095,9 @@ def test_dimensions_object():
 def test_dimensions_init():
     """Test various ways to initialize dimensions metadata."""
     names = ['a', 'b', 'c']
-    assert len(datatypes.Axes(names)) == 3
-    assert len(datatypes.Axes(*names)) == 3
-    assert len(datatypes.Axes([names])) == 3
+    assert len(metadata.Axes(names)) == 3
+    assert len(metadata.Axes(*names)) == 3
+    assert len(metadata.Axes([names])) == 3
     invalid = [
         [1, 2, 3],
         [[1], [2], [3]],
@@ -1106,14 +1105,14 @@ def test_dimensions_init():
     ]
     for case in invalid:
         with pytest.raises(TypeError):
-            datatypes.Axes(*case)
+            metadata.Axes(*case)
 
 
 def test_dimensions_operators():
     """Test built-in operations on dimensions metadata."""
-    xy = datatypes.Axes('x', 'y')
-    yz = datatypes.Axes('y', 'z')
-    zw = datatypes.Axes('z', 'w')
+    xy = metadata.Axes('x', 'y')
+    yz = metadata.Axes('y', 'z')
+    zw = metadata.Axes('z', 'w')
     pairs = {
         (xy, xy): {
             operator.add: xy,
@@ -1136,8 +1135,8 @@ def test_dimensions_operators():
     # multiplication and division should concatenate unique dimensions
     for opr in (operator.mul, operator.truediv):
         assert opr(xy, xy) == xy
-        assert opr(xy, yz) == datatypes.Axes('x', 'y', 'z')
-        assert opr(xy, zw) == datatypes.Axes('x', 'y', 'z', 'w')
+        assert opr(xy, yz) == metadata.Axes('x', 'y', 'z')
+        assert opr(xy, zw) == metadata.Axes('x', 'y', 'z', 'w')
     # exponentiation is not valid
     with pytest.raises(TypeError):
         pow(xy, xy)
@@ -1150,24 +1149,24 @@ def test_dimensions_operators():
 
 def test_dimensions_merge():
     """Test the ability to extract unique dimensions in order."""
-    xy = datatypes.Axes('x', 'y')
-    yz = datatypes.Axes('y', 'z')
-    zw = datatypes.Axes('z', 'w')
-    assert xy.merge(xy) == datatypes.Axes('x', 'y')
-    assert xy.merge(yz) == datatypes.Axes('x', 'y', 'z')
-    assert yz.merge(xy) == datatypes.Axes('y', 'z', 'x')
-    assert xy.merge(zw) == datatypes.Axes('x', 'y', 'z', 'w')
-    assert zw.merge(xy) == datatypes.Axes('z', 'w', 'x', 'y')
-    assert yz.merge(zw) == datatypes.Axes('y', 'z', 'w')
-    assert zw.merge(yz) == datatypes.Axes('z', 'w', 'y')
-    assert xy.merge(yz, zw) == datatypes.Axes('x', 'y', 'z', 'w')
+    xy = metadata.Axes('x', 'y')
+    yz = metadata.Axes('y', 'z')
+    zw = metadata.Axes('z', 'w')
+    assert xy.merge(xy) == metadata.Axes('x', 'y')
+    assert xy.merge(yz) == metadata.Axes('x', 'y', 'z')
+    assert yz.merge(xy) == metadata.Axes('y', 'z', 'x')
+    assert xy.merge(zw) == metadata.Axes('x', 'y', 'z', 'w')
+    assert zw.merge(xy) == metadata.Axes('z', 'w', 'x', 'y')
+    assert yz.merge(zw) == metadata.Axes('y', 'z', 'w')
+    assert zw.merge(yz) == metadata.Axes('z', 'w', 'y')
+    assert xy.merge(yz, zw) == metadata.Axes('x', 'y', 'z', 'w')
     assert xy.merge(1.1) == xy
-    assert xy.merge(yz, 1.1) == datatypes.Axes('x', 'y', 'z')
+    assert xy.merge(yz, 1.1) == metadata.Axes('x', 'y', 'z')
 
 
 def test_name():
     """Test the attribute representing a data quantity's name."""
-    name = datatypes.Name('a', 'A')
+    name = metadata.Name('a', 'A')
     assert len(name) == 2
     assert sorted(name) == ['A', 'a']
     assert all(i in name for i in ('a', 'A'))
@@ -1175,7 +1174,7 @@ def test_name():
 
 def test_name_builtin():
     """Test operations between a name metadata object and a built-in object."""
-    name = datatypes.Name('a', 'A')
+    name = metadata.Name('a', 'A')
     others = ['2', 2]
     # Addition and subtraction require two instances.
     cases = {
@@ -1196,15 +1195,15 @@ def test_name_builtin():
     }
     for method, s in cases.items():
         for other in others:
-            expected = datatypes.Name(*[f'{i}{s}{other}' for i in name])
+            expected = metadata.Name(*[f'{i}{s}{other}' for i in name])
             assert method(name, other) == expected
-            expected = datatypes.Name(*[f'{other}{s}{i}' for i in name])
+            expected = metadata.Name(*[f'{other}{s}{i}' for i in name])
             assert method(other, name) == expected
 
 
 def test_name_name():
     """Test operations between two name metadata objects."""
-    name = datatypes.Name('a', 'A')
+    name = metadata.Name('a', 'A')
     cases = {
         operator.add: ' + ',
         operator.sub: ' - ',
@@ -1212,14 +1211,14 @@ def test_name_name():
         operator.truediv: ' / ',
     }
     for method, s in cases.items():
-        other = datatypes.Name('b', 'B')
-        expected = datatypes.Name(*[f'{i}{s}{j}' for i in name for j in other])
+        other = metadata.Name('b', 'B')
+        expected = metadata.Name(*[f'{i}{s}{j}' for i in name for j in other])
         assert method(name, other) == expected
 
 
 def test_same_name():
     """Test operations on a name metadata object with itself."""
-    name = datatypes.Name('a', 'A')
+    name = metadata.Name('a', 'A')
     additive = {
         operator.add: ' + ',
         operator.sub: ' - ',
@@ -1231,14 +1230,14 @@ def test_same_name():
     for method in additive:
         assert method(name, name) == name
     for method, symbol in multiplicative.items():
-        expected = datatypes.Name(*[f'{i}{symbol}{i}' for i in name])
+        expected = metadata.Name(*[f'{i}{symbol}{i}' for i in name])
         assert method(name, name) == expected
 
 
 def test_empty_names():
     """Make sure operations on empty names produce empty results."""
-    n0 = datatypes.Name('')
-    n1 = datatypes.Name('')
+    n0 = metadata.Name('')
+    n1 = metadata.Name('')
     cases = {
         operator.add: ' + ',
         operator.sub: ' - ',
@@ -1246,5 +1245,5 @@ def test_empty_names():
         operator.truediv: ' / ',
     }
     for method in cases:
-        assert method(n0, n1) == datatypes.Name('')
+        assert method(n0, n1) == metadata.Name('')
 

@@ -109,7 +109,7 @@ def test_quantities_diff_unit():
         operator.sub,
     ]
     for opr in oprs:
-        with pytest.raises(metric.UnitError):
+        with pytest.raises(metadata.UnitError):
             opr(*quantities)
 
     # MULTIPLICATION

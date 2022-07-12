@@ -1,6 +1,5 @@
 import abc
 import collections.abc
-import operator as standard
 import typing
 
 import numpy as np
@@ -8,7 +7,6 @@ import numpy as np
 from goats.core import algebraic
 from goats.core import aliased
 from goats.core import iterables
-from goats.core import metadata
 
 
 _prefixes = [
@@ -1637,18 +1635,6 @@ class UnitLike(metaclass=abc.ABCMeta):
 UnitLike.register(str)
 
 
-class UnitError(Exception):
-    """Base class for Unit-related exceptions."""
-
-
-class DimensionMismatch(UnitError):
-    """These units have different dimensions."""
-
-
-class ScaleMismatch(UnitError):
-    """These units have different metric scale factors."""
-
-
 Instance = typing.TypeVar('Instance', bound='Unit')
 
 
@@ -1728,47 +1714,6 @@ class Unit(algebraic.Expression):
     def __rfloordiv__(self, other):
         """Compute the inverse of self // other."""
         return 1.0 / self.__floordiv__(other)
-
-    def __array_ufunc__(self, ufunc, method, *args, **kwargs):
-        """Provide support for `numpy` universal functions."""
-        if func := getattr(self, f'_ufunc_{ufunc.__name__}', None):
-            return func(*args, **kwargs)
-
-    def _ufunc_sqrt(self, arg):
-        """Implement the square-root function for a unit."""
-        return arg**0.5
-
-    def restrict(method: typing.Callable, reverse: bool=False):
-        """Restrict allowed operand types for an operation."""
-        return metadata.restrict(method, str, reverse=reverse)
-
-    __mul__ = restrict(standard.mul)
-    __rmul__ = restrict(standard.mul, reverse=True)
-    __truediv__ = restrict(standard.truediv)
-    __rtruediv__ = restrict(standard.truediv, reverse=True)
-
-    def __add__(self, other):
-        """Called for self + other; either a no-op or an error."""
-        return self._add_sub(other)
-
-    def __sub__(self, other):
-        """Called for self - other; either a no-op or an error."""
-        return self._add_sub(other)
-
-    def _add_sub(self, other):
-        """Called for self +/- other; either a no-op or an error."""
-        if isinstance(other, Unit):
-            if self == other:
-                return self
-            errmsg = "The units '{}' and '{}' have different {}"
-            if self.dimension == other.dimension:
-                raise ScaleMismatch(
-                    errmsg.format(self, other, 'scale factors')
-                ) from None
-            raise DimensionMismatch(
-                errmsg.format(self, other, 'dimensions')
-            ) from None
-        return NotImplemented
 
 
 UnitLike.register(Unit)

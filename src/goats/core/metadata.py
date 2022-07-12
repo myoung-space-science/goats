@@ -2,15 +2,19 @@
 Objects and functions for operating on metadata.
 """
 
+import abc
 import collections.abc
-import contextlib
+import fractions
 import inspect
 import math
 import operator as standard
 import typing
 
+import numpy
+
 from goats.core import aliased
 from goats.core import iterables
+from goats.core import metric
 from goats.core import utilities
 
 
@@ -459,6 +463,353 @@ class OperatorFactory(collections.abc.Mapping):
         return self._operations
 
 
+def identity(__operator: typing.Callable):
+    """Create an operator that immediately returns its argument."""
+    def operator(*args: T):
+        first = args[0]
+        for arg in args:
+            if type(arg) == type(first) and arg != first:
+                return NotImplemented
+        return first
+    operator.__name__ = f'__{__operator.__name__}__'
+    operator.__doc__ = __operator.__doc__
+    return operator
+
+
+def suppress(__operator: typing.Callable):
+    """Unconditionally suppress an operation."""
+    def operator(*args, **kwargs):
+        return NotImplemented
+    operator.__name__ = f'__{__operator.__name__}__'
+    operator.__doc__ = __operator.__doc__
+    return operator
+
+
+def restrict(__f: typing.Callable, *types: type, reverse: bool=False):
+    """Restrict allowed operand types for an operation."""
+    s = 'r' if reverse else ''
+    name = f"__{s}{__f.__name__}__"
+    def operator(a, b, **kwargs):
+        method = getattr(super(type(a), a), name)
+        if not isinstance(b, (type(a), *types)):
+            return NotImplemented
+        return method(b, **kwargs)
+    operator.__name__ = name
+    operator.__doc__ = __f.__doc__
+    return operator
+
+
+class UnitError(Exception):
+    """Base class for Unit-related exceptions."""
+
+
+class DimensionMismatch(UnitError):
+    """These units have different dimensions."""
+
+
+class ScaleMismatch(UnitError):
+    """These units have different metric scale factors."""
+
+
+class Unit(metric.Unit):
+    """The unit attribute of a quantity."""
+
+    def __array_ufunc__(self, ufunc, method, *args, **kwargs):
+        """Provide support for `numpy` universal functions."""
+        if func := getattr(self, f'_ufunc_{ufunc.__name__}', None):
+            return func(*args, **kwargs)
+
+    def _ufunc_sqrt(self, arg):
+        """Implement the square-root function for a unit."""
+        return arg**0.5
+
+    def restrict(method: typing.Callable, reverse: bool=False):
+        """Restrict allowed operand types for an operation."""
+        return restrict(method, str, reverse=reverse)
+
+    __mul__ = restrict(standard.mul)
+    __rmul__ = restrict(standard.mul, reverse=True)
+    __truediv__ = restrict(standard.truediv)
+    __rtruediv__ = restrict(standard.truediv, reverse=True)
+
+    def __add__(self, other):
+        """Called for self + other; either a no-op or an error."""
+        return self._add_sub(other)
+
+    def __sub__(self, other):
+        """Called for self - other; either a no-op or an error."""
+        return self._add_sub(other)
+
+    def _add_sub(self, other):
+        """Called for self +/- other; either a no-op or an error."""
+        if isinstance(other, Unit):
+            if self == other:
+                return self
+            errmsg = "The units '{}' and '{}' have different {}"
+            if self.dimension == other.dimension:
+                raise ScaleMismatch(
+                    errmsg.format(self, other, 'scale factors')
+                ) from None
+            raise DimensionMismatch(
+                errmsg.format(self, other, 'dimensions')
+            ) from None
+        return NotImplemented
+
+
+class UnitMixin:
+    """Mixin class for quantities with a unit."""
+
+    _unit: Unit=None
+
+    @property
+    def unit(self):
+        """This quantity's metric unit."""
+        return self._unit
+
+    def convert(self, unit: metric.UnitLike):
+        """Set the unit of this object's values."""
+        if unit != self._unit:
+            new = Unit(unit)
+            self.apply_conversion(new)
+            self._unit = new
+        return self
+
+    @abc.abstractmethod
+    def apply_conversion(self, new: Unit):
+        """Update data values for unit conversion."""
+        pass
+
+
+_metadata_mixins = (
+    numpy.lib.mixins.NDArrayOperatorsMixin,
+    iterables.ReprStrMixin,
+)
+
+
+class Name(collections.abc.Collection, *_metadata_mixins):
+    """The name attribute of a quantity."""
+
+    def __init__(self, *aliases: str) -> None:
+        self._aliases = aliased.MappingKey(*aliases)
+
+    def add(self, aliases: typing.Union[str, typing.Iterable[str]]):
+        """Add `aliases` to this name."""
+        self._aliases = self._aliases | aliases
+        return self
+
+    def __array_ufunc__(self, ufunc, method, *args, **kwargs):
+        """Provide support for `numpy` universal functions."""
+        if func := getattr(self, f'_ufunc_{ufunc.__name__}', None):
+            return func(*args, **kwargs)
+
+    def _ufunc_sqrt(self, arg):
+        """Implement the square-root function for a name."""
+        return arg**'1/2'
+
+    def _implement(symbol: str, reverse: bool=False, strict: bool=False):
+        """Implement a symbolic operation.
+
+        This function creates a new function that symbolically represents the
+        result of applying an operator to two operands, `a` and `b`.
+        
+        Parameters
+        ----------
+        symbol : string
+            The string representation of the operator.
+
+        reverse : bool, default=False
+            If true, apply the operation to reflected operands.
+
+        strict : bool, default=False
+            If true, require that `b` be an instance of `a`'s type or a subtype.
+
+        Raises
+        ------
+        TypeError
+            `strict` is true and `b` is not an instance of `a`'s type or a
+            subtype.
+
+        Notes
+        -----
+        * The nullspace for names is the empty string.
+        * 'a | A' + 2 -> undefined
+        * 'a | A' + 'a | A' -> 'a | A' when `strict` is true
+        * 'a | A' * 'a | A' -> 'a*a | A*A' when `strict` is false
+        * 'a | A' + 'b | B' -> 'a+b | a+B | A+b | A+B'
+        * 'a | A' * 'b | B' -> 'a*b | a*B | A*b | A*B'
+        * 'a | A' * 2 -> 'a*2 | A*2'
+        """
+        def compute(a, b):
+            """Symbolically combine `a` and `b`."""
+            x, y = (b, a) if reverse else (a, b)
+            if isinstance(y, typing.Iterable) and not isinstance(y, str):
+                return [f'{i}{symbol}{j}' for i in x for j in y]
+            try:
+                fixed = fractions.Fraction(y)
+            except ValueError:
+                fixed = y
+            t = '{1}{s}{0}' if reverse else '{0}{s}{1}'
+            return [t.format(i, fixed, s=symbol) for i in x]
+        def operator(self, that):
+            if not self or not that:
+                return ['']
+            if strict:
+                if not isinstance(that, type(self)):
+                    raise TypeError(
+                        f"Can't apply {symbol} "
+                        f"to {type(self)!r} and {type(that)!r}"
+                    ) from None
+                if that == self:
+                    return self
+            if that == self:
+                return [f'{i}{symbol}{i}' for i in self]
+            return compute(that, self) if reverse else compute(self, that)
+        s = f"other {symbol} self" if reverse else f"self {symbol} other"
+        operator.__doc__ = f"Called for {s}"
+        return operator
+
+    __add__ = _implement(' + ', strict=True)
+    __radd__ = _implement(' + ', strict=True, reverse=True)
+    __sub__ = _implement(' - ', strict=True)
+    __rsub__ = _implement(' - ', strict=True, reverse=True)
+    __mul__ = _implement(' * ')
+    __rmul__ = _implement(' * ', reverse=True)
+    __truediv__ = _implement(' / ')
+    __rtruediv__ = _implement(' / ', reverse=True)
+    __pow__ = _implement('^')
+    __rpow__ = _implement('^', reverse=True)
+
+    def __bool__(self) -> bool:
+        return bool(self._aliases)
+
+    def __contains__(self, __x) -> bool:
+        return __x in self._aliases
+
+    def __iter__(self) -> typing.Iterator:
+        return iter(self._aliases)
+
+    def __len__(self) -> int:
+        return len(self._aliases)
+
+    def __eq__(self, __o) -> bool:
+        if isinstance(__o, Name):
+            return __o._aliases == self._aliases
+        try:
+            return __o == self._aliases
+        except TypeError:
+            return False
+
+    def __str__(self) -> str:
+        return str(self._aliases)
+
+
+class NameMixin:
+    """Mixin class for quantities with a name."""
+
+    _name: Name=None
+
+    @property
+    def name(self):
+        """This quantity's name."""
+        return self._name
+
+    def alias(self, *updates: str, reset: bool=False):
+        """Set or add to this object's name(s)."""
+        aliases = updates if reset else self._name.add(updates)
+        self._name = Name(*aliases)
+        return self
+
+
+class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
+    """A representation of one or more axis names."""
+
+    def __init__(self, *names: str) -> None:
+        self._names = self._init(*names)
+
+    def _init(self, *args):
+        names = iterables.unwrap(args, wrap=tuple)
+        if all(isinstance(name, str) for name in names):
+            return names
+        raise TypeError(
+            f"Can't initialize instance of {type(self)}"
+            f" with {names!r}"
+        )
+
+    @property
+    def names(self):
+        """The names of these axes."""
+        return tuple(self._names)
+
+    __abs__ = identity(abs)
+    """Called for abs(self)."""
+    __pos__ = identity(standard.pos)
+    """Called for +self."""
+    __neg__ = identity(standard.neg)
+    """Called for -self."""
+
+    __add__ = identity(standard.add)
+    """Called for self + other."""
+    __sub__ = identity(standard.sub)
+    """Called for self - other."""
+
+    def merge(a, *others):
+        """Return the unique axis names in order."""
+        names = list(a.names)
+        for b in others:
+            if isinstance(b, Axes):
+                names.extend(b.names)
+        return Axes(*iterables.unique(*names))
+
+    __mul__ = merge
+    """Called for self * other."""
+    __rmul__ = merge
+    """Called for other * self."""
+    __truediv__ = merge
+    """Called for self / other."""
+
+    def __eq__(self, other):
+        """True if self and other represent the same axes."""
+        return (
+            isinstance(other, Axes) and other.names == self.names
+            or (
+                isinstance(other, str)
+                and len(self) == 1
+                and other == self.names[0]
+            )
+            or (
+                isinstance(other, typing.Iterable)
+                and len(other) == len(self)
+                and all(i in self for i in other)
+            )
+        )
+
+    def __hash__(self):
+        """Support use as a mapping key."""
+        return hash(self.names)
+
+    def __len__(self) -> int:
+        """Called for len(self)."""
+        return len(self.names)
+
+    def __getitem__(self, __i: typing.SupportsIndex):
+        """Called for index-based access."""
+        return self.names[__i]
+
+    def __str__(self) -> str:
+        return f"[{', '.join(repr(name) for name in self.names)}]"
+
+
+class AxesMixin:
+    """Mixin class for quantities with axes."""
+
+    _axes: Axes=None
+
+    @property
+    def axes(self):
+        """This quantity's indexable axes."""
+        return self._axes
+
+
 _reference: typing.Dict[str, dict] = {
     'int': {
         'callable': None,
@@ -529,41 +880,5 @@ _reference: typing.Dict[str, dict] = {
     },
 }
 REFERENCE = aliased.Mapping(_reference).squeeze(strict=True)
-
-
-def identity(__operator: typing.Callable):
-    """Create an operator that immediately returns its argument."""
-    def operator(*args: T):
-        first = args[0]
-        for arg in args:
-            if type(arg) == type(first) and arg != first:
-                return NotImplemented
-        return first
-    operator.__name__ = f'__{__operator.__name__}__'
-    operator.__doc__ = __operator.__doc__
-    return operator
-
-
-def suppress(__operator: typing.Callable):
-    """Unconditionally suppress an operation."""
-    def operator(*args, **kwargs):
-        return NotImplemented
-    operator.__name__ = f'__{__operator.__name__}__'
-    operator.__doc__ = __operator.__doc__
-    return operator
-
-
-def restrict(__f: typing.Callable, *types: type, reverse: bool=False):
-    """Restrict allowed operand types for an operation."""
-    s = 'r' if reverse else ''
-    name = f"__{s}{__f.__name__}__"
-    def operator(a, b, **kwargs):
-        method = getattr(super(type(a), a), name)
-        if not isinstance(b, (type(a), *types)):
-            return NotImplemented
-        return method(b, **kwargs)
-    operator.__name__ = name
-    operator.__doc__ = __f.__doc__
-    return operator
 
 
