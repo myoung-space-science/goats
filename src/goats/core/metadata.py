@@ -91,18 +91,23 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
         ]
 
     def allhave(self, *names: str):
-        """Determine if all operands have the named attributes."""
+        """Determine if all operands have the named attribute(s)."""
         return all(hasattr(obj, name) for obj in self for name in names)
+
+    def getany(self, name: str):
+        """Get the a value for the named attribute, if possible."""
+        valid = (v for v in self.getall(name, mode='next') if v)
+        return next(valid, None)
 
     def getall(self, name: str, mode: str=None):
         """Get operand values for the named attribute."""
-        if mode:
-            [self._get(name, operand, mode) for operand in self]
-        return [self._get(name, operand) for operand in self]
+        return [self._get(name, operand, mode) for operand in self]
 
-    def _get(self, name: str, operand, mode):
+    def _get(self, name: str, operand, mode: str=None):
         """Helper for `~Operands.getall`."""
         available = hasattr(operand, name)
+        if mode == 'next':
+            return getattr(operand, name) if available else None
         if not available and mode == 'strict':
             raise AttributeError(f"{operand!r} has no attribute {name!r}")
         if available or mode == 'force':
@@ -144,6 +149,28 @@ class Operands(collections.abc.Sequence, iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         return ', '.join(str(i) for i in self)
+
+
+class Operator(iterables.ReprStrMixin):
+    """A generalized metadata operator."""
+
+    def __init__(self, __callable: typing.Callable) -> None:
+        self.method = __callable
+
+    def __call__(self, name: str, operands: Operands, **kwargs):
+        """Apply this operator's method to the given operands."""
+        values = operands.getall(name, mode='force')
+        try:
+            return self.method(*values, **kwargs)
+        except TypeError as err:
+            if len(operands) == 1:
+                return values[0]
+            if operands.allhave(name):
+                raise MetadataError(err) from err
+            return operands.getany(name)
+
+    def __str__(self) -> str:
+        return str(self.method)
 
 
 class Operation(typing.Generic[T], iterables.ReprStrMixin):
@@ -302,43 +329,26 @@ class Operation(typing.Generic[T], iterables.ReprStrMixin):
           metadata to compute. This is the case, for example, with type casts
           and binary comparisons.
         """
+        compute = Operator(method)
         def operator(*args, **kwargs):
             # NOTE: A more conservative approach would be to raise an error for
             # un-callable methods and force downstream code to define a trivial
             # function that returns `None` for any arguments.
             if not callable(method):
                 return None
-            types = [type(arg) for arg in args]
+            operands = Operands(*args)
+            types = operands.types
             if not self.supports(*types):
                 raise OperandTypeError(
                     f"Can't apply {method.__qualname__!r} to metadata"
                     f" with types {', '.join(t.__qualname__ for t in types)}"
                 ) from None
-            return {
-                p: self._compute(p, method, *args, **kwargs)
-                for p in self.parameters
-            }
+            return {p: compute(p, operands, **kwargs) for p in self.parameters}
         operator.__name__ = self.name or f'__{method.__name__}__'
         operator.__doc__ = method.__doc__
         if callable(method) and not isinstance(method, type):
             operator.__text_signature__ = str(inspect.signature(method))
         return operator
-
-    def _compute(self, name: str, method, *args, **kwargs):
-        """Compute a value for the named attribute."""
-        values = [utilities.getattrval(arg, name) for arg in args]
-        try:
-            return method(*values, **kwargs)
-        except TypeError as err:
-            # Note that len(args) == len(values) by definition
-            if len(args) == 1:
-                return values[0]
-            if all([hasattr(arg, name) for arg in args]):
-                raise MetadataError(err) from err
-            return next(
-                value for (arg, value) in zip(args, values)
-                if hasattr(arg, name)
-            )
 
     def __eq__(self, __o):
         """Determine if two operational contexts are equal."""
