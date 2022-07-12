@@ -401,3 +401,17 @@ def test_class_attribute():
     assert iterables.class_attribute(B, 'attr') == ['a', 'b']
     assert iterables.class_attribute(C, 'attr') == ['a', 'b', 'c']
 
+
+def test_oftype():
+    """Test the function that creates type-restricted classes."""
+    cases = {
+        str: {'good': ['a', 'b'], 'bad': [1, 2]},
+        int: {'good': [1, 2], 'bad': ['a', 'b']},
+    }
+    for t, args in cases.items():
+        itr = iterables.oftype(t)
+        assert itr(args['good'][0]) == args['good'][0]
+        assert list(itr(*args['good'])) == args['good']
+        with pytest.raises(TypeError):
+            itr(args['bad'])
+

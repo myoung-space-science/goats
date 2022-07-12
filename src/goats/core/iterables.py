@@ -1470,3 +1470,20 @@ def pop(__x: list, default: T):
         return __x.pop(0)
     except IndexError:
         return default
+
+
+def oftype(__type: typing.Type[T]):
+    """Create a class that only accepts instances of `__type`."""
+    def dunder_new(cls, *args: T):
+        """Prevent instantiation with invalid types."""
+        if not all(isinstance(arg, __type) for arg in args):
+            raise TypeError(
+                f"Can't instantiate {cls.__qualname__!r}"
+                f" with non-{__type.__qualname__} arguments"
+            ) from None
+        return args[0] if len(args) == 1 else iter(args)
+    return type(
+        f'StrictIterable[{__type.__qualname__}]',
+        (collections.abc.Iterable,),
+        {'__new__': dunder_new}
+    )
