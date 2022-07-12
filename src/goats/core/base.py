@@ -108,7 +108,7 @@ class Observation(iterables.ReprStrMixin):
         axes = [str(axis) for axis in self.axes]
         parameters = [str(parameter) for parameter in self.parameters]
         attrs = [
-            f"unit='{self.unit()}'",
+            f"unit='{self.unit}'",
             f"axes={axes}",
             f"parameters={parameters}",
         ]
