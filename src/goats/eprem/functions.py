@@ -58,11 +58,11 @@ class Function(iterables.ReprStrMixin):
         for arg in known:
             if isinstance(arg, datatypes.Array):
                 arrays.append(np.array(arg))
-            elif isinstance(arg, measurable.Scalar):
+            elif isinstance(arg, datatypes.Scalar):
                 floats.append(float(arg))
             elif (
                 isinstance(arg, typing.Iterable)
-                and all(isinstance(a, measurable.Scalar) for a in arg)
+                and all(isinstance(a, datatypes.Scalar) for a in arg)
             ): floats.extend([float(a) for a in arg])
         data = self.method(*arrays, *floats)
         return datatypes.Variable(
