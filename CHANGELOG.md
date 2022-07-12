@@ -2,6 +2,10 @@
 
 ## Next
 
+## v0.0.25 (12Jul2022)
+
+- Bug fixes.
+
 ## v0.0.24 (11Jul2022)
 
 - New hierachy of measurable quantities determined by metadata attributes.
