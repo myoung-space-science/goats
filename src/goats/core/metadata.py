@@ -511,6 +511,17 @@ class ScaleMismatch(UnitError):
     """These units have different metric scale factors."""
 
 
+class UnitLike(metaclass=abc.ABCMeta):
+    """The definition of a unit-like metadata attribute.
+    
+    All concrete and virtual subclasses of this class can serve as a unit
+    attribute and downstream code may use this class for instance checks.
+    """
+
+UnitLike.register(str)
+UnitLike.register(metric.Unit)
+
+
 class Unit(metric.Unit):
     """The unit attribute of a quantity."""
 
@@ -566,7 +577,7 @@ class UnitMixin:
         """This quantity's metric unit."""
         return self._unit
 
-    def convert(self, unit: metric.UnitLike):
+    def convert(self, unit: UnitLike):
         """Set the unit of this object's values."""
         if unit != self._unit:
             new = Unit(unit)
@@ -808,6 +819,14 @@ class AxesMixin:
     def axes(self):
         """This quantity's indexable axes."""
         return self._axes
+
+
+class Distinguishable(UnitMixin, NameMixin):
+    """A measurable and identifiable object."""
+
+
+class Observable(Distinguishable, AxesMixin):
+    """A distinguishable and locatable object."""
 
 
 _reference: typing.Dict[str, dict] = {

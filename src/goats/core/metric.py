@@ -1625,16 +1625,6 @@ class Quantity(iterables.ReprStrMixin):
         return self.name
 
 
-class UnitLike(metaclass=abc.ABCMeta):
-    """The definition of a unit-like object.
-    
-    All concrete and virtual subclasses of this class can serve as a metric
-    unit. In particular, users may use this class for instance checks.
-    """
-
-UnitLike.register(str)
-
-
 Instance = typing.TypeVar('Instance', bound='Unit')
 
 
@@ -1714,9 +1704,6 @@ class Unit(algebraic.Expression):
     def __rfloordiv__(self, other):
         """Compute the inverse of self // other."""
         return 1.0 / self.__floordiv__(other)
-
-
-UnitLike.register(Unit)
 
 
 Instance = typing.TypeVar('Instance', bound='Dimension')
