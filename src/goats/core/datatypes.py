@@ -4,6 +4,7 @@ import fractions
 import numbers
 import operator as standard
 import typing
+import warnings
 
 import numpy
 import numpy.typing
@@ -284,19 +285,19 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._scale = 1.0
-        self._old_scale = None
-        self._array = None
+        self._cached = {}
         self._ndim = None
         self._shape = None
-        self.display.register(data='_data_array')
+        self.display.register(data='_array')
 
     def apply_conversion(self, new: metric.Unit):
-        self._old_scale = self._scale
+        self._cached['scale'] = self._scale
         self._scale *= new // self._unit
 
     def __measure__(self):
         """Create a measurement from this array's data and unit."""
-        return measurable.Measurement(self._data_array, self.unit)
+        # NOTE: This may produce unexpected results when `self.ndim` > 1.
+        return measurable.Measurement(self._array, self.unit)
 
     def __eq__(self, other: typing.Any):
         """True if two instances have the same data and attributes."""
@@ -308,7 +309,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
 
     def __len__(self):
         """Called for len(self)."""
-        if method := self._get_base_attr('__len__', '_data_array'):
+        if method := self._get_base_attr('__len__', '_array'):
             return method()
         return len(self.data)
 
@@ -316,14 +317,14 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
     def ndim(self) -> int:
         """The number of dimensions in this array."""
         if self._ndim is None:
-            self._ndim = self._get_base_attr('ndim', 'data', '_data_array')
+            self._ndim = self._get_base_attr('ndim', 'data', '_array')
         return self._ndim
 
     @property
     def shape(self) -> int:
         """The length of each dimension in this array."""
         if self._shape is None:
-            self._shape = self._get_base_attr('shape', 'data', '_data_array')
+            self._shape = self._get_base_attr('shape', 'data', '_array')
         return self._shape
 
     def _get_base_attr(self, name: str, *search: str):
@@ -340,11 +341,6 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
                 attr = target() if callable(target) else target
                 if value := getattr(attr, name):
                     return value
-
-    @property
-    def _data_array(self):
-        """Current data array for internal use."""
-        return self._get_array()
 
     _builtin = (int, slice, type(...))
 
@@ -437,7 +433,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
                 return NotImplemented
         if out:
             kwargs['out'] = tuple(
-                x._data_array if isinstance(x, Array)
+                x._array if isinstance(x, Array)
                 else x for x in out
             )
         name = ufunc.__name__
@@ -462,7 +458,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
     def _ufunc_hook(self, ufunc, *inputs):
         """Convert input arrays into arrays appropriate to `ufunc`."""
         return tuple(
-            x._data_array if isinstance(x, Array)
+            x._array if isinstance(x, Array)
             else x for x in inputs
         )
 
@@ -487,14 +483,14 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
             result = self._HANDLED_FUNCTIONS[func](*args, **kwargs)
             return self._new_from_func(result)
         args = tuple(
-            arg._data_array if isinstance(arg, Array)
+            arg._array if isinstance(arg, Array)
             else arg for arg in args
         )
         types = tuple(
             ti for ti in types
             if not issubclass(ti, Array)
         )
-        data = self._data_array
+        data = self._array
         arr = data.__array_function__(func, types, args, kwargs)
         return self._new_from_func(arr)
 
@@ -519,42 +515,78 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         `netCDF4.Dataset`. See
         https://github.com/mcgibbon/python-examples/blob/master/scripts/file-io/load_netCDF4_full.py
         """
-        data = self._data_array
+        data = self._array
         return numpy.asanyarray(data, *args, **kwargs)
+
+    @property
+    def _array(self):
+        """The full data array for internal use."""
+        return self._get_array()
 
     def _get_array(self, index: IndexLike=None):
         """Access array data via index or slice notation.
         
-        Notes
-        -----
-        If `index` is not `None`, this method will create the requested subarray
-        from `self.data` and directly return it. If `index` is `None`, this
-        method will load the entire array and let execution proceed to the
-        following block, which will immediately return the array. It will then
-        subscript the pre-loaded array on subsequent calls. The reasoning behind
-        this algorithm is as follows: If we need to load the full array at any
-        point, we may as well save it because subscripting an in-memory
-        `numpy.ndarray` is much faster than re-reading from disk for large
-        arrays. However, we should avoid reading in the full array if the caller
-        only wants a small portion of it, and in those cases, keeping the loaded
-        data in memory will lead to incorrect results when attempting to access
-        a different portion of the full array because the indices will be
-        different. The worst-case scenario will occur when the caller repeatedly
-        tries to access a large portion of the full array; this is a possible
-        area for optimization.
+        If `index` is ``None`` or an empty iterable, this method will produce
+        the entire array. Otherwise, it will create the requested subarray from
+        `self.data`. It will always attempt to read an existing array from
+        memory: In the first case, it will check for an existing full array
+        before loading from disk; in the second case, it will use the existing
+        partial array if `index` has not changed from the previous call, and it
+        will attempt to subscript an existing full array before loading the
+        requested partial array from disk. Finally, this method will rescale the
+        array if the unit has changed since the previous call.
+        
+        The reasoning behind this algorithm is as follows: If we need to load
+        the full array at any point, we may as well save it because subscripting
+        an in-memory `numpy.ndarray` is much faster than re-reading from disk
+        for large arrays. However, we should avoid reading in the full array if
+        the caller only wants a small portion of it; in these cases, reusing the
+        partial array is only meaningful if the indices haven't changed.
         """
-        if self._scale != self._old_scale:
-            array = self._load_array(index) * self._scale
-            self._old_scale = self._scale
-            if index is not None:
-                return array
-            self._array = array
-        if iterables.missing(index):
-            return self._array
-        idx = numpy.index_exp[index]
-        return self._array[idx]
+        array = self._load_array(index)
+        if self._scale == self._cached.get('scale'):
+            return array
+        return self._scale * array
 
-    def _load_array(self, index: IndexLike=None):
+    def _load_array(self, index=None):
+        """Get the unscaled array from disk or memory."""
+        if iterables.missing(index):
+            # empty index => full array
+            if 'full_array' in self._cached:
+                # we already have it in memory
+                return self._cached['full_array']
+            # we need to load it from disk and save it
+            array = self._read_array()
+            self._cached['full_array'] = array
+            return array
+        # non-empty index => partial array
+        if self._same_index(index):
+            # it's the same as last time, so use the cached array
+            return self._cached['array']
+        # the index has changed
+        if 'full_array' in self._cached:
+            # we can subscript the full array in memory
+            idx = numpy.index_exp[index]
+            array = self._cached['full_array'][idx]
+        else:
+            # we need to load a partial array from disk
+            array = self._read_array(index)
+        # save the index and partial array for next time
+        self._cached['index'] = index
+        self._cached['array'] = array
+        return array
+
+    def _same_index(self, index):
+        """True if `index` matches the cached version."""
+        if 'index' not in self._cached:
+            return False
+        cached = self._cached['index']
+        try:
+            return all(numpy.array_equal(i, c) for i, c in zip(index, cached))
+        except TypeError:
+            return index == cached
+
+    def _read_array(self, index: IndexLike=None):
         """Read the array data from disk.
         
         If `index` is "missing" in the sense defined by `~iterables.missing`
@@ -779,7 +811,7 @@ class Variable(Array, AxesMixin):
                 arrays.append(v._get_array(idx))
             return arrays
         return tuple(
-            x._data_array if isinstance(x, type(self))
+            x._array if isinstance(x, type(self))
             else x for x in inputs
         )
     def __getitem__(self, *args: IndexLike):
@@ -809,7 +841,7 @@ class Variable(Array, AxesMixin):
 @Variable.implements(numpy.squeeze)
 def _squeeze(v: Variable, **kwargs):
     """Remove singular axes."""
-    data = v._data_array.squeeze(**kwargs)
+    data = v._array.squeeze(**kwargs)
     axes = tuple(
         a for a, d in zip(v.axes, v.shape)
         if d != 1
@@ -820,7 +852,7 @@ def _squeeze(v: Variable, **kwargs):
 @Variable.implements(numpy.mean)
 def _mean(v: Variable, **kwargs):
     """Compute the mean of the underlying array."""
-    data = v._data_array.mean(**kwargs)
+    data = v._array.mean(**kwargs)
     axis = kwargs.get('axis')
     if axis is None:
         return data
