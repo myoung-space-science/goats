@@ -45,7 +45,7 @@ class Quantity(measurable.Quantity, metadata.NameMixin):
             self.display['__repr__'].insert(2, "name='{name}'")
 
 
-class Scalar(Quantity, measurable.ScalarOperatorMixin):
+class Scalar(Quantity, measurable.ScalarOperators):
     """A single-valued named quantity."""
 
     @typing.overload

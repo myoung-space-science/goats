@@ -100,13 +100,15 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
         return f"{values} [{self._unit}]"
 
 
-class Quantifiable(algebraic.Quantity):
+class Quantifiable(abc.ABC):
     """ABC for measurable quantities.
     
-    This class extends `~algebraic.Quantity` in order to simplify the creation
-    of measurable quantities. Concrete subclasses must define the built-in
-    `__eq__` method and an `implement` method that computes the result of a
-    given operation on specific operands.
+    Concrete subclasses must define the built-in `__eq__` method and an
+    `implement` method that computes the result of a given operation on specific
+    operands. Operator mixin classes can leverage this class to programmatically
+    implement operator methods required by other ABCs (e.g.,
+    `~algebraic.Quantity`). Concrete subclasses of this class are always true in
+    a boolean sense.
     """
 
     def __bool__(self) -> bool:
@@ -116,6 +118,19 @@ class Quantifiable(algebraic.Quantity):
     def __ne__(self, other) -> bool:
         """Called for self != other."""
         return not self == other
+
+    @abc.abstractmethod
+    def implement(self, func: typing.Callable, mode: str, *others, **kwargs):
+        """Implement a standard operator."""
+        pass
+
+
+class AlgebraicOperators(Quantifiable, algebraic.Quantity):
+    """Algebraic operators for measurable quantities.
+    
+    This class extends `~algebraic.Quantity` in order to simplify the creation
+    of measurable quantities.
+    """
 
     def __abs__(self):
         """Called for abs(self)."""
@@ -205,13 +220,8 @@ class Quantifiable(algebraic.Quantity):
         """Called for self **= other."""
         return self.implement(standard.pow, 'inplace', other)
 
-    @abc.abstractmethod
-    def implement(self, func: typing.Callable, mode: str, *others, **kwargs):
-        """Implement a standard operation."""
-        pass
 
-
-class ScalarOperatorMixin(Quantifiable):
+class ScalarOperators(Quantifiable):
     """Operators for single-valued measurable quantities."""
 
     def __int__(self):
@@ -330,7 +340,7 @@ class Quantified(Quantifiable, iterables.ReprStrMixin):
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
-class Quantity(Quantified, metadata.UnitMixin):
+class Quantity(Quantified, AlgebraicOperators, metadata.UnitMixin):
     """A measurable quantity."""
 
     @typing.overload
@@ -381,7 +391,7 @@ class Quantity(Quantified, metadata.UnitMixin):
         return Measurement(value, self.unit)
 
 
-class Scalar(Quantity, ScalarOperatorMixin):
+class Scalar(Quantity, ScalarOperators):
     """A single-valued measurable quantity"""
 
     @typing.overload
