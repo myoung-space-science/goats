@@ -266,17 +266,19 @@ class Quantified(Quantifiable, iterables.ReprStrMixin):
 
     def __init__(self, __data: Real) -> None:
         self._data = __data
-        factory = metadata.OperatorFactory(type(self))
-        factory['true divide'].suppress(Real, Quantifiable)
-        factory['power'].suppress(Quantifiable, Quantifiable)
-        factory['power'].suppress(Real, Quantifiable)
-        factory['power'].suppress(Quantifiable, typing.Iterable, symmetric=True)
-        self.meta = factory
+        self._meta = None
 
     @property
     def data(self):
         """This quantity's data."""
         return self._data
+
+    @property
+    def meta(self):
+        """This quantity's metadata attributes."""
+        if self._meta is None:
+            self._meta = metadata.OperatorFactory(type(self))
+        return self._meta
 
     def __eq__(self, other) -> bool:
         """Called for self == other."""
@@ -348,6 +350,14 @@ class Quantity(Quantified, metadata.UnitMixin):
     def __init__(self, __data, **meta) -> None:
         """Initialize this instance from arguments or an existing instance."""
         super().__init__(__data)
+        self.meta['true divide'].suppress(Real, Quantifiable)
+        self.meta['power'].suppress(Quantifiable, Quantifiable)
+        self.meta['power'].suppress(Real, Quantifiable)
+        self.meta['power'].suppress(
+            Quantifiable,
+            typing.Iterable,
+            symmetric=True
+        )
         parsed = self.parse_attrs(__data, meta, unit='1')
         self._unit = metadata.Unit(parsed['unit'])
         self.meta.register('unit')
