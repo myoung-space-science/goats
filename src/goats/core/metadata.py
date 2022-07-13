@@ -585,7 +585,6 @@ class UnitMixin:
             self._unit = new
         return self
 
-    @abc.abstractmethod
     def apply_conversion(self, new: Unit):
         """Update data values for unit conversion."""
         pass
