@@ -575,7 +575,7 @@ class UnitMixin:
     @property
     def unit(self):
         """This quantity's metric unit."""
-        return self._unit
+        return Unit(self._unit)
 
     def convert(self, unit: UnitLike):
         """Set the unit of this object's values."""
@@ -722,11 +722,11 @@ class NameMixin:
     @property
     def name(self):
         """This quantity's name."""
-        return self._name
+        return Name(self._name)
 
     def alias(self, *updates: str, reset: bool=False):
         """Set or add to this object's name(s)."""
-        aliases = updates if reset else self._name.add(updates)
+        aliases = updates if reset else self.name.add(updates)
         self._name = Name(*aliases)
         return self
 
@@ -818,7 +818,7 @@ class AxesMixin:
     @property
     def axes(self):
         """This quantity's indexable axes."""
-        return self._axes
+        return Axes(self._axes)
 
 
 class Distinguishable(UnitMixin, NameMixin):
