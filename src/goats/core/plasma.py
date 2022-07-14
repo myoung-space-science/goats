@@ -1,6 +1,6 @@
 from goats.core import datatypes
 from goats.core import iterables
-from goats.core import physical
+from goats.core import fundamental
 
 
 class Species(iterables.ReprStrMixin):
@@ -22,7 +22,7 @@ class Species(iterables.ReprStrMixin):
     def symbol(self) -> str:
         """The elemental symbol of this species."""
         if self._symbol is None:
-            s = physical.elements([self._mass], [self._charge])
+            s = fundamental.elements([self._mass], [self._charge])
             self._symbol = s[0]
         return self._symbol
 
@@ -31,7 +31,7 @@ class Species(iterables.ReprStrMixin):
         """The mass of this species."""
         if self._mass is None:
             base = self._symbol.rstrip('+-')
-            element = physical.ELEMENTS.find(base, unique=True)
+            element = fundamental.ELEMENTS.find(base, unique=True)
             value = element['mass']
             unit = 'nucleon'
             aliases = ['m', 'mass']

@@ -11,12 +11,12 @@ from ..core import (
     base,
     datasets,
     datatypes,
+    fundamental,
     iterables,
     iotools,
     measurable,
     metric,
     numerical,
-    physical,
 )
 from . import observables
 from .parameters import BaseTypesH
@@ -48,7 +48,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
         self.variables = datasets.Variables(dataset)
         mass = self.variables['mass'].convert('nuc')
         charge = self.variables['charge'].convert('e')
-        self.symbols = physical.elements(mass, charge)
+        self.symbols = fundamental.elements(mass, charge)
         # TODO: Consider using reference arrays in methods, with the possible
         # exception of `_build_shell`.
         indexers = {

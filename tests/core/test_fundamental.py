@@ -1,14 +1,14 @@
 import pytest
 
-from goats.core import physical
+from goats.core import fundamental
 
 
 def test_constants():
     """Test the object that represents physical constants."""
-    for key, data in physical._CONSTANTS.items():
+    for key, data in fundamental._CONSTANTS.items():
         for system in ('mks', 'cgs'):
             d = data[system]
-            mapping = physical.Constants(system)
+            mapping = fundamental.Constants(system)
             c = mapping[key]
             assert float(c) == d['value']
             assert c.unit == d['unit']
@@ -29,9 +29,9 @@ def test_elements():
         {'in': [[1, 4], [+1, +2]], 'out': ['H+', 'He++']},
     ]
     for case in cases:
-        assert physical.elements(*case['in']) == case['out']
+        assert fundamental.elements(*case['in']) == case['out']
     with pytest.raises(TypeError):
-        physical.elements([1], [2, 3])
-    with pytest.raises(physical.MassValueError):
-        physical.elements([2], [0])
+        fundamental.elements([1], [2, 3])
+    with pytest.raises(fundamental.MassValueError):
+        fundamental.elements([2], [0])
 

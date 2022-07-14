@@ -11,7 +11,7 @@ import pytest
 
 from goats.core import base
 from goats.core import datatypes
-from goats.core import physical
+from goats.core import fundamental
 from goats import eprem
 
 
@@ -115,7 +115,7 @@ def test_observation_unit(stream: eprem.Stream):
     obs.convert('au')
     assert obs.unit == 'au'
     new = np.array(obs)
-    assert np.allclose(old, new * float(physical.mks['au']))
+    assert np.allclose(old, new * float(fundamental.mks['au']))
 
 
 def test_interpolation(stream: eprem.Stream):

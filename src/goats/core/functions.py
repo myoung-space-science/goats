@@ -10,13 +10,13 @@ from goats.core import datasets
 from goats.core import iterables
 from goats.core import numerical
 from goats.core import observables
-from goats.core import physical
+from goats.core import fundamental
 
 
 registry = iterables.ObjectRegistry(object_key='method')
 
 
-MKS = physical.Constants('mks')
+MKS = fundamental.Constants('mks')
 
 
 @registry.register
