@@ -8,6 +8,7 @@ import numpy.typing
 from goats.core import aliased
 from goats.core import datafile
 from goats.core import datatypes
+from goats.core import indexing
 from goats.core import iotools
 from goats.core import observables
 from goats.core import metric
@@ -197,12 +198,12 @@ class Indexers(aliased.Mapping):
         self.references = {}
         super().__init__(dataset.axes)
 
-    def __getitem__(self, key: str) -> datatypes.Indexer:
+    def __getitem__(self, key: str) -> indexing.Indexer:
         """Get the default indexer for `key`."""
         axis = super().__getitem__(key)
         reference = range(axis.size)
-        method = lambda _: datatypes.Indices(reference)
-        return datatypes.Indexer(method, reference)
+        method = lambda _: indexing.Indices(reference)
+        return indexing.Indexer(method, reference)
 
 
 class Axes(aliased.Mapping):
@@ -217,11 +218,11 @@ class Axes(aliased.Mapping):
         super().__init__(indexers)
         self.dataset = dataset
 
-    def __getitem__(self, key: str) -> datatypes.Axis:
+    def __getitem__(self, key: str) -> indexing.Axis:
         indexer = super().__getitem__(key)
         size = self.dataset.axes[key].size
         names = observables.ALIASES.get(key, [key])
-        return datatypes.Axis(size, indexer, *names)
+        return indexing.Axis(size, indexer, *names)
 
 
 class Interface:

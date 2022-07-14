@@ -4,6 +4,7 @@ import numpy
 from goats.core import aliased
 from goats.core import dataset
 from goats.core import datatypes
+from goats.core import indexing
 from goats import eprem
 
 
@@ -18,7 +19,7 @@ def test_axes(datapath):
     axes = dataset.Interface(datapath, eprem.IndexerFactory).axes
     cases = {
         'time': {
-            'type': datatypes.Coordinates,
+            'type': indexing.Coordinates,
             'length': 50,
             'test': {
                 'user': (0.1, 0.3, 'day'),
@@ -27,7 +28,7 @@ def test_axes(datapath):
             },
         },
         'shell': {
-            'type': datatypes.Indices,
+            'type': indexing.Indices,
             'length': 2000,
             'test': {
                 'user': (0, 2),
@@ -35,7 +36,7 @@ def test_axes(datapath):
             },
         },
         'species': {
-            'type': datatypes.IndexMap,
+            'type': indexing.IndexMap,
             'length': 1,
             'test': {
                 'user': ['H+'],
@@ -44,7 +45,7 @@ def test_axes(datapath):
             },
         },
         'energy': {
-            'type': datatypes.Coordinates,
+            'type': indexing.Coordinates,
             'length': 20,
             'test': {
                 'user': (1e-1, 1e2, 'MeV'),
@@ -53,7 +54,7 @@ def test_axes(datapath):
             },
         },
         'mu': {
-            'type': datatypes.Coordinates,
+            'type': indexing.Coordinates,
             'length': 8,
             'test': {
                 'user': (-1.0, +1.0),
@@ -71,9 +72,9 @@ def test_axes(datapath):
             test = expected['test']
             user = axis(*test['user'])
             assert list(user) == test['indices']
-            if isinstance(user, datatypes.IndexMap):
+            if isinstance(user, indexing.IndexMap):
                 assert list(user.values) == test['values']
-            if isinstance(user, datatypes.Coordinates):
+            if isinstance(user, indexing.Coordinates):
                 assert numpy.allclose(user.values, test['values'])
     name = 'energy'
     expected = cases['energy']

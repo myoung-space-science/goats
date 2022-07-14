@@ -1,12 +1,14 @@
-import abc
 import collections.abc
 import numbers
 import typing
 
-from goats.core.numerical import find_nearest
+import numpy
+import numpy.typing
+
+from goats.core import aliased
 from goats.core import iterables
-from goats.core import metric
 from goats.core import measurable
+from goats.core import metadata
 
 
 class Indices(collections.abc.Sequence, iterables.ReprStrMixin):
@@ -26,12 +28,10 @@ class Indices(collections.abc.Sequence, iterables.ReprStrMixin):
         return len(self.indices)
 
     def __eq__(self, other):
-        """True if two instances have the same indices."""
-        if not isinstance(other, Indices):
-            return NotImplemented
-        return all(
-            getattr(self, attr) == getattr(other, attr)
-            for attr in self.__slots__
+        """True if two instances have the same attributes."""
+        return (
+            self.indices == other.indices if isinstance(other, Indices)
+            else NotImplemented
         )
 
     def __str__(self) -> str:
@@ -39,10 +39,10 @@ class Indices(collections.abc.Sequence, iterables.ReprStrMixin):
         return iterables.show_at_most(3, self.indices, separator=', ')
 
 
-class OrderedPairs(Indices):
-    """A sequence of index-value pairs."""
+class IndexMap(Indices):
+    """A sequence of indices in correspondence with values of any type."""
 
-    __slots__ = ('values',)
+    __slots__ = ('_values',)
 
     def __init__(
         self,
@@ -50,65 +50,157 @@ class OrderedPairs(Indices):
         values: typing.Iterable[typing.Any],
     ) -> None:
         super().__init__(indices)
-        self.values = tuple(values)
+        self._values = values
         nv = len(self.values)
         ni = len(self.indices)
         if nv != ni:
             errmsg = f"number of values ({nv}) != number of indices ({ni})"
             raise TypeError(errmsg)
 
+    @property
+    def values(self):
+        """The values corresponding to indices."""
+        return tuple(self._values)
+
+    def __eq__(self, other):
+        return (
+            super().__eq__(other) and self.values == other.values
+            if isinstance(other, IndexMap)
+            else NotImplemented
+        )
+
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        pairs = zip(self.indices, self.values)
+        pairs = [f"{i} | {v!r}" for i, v in zip(self.indices, self.values)]
         return iterables.show_at_most(3, pairs, separator=', ')
 
 
-class Coordinates(OrderedPairs):
-    """A sequence of index-scalar pairs."""
+class Coordinates(IndexMap):
+    """A sequence of indices in correspondence with scalar values."""
 
-    __slots__ = ('unit',)
+    __slots__ = ('_unit',)
 
     def __init__(
         self,
         indices: typing.Iterable[int],
         values: typing.Iterable[typing.Any],
-        unit: typing.Union[str, metric.Unit],
+        unit: metadata.UnitLike,
     ) -> None:
         super().__init__(indices, values)
-        self.unit = unit
+        self._unit = unit
 
-    def with_unit(self, new: typing.Union[str, metric.Unit]):
+    @property
+    def values(self):
+        """The values of this coordinate."""
+        return numpy.array(self._values)
+
+    @property
+    def unit(self):
+        """The metric unit of this coordinate's values."""
+        return metadata.Unit(self._unit)
+
+    def convert(self, unit: metadata.UnitLike):
         """Convert this object to the new unit, if possible."""
-        scale = metric.Unit(new) // self.unit
+        if unit == self._unit:
+            return self
+        scale = metadata.Unit(unit) // self._unit
         self.values = [value * scale for value in self.values]
-        self.unit = new
+        self._unit = unit
         return self
+
+    def __eq__(self, other):
+        return (
+            numpy.array_equal(self.values, other.values)
+            and self._unit == other._unit
+            if isinstance(other, Coordinates)
+            else NotImplemented
+        )
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
         values = iterables.show_at_most(3, self.values, separator=', ')
-        return f"{values} [{self.unit}]"
+        return f"{values} [{self._unit}]"
 
 
 IndexLike = typing.TypeVar('IndexLike', bound=Indices)
-IndexLike = typing.Union[Indices, OrderedPairs, Coordinates]
+IndexLike = typing.Union[Indices, IndexMap, Coordinates]
 
 
 class Indexer:
-    """A callable object that extracts indices from reference values."""
+    """A callable object that generates array indices from user arguments."""
 
     def __init__(
         self,
-        reference: typing.Iterable[typing.Any],
-        size: int=None,
+        method: typing.Callable[..., IndexLike],
+        reference: numpy.typing.ArrayLike,
     ) -> None:
+        self.method = method
         self.reference = reference
-        self.size = size or len(self.reference)
 
-    def __call__(self, *user):
-        """Create an index object from user input."""
-        targets = self._normalize(*user)
-        return Indices(targets)
+    def __call__(self, targets, **kwargs):
+        """Call the array-indexing method."""
+        return self.method(targets, **kwargs)
+
+
+Instance = typing.TypeVar('Instance', bound='Axis')
+
+
+class Axis(iterables.ReprStrMixin):
+    """A single dataset axis."""
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        size: int,
+        indexer: Indexer,
+        *names: str,
+    ) -> None:
+        """Create a new axis."""
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        instance: Instance,
+    ) -> None:
+        """Create a new axis."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        parsed = self._parse(*args, **kwargs)
+        size, indexer, names = parsed
+        self.size = size
+        """The full length of this axis."""
+        self.indexer = indexer
+        """A callable object that creates indices from user input."""
+        self.names = names
+        """The valid names for this axis."""
+        self.reference = indexer.reference
+        """The index reference values."""
+
+    Attrs = typing.TypeVar('Attrs', bound=tuple)
+    Attrs = typing.Tuple[
+        int,
+        Indexer,
+        aliased.MappingKey,
+    ]
+
+    def _parse(self, *args, **kwargs) -> Attrs:
+        """Parse input arguments to initialize this instance."""
+        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
+            instance = args[0]
+            return tuple(
+                getattr(instance, name)
+                for name in ('size', 'indexer', 'names')
+            )
+        size, indexer, *args = args
+        names = aliased.MappingKey(args or ())
+        return size, indexer, names
+
+    def __call__(self, *args, **kwargs):
+        """Convert user arguments into an index object."""
+        targets = self._normalize(*args)
+        if all(isinstance(value, numbers.Integral) for value in targets):
+            return Indices(targets)
+        return self.indexer(targets, **kwargs)
 
     def _normalize(self, *user):
         """Helper for computing target values from user input."""
@@ -120,84 +212,20 @@ class Indexer:
             return user[0]
         return user
 
-
-class IndexMapper(Indexer):
-    """A callable object that maps values to indices."""
-
-    def __init__(
-        self,
-        reference: typing.Iterable[typing.Any],
-        size: int=None,
-    ) -> None:
-        super().__init__(reference, size=size)
-        self.reference = tuple(self.reference)
-
-    def __call__(self, *user):
-        targets = self._normalize(*user)
-        if all(isinstance(value, numbers.Integral) for value in targets):
-            return Indices(targets)
-        indices = [self.reference.index(target) for target in targets]
-        return OrderedPairs(indices, targets)
-
-
-class IndexComputer(Indexer):
-    """A callable object that computes indices from reference values."""
-
-    def __init__(
-        self,
-        reference: measurable.Quantity,
-        size: int=None,
-    ) -> None:
-        super().__init__(reference, size=size)
-        self.unit = reference.unit()
-        """The unit of the reference values."""
-
-    def __call__(self, *user):
-        targets = self._normalize(*user)
-        if all(isinstance(value, numbers.Integral) for value in targets):
-            return Indices(targets)
-        measured = measured.measure(*targets)
-        vector = measured.Vector(measured.values, measured.unit)
-        values = (
-            vector.unit(self.unit)
-            if vector.unit().dimension == self.unit.dimension
-            else vector
-        )
-        indices = [
-            find_nearest(self.reference, float(value)).index
-            for value in values
-        ]
-        return Coordinates(indices, values, self.unit)
-
-
-class Axis(iterables.ReprStrMixin):
-    """A single dataset axis."""
-
-    Idx = typing.TypeVar('Idx', bound=Indexer)
-    Idx = typing.Union[Indexer, IndexMapper, IndexComputer]
-
-    def __init__(self, indexer: Idx) -> None:
-        self.indexer = indexer
-        self.reference = indexer.reference
-        """The reference values used to compute indices."""
-        self.size = indexer.size
-        """The full length of this axis."""
-
-    def __call__(self, *user, **kwargs):
-        """Convert user values into an index object."""
-        return self.indexer(*user, **kwargs)
-
     def __len__(self) -> int:
         """The full length of this axis. Called for len(self)."""
         return self.size
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        string = f"size={self.size}"
+        string = f"'{self.names}': size={self.size}"
         unit = (
-            str(self.reference.unit())
-            if isinstance(self.reference, measurable.Measured)
+            str(self.reference.unit)
+            if isinstance(self.reference, measurable.Quantity)
             else None
         )
-        return f"{string} unit={unit!r}"
+        if unit:
+            string += f", unit={unit!r}"
+        return string
+
 
