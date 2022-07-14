@@ -1,5 +1,6 @@
 """Tools for managing datasets."""
 
+import numbers
 import typing
 
 import numpy
@@ -10,7 +11,10 @@ from goats.core import datafile
 from goats.core import physical
 from goats.core import indexing
 from goats.core import iotools
+from goats.core import indexing
+from goats.core import iterables
 from goats.core import observables
+from goats.core import measurable
 from goats.core import metric
 from goats.core import metadata
 
@@ -190,6 +194,93 @@ class Variables(aliased.Mapping):
         return result
 
 
+Instance = typing.TypeVar('Instance', bound='Axis')
+
+
+class Axis(iterables.ReprStrMixin):
+    """A single dataset axis."""
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        size: int,
+        indexer: indexing.Indexer,
+        *names: str,
+    ) -> None:
+        """Create a new axis."""
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        instance: Instance,
+    ) -> None:
+        """Create a new axis."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        parsed = self._parse(*args, **kwargs)
+        size, indexer, names = parsed
+        self.size = size
+        """The full length of this axis."""
+        self.indexer = indexer
+        """A callable object that creates indices from user input."""
+        self.names = names
+        """The valid names for this axis."""
+        self.reference = indexer.reference
+        """The index reference values."""
+
+    Attrs = typing.TypeVar('Attrs', bound=tuple)
+    Attrs = typing.Tuple[
+        int,
+        indexing.Indexer,
+        aliased.MappingKey,
+    ]
+
+    def _parse(self, *args, **kwargs) -> Attrs:
+        """Parse input arguments to initialize this instance."""
+        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
+            instance = args[0]
+            return tuple(
+                getattr(instance, name)
+                for name in ('size', 'indexer', 'names')
+            )
+        size, indexer, *args = args
+        names = aliased.MappingKey(args or ())
+        return size, indexer, names
+
+    def __call__(self, *args, **kwargs):
+        """Convert user arguments into an index object."""
+        targets = self._normalize(*args)
+        if all(isinstance(value, numbers.Integral) for value in targets):
+            return indexing.Indices(targets)
+        return self.indexer(targets, **kwargs)
+
+    def _normalize(self, *user):
+        """Helper for computing target values from user input."""
+        if not user:
+            return self.reference
+        if isinstance(user[0], slice):
+            return iterables.slice_to_range(user[0], stop=self.size)
+        if isinstance(user[0], range):
+            return user[0]
+        return user
+
+    def __len__(self) -> int:
+        """The full length of this axis. Called for len(self)."""
+        return self.size
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        string = f"'{self.names}': size={self.size}"
+        unit = (
+            str(self.reference.unit)
+            if isinstance(self.reference, measurable.Quantity)
+            else None
+        )
+        if unit:
+            string += f", unit={unit!r}"
+        return string
+
+
 class Indexers(aliased.Mapping):
     """The default collection of axis indexers."""
 
@@ -218,11 +309,11 @@ class Axes(aliased.Mapping):
         super().__init__(indexers)
         self.dataset = dataset
 
-    def __getitem__(self, key: str) -> indexing.Axis:
+    def __getitem__(self, key: str) -> Axis:
         indexer = super().__getitem__(key)
         size = self.dataset.axes[key].size
         names = observables.ALIASES.get(key, [key])
-        return indexing.Axis(size, indexer, *names)
+        return Axis(size, indexer, *names)
 
 
 class Interface:
