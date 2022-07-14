@@ -357,9 +357,9 @@ class Quantity(Quantified, AlgebraicOperators, metadata.UnitMixin):
         instance: Instance,
     ) -> None: ...
 
-    def __init__(self, __data, **meta) -> None:
+    def __init__(self, __a, **meta) -> None:
         """Initialize this instance from arguments or an existing instance."""
-        super().__init__(__data)
+        super().__init__(__a.data if isinstance(__a, Quantified) else __a)
         self.meta['true divide'].suppress(Real, Quantifiable)
         self.meta['power'].suppress(Quantifiable, Quantifiable)
         self.meta['power'].suppress(Real, Quantifiable)
@@ -368,7 +368,7 @@ class Quantity(Quantified, AlgebraicOperators, metadata.UnitMixin):
             typing.Iterable,
             symmetric=True
         )
-        parsed = self.parse_attrs(__data, meta, unit='1')
+        parsed = self.parse_attrs(__a, meta, unit='1')
         self._unit = metadata.Unit(parsed['unit'])
         self.meta.register('unit')
         self.display.register('data', 'unit')
