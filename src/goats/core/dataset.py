@@ -30,9 +30,9 @@ class Variable(physical.Array, metadata.AxesMixin):
         self: Instance,
         __data: numpy.typing.ArrayLike,
         *,
+        axes: typing.Iterable[str],
         unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
-        axes: typing.Iterable[str]=None,
     ) -> None:
         """Create a new variable from scratch."""
 
@@ -41,7 +41,7 @@ class Variable(physical.Array, metadata.AxesMixin):
         self: Instance,
         __data: physical.Array,
         *,
-        axes: typing.Iterable[str]=None,
+        axes: typing.Iterable[str],
     ) -> None:
         """Create a new variable from an array."""
 
@@ -56,6 +56,8 @@ class Variable(physical.Array, metadata.AxesMixin):
         super().__init__(__data, **meta)
         parsed = self.parse_attrs(__data, meta, axes=())
         self._axes = metadata.Axes(parsed['axes'])
+        if not self._axes:
+            raise ValueError("Axes are required")
         self.meta.register('axes')
         self.naxes = len(self.axes)
         """The number of indexable axes in this variable's array."""

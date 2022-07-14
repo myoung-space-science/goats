@@ -220,6 +220,21 @@ def test_variable():
     assert v0_cm.axes == reference.axes
 
 
+@pytest.mark.variable
+def test_variable_init():
+    """Test initializing a variable object."""
+    # default name and unit
+    v = dataset.Variable([3.0, 4.5], axes=['x'])
+    assert v.unit == '1'
+    assert v.name == ''
+    # number of axes must match number of data dimensions
+    with pytest.raises(ValueError):
+        dataset.Variable([3.0, 4.5], axes=['x', 'y'])
+    # axes are required
+    with pytest.raises(ValueError):
+        dataset.Variable([3.0, 4.5])
+
+
 @pytest.fixture
 def arr() -> typing.Dict[str, list]:
     """Arrays (lists of lists) for creating variables."""
@@ -956,5 +971,4 @@ def test_full_mean(components):
         make_variable(**ref),
         expected=numpy.mean(ref['data']),
     )
-
 
