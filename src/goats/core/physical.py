@@ -162,9 +162,11 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
 
     def __len__(self):
         """Called for len(self)."""
-        if method := self._get_base_attr('__len__'):
+        try:
+            method = self._get_base_attr('__len__')
             return method()
-        return len(self.data)
+        except AttributeError:
+            return len(self.data)
 
     @property
     def ndim(self) -> int:
@@ -194,6 +196,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
             with contextlib.suppress(AttributeError):
                 if value := getattr(attr, name):
                     return value
+        raise AttributeError(f"Could not find an attribute named {name!r}")
 
     _builtin = (int, slice, type(...))
 
