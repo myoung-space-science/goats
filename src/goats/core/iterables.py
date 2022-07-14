@@ -546,15 +546,15 @@ class MappingBase(collections.abc.Mapping):
             attribute's implementations of the required collection methods will
             support the equivalent implementations for this mapping.
         """
-        self.__collection = __collection
+        self._collection = __collection
 
     def __len__(self) -> int:
         """The number of members in this collection."""
-        return len(self.__collection)
+        return len(self._collection)
 
     def __iter__(self) -> typing.Iterator:
         """Iterate over members of this collection."""
-        return iter(self.__collection)
+        return iter(self._collection)
 
 
 class UniformMapping(MappingBase):
