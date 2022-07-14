@@ -162,7 +162,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
 
     def __len__(self):
         """Called for len(self)."""
-        if method := self._get_base_attr('__len__', '_array'):
+        if method := self._get_base_attr('__len__'):
             return method()
         return len(self.data)
 
@@ -170,28 +170,28 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
     def ndim(self) -> int:
         """The number of dimensions in this array."""
         if self._ndim is None:
-            self._ndim = self._get_base_attr('ndim', 'data', '_array')
+            self._ndim = self._get_base_attr('ndim')
         return self._ndim
 
     @property
     def shape(self) -> int:
         """The length of each dimension in this array."""
         if self._shape is None:
-            self._shape = self._get_base_attr('shape', 'data', '_array')
+            self._shape = self._get_base_attr('shape')
         return self._shape
 
-    def _get_base_attr(self, name: str, *search: str):
+    def _get_base_attr(self, name: str):
         """Helper method to efficiently access underlying attributes.
 
         This method will first search the underlying data object for the named
         attribute, to take advantage of viewers that provide metadata without
         loading the full dataset. If that search fails, this method will attempt
-        to retrieve the named attribute from the actual dataset array.
+        to retrieve the named attribute from the actual dataset array, which may
+        require loading from disk.
         """
-        targets = [getattr(self, name) for name in search]
-        for target in targets:
+        for this in ['data', '_array']:
+            attr = getattr(self, this)
             with contextlib.suppress(AttributeError):
-                attr = target() if callable(target) else target
                 if value := getattr(attr, name):
                     return value
 
