@@ -139,13 +139,12 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._scale = 1.0
-        self._cached = {}
+        self._full_array = None
         self._ndim = None
         self._shape = None
         self.display.register(data='_array')
 
     def apply_conversion(self, new: metadata.UnitLike):
-        self._cached['scale'] = self._scale
         self._scale *= new // self._unit
 
     def __measure__(self):
@@ -378,7 +377,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         return self._get_array()
 
     def _get_array(self, index: IndexLike=None):
-        """Access scaled array data via index or slice notation.
+        """Load and scale the array data corresponding to `index`.
         
         Notes
         -----
@@ -389,10 +388,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
           without any numerical scaling to `self._load_array()`, then rescales
           the result if the unit has changed.
         """
-        array = self._load_array(index)
-        if self._scale == self._cached.get('scale'):
-            return array
-        return self._scale * array
+        return self._scale * self._load_array(index)
 
     def _load_array(self, index=None):
         """Get the unscaled array from disk or memory.
@@ -413,14 +409,14 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         object's full array.
         """
         if iterables.missing(index):
-            if 'full_array' in self._cached:
-                return self._cached['full_array']
+            if self._full_array is not None:
+                return self._full_array
             array = self._read_array()
-            self._cached['full_array'] = array
+            self._full_array = array
             return array
-        if 'full_array' in self._cached:
+        if self._full_array is not None:
             idx = numpy.index_exp[index]
-            return self._cached['full_array'][idx]
+            return self._full_array[idx]
         return self._read_array(index)
 
     def _read_array(self, index: IndexLike=None):
