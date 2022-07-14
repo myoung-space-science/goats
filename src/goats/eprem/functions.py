@@ -33,12 +33,12 @@ class Function(iterables.ReprStrMixin):
 
     Argument = typing.TypeVar(
         'Argument',
-        datatypes.Variable,
+        dataset.Variable,
         measurable.Scalar,
         typing.Iterable[measurable.Scalar],
     )
     Argument = typing.Union[
-        datatypes.Variable,
+        dataset.Variable,
         measurable.Scalar,
         typing.Iterable[measurable.Scalar],
     ]
@@ -47,7 +47,7 @@ class Function(iterables.ReprStrMixin):
         self,
         arguments: typing.Mapping[str, Argument],
         unit: typing.Union[str, metric.Unit],
-    ) -> datatypes.Variable:
+    ) -> dataset.Variable:
         """Build a variable by calling the instance method."""
         arrays = []
         floats = []
@@ -65,7 +65,7 @@ class Function(iterables.ReprStrMixin):
                 and all(isinstance(a, datatypes.Scalar) for a in arg)
             ): floats.extend([float(a) for a in arg])
         data = self.method(*arrays, *floats)
-        return datatypes.Variable(
+        return dataset.Variable(
             data,
             unit=metric.Unit(unit),
             name=self.name,

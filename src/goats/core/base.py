@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from goats.core import aliased
-from goats.core import datatypes
+from goats.core import dataset
 from goats.core import iterables
 from goats.core import measurable
 from goats.core import metadata
@@ -33,7 +33,7 @@ class Observation(iterables.ReprStrMixin):
 
     def __init__(
         self,
-        data: datatypes.Variable,
+        data: dataset.Variable,
         indices: typing.Mapping[str, indexing.Indices],
         assumptions: typing.Mapping[str, measurable.Scalar]=None,
     ) -> None:

@@ -20,11 +20,11 @@ MKS = metric.System('mks')
 
 Observable = typing.TypeVar(
     'Observable',
-    datatypes.Variable,
+    dataset.Variable,
     functions.Function,
 )
 Observable = typing.Union[
-    datatypes.Variable,
+    dataset.Variable,
     functions.Function,
 ]
 
@@ -64,11 +64,11 @@ Dependency = typing.Union[
 
 Reference = typing.TypeVar(
     'Reference',
-    datatypes.Variable,
+    dataset.Variable,
     typing.Iterable,
 )
 Reference = typing.Union[
-    datatypes.Variable,
+    dataset.Variable,
     typing.Iterable,
 ]
 
@@ -98,7 +98,7 @@ class Application:
 
     def evaluate(self, implementation: Implementation):
         """Create a variable from the given implementation."""
-        if isinstance(implementation, datatypes.Variable):
+        if isinstance(implementation, dataset.Variable):
             return self._evaluate_variable(implementation)
         if isinstance(implementation, functions.Function):
             return self._evaluate_function(implementation)
@@ -106,7 +106,7 @@ class Application:
             return self._evaluate_compound(implementation)
         raise TypeError(f"Unknown implementation: {type(implementation)}")
 
-    def _evaluate_variable(self, variable: datatypes.Variable):
+    def _evaluate_variable(self, variable: dataset.Variable):
         """Apply relevant updates (e.g., indices) to this variable."""
         target_axes = [
             axis for axis in variable.axes if self._need_interp(axis)
@@ -117,16 +117,16 @@ class Application:
             return self._standard(variable)
         return self._interpolated(variable, target_axes)
 
-    def _standard(self, variable: datatypes.Variable):
+    def _standard(self, variable: dataset.Variable):
         """Produce a new variable by subscripting the given variable."""
         indices = tuple(self.indices[axis] for axis in variable.axes)
         return variable[indices]
 
     def _interpolated(
         self,
-        original: datatypes.Variable,
+        original: dataset.Variable,
         axes: typing.Iterable[str],
-    ) -> datatypes.Variable:
+    ) -> dataset.Variable:
         """Produce a new variable by interpolating the given variable."""
         indexable = list(set(original.axes) - set(axes))
         variable = self._interpolate(original, axes)
@@ -137,7 +137,7 @@ class Application:
         )
         return variable[indices]
 
-    def _is_reference(self, variable: datatypes.Variable):
+    def _is_reference(self, variable: dataset.Variable):
         """True if this is an axis reference variable.
 
         This method attempts to determine if the given variable is one of the
@@ -167,9 +167,9 @@ class Application:
 
     def _interpolate(
         self,
-        variable: datatypes.Variable,
+        variable: dataset.Variable,
         axes: typing.Iterable[str],
-    ) -> datatypes.Variable:
+    ) -> dataset.Variable:
         """Interpolate the variable over certain axes."""
         array = None
         coordinates = {
@@ -196,7 +196,7 @@ class Application:
                 coordinate=coordinate,
                 workspace=array,
             )
-        return datatypes.Variable(
+        return dataset.Variable(
             array,
             unit=variable.unit,
             name=variable.name,
@@ -205,9 +205,9 @@ class Application:
 
     def _interpolate_coordinate(
         self,
-        variable: datatypes.Variable,
+        variable: dataset.Variable,
         targets: np.ndarray,
-        reference: datatypes.Variable,
+        reference: dataset.Variable,
         coordinate: str=None,
         workspace: np.ndarray=None,
     ) -> np.ndarray:
@@ -248,7 +248,7 @@ class Application:
             return self.assumptions[key]
         if key in self.observables:
             observable = self.observables[key]
-            if isinstance(observable, datatypes.Variable):
+            if isinstance(observable, dataset.Variable):
                 return self._evaluate_variable(observable)
             if isinstance(observable, functions.Function):
                 return self._evaluate_function(observable)
@@ -282,7 +282,7 @@ class Interface(base.Interface):
         self.observables = aliased.MutableMapping(
             {
                 k: v for k, v in self.dependencies.items(aliased=True)
-                if isinstance(v, (datatypes.Variable, functions.Function))
+                if isinstance(v, (dataset.Variable, functions.Function))
             }
         )
         axes_ref = {k: v.reference for k, v in self.axes.items(aliased=True)}

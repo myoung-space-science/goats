@@ -122,7 +122,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
     def _build_coordinates(
         self,
         targets: numpy.typing.ArrayLike,
-        reference: datatypes.Variable,
+        reference: dataset.Variable,
     ) -> datatypes.Coordinates:
         """Build an arbitrary coordinate object."""
         result = measurable.measure(targets)
