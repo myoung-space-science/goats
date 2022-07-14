@@ -5,7 +5,7 @@ import typing
 
 import pytest
 
-from goats.core import datatypes
+from goats.core import physical
 from goats.core import measurable
 from goats.core import metadata
 
@@ -15,7 +15,7 @@ def test_scalar_scalar_comparisons():
     """Test comparisons between two scalars."""
     value = 2.0
     unit = 'm'
-    scalar = datatypes.Scalar(value, unit=unit)
+    scalar = physical.Scalar(value, unit=unit)
     cases = [
         (operator.lt, value + 1),
         (operator.le, value + 1),
@@ -26,12 +26,12 @@ def test_scalar_scalar_comparisons():
     ]
     for case in cases:
         opr, v = case
-        assert opr(scalar, datatypes.Scalar(v, unit=unit))
+        assert opr(scalar, physical.Scalar(v, unit=unit))
         with pytest.raises(ValueError):
-            opr(scalar, datatypes.Scalar(v, unit='J'))
-    assert scalar == datatypes.Scalar(value, unit=unit)
-    assert scalar != datatypes.Scalar(value+1, unit=unit)
-    assert scalar != datatypes.Scalar(value, unit='J')
+            opr(scalar, physical.Scalar(v, unit='J'))
+    assert scalar == physical.Scalar(value, unit=unit)
+    assert scalar != physical.Scalar(value+1, unit=unit)
+    assert scalar != physical.Scalar(value, unit='J')
 
 
 @pytest.mark.scalar
@@ -39,7 +39,7 @@ def test_scalar_number_comparisons():
     """Test comparisons between a scalar and a number."""
     value = 2.0
     unit = 'm'
-    scalar = datatypes.Scalar(value, unit=unit)
+    scalar = physical.Scalar(value, unit=unit)
     cases = [
         (operator.lt, operator.gt, value + 1),
         (operator.le, operator.ge, value + 1),
@@ -60,7 +60,7 @@ def test_scalar_number_comparisons():
 def test_scalar_cast():
     """Test numeric casting operations on a scalar."""
     value = 2.0
-    scalar = datatypes.Scalar(value, unit='m')
+    scalar = physical.Scalar(value, unit='m')
     for dtype in {int, float}:
         number = dtype(scalar)
         assert isinstance(number, dtype)
@@ -72,7 +72,7 @@ def test_scalar_unary():
     """Test unary arithmetic operations on a scalar."""
     value = 2.0
     unit = 'm'
-    scalar = datatypes.Scalar(value, unit=unit)
+    scalar = physical.Scalar(value, unit=unit)
     oprs = [
         operator.neg,
         operator.pos,
@@ -84,7 +84,7 @@ def test_scalar_unary():
     ]
     for opr in oprs:
         result = opr(scalar)
-        assert result == datatypes.Scalar(opr(value), unit=unit)
+        assert result == physical.Scalar(opr(value), unit=unit)
 
 
 @pytest.mark.scalar
@@ -96,7 +96,7 @@ def test_scalar_binary():
         (2.0, 'J'),
     ]
     instances = {
-        args: datatypes.Scalar(args[0], unit=args[1])
+        args: physical.Scalar(args[0], unit=args[1])
         for args in cases
     }
     same_unit = cases[0], cases[1]
@@ -116,14 +116,14 @@ def test_scalar_binary():
     unit = 'm'
     for opr in oprs:
         # between two instances with same unit
-        expected = datatypes.Scalar(opr(*values_same), unit=unit)
+        expected = physical.Scalar(opr(*values_same), unit=unit)
         assert opr(*scalars_same) == expected
         # between an instance and a number
         # ...forward
-        expected = datatypes.Scalar(opr(*values_same), unit=unit)
+        expected = physical.Scalar(opr(*values_same), unit=unit)
         assert opr(scalar, value) == expected
         # ...reverse
-        expected = datatypes.Scalar(opr(*values_same[::-1]), unit=unit)
+        expected = physical.Scalar(opr(*values_same[::-1]), unit=unit)
         assert opr(value, scalar) == expected
     # between two instances with different units
     for opr in oprs:
@@ -133,33 +133,33 @@ def test_scalar_binary():
     # MULTIPLICATION
     opr = operator.mul
     # between two instances with same unit
-    expected = datatypes.Scalar(opr(*values_same), unit='m^2')
+    expected = physical.Scalar(opr(*values_same), unit='m^2')
     assert opr(*scalars_same) == expected
     # between an instance and a number
     # ...forward
-    expected = datatypes.Scalar(opr(*values_same), unit='m')
+    expected = physical.Scalar(opr(*values_same), unit='m')
     assert opr(scalar, value) == expected
     # reverse
-    expected = datatypes.Scalar(opr(*values_same[::-1]), unit='m')
+    expected = physical.Scalar(opr(*values_same[::-1]), unit='m')
     assert opr(value, scalar) == expected
     # between two instances with different units
-    expected = datatypes.Scalar(opr(*values_diff), unit='m * J')
+    expected = physical.Scalar(opr(*values_diff), unit='m * J')
     assert opr(*scalars_diff) == expected
 
     # DIVISION
     opr = operator.truediv
     # between two instances with same unit
-    expected = datatypes.Scalar(opr(*values_same), unit='1')
+    expected = physical.Scalar(opr(*values_same), unit='1')
     assert opr(*scalars_same) == expected
     # between an instance and a number
     # ...forward
-    expected = datatypes.Scalar(opr(*values_same), unit='m')
+    expected = physical.Scalar(opr(*values_same), unit='m')
     assert opr(scalar, value) == expected
     # reverse
     with pytest.raises(metadata.OperandTypeError):
         opr(value, scalar)
     # between two instances with different units
-    expected = datatypes.Scalar(opr(*values_diff), unit='m / J')
+    expected = physical.Scalar(opr(*values_diff), unit='m / J')
     assert opr(*scalars_diff) == expected
 
     # EXPONENTIAL
@@ -169,7 +169,7 @@ def test_scalar_binary():
         opr(*scalars_same)
     # between an instance and a number
     # ...forward
-    expected = datatypes.Scalar(opr(*values_same), unit=f'm^{value}')
+    expected = physical.Scalar(opr(*values_same), unit=f'm^{value}')
     assert opr(scalar, value) == expected
     # ...reverse
     with pytest.raises(metadata.OperandTypeError):
@@ -179,7 +179,7 @@ def test_scalar_binary():
 @pytest.mark.scalar
 def test_scalar_bitwise():
     """bitwise comparison is undefined"""
-    scalar = datatypes.Scalar(2)
+    scalar = physical.Scalar(2)
     with pytest.raises(TypeError):
         scalar & 1
         scalar | 1
@@ -189,18 +189,18 @@ def test_scalar_bitwise():
 @pytest.mark.vector
 def test_vector_operators():
     """Test the updated operators on the vector object."""
-    v0 = datatypes.Vector([3.0, 6.0], unit='m')
-    v1 = datatypes.Vector([1.0, 3.0], unit='m')
-    v2 = datatypes.Vector([1.0, 3.0], unit='J')
-    assert v0 + v1 == datatypes.Vector([4.0, 9.0], unit='m')
-    assert v0 - v1 == datatypes.Vector([2.0, 3.0], unit='m')
-    assert v0 * v1 == datatypes.Vector([3.0, 18.0], unit='m^2')
-    assert v0 / v1 == datatypes.Vector([3.0, 2.0], unit='1')
-    assert v0 / v2 == datatypes.Vector([3.0, 2.0], unit='m / J')
-    assert v0 ** 2 == datatypes.Vector([9.0, 36.0], unit='m^2')
-    assert 10.0 * v0 == datatypes.Vector([30.0, 60.0], unit='m')
-    assert v0 * 10.0 == datatypes.Vector([30.0, 60.0], unit='m')
-    assert v0 / 10.0 == datatypes.Vector([0.3, 0.6], unit='m')
+    v0 = physical.Vector([3.0, 6.0], unit='m')
+    v1 = physical.Vector([1.0, 3.0], unit='m')
+    v2 = physical.Vector([1.0, 3.0], unit='J')
+    assert v0 + v1 == physical.Vector([4.0, 9.0], unit='m')
+    assert v0 - v1 == physical.Vector([2.0, 3.0], unit='m')
+    assert v0 * v1 == physical.Vector([3.0, 18.0], unit='m^2')
+    assert v0 / v1 == physical.Vector([3.0, 2.0], unit='1')
+    assert v0 / v2 == physical.Vector([3.0, 2.0], unit='m / J')
+    assert v0 ** 2 == physical.Vector([9.0, 36.0], unit='m^2')
+    assert 10.0 * v0 == physical.Vector([30.0, 60.0], unit='m')
+    assert v0 * 10.0 == physical.Vector([30.0, 60.0], unit='m')
+    assert v0 / 10.0 == physical.Vector([0.3, 0.6], unit='m')
     with pytest.raises(metadata.OperandTypeError):
         1.0 / v0
     with pytest.raises(metadata.UnitError):
@@ -210,7 +210,7 @@ def test_vector_operators():
 @pytest.mark.scalar
 def test_scalar_display():
     """Test the results of str(self) and repr(self) for a scalar."""
-    scalar = datatypes.Scalar(1.234, unit='m')
+    scalar = physical.Scalar(1.234, unit='m')
     assert str(scalar) == "1.234 [m]"
     assert repr(scalar).endswith("Scalar(1.234, unit='m')")
     scalar.convert('cm')
@@ -221,7 +221,7 @@ def test_scalar_display():
 @pytest.mark.vector
 def test_vector_display():
     """Test the results of str(self) and repr(self) for a vector."""
-    vector = datatypes.Vector(1.234, unit='m')
+    vector = physical.Vector(1.234, unit='m')
     assert str(vector) == "[1.234] [m]"
     assert repr(vector).endswith("Vector([1.234], unit='m')")
     vector.convert('cm')
@@ -232,23 +232,23 @@ def test_vector_display():
 @pytest.mark.vector
 def test_vector_init():
     """Test initializing with iterable and non-iterable values."""
-    expected = sorted(datatypes.Vector([1.1], unit='m'))
-    assert sorted(datatypes.Vector(1.1, unit='m')) == expected
+    expected = sorted(physical.Vector([1.1], unit='m'))
+    assert sorted(physical.Vector(1.1, unit='m')) == expected
 
 
 @pytest.mark.scalar
 def test_scalar_unit():
     """Get and set the unit on a Scalar."""
-    check_units(datatypes.Scalar, 1, 'm', 'cm')
+    check_units(physical.Scalar, 1, 'm', 'cm')
 
 
 @pytest.mark.vector
 def test_vector_unit():
     """Get and set the unit on a Vector."""
-    check_units(datatypes.Vector, [1, 2], 'm', 'cm')
+    check_units(physical.Vector, [1, 2], 'm', 'cm')
 
 
-Obj = typing.Union[datatypes.Scalar, datatypes.Vector]
+Obj = typing.Union[physical.Scalar, physical.Vector]
 
 
 def check_units(

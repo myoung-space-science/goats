@@ -5,7 +5,7 @@ import typing
 import numpy
 
 from goats.core import aliased
-from goats.core import datatypes
+from goats.core import physical
 from goats.core import iterables
 
 
@@ -157,7 +157,7 @@ class Constants(collections.abc.Mapping):
         """Create the named constant or raise an error."""
         if name in self._mapping:
             found = self._get_attributes(name)
-            return datatypes.Scalar(found['value'], unit=found['unit'])
+            return physical.Scalar(found['value'], unit=found['unit'])
         raise KeyError(name)
 
     def _get_attributes(self, name: str) -> dict:

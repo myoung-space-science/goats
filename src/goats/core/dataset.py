@@ -7,7 +7,7 @@ import numpy.typing
 
 from goats.core import aliased
 from goats.core import datafile
-from goats.core import datatypes
+from goats.core import physical
 from goats.core import indexing
 from goats.core import iotools
 from goats.core import observables
@@ -18,7 +18,7 @@ from goats.core import metadata
 Instance = typing.TypeVar('Instance', bound='Variable')
 
 
-class Variable(datatypes.Array, metadata.AxesMixin):
+class Variable(physical.Array, metadata.AxesMixin):
     """A class representing a dataset variable."""
 
     @typing.overload
@@ -35,7 +35,7 @@ class Variable(datatypes.Array, metadata.AxesMixin):
     @typing.overload
     def __init__(
         self: Instance,
-        __data: datatypes.Array,
+        __data: physical.Array,
         *,
         axes: typing.Iterable[str]=None,
     ) -> None:
@@ -65,7 +65,7 @@ class Variable(datatypes.Array, metadata.AxesMixin):
         self.display['__repr__'].append("axes={axes}")
 
     def parse_attrs(self, this, meta: dict, **targets):
-        if isinstance(this, datatypes.Array) and not isinstance(this, Variable):
+        if isinstance(this, physical.Array) and not isinstance(this, Variable):
             meta.update({k: getattr(this, k) for k in ('unit', 'name')})
             this = this.data
         return super().parse_attrs(this, meta, **targets)
@@ -92,7 +92,7 @@ class Variable(datatypes.Array, metadata.AxesMixin):
         )
     def __getitem__(self, *args):
         result = super().__getitem__(*args)
-        if isinstance(result, datatypes.Array) and result.ndim == self.axes:
+        if isinstance(result, physical.Array) and result.ndim == self.axes:
             return Variable(result, axes=self.axes)
         return result
 

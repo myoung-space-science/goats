@@ -1,12 +1,12 @@
 import typing
 
 from goats.core import aliased
-from goats.core import datatypes
+from goats.core import physical
 from goats.core import iterables
 from goats.core import metadata
 
 
-class Assumption(datatypes.Vector):
+class Assumption(physical.Vector):
     """A measurable parameter argument.
     
     This object behaves like a vector in the sense that it is a multi-valued
@@ -19,10 +19,10 @@ class Assumption(datatypes.Vector):
         iter_values = isinstance(values, typing.Iterable)
         return (
             [
-                datatypes.Scalar(value, unit=self.unit, name=self.name)
+                physical.Scalar(value, unit=self.unit, name=self.name)
                 for value in values
             ] if iter_values
-            else datatypes.Scalar(values, unit=self.unit, name=self.name)
+            else physical.Scalar(values, unit=self.unit, name=self.name)
         )
 
     def __float__(self):

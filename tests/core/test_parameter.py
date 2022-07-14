@@ -1,6 +1,6 @@
 import pytest
 
-from goats.core import datatypes
+from goats.core import physical
 from goats.core import parameter
 
 
@@ -13,7 +13,7 @@ def test_assumption():
     assumption = parameter.Assumption(values, unit, *aliases)
     assert assumption.unit == unit
     assert all(alias in assumption.name for alias in aliases)
-    scalars = [datatypes.Scalar(value, unit) for value in values]
+    scalars = [physical.Scalar(value, unit) for value in values]
     assert assumption[:] == scalars
     converted = assumption.convert('cm')
     assert converted.unit == 'cm'

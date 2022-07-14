@@ -4,7 +4,7 @@ import numpy as np
 
 from goats.core import aliased
 from goats.core import dataset
-from goats.core import datatypes
+from goats.core import physical
 from goats.core import functions
 from goats.core import iterables
 from goats.core import observables
@@ -56,13 +56,13 @@ class Function(iterables.ReprStrMixin):
             if key in self.parameters
         ]
         for arg in known:
-            if isinstance(arg, datatypes.Array):
+            if isinstance(arg, physical.Array):
                 arrays.append(np.array(arg))
-            elif isinstance(arg, datatypes.Scalar):
+            elif isinstance(arg, physical.Scalar):
                 floats.append(float(arg))
             elif (
                 isinstance(arg, typing.Iterable)
-                and all(isinstance(a, datatypes.Scalar) for a in arg)
+                and all(isinstance(a, physical.Scalar) for a in arg)
             ): floats.extend([float(a) for a in arg])
         data = self.method(*arrays, *floats)
         return dataset.Variable(

@@ -3,7 +3,7 @@ import numpy
 
 from goats.core import aliased
 from goats.core import dataset
-from goats.core import datatypes
+from goats.core import physical
 from goats.core import indexing
 from goats import eprem
 

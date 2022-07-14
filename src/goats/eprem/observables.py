@@ -10,7 +10,7 @@ from goats.core import indexing
 from goats.core import iterables
 from goats.core import measurable
 from goats.core import dataset
-from goats.core import datatypes
+from goats.core import physical
 from goats.core import parameter
 from goats.eprem import functions
 from goats.eprem import parameters
@@ -338,7 +338,7 @@ class Interface(base.Interface):
         if isinstance(this, parameter.Assumption):
             return this[0]
         if isinstance(this, measurable.Measurement):
-            return datatypes.Scalar(this.values[0], unit=this.unit)
+            return physical.Scalar(this.values[0], unit=this.unit)
         measured = measurable.measure(this)
         if len(measured) > 1:
             raise ValueError("Can't use a multi-valued assumption") from None

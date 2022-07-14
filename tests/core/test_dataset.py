@@ -9,7 +9,7 @@ import pytest
 
 from goats.core import datafile
 from goats.core import dataset
-from goats.core import datatypes
+from goats.core import physical
 from goats.core import measurable
 from goats.core import metadata
 
@@ -572,11 +572,11 @@ def test_variable_getitem(var: typing.Dict[str, dataset.Variable]):
     # ]
     v = var['reference']
     for sliced in (v[:], v[...]):
-        assert isinstance(sliced, datatypes.Array)
+        assert isinstance(sliced, physical.Array)
         assert sliced is not v
         expected = numpy.array([[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
         assert numpy.array_equal(sliced, expected)
-    assert v[0, 0] == datatypes.Scalar(+1.0, unit=v.unit)
+    assert v[0, 0] == physical.Scalar(+1.0, unit=v.unit)
     assert numpy.array_equal(v[0, :], [+1.0, +2.0])
     assert numpy.array_equal(v[:, 0], [+1.0, +2.0, -4.0])
     assert numpy.array_equal(v[:, 0:1], [[+1.0], [+2.0], [-4.0]])

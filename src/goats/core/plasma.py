@@ -1,4 +1,4 @@
-from goats.core import datatypes
+from goats.core import physical
 from goats.core import iterables
 from goats.core import fundamental
 
@@ -27,7 +27,7 @@ class Species(iterables.ReprStrMixin):
         return self._symbol
 
     @property
-    def mass(self) -> datatypes.Scalar:
+    def mass(self) -> physical.Scalar:
         """The mass of this species."""
         if self._mass is None:
             base = self._symbol.rstrip('+-')
@@ -35,7 +35,7 @@ class Species(iterables.ReprStrMixin):
             value = element['mass']
             unit = 'nucleon'
             aliases = ['m', 'mass']
-            self._mass = datatypes.Scalar(value, unit=unit, name=aliases)
+            self._mass = physical.Scalar(value, unit=unit, name=aliases)
         return self._mass
 
     @property
@@ -44,7 +44,7 @@ class Species(iterables.ReprStrMixin):
         return self.mass
 
     @property
-    def charge(self) -> datatypes.Scalar:
+    def charge(self) -> physical.Scalar:
         """The charge of this species."""
         if self._charge is None:
             base = self._symbol.rstrip('+-')
@@ -52,7 +52,7 @@ class Species(iterables.ReprStrMixin):
             value = sum(float(f"{s}1.0") for s in sign)
             unit = 'e'
             aliases = ['q', 'charge']
-            self._charge = datatypes.Scalar(value, unit=unit, name=aliases)
+            self._charge = physical.Scalar(value, unit=unit, name=aliases)
         return self._charge
 
     @property

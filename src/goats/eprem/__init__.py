@@ -11,7 +11,6 @@ from ..core import (
     base,
     dataset,
     datafile,
-    datatypes,
     fundamental,
     indexing,
     iterables,
@@ -19,6 +18,7 @@ from ..core import (
     measurable,
     metric,
     numerical,
+    physical,
 )
 from . import observables
 from .parameters import BaseTypesH
@@ -127,7 +127,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
     ) -> indexing.Coordinates:
         """Build an arbitrary coordinate object."""
         result = measurable.measure(targets)
-        array = datatypes.Array(result.values, unit=result.unit)
+        array = physical.Array(result.values, unit=result.unit)
         values = numpy.array(
             array.convert(reference.unit)
             if array.unit.dimension == reference.unit.dimension
