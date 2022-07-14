@@ -8,7 +8,7 @@ from goats.core import metric
 from goats.core import algebraic
 from goats.core import iterables
 from goats.core import measurable
-from goats.core import datasets
+from goats.core import dataset
 from goats.core import datatypes
 from goats.eprem import functions
 from goats.eprem import parameters
@@ -261,11 +261,11 @@ class Interface(base.Interface):
     def __init__(
         self,
         implementation: Implementation,
-        dataset: datasets.Dataset,
+        data: dataset.Dataset,
         dependencies: typing.Mapping[str, Dependency]=None,
     ) -> None:
         self.implementation = implementation
-        self.axes = dataset.axes
+        self.axes = data.axes
         self.dependencies = aliased.Mapping(dependencies or {})
         self._result = None
         self._context = None
@@ -286,7 +286,7 @@ class Interface(base.Interface):
             }
         )
         axes_ref = {k: v.reference for k, v in self.axes.items(aliased=True)}
-        variables = dataset.variables
+        variables = data.variables
         rtp_ref = {
             (k, *variables.alias(k, include=True)): variables[k]
             for k in {'radius', 'theta', 'phi'}
@@ -392,11 +392,11 @@ class Observables(iterables.MappingBase):
 
     def __init__(
         self,
-        dataset: datasets.Dataset,
+        data: dataset.Dataset,
         arguments: parameters.Arguments,
     ) -> None:
-        self.variables = dataset.variables
-        self.functions = functions.Functions(dataset, arguments)
+        self.variables = data.variables
+        self.functions = functions.Functions(data, arguments)
         vkeys = self.variables.keys
         fkeys = self.functions.keys
         self.primary = tuple(vkeys())
@@ -405,7 +405,7 @@ class Observables(iterables.MappingBase):
         super().__init__(self.names)
         akeys = tuple(vkeys(aliased=True)) + tuple(fkeys(aliased=True))
         self.aliases = aliased.KeyMap(*akeys)
-        self.dataset = dataset
+        self.dataset = data
         self.arguments = arguments
         self._cache = {}
 

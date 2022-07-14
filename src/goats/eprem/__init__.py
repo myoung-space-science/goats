@@ -9,7 +9,8 @@ from goats import Environment
 from ..core import (
     aliased,
     base,
-    datasets,
+    dataset,
+    datafile,
     datatypes,
     fundamental,
     iterables,
@@ -44,8 +45,8 @@ def find_file_by_template(
 class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
     """A factory for EPREM array-indexing objects."""
 
-    def __init__(self, dataset: datasets.DatasetView) -> None:
-        self.variables = datasets.Variables(dataset)
+    def __init__(self, data: datafile.Interface) -> None:
+        self.variables = dataset.Variables(data)
         mass = self.variables['mass'].convert('nuc')
         charge = self.variables['charge'].convert('e')
         self.symbols = fundamental.elements(mass, charge)
@@ -74,7 +75,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
             },
         }
         mapping = {
-            dataset.axes.alias(name, include=True): indexer
+            data.axes.alias(name, include=True): indexer
             for name, indexer in indexers.items()
         }
         super().__init__(mapping)
@@ -184,7 +185,7 @@ class Observer(base.Observer):
     def dataset(self):
         """This observer's dataset."""
         if self._dataset is None:
-            self._dataset = datasets.Dataset(self.path, IndexerFactory)
+            self._dataset = dataset.Dataset(self.path, IndexerFactory)
         return self._dataset
 
     @property

@@ -4,7 +4,7 @@ import typing
 import pytest
 
 from goats.core import datafile
-from goats.core import datasets
+from goats.core import dataset
 
 
 def get_interface(testdata: dict, name: str) -> datafile.Interface:
@@ -12,9 +12,9 @@ def get_interface(testdata: dict, name: str) -> datafile.Interface:
     return datafile.Interface(testdata[name]['path'])
 
 
-def get_dataset(testdata: dict, name: str) -> datasets.Dataset:
+def get_dataset(testdata: dict, name: str) -> dataset.Dataset:
     """Get a dataset interface (without axis indexers) by name."""
-    return datasets.Dataset(testdata[name]['path'])
+    return dataset.Dataset(testdata[name]['path'])
 
 
 def get_reference(
@@ -48,7 +48,7 @@ def test_variables(testdata: dict):
     }
     for name in ('eprem-obs', 'eprem-flux'):
         datafile = get_interface(testdata, name)
-        variables = datasets.Variables(datafile)
+        variables = dataset.Variables(datafile)
         for observable, expected in reference.items():
             if observable in variables:
                 variable = variables[observable]
@@ -83,29 +83,29 @@ def test_dataset(testdata: dict):
         'mu': 5,
     }
     for name in ('eprem-obs', 'eprem-flux'):
-        dataset = get_dataset(testdata, name)
-        assert isinstance(dataset, datasets.Dataset)
-        assert isinstance(dataset.variables, typing.Mapping)
-        assert isinstance(dataset.axes, typing.Mapping)
+        ds = get_dataset(testdata, name)
+        assert isinstance(ds, dataset.Dataset)
+        assert isinstance(ds.variables, typing.Mapping)
+        assert isinstance(ds.axes, typing.Mapping)
         for key, length in axes.items():
-            axis = dataset.axes[key]
+            axis = ds.axes[key]
             assert key in axis.names
             assert list(axis()) == list(range(length))
         for observable, expected in reference.items():
-            if observable in dataset.variables:
-                iter_axes = dataset.iter_axes(observable)
+            if observable in ds.variables:
+                iter_axes = ds.iter_axes(observable)
                 assert sorted(iter_axes) == sorted(expected['axes'])
                 unordered = random.sample(axes.keys(), len(axes))
-                assert dataset.resolve_axes(unordered) == tuple(axes)
+                assert ds.resolve_axes(unordered) == tuple(axes)
             else: # Test both options when variable is not in dataset.
-                assert not list(dataset.iter_axes(observable, default=()))
+                assert not list(ds.iter_axes(observable, default=()))
                 with pytest.raises(ValueError):
-                    dataset.iter_axes(observable)
+                    ds.iter_axes(observable)
 
 
 def test_resolve_axes(testdata: dict):
     """Test the method that orders axes based on the dataset."""
-    dataset = get_dataset(testdata, 'eprem-obs')
+    ds = get_dataset(testdata, 'eprem-obs')
     # This is only a subset of the possible cases and there's probably a more
     # efficient way to build the collection.
     cases = [
@@ -147,8 +147,8 @@ def test_resolve_axes(testdata: dict):
         names = case['input']
         expected = case['output']
         result = (
-            dataset.resolve_axes(names, mode=case['mode']) if 'mode' in case
-            else dataset.resolve_axes(names)
+            ds.resolve_axes(names, mode=case['mode']) if 'mode' in case
+            else ds.resolve_axes(names)
         )
         assert result == expected
 
@@ -163,6 +163,6 @@ def test_standardize():
         '# / cm^2 s sr MeV': '# / (cm^2 s sr MeV/nuc)',
     }
     for old, new in cases.items():
-        assert datasets.standardize(old) == new
+        assert dataset.standardize(old) == new
 
 

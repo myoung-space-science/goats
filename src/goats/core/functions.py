@@ -6,7 +6,7 @@ import numpy
 from scipy import integrate
 
 from goats.core import aliased
-from goats.core import datasets
+from goats.core import dataset
 from goats.core import iterables
 from goats.core import numerical
 from goats.core import observables

@@ -2,7 +2,7 @@ import pytest
 import numpy
 
 from goats.core import aliased
-from goats.core import datasets
+from goats.core import dataset
 from goats.core import datatypes
 from goats import eprem
 
@@ -15,8 +15,7 @@ def datapath(datadirs: dict):
 
 def test_axes(datapath):
     """Test the axis-indexing objects."""
-    dataset = datasets.Dataset(datapath, eprem.IndexerFactory)
-    axes = dataset.axes
+    axes = dataset.Dataset(datapath, eprem.IndexerFactory).axes
     cases = {
         'time': {
             'type': datatypes.Coordinates,
@@ -92,8 +91,7 @@ def test_axes(datapath):
 
 def test_single_index(datapath):
     """Users should be able to provide a single numerical value."""
-    dataset = datasets.Dataset(datapath, eprem.IndexerFactory)
-    axes = dataset.axes
+    axes = dataset.Dataset(datapath, eprem.IndexerFactory).axes
     cases = {
         'time': {
             'input': 8640.0,
@@ -232,8 +230,7 @@ def test_variables(datapath):
             'aliases': ['dist', 'f'],
         },
     }
-    dataset = datasets.Dataset(datapath, eprem.IndexerFactory)
-    variables = dataset.variables
+    variables = dataset.Dataset(datapath, eprem.IndexerFactory).variables
     for name, expected in cases.items():
         variable = variables[name]
         assert variable.axes == expected['axes']

@@ -3,7 +3,7 @@ import typing
 import numpy as np
 
 from goats.core import aliased
-from goats.core import datasets
+from goats.core import dataset
 from goats.core import datatypes
 from goats.core import functions
 from goats.core import iterables
@@ -87,11 +87,11 @@ class Functions(aliased.Mapping):
 
     def __init__(
         self,
-        dataset: datasets.Dataset,
+        data: dataset.Dataset,
         arguments: parameters.Arguments,
     ) -> None:
         super().__init__(mapping=functions.METHODS)
-        self.dataset = dataset
+        self.dataset = data
         self._primary = (
             *tuple(self.dataset.variables.keys()),
             *tuple(arguments.keys()),
