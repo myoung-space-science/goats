@@ -7,7 +7,6 @@ import numpy
 from goats.core import aliased
 from goats.core import datatypes
 from goats.core import iterables
-from goats.core import metric
 
 
 _constants = {
@@ -142,11 +141,8 @@ CONSTANTS = aliased.Mapping(_normalize(_constants))
 
 class Constants(collections.abc.Mapping):
     """Definitions of fundamental constants in a given metric system."""
-    def __init__(
-        self,
-        system: typing.Union[str, metric.System],
-    ) -> None:
-        self.system = str(system).lower()
+    def __init__(self, system: str) -> None:
+        self.system = system.lower()
         self._mapping = CONSTANTS.copy()
 
     def __len__(self) -> int:
