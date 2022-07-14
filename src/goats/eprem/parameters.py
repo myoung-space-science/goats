@@ -55,10 +55,10 @@ import json
 
 from goats.core import algebraic
 from goats.core import aliased
-from goats.core import datatypes
 from goats.core import iotools
 from goats.core import iterables
 from goats.core import numerical
+from goats.core import parameter
 
 
 class BaseTypeDef:
@@ -741,14 +741,14 @@ class Arguments(aliased.Mapping):
     def __getitem__(self, key: str):
         """Get the value (and unit, if applicable) of a named parameter."""
         try:
-            parameter = super().__getitem__(key)
+            this = super().__getitem__(key)
         except KeyError:
             raise KeyError(f"No parameter corresponding to '{key}'") from None
-        value = parameter['value']
+        value = this['value']
         aliases = self.alias(key, include=True)
-        if unit := parameter['unit']:
-            return datatypes.Assumption(value, unit=unit, name=aliases)
-        return datatypes.Option(value, name=aliases)
+        if unit := this['unit']:
+            return parameter.Assumption(value, unit=unit, name=aliases)
+        return parameter.Option(value, name=aliases)
 
     def _build_mapping(self, runtime: Runtime):
         """Build the mapping of available parameters."""

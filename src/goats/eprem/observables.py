@@ -11,6 +11,7 @@ from goats.core import iterables
 from goats.core import measurable
 from goats.core import dataset
 from goats.core import datatypes
+from goats.core import parameter
 from goats.eprem import functions
 from goats.eprem import parameters
 from goats.eprem import interpolation
@@ -277,7 +278,7 @@ class Interface(base.Interface):
         self.assumptions = aliased.MutableMapping(
             {
                 k: v for k, v in self.dependencies.items(aliased=True)
-                if isinstance(v, datatypes.Assumption)
+                if isinstance(v, parameter.Assumption)
             }
         )
         self.observables = aliased.MutableMapping(
@@ -334,7 +335,7 @@ class Interface(base.Interface):
         """Make sure `this` is a `~measurable.Scalar`."""
         if isinstance(this, measurable.Scalar):
             return this
-        if isinstance(this, datatypes.Assumption):
+        if isinstance(this, parameter.Assumption):
             return this[0]
         if isinstance(this, measurable.Measurement):
             return datatypes.Scalar(this.values[0], unit=this.unit)
