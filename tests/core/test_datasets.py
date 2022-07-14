@@ -12,9 +12,9 @@ def get_interface(testdata: dict, name: str) -> datafile.Interface:
     return datafile.Interface(testdata[name]['path'])
 
 
-def get_dataset(testdata: dict, name: str) -> dataset.Dataset:
+def get_dataset(testdata: dict, name: str) -> dataset.Interface:
     """Get a dataset interface (without axis indexers) by name."""
-    return dataset.Dataset(testdata[name]['path'])
+    return dataset.Interface(testdata[name]['path'])
 
 
 def get_reference(
@@ -84,7 +84,7 @@ def test_dataset(testdata: dict):
     }
     for name in ('eprem-obs', 'eprem-flux'):
         ds = get_dataset(testdata, name)
-        assert isinstance(ds, dataset.Dataset)
+        assert isinstance(ds, dataset.Interface)
         assert isinstance(ds.variables, typing.Mapping)
         assert isinstance(ds.axes, typing.Mapping)
         for key, length in axes.items():

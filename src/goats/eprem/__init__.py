@@ -185,7 +185,7 @@ class Observer(base.Observer):
     def dataset(self):
         """This observer's dataset."""
         if self._dataset is None:
-            self._dataset = dataset.Dataset(self.path, IndexerFactory)
+            self._dataset = dataset.Interface(self.path, IndexerFactory)
         return self._dataset
 
     @property

@@ -261,7 +261,7 @@ class Interface(base.Interface):
     def __init__(
         self,
         implementation: Implementation,
-        data: dataset.Dataset,
+        data: dataset.Interface,
         dependencies: typing.Mapping[str, Dependency]=None,
     ) -> None:
         self.implementation = implementation
@@ -392,7 +392,7 @@ class Observables(iterables.MappingBase):
 
     def __init__(
         self,
-        data: dataset.Dataset,
+        data: dataset.Interface,
         arguments: parameters.Arguments,
     ) -> None:
         self.variables = data.variables

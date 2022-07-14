@@ -98,7 +98,7 @@ class Axes(aliased.Mapping):
         return datatypes.Axis(size, indexer, *names)
 
 
-class Dataset:
+class Interface:
     """The user interface to a dataset."""
 
     def __init__(

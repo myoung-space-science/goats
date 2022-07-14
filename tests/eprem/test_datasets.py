@@ -15,7 +15,7 @@ def datapath(datadirs: dict):
 
 def test_axes(datapath):
     """Test the axis-indexing objects."""
-    axes = dataset.Dataset(datapath, eprem.IndexerFactory).axes
+    axes = dataset.Interface(datapath, eprem.IndexerFactory).axes
     cases = {
         'time': {
             'type': datatypes.Coordinates,
@@ -91,7 +91,7 @@ def test_axes(datapath):
 
 def test_single_index(datapath):
     """Users should be able to provide a single numerical value."""
-    axes = dataset.Dataset(datapath, eprem.IndexerFactory).axes
+    axes = dataset.Interface(datapath, eprem.IndexerFactory).axes
     cases = {
         'time': {
             'input': 8640.0,
@@ -230,7 +230,7 @@ def test_variables(datapath):
             'aliases': ['dist', 'f'],
         },
     }
-    variables = dataset.Dataset(datapath, eprem.IndexerFactory).variables
+    variables = dataset.Interface(datapath, eprem.IndexerFactory).variables
     for name, expected in cases.items():
         variable = variables[name]
         assert variable.axes == expected['axes']

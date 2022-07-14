@@ -87,7 +87,7 @@ class Functions(aliased.Mapping):
 
     def __init__(
         self,
-        data: dataset.Dataset,
+        data: dataset.Interface,
         arguments: parameters.Arguments,
     ) -> None:
         super().__init__(mapping=functions.METHODS)
