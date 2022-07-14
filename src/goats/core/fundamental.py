@@ -1,4 +1,5 @@
 import argparse
+import collections.abc
 import typing
 
 import numpy
@@ -139,24 +140,38 @@ def _normalize(defined: typing.Dict[str, dict]):
 CONSTANTS = aliased.Mapping(_normalize(_constants))
 
 
-class Constants(iterables.MappingBase):
-    """A class to manage sets of physical constants."""
+class Constants(collections.abc.Mapping):
+    """Definitions of fundamental constants in a given metric system."""
     def __init__(
         self,
         system: typing.Union[str, metric.System],
     ) -> None:
         self.system = str(system).lower()
-        self._mapping = _CONSTANTS.copy()
-        super().__init__(self._mapping)
+        self._mapping = CONSTANTS.copy()
+
+    def __len__(self) -> int:
+        """The number of defined constants."""
+        return len(self._mapping)
+
+    def __iter__(self) -> typing.Iterator:
+        """Iterate over defined constants."""
+        return iter(self._mapping)
 
     def __getitem__(self, name: str):
         """Create the named constant or raise an error."""
         if name in self._mapping:
-            definition = self._mapping[name][self.system]
-            value = definition['value']
-            unit = definition['unit']
-            return datatypes.Scalar(value, unit=unit)
+            found = self._get_attributes(name)
+            return datatypes.Scalar(found['value'], unit=found['unit'])
         raise KeyError(name)
+
+    def _get_attributes(self, name: str) -> dict:
+        """Get the value and unit for a named constant, if possible."""
+        definition = self._mapping[name]
+        if 'all' in definition:
+            return {'value': definition['all'], 'unit': None}
+        if this := definition.get(self.system):
+            return this
+        raise ValueError(f"Unknown constant: {name!r}")
 
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
