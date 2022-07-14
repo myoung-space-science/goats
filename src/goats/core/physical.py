@@ -154,7 +154,7 @@ cgs = Constants('cgs')
 mks = Constants('mks')
 
 
-_ELEMENTS = [
+_elements = [
     {'symbol': 'H', 'name': 'Hydrogen', 'mass': 1.00797},
     {'symbol': 'He', 'name': 'Helium', 'mass': 4.00260},
     {'symbol': 'Li', 'name': 'Lithium', 'mass': 6.941},
@@ -266,11 +266,11 @@ _ELEMENTS = [
     {'symbol': 'Sg', 'name': 'Seaborgium', 'mass': (263)},
 ]
 
-_elements = iterables.Table(_ELEMENTS)
+ELEMENTS = iterables.Table(_elements)
 
 _nucleons = {
     element['symbol']: round(element['mass'])
-    for element in _elements
+    for element in ELEMENTS
 }
 
 def elements(
@@ -305,7 +305,7 @@ def get_mass_indices(
     nucleons: typing.Dict[str, int],
     targets: typing.Iterable,
 ) -> list:
-    """Get the indices in `_elements` corresponding to the given masses."""
+    """Get the indices in `ELEMENTS` corresponding to the given masses."""
     def get_index(this: list, that: int):
         try:
             return this.index(that)
@@ -329,7 +329,7 @@ def _show_constants():
 
 def _show_elements():
     """Print all known chemical elements."""
-    _elements.show(names=['symbol', 'name', 'mass'])
+    ELEMENTS.show(names=['symbol', 'name', 'mass'])
 
 
 def show(*subsets):

@@ -31,7 +31,7 @@ class Species(iterables.ReprStrMixin):
         """The mass of this species."""
         if self._mass is None:
             base = self._symbol.rstrip('+-')
-            element = physical._elements.find(base, unique=True)
+            element = physical.ELEMENTS.find(base, unique=True)
             value = element['mass']
             unit = 'nucleon'
             aliases = ['m', 'mass']
