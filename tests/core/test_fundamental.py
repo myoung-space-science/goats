@@ -5,7 +5,7 @@ from goats.core import fundamental
 
 def test_constants():
     """Test the object that represents physical constants."""
-    for key, data in fundamental._CONSTANTS.items():
+    for key, data in fundamental.CONSTANTS.items(aliased=True):
         for system in ('mks', 'cgs'):
             d = data[system]
             mapping = fundamental.Constants(system)

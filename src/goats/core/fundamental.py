@@ -3,16 +3,17 @@ import typing
 
 import numpy
 
+from goats.core import aliased
 from goats.core import datatypes
 from goats.core import iterables
 from goats.core import metric
 
 
-# TODO: Redefine these items to allow constants that aren't tied to a unit
-# system (e.g., pi). The most obvious solution is to swap the order of the
-# system name with 'value' and 'unit'. That will mean writing the system name
-# twice for the constants defined below but the flexibility may be worth it.
-_CONSTANTS = {
+_constants = {
+    'pi': {
+        'info': "The ratio of a circle's circumference to its diameter.",
+        'all': numpy.pi,
+    },
     'k': {
         'info': "Boltzmann's constant.",
         'mks': {'unit': 'J / K', 'value': 1.3807e-23},
@@ -114,16 +115,28 @@ _CONSTANTS = {
         'cgs': {'unit': 'cm', 'value': 1.495978707e13},
     },
 }
-_CONSTANTS['H+'] = {
+_constants['H+'] = {
     'info': "First ionization energy of hydrogen.",
     **{
         k: {
-            'unit': _CONSTANTS['eV'][k]['unit'],
-            'value': 13.6 * _CONSTANTS['eV'][k]['value'],
+            'unit': _constants['eV'][k]['unit'],
+            'value': 13.6 * _constants['eV'][k]['value'],
         }
         for k in ('mks', 'cgs')
     }
 }
+def _normalize(defined: typing.Dict[str, dict]):
+    """Normalize constant definitions."""
+    systems = ('mks', 'cgs')
+    norm = {}
+    for key, definition in defined.items():
+        if 'all' in definition:
+            value = definition.pop('all')
+            new = {k: {'unit': '1', 'value': value} for k in systems}
+            definition.update(new)
+        norm[key] = definition
+    return norm
+CONSTANTS = aliased.Mapping(_normalize(_constants))
 
 
 class Constants(iterables.MappingBase):
@@ -318,7 +331,7 @@ def get_mass_indices(
 
 def _show_constants():
     """Print all defined physical constants."""
-    for key, data in _CONSTANTS.items():
+    for key, data in CONSTANTS.items(aliased=True):
         print(f"{key}: {data['info']}")
         for system in ('mks', 'cgs'):
             value = data[system]['value']
