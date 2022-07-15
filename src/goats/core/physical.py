@@ -251,7 +251,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         user: typing.Sequence,
     ) -> typing.Tuple[slice, ...]:
         """Expand an ``Ellipsis`` into one or more ``slice`` objects."""
-        if Ellipsis not in user:
+        if all(idx is not Ellipsis for idx in user):
             return user
         length = self.ndim - len(user) + 1
         start = user.index(Ellipsis)
