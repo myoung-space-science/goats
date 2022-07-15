@@ -386,16 +386,10 @@ class Axes(aliased.Mapping):
 class Interface:
     """The user interface to a dataset."""
 
-    def __init__(
-        self,
-        path: iotools.PathLike,
-        indexers: typing.Type[Indexers]=None,
-    ) -> None:
+    def __init__(self, path: iotools.PathLike) -> None:
         self.path = path
         self.view = datafile.Interface(path)
-        self.indexers = indexers or Indexers
         self._variables = None
-        self._axes = None
 
     @property
     def variables(self):
@@ -403,13 +397,6 @@ class Interface:
         if self._variables is None:
             self._variables = Variables(self.view)
         return self._variables
-
-    @property
-    def axes(self):
-        """Objects representing the axes in this dataset."""
-        if self._axes is None:
-            self._axes = Axes(self.view, self.indexers)
-        return self._axes
 
     Default = typing.TypeVar('Default')
 
@@ -439,16 +426,6 @@ class Interface:
         if mode == 'append':
             return ordered + extra
         raise ValueError(f"Unrecognized mode {mode!r}")
-
-    def get_indices(self, name: str, **user):
-        """Extract indexing objects for the named variable."""
-        variable = self.variables.get(name)
-        if not variable:
-            return ()
-        return tuple(
-            self.axes[axis](*user.get(axis, ()))
-            for axis in variable.axes
-        )
 
 
 substitutions = {

@@ -121,11 +121,6 @@ def test_dataset(testdata: dict):
         ds = get_dataset(testdata, name)
         assert isinstance(ds, dataset.Interface)
         assert isinstance(ds.variables, typing.Mapping)
-        assert isinstance(ds.axes, typing.Mapping)
-        for key, length in axes.items():
-            axis = ds.axes[key]
-            assert key in axis.name
-            assert list(axis()) == list(range(length))
         for observable, expected in reference.items():
             if observable in ds.variables:
                 iter_axes = ds.iter_axes(observable)

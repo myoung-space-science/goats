@@ -143,6 +143,36 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
         return ', '.join(str(key) for key in self.keys(aliased=True))
 
 
+class Dataset(dataset.Interface):
+    """Interface to an EPREM dataset."""
+
+    def __init__(
+        self,
+        path: iotools.PathLike,
+        indexers: typing.Type[IndexerFactory],
+    ) -> None:
+        super().__init__(path)
+        self.indexers = indexers
+        self._axes = None
+
+    @property
+    def axes(self):
+        """Objects representing the axes in this dataset."""
+        if self._axes is None:
+            self._axes = dataset.Axes(self.view, self.indexers)
+        return self._axes
+
+    def get_indices(self, name: str, **user):
+        """Extract indexing objects for the named variable."""
+        variable = self.variables.get(name)
+        if not variable:
+            return ()
+        return tuple(
+            self.axes[axis](*user.get(axis, ()))
+            for axis in variable.axes
+        )
+
+
 class Observer(base.Observer):
     """Base class for EPREM observers."""
 
@@ -185,7 +215,7 @@ class Observer(base.Observer):
     def dataset(self):
         """This observer's dataset."""
         if self._dataset is None:
-            self._dataset = dataset.Interface(self.path, IndexerFactory)
+            self._dataset = Dataset(self.path, IndexerFactory)
         return self._dataset
 
     @property
