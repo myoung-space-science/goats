@@ -138,7 +138,7 @@ class Functions(aliased.Mapping):
         """Recursively gather appropriate axes."""
         for parameter in target.parameters:
             if parameter in self.dataset.variables:
-                axes = self.dataset.iter_axes(parameter)
+                axes = self.dataset.variables[parameter].axes
                 self._accumulated.extend(axes)
             elif method := self.get_method(parameter):
                 self._removed.extend(self._get_metadata(method, 'removed'))

@@ -398,18 +398,6 @@ class Interface:
             self._variables = Variables(self.view)
         return self._variables
 
-    Default = typing.TypeVar('Default')
-
-    def iter_axes(self, name: str, default: Default=None):
-        """Iterate over the axes for the named variable."""
-        if name in self.variables:
-            return iter(self.variables[name].axes)
-        if default is not None:
-            return default
-        raise ValueError(
-            f"Can't iterate over axes of missing variable {name!r}"
-        ) from None
-
     def resolve_axes(
         self,
         names: typing.Iterable[str],

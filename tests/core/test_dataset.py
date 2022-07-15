@@ -121,16 +121,10 @@ def test_dataset(testdata: dict):
         ds = get_dataset(testdata, name)
         assert isinstance(ds, dataset.Interface)
         assert isinstance(ds.variables, typing.Mapping)
-        for observable, expected in reference.items():
+        for observable in reference:
             if observable in ds.variables:
-                iter_axes = ds.iter_axes(observable)
-                assert sorted(iter_axes) == sorted(expected['axes'])
                 unordered = random.sample(axes.keys(), len(axes))
                 assert ds.resolve_axes(unordered) == tuple(axes)
-            else: # Test both options when variable is not in dataset.
-                assert not list(ds.iter_axes(observable, default=()))
-                with pytest.raises(ValueError):
-                    ds.iter_axes(observable)
 
 
 def test_resolve_axes(testdata: dict):
