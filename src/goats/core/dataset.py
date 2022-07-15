@@ -9,7 +9,6 @@ import numpy.typing
 from goats.core import aliased
 from goats.core import datafile
 from goats.core import iotools
-from goats.core import indexing
 from goats.core import iterables
 from goats.core import measurable
 from goats.core import metric
@@ -246,6 +245,22 @@ class Indices(physical.Quantity):
         raise TypeError("Can't convert null unit") from None
 
 
+class Indexer:
+    """A callable object that generates array indices from user arguments."""
+
+    def __init__(
+        self,
+        method: typing.Callable[..., Indices],
+        reference: numpy.typing.ArrayLike,
+    ) -> None:
+        self.method = method
+        self.reference = reference
+
+    def __call__(self, targets, **kwargs):
+        """Call the array-indexing method."""
+        return self.method(targets, **kwargs)
+
+
 Instance = typing.TypeVar('Instance', bound='Axis')
 
 
@@ -255,7 +270,7 @@ class Axis(iterables.ReprStrMixin, metadata.NameMixin):
     @typing.overload
     def __init__(
         self: Instance,
-        indexer: indexing.Indexer,
+        indexer: Indexer,
         size: int,
         *,
         name: str=None,
@@ -282,7 +297,7 @@ class Axis(iterables.ReprStrMixin, metadata.NameMixin):
 
     Attrs = typing.TypeVar('Attrs', bound=tuple)
     Attrs = typing.Tuple[
-        indexing.Indexer,
+        Indexer,
         int,
         aliased.MappingKey,
     ]
@@ -341,12 +356,12 @@ class Indexers(aliased.Mapping):
         self.references = {}
         super().__init__(dataset.axes)
 
-    def __getitem__(self, key: str) -> indexing.Indexer:
+    def __getitem__(self, key: str) -> Indexer:
         """Get the default indexer for `key`."""
         axis = super().__getitem__(key)
         reference = range(axis.size)
         method = lambda _: Indices(reference)
-        return indexing.Indexer(method, reference)
+        return Indexer(method, reference)
 
 
 class Axes(aliased.Mapping):

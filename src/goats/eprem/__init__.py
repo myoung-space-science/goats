@@ -12,7 +12,6 @@ from ..core import (
     dataset,
     datafile,
     fundamental,
-    indexing,
     iterables,
     iotools,
     measurable,
@@ -81,9 +80,9 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
         }
         super().__init__(mapping)
 
-    def __getitem__(self, key: str) -> indexing.Indexer:
+    def __getitem__(self, key: str) -> dataset.Indexer:
         this = super().__getitem__(key)
-        return indexing.Indexer(this['method'], this['reference'])
+        return dataset.Indexer(this['method'], this['reference'])
 
     def _build_time(self, targets):
         """Build the time-axis indexer."""
