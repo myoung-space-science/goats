@@ -96,7 +96,7 @@ def test_dataset(testdata: dict):
         assert isinstance(ds.axes, typing.Mapping)
         for key, length in axes.items():
             axis = ds.axes[key]
-            assert key in axis.names
+            assert key in axis.name
             assert list(axis()) == list(range(length))
         for observable, expected in reference.items():
             if observable in ds.variables:

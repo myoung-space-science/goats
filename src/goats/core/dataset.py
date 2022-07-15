@@ -199,41 +199,41 @@ class Variables(aliased.Mapping):
 Instance = typing.TypeVar('Instance', bound='Axis')
 
 
-class Axis(iterables.ReprStrMixin):
+class Axis(iterables.ReprStrMixin, metadata.NameMixin):
     """A single dataset axis."""
 
     @typing.overload
     def __init__(
         self: Instance,
-        size: int,
         indexer: indexing.Indexer,
-        *names: str,
+        size: int,
+        *,
+        name: str=None,
     ) -> None:
-        """Create a new axis."""
+        """Create a new axis from scratch."""
 
     @typing.overload
     def __init__(
         self: Instance,
         instance: Instance,
     ) -> None:
-        """Create a new axis."""
+        """Create a new axis from an existing instance."""
 
     def __init__(self, *args, **kwargs) -> None:
         parsed = self._parse(*args, **kwargs)
-        size, indexer, names = parsed
-        self.size = size
-        """The full length of this axis."""
+        indexer, size, name = parsed
         self.indexer = indexer
         """A callable object that creates indices from user input."""
-        self.names = names
-        """The valid names for this axis."""
+        self.size = size
+        """The full length of this axis."""
+        self._name = name
         self.reference = indexer.reference
         """The index reference values."""
 
     Attrs = typing.TypeVar('Attrs', bound=tuple)
     Attrs = typing.Tuple[
-        int,
         indexing.Indexer,
+        int,
         aliased.MappingKey,
     ]
 
@@ -243,11 +243,11 @@ class Axis(iterables.ReprStrMixin):
             instance = args[0]
             return tuple(
                 getattr(instance, name)
-                for name in ('size', 'indexer', 'names')
+                for name in ('indexer', 'size', 'name')
             )
-        size, indexer, *args = args
-        names = aliased.MappingKey(args or ())
-        return size, indexer, names
+        indexer, size = args
+        name = metadata.Name(kwargs.get('name') or '')
+        return indexer, size, name
 
     def __call__(self, *args, **kwargs):
         """Convert user arguments into an index object."""
@@ -272,7 +272,7 @@ class Axis(iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        string = f"'{self.names}': size={self.size}"
+        string = f"'{self.name}': size={self.size}"
         unit = (
             str(self.reference.unit)
             if isinstance(self.reference, measurable.Quantity)
@@ -314,8 +314,8 @@ class Axes(aliased.Mapping):
     def __getitem__(self, key: str) -> Axis:
         indexer = super().__getitem__(key)
         size = self.dataset.axes[key].size
-        names = observables.ALIASES.get(key, [key])
-        return Axis(size, indexer, *names)
+        name = observables.ALIASES.get(key, [key])
+        return Axis(indexer, size, name=name)
 
 
 class Interface:
