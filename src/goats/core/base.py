@@ -12,7 +12,6 @@ from goats.core import dataset
 from goats.core import iterables
 from goats.core import measurable
 from goats.core import metadata
-from goats.core import indexing
 from goats.core import spelling
 
 
@@ -34,7 +33,7 @@ class Observation(iterables.ReprStrMixin):
     def __init__(
         self,
         data: dataset.Variable,
-        indices: typing.Mapping[str, indexing.Indices],
+        indices: typing.Mapping[str, dataset.Indices],
         assumptions: typing.Mapping[str, measurable.Scalar]=None,
     ) -> None:
         self._data = data
@@ -127,8 +126,8 @@ class Observation(iterables.ReprStrMixin):
         data = np.squeeze(self)
         if xaxis in self._indices:
             indices = self._indices[xaxis]
-            if isinstance(indices, indexing.Coordinates):
-                xarr = np.array(indices.values)
+            if indices.unit is not None:
+                xarr = np.array(indices.data)
             else:
                 xarr = tuple(indices)
         else:

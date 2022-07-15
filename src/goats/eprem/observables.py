@@ -6,7 +6,6 @@ from goats.core import base
 from goats.core import aliased
 from goats.core import metric
 from goats.core import algebraic
-from goats.core import indexing
 from goats.core import iterables
 from goats.core import measurable
 from goats.core import dataset
@@ -88,7 +87,7 @@ class Application:
 
     def __init__(
         self,
-        indices: typing.Mapping[str, indexing.Indices],
+        indices: typing.Mapping[str, dataset.Indices],
         assumptions: typing.Mapping[str, Assumption],
         observables: typing.Mapping[str, Observable],
         reference: typing.Mapping[str, Reference],
@@ -153,10 +152,10 @@ class Application:
     def _need_interp(self, axis: str):
         """True if we need to interpolate over this axis."""
         index = self.indices[axis]
-        if not isinstance(index, indexing.Coordinates):
+        if index.unit is None:
             return False
         reference = self.reference[axis]
-        targets = np.array(index.values)
+        targets = np.array(index.data)
         refarr = np.array(reference)
         available = [self._in_array(target, refarr) for target in targets]
         return not np.all(available)
@@ -176,11 +175,11 @@ class Application:
         array = None
         coordinates = {
             axis: {
-                'targets': np.array(indices.values),
+                'targets': np.array(indices.data),
                 'reference': self.reference[axis],
             }
             for axis, indices in self.indices.items()
-            if axis in axes and isinstance(indices, indexing.Coordinates)
+            if axis in axes and indices.unit is not None
         }
         if 'radius' in self.assumptions:
             radii = iterables.whole(self.assumptions['radius'])
@@ -307,10 +306,10 @@ class Interface(base.Interface):
 
     def _update_index(self, key: str, indices):
         """Update a single indexing object based on user input."""
-        if not isinstance(indices, indexing.Indices):
+        if not isinstance(indices, dataset.Indices):
             axis = self.axes[key]
             indices = axis(*iterables.whole(indices))
-        if isinstance(indices, indexing.Coordinates):
+        if indices.unit is not None:
             unit = MKS.get_unit(unit=indices.unit)
             return indices.convert(unit)
         return indices

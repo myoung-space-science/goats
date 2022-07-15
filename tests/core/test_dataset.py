@@ -66,6 +66,34 @@ def test_variables(testdata: dict):
                     variables[observable]
 
 
+def test_indices_equality():
+    """Test the binary equality operator for various indices."""
+    indices = ([1, 2], [3, 4])
+    orig = dataset.Indices(indices[0])
+    same = dataset.Indices(indices[0])
+    diff = dataset.Indices(indices[1])
+    assert orig == same
+    assert orig != diff
+    values = ([-1, -2], [-3, -4])
+    orig = dataset.Indices(indices[0], values=values[0])
+    same = dataset.Indices(indices[0], values=values[0])
+    diff = dataset.Indices(indices[0], values=values[1])
+    assert orig == same
+    assert orig != diff
+    diff = dataset.Indices(indices[1], values=values[1])
+    assert orig != diff
+    unit = ('m', 'J')
+    orig = dataset.Indices(indices[0], values=values[0], unit=unit[0])
+    same = dataset.Indices(indices[0], values=values[0], unit=unit[0])
+    diff = dataset.Indices(indices[0], values=values[0], unit=unit[1])
+    assert orig == same
+    assert orig != diff
+    diff = dataset.Indices(indices[0], values=values[1], unit=unit[1])
+    assert orig != diff
+    diff = dataset.Indices(indices[1], values=values[1], unit=unit[1])
+    assert orig != diff
+
+
 def test_dataset(testdata: dict):
     """Test the full higher-level dataset interface."""
     reference = {

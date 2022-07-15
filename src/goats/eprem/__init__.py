@@ -91,7 +91,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
 
     def _build_shell(self, targets):
         """Build the shell-axis indexer."""
-        return indexing.Indices(targets)
+        return dataset.Indices(targets)
 
     def _build_species(self, targets):
         """Build the species-axis indexer."""
@@ -104,7 +104,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
             elif isinstance(target, numbers.Integral):
                 indices.append(target)
                 symbols.append(self.symbols[target])
-        return indexing.IndexMap(indices, targets)
+        return dataset.Indices(indices, values=targets)
 
     def _build_energy(self, targets, species: typing.Union[str, int]=0):
         """Build the energy-axis indexer."""
@@ -124,7 +124,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
         self,
         targets: numpy.typing.ArrayLike,
         reference: dataset.Variable,
-    ) -> indexing.Coordinates:
+    ) -> dataset.Indices:
         """Build an arbitrary coordinate object."""
         result = measurable.measure(targets)
         array = physical.Array(result.values, unit=result.unit)
@@ -137,7 +137,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
             numerical.find_nearest(reference, float(value)).index
             for value in values
         ]
-        return indexing.Coordinates(indices, values, reference.unit)
+        return dataset.Indices(indices, values=values, unit=reference.unit)
 
 
     def __str__(self) -> str:
@@ -257,7 +257,7 @@ class Observer(base.Observer):
         """Get the index-like object for this axis."""
         axis = self.dataset.axes[name]
         values = axis(**kwargs)
-        if unit and isinstance(values, indexing.Coordinates):
+        if unit and values.unit is not None:
             return values.with_unit(unit)
         return values
 

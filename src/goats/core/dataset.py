@@ -8,15 +8,14 @@ import numpy.typing
 
 from goats.core import aliased
 from goats.core import datafile
-from goats.core import physical
-from goats.core import indexing
 from goats.core import iotools
 from goats.core import indexing
 from goats.core import iterables
-from goats.core import observables
 from goats.core import measurable
 from goats.core import metric
 from goats.core import metadata
+from goats.core import observables
+from goats.core import physical
 
 
 Instance = typing.TypeVar('Instance', bound='Variable')
@@ -196,6 +195,57 @@ class Variables(aliased.Mapping):
         return result
 
 
+Instance = typing.TypeVar('Instance', bound='Indices')
+
+
+class Indices(physical.Quantity):
+    """A sequence of values that can index an array."""
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        __indices: typing.Iterable[numbers.Integral],
+        *,
+        values: typing.Iterable[numbers.Real]=None,
+        unit: metadata.UnitLike=None,
+        name: typing.Union[str, typing.Iterable[str]]=None,
+    ) -> None: ...
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        instance: Instance,
+    ) -> None: ...
+
+    def __init__(self, __indices, **meta) -> None:
+        """Initialize this instance from arguments or an existing instance."""
+        data = meta.pop('values', __indices)
+        super().__init__(data, **meta)
+        if not all(isinstance(i, numbers.Integral) for i in __indices):
+            raise ValueError("All indices must have integral type") from None
+        self.indices = tuple(__indices)
+        """The integral index values."""
+        self._unit = meta.get('unit')
+
+    def __getitem__(self, __i: typing.SupportsIndex):
+        """Called for index look-up and iteration."""
+        return self.indices[__i]
+
+    def __len__(self):
+        """Called for len(self) and iteration."""
+        return len(self.indices)
+
+    @property
+    def unit(self):
+        if self._unit is not None:
+            return super().unit
+
+    def apply_conversion(self, new: metadata.Unit):
+        if self._unit is not None:
+            return super().apply_conversion(new)
+        raise TypeError("Can't convert null unit") from None
+
+
 Instance = typing.TypeVar('Instance', bound='Axis')
 
 
@@ -249,11 +299,11 @@ class Axis(iterables.ReprStrMixin, metadata.NameMixin):
         name = metadata.Name(kwargs.get('name') or '')
         return indexer, size, name
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Indices:
         """Convert user arguments into an index object."""
         targets = self._normalize(*args)
         if all(isinstance(value, numbers.Integral) for value in targets):
-            return indexing.Indices(targets)
+            return Indices(targets)
         return self.indexer(targets, **kwargs)
 
     def _normalize(self, *user):
@@ -295,7 +345,7 @@ class Indexers(aliased.Mapping):
         """Get the default indexer for `key`."""
         axis = super().__getitem__(key)
         reference = range(axis.size)
-        method = lambda _: indexing.Indices(reference)
+        method = lambda _: Indices(reference)
         return indexing.Indexer(method, reference)
 
 

@@ -3,8 +3,6 @@ import numpy
 
 from goats.core import aliased
 from goats.core import dataset
-from goats.core import physical
-from goats.core import indexing
 from goats import eprem
 
 
@@ -19,7 +17,6 @@ def test_axes(datapath):
     axes = dataset.Interface(datapath, eprem.IndexerFactory).axes
     cases = {
         'time': {
-            'type': indexing.Coordinates,
             'length': 50,
             'test': {
                 'user': (0.1, 0.3, 'day'),
@@ -28,7 +25,6 @@ def test_axes(datapath):
             },
         },
         'shell': {
-            'type': indexing.Indices,
             'length': 2000,
             'test': {
                 'user': (0, 2),
@@ -36,7 +32,6 @@ def test_axes(datapath):
             },
         },
         'species': {
-            'type': indexing.IndexMap,
             'length': 1,
             'test': {
                 'user': ['H+'],
@@ -45,7 +40,6 @@ def test_axes(datapath):
             },
         },
         'energy': {
-            'type': indexing.Coordinates,
             'length': 20,
             'test': {
                 'user': (1e-1, 1e2, 'MeV'),
@@ -54,7 +48,6 @@ def test_axes(datapath):
             },
         },
         'mu': {
-            'type': indexing.Coordinates,
             'length': 8,
             'test': {
                 'user': (-1.0, +1.0),
@@ -67,27 +60,27 @@ def test_axes(datapath):
         if name != 'energy':
             axis = axes[name]
             full = axis()
-            assert isinstance(full, expected['type'])
+            assert isinstance(full, dataset.Indices)
             assert len(full) == expected['length']
             test = expected['test']
             user = axis(*test['user'])
             assert list(user) == test['indices']
-            if isinstance(user, indexing.IndexMap):
-                assert list(user.values) == test['values']
-            if isinstance(user, indexing.Coordinates):
-                assert numpy.allclose(user.values, test['values'])
+            if user.unit is not None:
+                assert numpy.allclose(user.data, test['values'])
+            elif any(i != j for i, j in zip(user.data, user.indices)):
+                assert list(user.data) == test['values']
     name = 'energy'
     expected = cases['energy']
     species = axes['species']
     for s in species():
         axis = axes[name]
         full = axis(species=s)
-        assert isinstance(full, expected['type'])
+        assert isinstance(full, dataset.Indices)
         assert len(full) == expected['length']
         test = expected['test']
         user = axis(*test['user'])
         assert list(user) == test['indices']
-        assert numpy.allclose(user.values, test['values'])
+        assert numpy.allclose(user.data, test['values'])
 
 
 def test_single_index(datapath):
@@ -127,7 +120,7 @@ def test_single_index(datapath):
         result = axis(expected['input'])
         assert list(result) == expected['index']
         if 'value' in expected:
-            assert list(result.values) == expected['value']
+            assert list(result.data) == expected['value']
         if 'unit' in expected:
             assert result.unit == expected['unit']
 
