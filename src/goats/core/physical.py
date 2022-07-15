@@ -96,6 +96,10 @@ class Vector(Quantity):
         array = numpy.asfarray(list(iterables.whole(__data)))
         super().__init__(array, **meta)
 
+    def __iter__(self) -> typing.Iterator:
+        """Called for iter(self)."""
+        return iter(self.data)
+
     def __len__(self) -> int:
         """Called for len(self)."""
         return len(self.data)
