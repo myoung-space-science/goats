@@ -191,8 +191,11 @@ class SubsetKeys(typing.NamedTuple):
     """A subset of names of attributes."""
 
     full: typing.Tuple[str]
+    """Every attribute's names and aliases in a flat sequence."""
     aliased: typing.Tuple[aliased.MappingKey]
+    """Groups of aliases for each attribute."""
     canonical: typing.Tuple[str]
+    """The (unaliased) name of each attribute as defined on disk."""
 
 
 class Interface(iterables.ReprStrMixin, metaclass=iotools.PathSet):
