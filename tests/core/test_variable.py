@@ -61,34 +61,6 @@ def test_variables(testdata: dict):
                     variables[observable]
 
 
-def test_indices_equality():
-    """Test the binary equality operator for various indices."""
-    indices = ([1, 2], [3, 4])
-    orig = variable.Indices(indices[0])
-    same = variable.Indices(indices[0])
-    diff = variable.Indices(indices[1])
-    assert orig == same
-    assert orig != diff
-    values = ([-1, -2], [-3, -4])
-    orig = variable.Indices(indices[0], values=values[0])
-    same = variable.Indices(indices[0], values=values[0])
-    diff = variable.Indices(indices[0], values=values[1])
-    assert orig == same
-    assert orig != diff
-    diff = variable.Indices(indices[1], values=values[1])
-    assert orig != diff
-    unit = ('m', 'J')
-    orig = variable.Indices(indices[0], values=values[0], unit=unit[0])
-    same = variable.Indices(indices[0], values=values[0], unit=unit[0])
-    diff = variable.Indices(indices[0], values=values[0], unit=unit[1])
-    assert orig == same
-    assert orig != diff
-    diff = variable.Indices(indices[0], values=values[1], unit=unit[1])
-    assert orig != diff
-    diff = variable.Indices(indices[1], values=values[1], unit=unit[1])
-    assert orig != diff
-
-
 def test_standardize():
     """Test the helper function that standardizes unit strings."""
     cases = {

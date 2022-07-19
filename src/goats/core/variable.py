@@ -1,6 +1,5 @@
 """Tools for managing datasets."""
 
-import numbers
 import typing
 
 import numpy
@@ -194,57 +193,6 @@ class Interface(aliased.Mapping):
         result = variable.convert(self.units[key])
         self._cache[key] = result
         return result
-
-
-Instance = typing.TypeVar('Instance', bound='Indices')
-
-
-class Indices(physical.Quantity):
-    """A sequence of values that can index a variable."""
-
-    @typing.overload
-    def __init__(
-        self: Instance,
-        __indices: typing.Iterable[numbers.Integral],
-        *,
-        values: typing.Iterable[numbers.Real]=None,
-        unit: metadata.UnitLike=None,
-        name: typing.Union[str, typing.Iterable[str]]=None,
-    ) -> None: ...
-
-    @typing.overload
-    def __init__(
-        self: Instance,
-        instance: Instance,
-    ) -> None: ...
-
-    def __init__(self, __indices, **meta) -> None:
-        """Initialize this instance from arguments or an existing instance."""
-        data = meta.pop('values', __indices)
-        super().__init__(data, **meta)
-        if not all(isinstance(i, numbers.Integral) for i in __indices):
-            raise ValueError("All indices must have integral type") from None
-        self.indices = tuple(__indices)
-        """The integral index values."""
-        self._unit = meta.get('unit')
-
-    def __getitem__(self, __i: typing.SupportsIndex):
-        """Called for index look-up and iteration."""
-        return self.indices[__i]
-
-    def __len__(self):
-        """Called for len(self) and iteration."""
-        return len(self.indices)
-
-    @property
-    def unit(self):
-        if self._unit is not None:
-            return super().unit
-
-    def apply_conversion(self, new: metadata.Unit):
-        if self._unit is not None:
-            return super().apply_conversion(new)
-        raise TypeError("Can't convert null unit") from None
 
 
 substitutions = {
