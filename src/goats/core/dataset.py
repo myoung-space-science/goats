@@ -152,13 +152,18 @@ class Variables(aliased.Mapping):
     instance with the appropriate MKS unit.
     """
 
-    def __init__(self, dataset: datafile.Interface) -> None:
+    def __init__(
+        self,
+        interface: datafile.Interface,
+        system: str=None,
+    ) -> None:
         known = {
-            k: v for k, v in dataset.variables.items(aliased=True)
+            k: v for k, v in interface.variables.items(aliased=True)
             if k in observables.METADATA
         }
         super().__init__(known)
-        self._system = metric.System('mks')
+        self.interface = interface
+        self._system = metric.System(system or 'mks')
         self._units = None
         self._cache = {}
 
