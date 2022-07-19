@@ -189,10 +189,10 @@ class Observer(base.Observer):
         self._path = path
         self._config = self._build_confpath(config or ENV['config'])
         self.system = metric.System(system)
-        self._dataset = None
+        self._data = None
         self._arguments = None
         interface = observables.Observables(
-            self.dataset,
+            self.data,
             self.arguments,
         )
         super().__init__(interface, self.arguments)
@@ -212,11 +212,11 @@ class Observer(base.Observer):
         raise TypeError(message) from None
 
     @property
-    def dataset(self):
-        """This observer's dataset."""
-        if self._dataset is None:
-            self._dataset = Dataset(self.path, IndexerFactory)
-        return self._dataset
+    def data(self):
+        """The interface to this observer's data."""
+        if self._data is None:
+            self._data = datafile.Interface(self.path)
+        return self._data
 
     @property
     def arguments(self):
