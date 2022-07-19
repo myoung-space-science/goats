@@ -232,8 +232,8 @@ def test_vector_display():
 @pytest.mark.vector
 def test_vector_init():
     """Test initializing with iterable and non-iterable values."""
-    expected = sorted(physical.Vector([1.1], unit='m'))
-    assert sorted(physical.Vector(1.1, unit='m')) == expected
+    expected = physical.Vector([1.1], unit='m')
+    assert physical.Vector(1.1, unit='m') == expected
 
 
 @pytest.mark.scalar
