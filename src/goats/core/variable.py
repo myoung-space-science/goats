@@ -8,9 +8,6 @@ import numpy.typing
 
 from goats.core import aliased
 from goats.core import datafile
-from goats.core import iotools
-from goats.core import iterables
-from goats.core import measurable
 from goats.core import metric
 from goats.core import metadata
 from goats.core import observables
