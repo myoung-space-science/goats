@@ -79,7 +79,7 @@ class Vector(Quantity):
 
     @typing.overload
     def __init__(
-        self,
+        self: Instance,
         __data: typing.Union[measurable.Real, numpy.typing.ArrayLike],
         *,
         unit: metadata.UnitLike=None,
@@ -89,10 +89,19 @@ class Vector(Quantity):
     @typing.overload
     def __init__(
         self: Instance,
+        __data: measurable.Measurement,
+    ) -> None: ...
+
+    @typing.overload
+    def __init__(
+        self: Instance,
         instance: Instance,
     ) -> None: ...
 
     def __init__(self, __data, **meta) -> None:
+        if isinstance(__data, measurable.Measurement):
+            meta = {'unit': __data.unit}
+            __data = __data.values
         array = numpy.asfarray(list(iterables.whole(__data)))
         super().__init__(array, **meta)
 

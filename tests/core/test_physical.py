@@ -231,9 +231,11 @@ def test_vector_display():
 
 @pytest.mark.vector
 def test_vector_init():
-    """Test initializing with iterable and non-iterable values."""
+    """Test initializing with various arguments."""
     expected = physical.Vector([1.1], unit='m')
     assert physical.Vector(1.1, unit='m') == expected
+    measurement = measurable.Measurement([1.1], unit='m')
+    assert physical.Vector(measurement) == expected
 
 
 @pytest.mark.scalar
