@@ -17,10 +17,10 @@ from goats.core import observables
 from goats.core import physical
 
 
-Instance = typing.TypeVar('Instance', bound='Variable')
+Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
-class Variable(physical.Array, metadata.AxesMixin):
+class Quantity(physical.Array, metadata.AxesMixin):
     """A class representing a dataset variable."""
 
     @typing.overload
@@ -69,7 +69,7 @@ class Variable(physical.Array, metadata.AxesMixin):
         self.display['__repr__'].append("axes={axes}")
 
     def parse_attrs(self, this, meta: dict, **targets):
-        if isinstance(this, physical.Array) and not isinstance(this, Variable):
+        if isinstance(this, physical.Array) and not isinstance(this, Quantity):
             meta.update({k: getattr(this, k) for k in ('unit', 'name')})
             this = this.data
         return super().parse_attrs(this, meta, **targets)
@@ -97,7 +97,7 @@ class Variable(physical.Array, metadata.AxesMixin):
     def __getitem__(self, *args):
         result = super().__getitem__(*args)
         if isinstance(result, physical.Array) and result.ndim == self.axes:
-            return Variable(result, axes=self.axes)
+            return Quantity(result, axes=self.axes)
         return result
 
     def __eq__(self, other: typing.Any):
@@ -115,22 +115,22 @@ class Variable(physical.Array, metadata.AxesMixin):
         """Create a new instance from the current attributes."""
         array = super()._copy_with(**updates)
         axes = updates.get('axes', self.axes)
-        return Variable(array, axes=axes)
+        return Quantity(array, axes=axes)
 
 
-@Variable.implements(numpy.squeeze)
-def _squeeze(v: Variable, **kwargs):
+@Quantity.implements(numpy.squeeze)
+def _squeeze(v: Quantity, **kwargs):
     """Remove singular axes."""
     data = v._array.squeeze(**kwargs)
     axes = tuple(
         a for a, d in zip(v.axes, v.shape)
         if d != 1
     )
-    return Variable(data, unit=v.unit, name=v.name, axes=axes)
+    return Quantity(data, unit=v.unit, name=v.name, axes=axes)
 
 
-@Variable.implements(numpy.mean)
-def _mean(v: Variable, **kwargs):
+@Quantity.implements(numpy.mean)
+def _mean(v: Quantity, **kwargs):
     """Compute the mean of the underlying array."""
     data = v._array.mean(**kwargs)
     axis = kwargs.get('axis')
@@ -138,17 +138,17 @@ def _mean(v: Variable, **kwargs):
         return data
     axes = tuple(a for a in v.axes if v.axes.index(a) != axis)
     name = [f"mean({name})" for name in v.name]
-    return Variable(data, unit=v.unit, name=name, axes=axes)
+    return Quantity(data, unit=v.unit, name=name, axes=axes)
 
 
-S = typing.TypeVar('S', bound='Variables')
+S = typing.TypeVar('S', bound='Interface')
 
 
-class Variables(aliased.Mapping):
+class Interface(aliased.Mapping):
     """An interface to dataset variables.
     
     This class provides aliased key-based access to all variables in a dataset.
-    It converts each requested dataset variable into a `~dataset.Variable`
+    It converts each requested dataset variable into a `~variable.Quantity`
     instance with the appropriate MKS unit.
     """
 
@@ -183,12 +183,12 @@ class Variables(aliased.Mapping):
         variable = self._system[observables.METADATA[name]['quantity']]
         return metric.Unit(variable.unit)
 
-    def __getitem__(self, key: str) -> Variable:
+    def __getitem__(self, key: str) -> Quantity:
         """Create the named variable, if possible."""
         if key in self._cache:
             return self._cache[key]
         datavar = super().__getitem__(key)
-        variable = Variable(
+        variable = Quantity(
             datavar.data,
             unit=standardize(datavar.unit),
             axes=datavar.axes,
@@ -203,7 +203,7 @@ Instance = typing.TypeVar('Instance', bound='Indices')
 
 
 class Indices(physical.Quantity):
-    """A sequence of values that can index an array."""
+    """A sequence of values that can index a variable."""
 
     @typing.overload
     def __init__(
@@ -248,177 +248,6 @@ class Indices(physical.Quantity):
         if self._unit is not None:
             return super().apply_conversion(new)
         raise TypeError("Can't convert null unit") from None
-
-
-class Indexer:
-    """A callable object that generates array indices from user arguments."""
-
-    def __init__(
-        self,
-        method: typing.Callable[..., Indices],
-        reference: numpy.typing.ArrayLike,
-    ) -> None:
-        self.method = method
-        self.reference = reference
-
-    def __call__(self, targets, **kwargs):
-        """Call the array-indexing method."""
-        return self.method(targets, **kwargs)
-
-
-Instance = typing.TypeVar('Instance', bound='Axis')
-
-
-class Axis(iterables.ReprStrMixin, metadata.NameMixin):
-    """A single dataset axis."""
-
-    @typing.overload
-    def __init__(
-        self: Instance,
-        indexer: Indexer,
-        size: int,
-        *,
-        name: str=None,
-    ) -> None:
-        """Create a new axis from scratch."""
-
-    @typing.overload
-    def __init__(
-        self: Instance,
-        instance: Instance,
-    ) -> None:
-        """Create a new axis from an existing instance."""
-
-    def __init__(self, *args, **kwargs) -> None:
-        parsed = self._parse(*args, **kwargs)
-        indexer, size, name = parsed
-        self.indexer = indexer
-        """A callable object that creates indices from user input."""
-        self.size = size
-        """The full length of this axis."""
-        self._name = name
-        self.reference = indexer.reference
-        """The index reference values."""
-
-    Attrs = typing.TypeVar('Attrs', bound=tuple)
-    Attrs = typing.Tuple[
-        Indexer,
-        int,
-        aliased.MappingKey,
-    ]
-
-    def _parse(self, *args, **kwargs) -> Attrs:
-        """Parse input arguments to initialize this instance."""
-        if not kwargs and len(args) == 1 and isinstance(args[0], type(self)):
-            instance = args[0]
-            return tuple(
-                getattr(instance, name)
-                for name in ('indexer', 'size', 'name')
-            )
-        indexer, size = args
-        name = metadata.Name(kwargs.get('name') or '')
-        return indexer, size, name
-
-    def __call__(self, *args, **kwargs) -> Indices:
-        """Convert user arguments into an index object."""
-        targets = self._normalize(*args)
-        if all(isinstance(value, numbers.Integral) for value in targets):
-            return Indices(targets)
-        return self.indexer(targets, **kwargs)
-
-    def _normalize(self, *user):
-        """Helper for computing target values from user input."""
-        if not user:
-            return self.reference
-        if isinstance(user[0], slice):
-            return iterables.slice_to_range(user[0], stop=self.size)
-        if isinstance(user[0], range):
-            return user[0]
-        return user
-
-    def __len__(self) -> int:
-        """The full length of this axis. Called for len(self)."""
-        return self.size
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        string = f"'{self.name}': size={self.size}"
-        unit = (
-            str(self.reference.unit)
-            if isinstance(self.reference, measurable.Quantity)
-            else None
-        )
-        if unit:
-            string += f", unit={unit!r}"
-        return string
-
-
-class Indexers(aliased.Mapping):
-    """The default collection of axis indexers."""
-
-    def __init__(self, dataset: datafile.Interface) -> None:
-        self.dataset = dataset
-        self.references = {}
-        super().__init__(dataset.axes)
-
-    def __getitem__(self, key: str) -> Indexer:
-        """Get the default indexer for `key`."""
-        axis = super().__getitem__(key)
-        reference = range(axis.size)
-        method = lambda _: Indices(reference)
-        return Indexer(method, reference)
-
-
-class Axes(aliased.Mapping):
-    """An interface to dataset axes."""
-
-    def __init__(
-        self,
-        dataset: datafile.Interface,
-        factory: typing.Type[Indexers],
-    ) -> None:
-        indexers = factory(dataset)
-        super().__init__(indexers)
-        self.dataset = dataset
-
-    def __getitem__(self, key: str) -> Axis:
-        indexer = super().__getitem__(key)
-        size = self.dataset.axes[key].size
-        name = observables.ALIASES.get(key, [key])
-        return Axis(indexer, size, name=name)
-
-
-class Interface:
-    """The user interface to a dataset."""
-
-    def __init__(self, path: iotools.PathLike) -> None:
-        self.path = path
-        self.view = datafile.Interface(path)
-        self._variables = None
-
-    @property
-    def variables(self):
-        """Objects representing the variables in this dataset."""
-        if self._variables is None:
-            self._variables = Variables(self.view)
-        return self._variables
-
-    def resolve_axes(
-        self,
-        names: typing.Iterable[str],
-        mode: str='strict',
-    ) -> typing.Tuple[str]:
-        """Compute and order the available axes in `names`."""
-        axes = self.view.available('axes').canonical
-        ordered = tuple(name for name in axes if name in names)
-        if mode == 'strict':
-            return ordered
-        extra = tuple(name for name in names if name not in ordered)
-        if not extra:
-            return ordered
-        if mode == 'append':
-            return ordered + extra
-        raise ValueError(f"Unrecognized mode {mode!r}")
 
 
 substitutions = {

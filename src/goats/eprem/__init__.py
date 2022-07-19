@@ -9,7 +9,6 @@ from goats import Environment
 from ..core import (
     aliased,
     base,
-    dataset,
     datafile,
     fundamental,
     iterables,
@@ -18,6 +17,7 @@ from ..core import (
     metric,
     numerical,
     physical,
+    variable,
 )
 from . import observables
 from .parameters import BaseTypesH
@@ -46,7 +46,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
     """A factory for EPREM array-indexing objects."""
 
     def __init__(self, data: datafile.Interface) -> None:
-        self.variables = dataset.Variables(data)
+        self.variables = variable.Interface(data)
         mass = self.variables['mass'].convert('nuc')
         charge = self.variables['charge'].convert('e')
         self.symbols = fundamental.elements(mass, charge)
@@ -80,9 +80,9 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
         }
         super().__init__(mapping)
 
-    def __getitem__(self, key: str) -> dataset.Indexer:
+    def __getitem__(self, key: str) -> variable.Indexer:
         this = super().__getitem__(key)
-        return dataset.Indexer(this['method'], this['reference'])
+        return variable.Indexer(this['method'], this['reference'])
 
     def _build_time(self, targets):
         """Build the time-axis indexer."""
@@ -90,7 +90,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
 
     def _build_shell(self, targets):
         """Build the shell-axis indexer."""
-        return dataset.Indices(targets)
+        return variable.Indices(targets)
 
     def _build_species(self, targets):
         """Build the species-axis indexer."""
@@ -103,7 +103,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
             elif isinstance(target, numbers.Integral):
                 indices.append(target)
                 symbols.append(self.symbols[target])
-        return dataset.Indices(indices, values=targets)
+        return variable.Indices(indices, values=targets)
 
     def _build_energy(self, targets, species: typing.Union[str, int]=0):
         """Build the energy-axis indexer."""
@@ -122,8 +122,8 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
     def _build_coordinates(
         self,
         targets: numpy.typing.ArrayLike,
-        reference: dataset.Variable,
-    ) -> dataset.Indices:
+        reference: variable.Quantity,
+    ) -> variable.Indices:
         """Build an arbitrary coordinate object."""
         result = measurable.measure(targets)
         array = physical.Array(result.values, unit=result.unit)
@@ -136,14 +136,14 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
             numerical.find_nearest(reference, float(value)).index
             for value in values
         ]
-        return dataset.Indices(indices, values=values, unit=reference.unit)
+        return variable.Indices(indices, values=values, unit=reference.unit)
 
 
     def __str__(self) -> str:
         return ', '.join(str(key) for key in self.keys(aliased=True))
 
 
-class Dataset(dataset.Interface):
+class Dataset(variable.Interface):
     """Interface to an EPREM dataset."""
 
     def __init__(
@@ -159,7 +159,7 @@ class Dataset(dataset.Interface):
     def axes(self):
         """Objects representing the axes in this dataset."""
         if self._axes is None:
-            self._axes = dataset.Axes(self.view, self.indexers)
+            self._axes = variable.Axes(self.view, self.indexers)
         return self._axes
 
     def get_indices(self, name: str, **user):

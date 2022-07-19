@@ -3,7 +3,7 @@ import typing
 import numpy as np
 
 from goats.core import aliased
-from goats.core import dataset
+from goats.core import variable
 from goats.core import physical
 from goats.core import functions
 from goats.core import iterables
@@ -33,12 +33,12 @@ class Function(iterables.ReprStrMixin):
 
     Argument = typing.TypeVar(
         'Argument',
-        dataset.Variable,
+        variable.Quantity,
         measurable.Scalar,
         typing.Iterable[measurable.Scalar],
     )
     Argument = typing.Union[
-        dataset.Variable,
+        variable.Quantity,
         measurable.Scalar,
         typing.Iterable[measurable.Scalar],
     ]
@@ -47,7 +47,7 @@ class Function(iterables.ReprStrMixin):
         self,
         arguments: typing.Mapping[str, Argument],
         unit: typing.Union[str, metric.Unit],
-    ) -> dataset.Variable:
+    ) -> variable.Quantity:
         """Build a variable by calling the instance method."""
         arrays = []
         floats = []
@@ -65,7 +65,7 @@ class Function(iterables.ReprStrMixin):
                 and all(isinstance(a, physical.Scalar) for a in arg)
             ): floats.extend([float(a) for a in arg])
         data = self.method(*arrays, *floats)
-        return dataset.Variable(
+        return variable.Quantity(
             data,
             unit=metric.Unit(unit),
             name=self.name,
@@ -87,7 +87,7 @@ class Functions(aliased.Mapping):
 
     def __init__(
         self,
-        data: dataset.Interface,
+        data: variable.Interface,
         arguments: parameters.Arguments,
     ) -> None:
         super().__init__(mapping=functions.METHODS)

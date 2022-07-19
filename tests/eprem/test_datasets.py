@@ -2,7 +2,7 @@ import pytest
 import numpy
 
 from goats.core import aliased
-from goats.core import dataset
+from goats.core import variable
 from goats import eprem
 
 
@@ -60,7 +60,7 @@ def test_axes(datapath):
         if name != 'energy':
             axis = axes[name]
             full = axis()
-            assert isinstance(full, dataset.Indices)
+            assert isinstance(full, variable.Indices)
             assert len(full) == expected['length']
             test = expected['test']
             user = axis(*test['user'])
@@ -75,7 +75,7 @@ def test_axes(datapath):
     for s in species():
         axis = axes[name]
         full = axis(species=s)
-        assert isinstance(full, dataset.Indices)
+        assert isinstance(full, variable.Indices)
         assert len(full) == expected['length']
         test = expected['test']
         user = axis(*test['user'])

@@ -8,7 +8,7 @@ from goats.core import metric
 from goats.core import algebraic
 from goats.core import iterables
 from goats.core import measurable
-from goats.core import dataset
+from goats.core import variable
 from goats.core import physical
 from goats.core import parameter
 from goats.eprem import functions
@@ -21,11 +21,11 @@ MKS = metric.System('mks')
 
 Observable = typing.TypeVar(
     'Observable',
-    dataset.Variable,
+    variable.Quantity,
     functions.Function,
 )
 Observable = typing.Union[
-    dataset.Variable,
+    variable.Quantity,
     functions.Function,
 ]
 
@@ -65,11 +65,11 @@ Dependency = typing.Union[
 
 Reference = typing.TypeVar(
     'Reference',
-    dataset.Variable,
+    variable.Quantity,
     typing.Iterable,
 )
 Reference = typing.Union[
-    dataset.Variable,
+    variable.Quantity,
     typing.Iterable,
 ]
 
@@ -87,7 +87,7 @@ class Application:
 
     def __init__(
         self,
-        indices: typing.Mapping[str, dataset.Indices],
+        indices: typing.Mapping[str, variable.Indices],
         assumptions: typing.Mapping[str, Assumption],
         observables: typing.Mapping[str, Observable],
         reference: typing.Mapping[str, Reference],
@@ -99,7 +99,7 @@ class Application:
 
     def evaluate(self, implementation: Implementation):
         """Create a variable from the given implementation."""
-        if isinstance(implementation, dataset.Variable):
+        if isinstance(implementation, variable.Quantity):
             return self._evaluate_variable(implementation)
         if isinstance(implementation, functions.Function):
             return self._evaluate_function(implementation)
@@ -107,7 +107,7 @@ class Application:
             return self._evaluate_compound(implementation)
         raise TypeError(f"Unknown implementation: {type(implementation)}")
 
-    def _evaluate_variable(self, variable: dataset.Variable):
+    def _evaluate_variable(self, variable: variable.Quantity):
         """Apply relevant updates (e.g., indices) to this variable."""
         target_axes = [
             axis for axis in variable.axes if self._need_interp(axis)
@@ -118,16 +118,16 @@ class Application:
             return self._standard(variable)
         return self._interpolated(variable, target_axes)
 
-    def _standard(self, variable: dataset.Variable):
+    def _standard(self, variable: variable.Quantity):
         """Produce a new variable by subscripting the given variable."""
         indices = tuple(self.indices[axis] for axis in variable.axes)
         return variable[indices]
 
     def _interpolated(
         self,
-        original: dataset.Variable,
+        original: variable.Quantity,
         axes: typing.Iterable[str],
-    ) -> dataset.Variable:
+    ) -> variable.Quantity:
         """Produce a new variable by interpolating the given variable."""
         indexable = list(set(original.axes) - set(axes))
         variable = self._interpolate(original, axes)
@@ -138,7 +138,7 @@ class Application:
         )
         return variable[indices]
 
-    def _is_reference(self, variable: dataset.Variable):
+    def _is_reference(self, variable: variable.Quantity):
         """True if this is an axis reference variable.
 
         This method attempts to determine if the given variable is one of the
@@ -168,9 +168,9 @@ class Application:
 
     def _interpolate(
         self,
-        variable: dataset.Variable,
+        variable: variable.Quantity,
         axes: typing.Iterable[str],
-    ) -> dataset.Variable:
+    ) -> variable.Quantity:
         """Interpolate the variable over certain axes."""
         array = None
         coordinates = {
@@ -197,7 +197,7 @@ class Application:
                 coordinate=coordinate,
                 workspace=array,
             )
-        return dataset.Variable(
+        return variable.Quantity(
             array,
             unit=variable.unit,
             name=variable.name,
@@ -206,9 +206,9 @@ class Application:
 
     def _interpolate_coordinate(
         self,
-        variable: dataset.Variable,
+        variable: variable.Quantity,
         targets: np.ndarray,
-        reference: dataset.Variable,
+        reference: variable.Quantity,
         coordinate: str=None,
         workspace: np.ndarray=None,
     ) -> np.ndarray:
@@ -249,7 +249,7 @@ class Application:
             return self.assumptions[key]
         if key in self.observables:
             observable = self.observables[key]
-            if isinstance(observable, dataset.Variable):
+            if isinstance(observable, variable.Quantity):
                 return self._evaluate_variable(observable)
             if isinstance(observable, functions.Function):
                 return self._evaluate_function(observable)
@@ -262,7 +262,7 @@ class Interface(base.Interface):
     def __init__(
         self,
         implementation: Implementation,
-        data: dataset.Interface,
+        data: variable.Interface,
         dependencies: typing.Mapping[str, Dependency]=None,
     ) -> None:
         self.implementation = implementation
@@ -283,7 +283,7 @@ class Interface(base.Interface):
         self.observables = aliased.MutableMapping(
             {
                 k: v for k, v in self.dependencies.items(aliased=True)
-                if isinstance(v, (dataset.Variable, functions.Function))
+                if isinstance(v, (variable.Quantity, functions.Function))
             }
         )
         axes_ref = {k: v.reference for k, v in self.axes.items(aliased=True)}
@@ -306,7 +306,7 @@ class Interface(base.Interface):
 
     def _update_index(self, key: str, indices):
         """Update a single indexing object based on user input."""
-        if not isinstance(indices, dataset.Indices):
+        if not isinstance(indices, variable.Indices):
             axis = self.axes[key]
             indices = axis(*iterables.whole(indices))
         if indices.unit is not None:
@@ -393,7 +393,7 @@ class Observables(iterables.MappingBase):
 
     def __init__(
         self,
-        data: dataset.Interface,
+        data: variable.Interface,
         arguments: parameters.Arguments,
     ) -> None:
         self.variables = data.variables

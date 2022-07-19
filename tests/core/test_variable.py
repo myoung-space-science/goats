@@ -8,7 +8,7 @@ import numpy.typing
 import pytest
 
 from goats.core import datafile
-from goats.core import dataset
+from goats.core import variable
 from goats.core import physical
 from goats.core import measurable
 from goats.core import metadata
@@ -17,11 +17,6 @@ from goats.core import metadata
 def get_interface(testdata: dict, name: str) -> datafile.Interface:
     """Get an interface to a dataset file by name."""
     return datafile.Interface(testdata[name]['path'])
-
-
-def get_dataset(testdata: dict, name: str) -> dataset.Interface:
-    """Get a dataset interface (without axis indexers) by name."""
-    return dataset.Interface(testdata[name]['path'])
 
 
 def get_reference(
@@ -55,12 +50,12 @@ def test_variables(testdata: dict):
     }
     for name in ('eprem-obs', 'eprem-flux'):
         datafile = get_interface(testdata, name)
-        variables = dataset.Variables(datafile)
+        variables = variable.Interface(datafile)
         for observable, expected in reference.items():
             if observable in variables:
-                variable = variables[observable]
-                assert variable.unit == expected['unit']
-                assert sorted(variable.axes) == sorted(expected['axes'])
+                v = variables[observable]
+                assert v.unit == expected['unit']
+                assert sorted(v.axes) == sorted(expected['axes'])
             else:
                 with pytest.raises(KeyError):
                     variables[observable]
@@ -69,112 +64,29 @@ def test_variables(testdata: dict):
 def test_indices_equality():
     """Test the binary equality operator for various indices."""
     indices = ([1, 2], [3, 4])
-    orig = dataset.Indices(indices[0])
-    same = dataset.Indices(indices[0])
-    diff = dataset.Indices(indices[1])
+    orig = variable.Indices(indices[0])
+    same = variable.Indices(indices[0])
+    diff = variable.Indices(indices[1])
     assert orig == same
     assert orig != diff
     values = ([-1, -2], [-3, -4])
-    orig = dataset.Indices(indices[0], values=values[0])
-    same = dataset.Indices(indices[0], values=values[0])
-    diff = dataset.Indices(indices[0], values=values[1])
+    orig = variable.Indices(indices[0], values=values[0])
+    same = variable.Indices(indices[0], values=values[0])
+    diff = variable.Indices(indices[0], values=values[1])
     assert orig == same
     assert orig != diff
-    diff = dataset.Indices(indices[1], values=values[1])
+    diff = variable.Indices(indices[1], values=values[1])
     assert orig != diff
     unit = ('m', 'J')
-    orig = dataset.Indices(indices[0], values=values[0], unit=unit[0])
-    same = dataset.Indices(indices[0], values=values[0], unit=unit[0])
-    diff = dataset.Indices(indices[0], values=values[0], unit=unit[1])
+    orig = variable.Indices(indices[0], values=values[0], unit=unit[0])
+    same = variable.Indices(indices[0], values=values[0], unit=unit[0])
+    diff = variable.Indices(indices[0], values=values[0], unit=unit[1])
     assert orig == same
     assert orig != diff
-    diff = dataset.Indices(indices[0], values=values[1], unit=unit[1])
+    diff = variable.Indices(indices[0], values=values[1], unit=unit[1])
     assert orig != diff
-    diff = dataset.Indices(indices[1], values=values[1], unit=unit[1])
+    diff = variable.Indices(indices[1], values=values[1], unit=unit[1])
     assert orig != diff
-
-
-def test_dataset(testdata: dict):
-    """Test the full higher-level dataset interface."""
-    reference = {
-        'time': {
-            'axes': ['time'],
-        },
-        'Vr': {
-            'axes': ['time', 'shell'],
-        },
-        'flux': {
-            'axes': ['time', 'shell', 'species', 'energy'],
-        },
-        'dist': {
-            'axes': ['time', 'shell', 'species', 'energy', 'mu'],
-        },
-    }
-    axes = {
-        'time': 20,
-        'shell': 100,
-        'species': 2,
-        'energy': 10,
-        'mu': 5,
-    }
-    for name in ('eprem-obs', 'eprem-flux'):
-        ds = get_dataset(testdata, name)
-        assert isinstance(ds, dataset.Interface)
-        assert isinstance(ds.variables, typing.Mapping)
-        for observable in reference:
-            if observable in ds.variables:
-                unordered = random.sample(axes.keys(), len(axes))
-                assert ds.resolve_axes(unordered) == tuple(axes)
-
-
-def test_resolve_axes(testdata: dict):
-    """Test the method that orders axes based on the dataset."""
-    ds = get_dataset(testdata, 'eprem-obs')
-    # This is only a subset of the possible cases and there's probably a more
-    # efficient way to build the collection.
-    cases = [
-        {
-            'input': ('shell', 'energy', 'time'),
-            'output': ('time', 'shell', 'energy'),
-        },
-        {
-            'input': ('shell', 'energy', 'time', 'extra'),
-            'output': ('time', 'shell', 'energy'),
-        },
-        {
-            'input': ('shell', 'energy', 'time'),
-            'mode': 'strict',
-            'output': ('time', 'shell', 'energy'),
-        },
-        {
-            'input': ('shell', 'energy', 'time', 'extra'),
-            'mode': 'strict',
-            'output': ('time', 'shell', 'energy'),
-        },
-        {
-            'input': ('shell', 'energy', 'time', 'extra'),
-            'mode': 'append',
-            'output': ('time', 'shell', 'energy', 'extra'),
-        },
-        {
-            'input': ('extra', 'shell', 'energy', 'time'),
-            'mode': 'append',
-            'output': ('time', 'shell', 'energy', 'extra'),
-        },
-        {
-            'input': ('shell', 'extra', 'energy', 'time'),
-            'mode': 'append',
-            'output': ('time', 'shell', 'energy', 'extra'),
-        },
-    ]
-    for case in cases:
-        names = case['input']
-        expected = case['output']
-        result = (
-            ds.resolve_axes(names, mode=case['mode']) if 'mode' in case
-            else ds.resolve_axes(names)
-        )
-        assert result == expected
 
 
 def test_standardize():
@@ -187,22 +99,22 @@ def test_standardize():
         '# / cm^2 s sr MeV': '# / (cm^2 s sr MeV/nuc)',
     }
     for old, new in cases.items():
-        assert dataset.standardize(old) == new
+        assert variable.standardize(old) == new
 
 
 @pytest.mark.variable
 def test_variable_display():
     """Test the results of printing a variable."""
-    v = dataset.Variable([1.2], unit='m', name='V', axes=['x'])
+    v = variable.Quantity([1.2], unit='m', name='V', axes=['x'])
     assert str(v) == "'V': [1.2] [m] axes=['x']"
-    assert repr(v).endswith("Variable([1.2], unit='m', name='V', axes=['x'])")
+    assert repr(v).endswith("([1.2], unit='m', name='V', axes=['x'])")
 
 
 @pytest.mark.variable
 def test_variable():
     """Test the object that represents a variable."""
-    v0 = dataset.Variable([3.0, 4.5], unit='m', axes=['x'])
-    v1 = dataset.Variable([[1.0], [2.0]], unit='J', axes=['x', 'y'])
+    v0 = variable.Quantity([3.0, 4.5], unit='m', axes=['x'])
+    v1 = variable.Quantity([[1.0], [2.0]], unit='J', axes=['x', 'y'])
     assert numpy.array_equal(v0, [3.0, 4.5])
     assert v0.unit == metadata.Unit('m')
     assert list(v0.axes) == ['x']
@@ -227,7 +139,7 @@ def test_variable():
     expected = [3.0 ** 2, 4.5 ** 2]
     assert numpy.array_equal(r, expected)
     assert r.unit == metadata.Unit('m^2')
-    reference = dataset.Variable(v0)
+    reference = variable.Quantity(v0)
     assert reference is not v0
     v0_cm = v0.convert('cm')
     assert v0_cm is v0
@@ -241,15 +153,15 @@ def test_variable():
 def test_variable_init():
     """Test initializing a variable object."""
     # default name and unit
-    v = dataset.Variable([3.0, 4.5], axes=['x'])
+    v = variable.Quantity([3.0, 4.5], axes=['x'])
     assert v.unit == '1'
     assert v.name == ''
     # number of axes must match number of data dimensions
     with pytest.raises(ValueError):
-        dataset.Variable([3.0, 4.5], axes=['x', 'y'])
+        variable.Quantity([3.0, 4.5], axes=['x', 'y'])
     # axes are required
     with pytest.raises(ValueError):
-        dataset.Variable([3.0, 4.5])
+        variable.Quantity([3.0, 4.5])
 
 
 @pytest.fixture
@@ -283,24 +195,24 @@ def arr() -> typing.Dict[str, list]:
     }
 
 @pytest.fixture
-def var(arr: typing.Dict[str, list]) -> typing.Dict[str, dataset.Variable]:
+def var(arr: typing.Dict[str, list]) -> typing.Dict[str, variable.Quantity]:
     """A tuple of test variables."""
-    reference = dataset.Variable(
+    reference = variable.Quantity(
         arr['reference'].copy(),
         axes=('d0', 'd1'),
         unit='m',
     )
-    samedims = dataset.Variable(
+    samedims = variable.Quantity(
         arr['samedims'].copy(),
         axes=('d0', 'd1'),
         unit='kJ',
     )
-    sharedim = dataset.Variable(
+    sharedim = variable.Quantity(
         arr['sharedim'].copy(),
         axes=('d1', 'd2'),
         unit='s',
     )
-    different = dataset.Variable(
+    different = variable.Quantity(
         arr['different'].copy(),
         axes=('d2', 'd3'),
         unit='km/s',
@@ -410,10 +322,10 @@ def reduce(
 
 @pytest.mark.variable
 def test_variable_mul_div(
-    var: typing.Dict[str, dataset.Variable],
+    var: typing.Dict[str, variable.Quantity],
     arr: typing.Dict[str, list],
 ) -> None:
-    """Test the ability to multiply two dataset.Variable instances."""
+    """Test the ability to multiply two variable.Quantity instances."""
     groups = {
         '*': operator.mul,
         '/': operator.truediv,
@@ -440,7 +352,7 @@ def test_variable_mul_div(
         v1 = var[case['key']]
         a1 = arr[case['key']]
         new = opr(v0, v1)
-        assert isinstance(new, dataset.Variable), msg
+        assert isinstance(new, variable.Quantity), msg
         expected = reduce(a0, a1, opr, axes=(v0.axes, v1.axes))
         assert numpy.array_equal(new, expected), msg
         assert sorted(new.axes) == case['axes'], msg
@@ -452,14 +364,14 @@ def test_variable_mul_div(
 
 @pytest.mark.variable
 def test_variable_pow(
-    var: typing.Dict[str, dataset.Variable],
+    var: typing.Dict[str, variable.Quantity],
     arr: typing.Dict[str, list],
 ) -> None:
-    """Test the ability to exponentiate a dataset.Variable instance."""
+    """Test the ability to exponentiate a variable.Quantity instance."""
     v0 = var['reference']
     p = 3
     new = v0 ** p
-    assert isinstance(new, dataset.Variable)
+    assert isinstance(new, variable.Quantity)
     expected = reduce(numpy.array(v0), p, pow)
     assert numpy.array_equal(new, expected)
     assert new.axes == var['reference'].axes
@@ -473,15 +385,15 @@ def test_variable_pow(
 
 @pytest.mark.variable
 def test_variable_add_sub(
-    var: typing.Dict[str, dataset.Variable],
+    var: typing.Dict[str, variable.Quantity],
     arr: typing.Dict[str, list],
 ) -> None:
-    """Test the ability to add two dataset.Variable instances."""
+    """Test the ability to add two variable.Quantity instances."""
     v0 = var['reference']
     a0 = arr['reference']
     a1 = arr['samedims']
-    v1 = dataset.Variable(a1, unit=v0.unit, axes=v0.axes)
-    v2 = dataset.Variable(
+    v1 = variable.Quantity(a1, unit=v0.unit, axes=v0.axes)
+    v2 = variable.Quantity(
         arr['different'],
         unit=v0.unit,
         axes=var['different'].axes,
@@ -490,7 +402,7 @@ def test_variable_add_sub(
         msg = f"Failed for {opr}"
         new = opr(v0, v1)
         expected = reduce(a0, a1, opr, axes=(v0.axes, v1.axes))
-        assert isinstance(new, dataset.Variable), msg
+        assert isinstance(new, variable.Quantity), msg
         assert numpy.array_equal(new, expected), msg
         assert new.unit == v0.unit, msg
         assert new.axes == v0.axes, msg
@@ -499,12 +411,12 @@ def test_variable_add_sub(
 
 
 @pytest.mark.variable
-def test_variable_units(var: typing.Dict[str, dataset.Variable]):
+def test_variable_units(var: typing.Dict[str, variable.Quantity]):
     """Test the ability to update a variable's unit."""
     v0 = var['reference']
-    reference = dataset.Variable(v0)
+    reference = variable.Quantity(v0)
     v0_km = v0.convert('km')
-    assert isinstance(v0_km, dataset.Variable)
+    assert isinstance(v0_km, variable.Quantity)
     assert v0_km is v0
     assert v0_km is not reference
     assert v0_km.unit == 'km'
@@ -513,12 +425,12 @@ def test_variable_units(var: typing.Dict[str, dataset.Variable]):
 
 
 @pytest.mark.variable
-def test_numerical_operations(var: typing.Dict[str, dataset.Variable]):
-    """Test operations between a dataset.Variable and a number."""
+def test_numerical_operations(var: typing.Dict[str, variable.Quantity]):
+    """Test operations between a variable.Quantity and a number."""
 
     # multiplication is symmetric
     new = var['reference'] * 10.0
-    assert isinstance(new, dataset.Variable)
+    assert isinstance(new, variable.Quantity)
     expected = [
         # 3 x 2
         [+(1.0*10.0), +(2.0*10.0)],
@@ -527,12 +439,12 @@ def test_numerical_operations(var: typing.Dict[str, dataset.Variable]):
     ]
     assert numpy.array_equal(new, expected)
     new = 10.0 * var['reference']
-    assert isinstance(new, dataset.Variable)
+    assert isinstance(new, variable.Quantity)
     assert numpy.array_equal(new, expected)
 
     # right-sided division, addition, and subtraction create a new instance
     new = var['reference'] / 10.0
-    assert isinstance(new, dataset.Variable)
+    assert isinstance(new, variable.Quantity)
     expected = [
         # 3 x 2
         [+(1.0/10.0), +(2.0/10.0)],
@@ -541,7 +453,7 @@ def test_numerical_operations(var: typing.Dict[str, dataset.Variable]):
     ]
     assert numpy.array_equal(new, expected)
     new = var['reference'] + 10.0
-    assert isinstance(new, dataset.Variable)
+    assert isinstance(new, variable.Quantity)
     expected = [
         # 3 x 2
         [+1.0+10.0, +2.0+10.0],
@@ -550,7 +462,7 @@ def test_numerical_operations(var: typing.Dict[str, dataset.Variable]):
     ]
     assert numpy.array_equal(new, expected)
     new = var['reference'] - 10.0
-    assert isinstance(new, dataset.Variable)
+    assert isinstance(new, variable.Quantity)
     expected = [
         # 3 x 2
         [+1.0-10.0, +2.0-10.0],
@@ -565,7 +477,7 @@ def test_numerical_operations(var: typing.Dict[str, dataset.Variable]):
 
     # left-sided addition and subtraction create a new instance
     new = 10.0 + var['reference']
-    assert isinstance(new, dataset.Variable)
+    assert isinstance(new, variable.Quantity)
     expected = [
         # 3 x 2
         [10.0+1.0, 10.0+2.0],
@@ -574,7 +486,7 @@ def test_numerical_operations(var: typing.Dict[str, dataset.Variable]):
     ]
     assert numpy.array_equal(new, expected)
     new = 10.0 - var['reference']
-    assert isinstance(new, dataset.Variable)
+    assert isinstance(new, variable.Quantity)
     expected = [
         # 3 x 2
         [10.0-1.0, 10.0-2.0],
@@ -585,17 +497,17 @@ def test_numerical_operations(var: typing.Dict[str, dataset.Variable]):
 
 
 @pytest.mark.variable
-def test_variable_array(var: typing.Dict[str, dataset.Variable]):
+def test_variable_array(var: typing.Dict[str, variable.Quantity]):
     """Natively convert a Variable into a NumPy array."""
     v = var['reference']
-    assert isinstance(v, dataset.Variable)
+    assert isinstance(v, variable.Quantity)
     a = numpy.array(v)
     assert isinstance(a, numpy.ndarray)
     assert numpy.array_equal(v, a)
 
 
 @pytest.mark.variable
-def test_variable_getitem(var: typing.Dict[str, dataset.Variable]):
+def test_variable_getitem(var: typing.Dict[str, variable.Quantity]):
     """Subscript a Variable."""
     # reference = [
     #     [+1.0, +2.0],
@@ -620,17 +532,17 @@ def test_variable_getitem(var: typing.Dict[str, dataset.Variable]):
 @pytest.mark.variable
 def test_variable_names():
     """A variable may have zero or more names."""
-    default = dataset.Variable([1], unit='m', axes=['d0'])
+    default = variable.Quantity([1], unit='m', axes=['d0'])
     assert not default.name
     names = ('v0', 'var')
-    variable = dataset.Variable([1], unit='m', name=names, axes=['d0'])
-    assert all(name in variable.name for name in names)
+    current = variable.Quantity([1], unit='m', name=names, axes=['d0'])
+    assert all(name in current.name for name in names)
 
 
 @pytest.mark.variable
 def test_variable_rename():
     """A user may rename a variable."""
-    v = dataset.Variable([1], unit='m', name='Name', axes=['d0'])
+    v = variable.Quantity([1], unit='m', name='Name', axes=['d0'])
     assert list(v.name) == ['Name']
     v.alias('var')
     assert all(name in v.name for name in ('Name', 'var'))
@@ -639,7 +551,7 @@ def test_variable_rename():
 
 @pytest.mark.xfail
 @pytest.mark.variable
-def test_variable_get_array(var: typing.Dict[str, dataset.Variable]):
+def test_variable_get_array(var: typing.Dict[str, variable.Quantity]):
     """Test the internal `_get_array` method to prevent regression."""
     v = var['reference']
     a = v._get_array((0, 0))
@@ -695,7 +607,7 @@ def components():
 
 def make_variable(**attrs):
     """Helper for making a variable from components."""
-    return dataset.Variable(
+    return variable.Quantity(
         attrs['data'],
         unit=attrs.get('unit'),
         name=attrs.get('name'),
@@ -703,9 +615,9 @@ def make_variable(**attrs):
     )
 
 
-OType = typing.TypeVar('OType', dataset.Variable, measurable.Real)
+OType = typing.TypeVar('OType', variable.Quantity, measurable.Real)
 OType = typing.Union[
-    dataset.Variable,
+    variable.Quantity,
     measurable.Real,
 ]
 RType = typing.TypeVar('RType', bound=type)
@@ -741,7 +653,7 @@ def test_add_number(components):
     attrs['name'] = ref[0]['name']
     call_func(
         operator.add,
-        dataset.Variable,
+        variable.Quantity,
         *operands,
         expected=expected,
         attrs=attrs,
@@ -759,7 +671,7 @@ def test_sub_number(components):
     attrs['name'] = ref[0]['name']
     call_func(
         operator.sub,
-        dataset.Variable,
+        variable.Quantity,
         *operands,
         expected=expected,
         attrs=attrs,
@@ -776,7 +688,7 @@ def test_add_variable(components):
     attrs['name'] = f"{ref[0]['name']} + {ref[1]['name']}"
     call_func(
         operator.add,
-        dataset.Variable,
+        variable.Quantity,
         *operands,
         expected=expected,
         attrs=attrs,
@@ -793,7 +705,7 @@ def test_sub_variable(components):
     attrs['name'] = f"{ref[0]['name']} - {ref[1]['name']}"
     call_func(
         operator.sub,
-        dataset.Variable,
+        variable.Quantity,
         *operands,
         expected=expected,
         attrs=attrs,
@@ -813,7 +725,7 @@ def test_mul_same_shape(components):
     }
     call_func(
         operator.mul,
-        dataset.Variable,
+        variable.Quantity,
         *operands,
         expected=expected,
         attrs=attrs,
@@ -837,7 +749,7 @@ def test_mul_diff_shape(components):
     }
     call_func(
         opr,
-        dataset.Variable,
+        variable.Quantity,
         *operands,
         expected=expected,
         attrs=attrs,
@@ -857,7 +769,7 @@ def test_div_same_shape(components):
     }
     call_func(
         operator.truediv,
-        dataset.Variable,
+        variable.Quantity,
         *operands,
         expected=expected,
         attrs=attrs,
@@ -881,7 +793,7 @@ def test_div_diff_shape(components):
     }
     call_func(
         opr,
-        dataset.Variable,
+        variable.Quantity,
         *operands,
         expected=expected,
         attrs=attrs,
@@ -902,7 +814,7 @@ def test_pow_number(components):
     }
     call_func(
         operator.pow,
-        dataset.Variable,
+        variable.Quantity,
         *operands,
         expected=expected,
         attrs=attrs,
@@ -929,7 +841,7 @@ def test_sqrt(components):
     }
     call_func(
         numpy.sqrt,
-        dataset.Variable,
+        variable.Quantity,
         make_variable(**ref),
         expected=expected,
         attrs=attrs,
@@ -947,7 +859,7 @@ def test_squeeze(components):
     }
     call_func(
         numpy.squeeze,
-        dataset.Variable,
+        variable.Quantity,
         make_variable(**ref),
         expected=expected,
         attrs=attrs,
@@ -971,7 +883,7 @@ def test_axis_mean(components):
         }
         call_func(
             numpy.mean,
-            dataset.Variable,
+            variable.Quantity,
             make_variable(**ref),
             expected=expected,
             attrs=attrs,
