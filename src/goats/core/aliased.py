@@ -73,7 +73,172 @@ class MappingKey(collections.abc.Set, iterables.ReprStrMixin):
         return ' | '.join(str(alias) for alias in self._aliases)
 
 
+class KeyMap(iterables.MappingBase):
+    """A collection that associates common aliases."""
+
+    def __init__(self, *keys: Aliases) -> None:
+        """
+        Parameters
+        ----------
+        keys
+            An iterable collection of associated keys. Each key may be a string
+            or an iterable of strings (including instances of `~MappingKey`).
+        """
+        self._aliased = [MappingKey(key) for key in keys]
+        self._flat = [key for alias in self._aliased for key in alias]
+        super().__init__(self._flat)
+
+    def __getitem__(self, key: str) -> MappingKey:
+        """Look up aliases for key."""
+        try:
+            found = next(entry for entry in self._aliased if key in entry)
+        except StopIteration as err:
+            raise KeyError(f"{key!r} not found") from err
+        else:
+            return found
+
+
+def keysfrom(
+    mapping: typing.Mapping[str, typing.Mapping[str, typing.Any]],
+    aliases: str='aliases',
+    keymap: KeyMap=None,
+) -> typing.List[MappingKey]:
+    """Extract keys for use in an aliased mapping.
+    
+    Parameters
+    ----------
+    mapping
+        Same as for `~aliased.Mapping.__init__`.
+
+    aliases : string
+        Same as for `~aliased.Mapping.__init__`.
+
+    Examples
+    --------
+    >>> mapping = {
+    ...     'a': {'aliases': ('A', 'a0'), 'n': 1, 'm': 'foo'},
+    ...     'b': {'aliases': 'B', 'n': -4},
+    ... }
+    >>> keys = keysfrom(mapping)
+    >>> keys
+    [MappingKey('a | A | a0'), MappingKey('B | b')]
+    """
+    if isinstance(mapping, Mapping):
+        return mapping.keys(aliased=True)
+    keys = [
+        MappingKey(k) | MappingKey(v.get(aliases, ()))
+        for k, v in mapping.items()
+    ]
+    if not keymap:
+        return keys
+    return [keymap[str(key)] for key in keys]
+
+
 _VT = typing.TypeVar('_VT')
+
+
+Aliasable = typing.TypeVar('Aliasable', bound=typing.Mapping)
+Aliasable = typing.Union[
+    typing.Mapping[Aliases, _VT],
+    typing.Mapping[str, typing.Mapping[str, typing.Any]],
+]
+
+
+def _build_mapping(
+    mapping: typing.Mapping=None,
+    aliases: str='aliases',
+    keymap: KeyMap=None,
+) -> dict:
+    """Build the internal `dict` for an `~aliased.Mapping`."""
+    # Is it empty?
+    if not mapping:
+        return {}
+    # Does it have the form {<key>: {key: <aliases>, <k>: <value>, ...}}?
+    string_keys = all(isinstance(key, str) for key in mapping)
+    dict_values = all(isinstance(value, dict) for value in mapping.values())
+    if string_keys and dict_values:
+        return _build_from_key(mapping, key=aliases, keymap=keymap)
+    # Does it have the form {<aliased key>: <value>}?
+    if all(MappingKey.supports(key) for key in mapping):
+        return _build_from_aliases(mapping)
+    # Is it a built-in dictionary?
+    if isinstance(mapping, dict):
+        return mapping.copy()
+
+
+def _build_from_aliases(
+    mapping: typing.Mapping[Aliases, _VT],
+) -> typing.Dict[MappingKey, _VT]:
+    """Build a `dict` that maps aliased keys to user values."""
+    out = {}
+    for key, value in mapping.items():
+        try:
+            aliased_key = next(k for k in out if key in k)
+        except StopIteration:
+            aliased_key = MappingKey(key)
+        out[aliased_key] = value
+    return out
+
+
+def _build_from_key(
+    mapping: typing.Mapping[str, typing.Mapping[str, typing.Any]],
+    key: str='aliases',
+    keymap: KeyMap=None,
+) -> typing.Dict[MappingKey, _VT]:
+    """Build a `dict` with aliased keys taken from interior mappings.
+    
+    Parameters
+    ----------
+    mapping
+        An object that maps string keys to interior mappings of strings to
+        any type.
+
+    key : str, default='aliases'
+        The key in the interior mappings whose values to use as aliases for
+        the corresponding keys in the user-provided mapping. Absence of this
+        key from a given interior mapping simply means the corresponding key
+        in the user-provided mapping will be the only alias for that entry.
+
+    Examples
+    --------
+    Create aliased mappings from a user dictionary with the default alias
+    key::
+
+    >>> mapping = {
+    ...     'a': {'aliases': ('A', 'a0'), 'n': 1, 'm': 'foo'},
+    ...     'b': {'aliases': 'B', 'n': -4},
+    ... }
+    >>> amap = aliased.Mapping(mapping)
+    >>> amap
+    aliased.Mapping('a0 | A | a': {'n': 1, 'm': 'foo'}, 'b | B': {'n': -4})
+    >>> amap['a']
+    {'n': 1, 'm': 'foo'}
+
+    Create aliased mappings from a user dictionary, swapping the alias key::
+
+    >>> mapping = {
+    ...     'a': {'foo': 'A', 'bar': 'a0'},
+    ...     'b': {'foo': 'B', 'bar': 'b0'},
+    ... }
+    >>> amap = aliased.Mapping(mapping, aliases='foo')
+    >>> amap
+    aliased.Mapping('A | a': a0, 'b | B': b0)
+    >>> amap['a']
+    'a0'
+    >>> amap = aliased.Mapping(mapping, aliases='bar')
+    >>> amap
+    aliased.Mapping('a0 | a': A, 'b | b0': B)
+    >>> amap['a']
+    'A'
+    """
+    keys = keysfrom(mapping, aliases=key, keymap=keymap)
+    values = [
+        {k: v for k, v in group.items() if k != key}
+        for group in mapping.values()
+    ]
+    return dict(zip(keys, values))
+
+
 class Mapping(collections.abc.Mapping):
     """A mapping class that supports aliased keys.
     
@@ -178,19 +343,21 @@ class Mapping(collections.abc.Mapping):
 
     """
 
-    Aliasable = typing.TypeVar('Aliasable', bound=typing.Mapping)
-    Aliasable = typing.Union[
-        typing.Mapping[Aliases, _VT],
-        typing.Mapping[str, typing.Mapping[str, typing.Any]],
-    ]
-
     def __init__(
         self,
         mapping: typing.Union[Aliasable, 'Mapping']=None,
         aliases: str='aliases',
+        keymap: KeyMap=None,
     ) -> None:
         """Initialize this instance."""
-        self._aliased = self._build_aliased(mapping, aliases=aliases)
+        if isinstance(mapping, Mapping):
+            self._aliased = dict(mapping.items(aliased=True))
+        else:
+            self._aliased = _build_mapping(
+                mapping=mapping,
+                aliases=aliases,
+                keymap=keymap,
+            )
         self._keymap = {
             alias: key for key in self._aliased for alias in key
         }
@@ -199,30 +366,6 @@ class Mapping(collections.abc.Mapping):
         """Define a flat list of all the keys in this mapping."""
         flattened = [key for keys in self._aliased.keys() for key in keys]
         return collections.abc.KeysView(flattened)
-
-    def _build_aliased(
-        self,
-        mapping: typing.Mapping=None,
-        aliases: str='aliases',
-    ) -> dict:
-        """Build the internal mapping of aliased items."""
-        # Is it empty?
-        if not mapping:
-            return {}
-        # Is it already an instance of this class?
-        if isinstance(mapping, Mapping):
-            return dict(mapping.items(aliased=True))
-        # Does it have the form {<key>: {key: <aliases>, <k>: <value>, ...}}?
-        string_keys = all(isinstance(key, str) for key in mapping)
-        dict_values = all(isinstance(value, dict) for value in mapping.values())
-        if string_keys and dict_values:
-            return self._build_from_key(mapping, key=aliases)
-        # Does it have the form {<aliased key>: <value>}?
-        if all(MappingKey.supports(key) for key in mapping):
-            return self._build_from_aliases(mapping)
-        # Is it a built-in dictionary?
-        if isinstance(mapping, dict):
-            return mapping.copy()
 
     @property
     def flat(self) -> typing.Dict[str, _VT]:
@@ -269,78 +412,6 @@ class Mapping(collections.abc.Mapping):
             return
         else:
             return found
-
-    def _build_from_aliases(
-        self,
-        mapping: typing.Union[Aliasable, 'Mapping'],
-    ) -> typing.Dict[MappingKey, _VT]:
-        """Build a `dict` that maps aliased keys to user values."""
-        out = {}
-        for key, value in mapping.items():
-            try:
-                aliased_key = next(k for k in out if key in k)
-            except StopIteration:
-                aliased_key = MappingKey(key)
-            out[aliased_key] = value
-        return out
-
-    def _build_from_key(
-        self,
-        mapping: typing.Mapping[str, typing.Mapping[str, typing.Any]],
-        key: str='aliases',
-    ) -> typing.Dict[MappingKey, _VT]:
-        """Build a `dict` with aliased keys taken from interior mappings.
-        
-        Parameters
-        ----------
-        mapping
-            An object that maps string keys to interior mappings of strings to
-            any type.
-
-        key : str, default='aliases'
-            The key in the interior mappings whose values to use as aliases for
-            the corresponding keys in the user-provided mapping. Absence of this
-            key from a given interior mapping simply means the corresponding key
-            in the user-provided mapping will be the only alias for that entry.
-
-        Examples
-        --------
-        Create aliased mappings from a user dictionary with the default alias
-        key::
-
-        >>> mapping = {
-        ...     'a': {'aliases': ('A', 'a0'), 'n': 1, 'm': 'foo'},
-        ...     'b': {'aliases': 'B', 'n': -4},
-        ... }
-        >>> amap = aliased.Mapping(mapping)
-        >>> amap
-        aliased.Mapping('a0 | A | a': {'n': 1, 'm': 'foo'}, 'b | B': {'n': -4})
-        >>> amap['a']
-        {'n': 1, 'm': 'foo'}
-
-        Create aliased mappings from a user dictionary, swapping the alias key::
-
-        >>> mapping = {
-        ...     'a': {'foo': 'A', 'bar': 'a0'},
-        ...     'b': {'foo': 'B', 'bar': 'b0'},
-        ... }
-        >>> amap = aliased.Mapping(mapping, aliases='foo')
-        >>> amap
-        aliased.Mapping('A | a': a0, 'b | B': b0)
-        >>> amap['a']
-        'a0'
-        >>> amap = aliased.Mapping(mapping, aliases='bar')
-        >>> amap
-        aliased.Mapping('a0 | a': A, 'b | b0': B)
-        >>> amap['a']
-        'A'
-        """
-        keys = self.extract_keys(mapping, aliases=key)
-        values = [
-            {k: v for k, v in group.items() if k != key}
-            for group in mapping.values()
-        ]
-        return dict(zip(keys, values))
 
     def squeeze(self, strict: bool=False):
         """Reduce singleton interior mappings, if possible.
@@ -428,42 +499,9 @@ class Mapping(collections.abc.Mapping):
             isinstance(__iterable, KeyMap)
             or not isinstance(__iterable, typing.Mapping)
         ): return cls({k: value for k in __iterable})
-        keys = cls.extract_keys(__iterable, aliases=aliases)
+        keys = keysfrom(__iterable, aliases=aliases)
         d = {k: value for k in keys}
         return cls(d)
-
-    @classmethod
-    def extract_keys(
-        cls,
-        mapping: typing.Mapping[str, typing.Mapping[str, typing.Any]],
-        aliases: str='aliases',
-    ) -> typing.List[MappingKey]:
-        """Extract keys for use in an aliased mapping.
-        
-        Parameters
-        ----------
-        mapping
-            Same as for `~aliased.Mapping.__init__`.
-
-        aliases : string
-            Same as for `~aliased.Mapping.__init__`.
-
-        Examples
-        --------
-        >>> mapping = {
-        ...     'a': {'aliases': ('A', 'a0'), 'n': 1, 'm': 'foo'},
-        ...     'b': {'aliases': 'B', 'n': -4},
-        ... }
-        >>> keys = Mapping.extract_keys(mapping)
-        >>> keys
-        [MappingKey('a | A | a0'), MappingKey('B | b')]
-        """
-        if isinstance(mapping, Mapping):
-            return mapping.keys(aliased=True)
-        return [
-            MappingKey(k) | MappingKey(v.get(aliases, ()))
-            for k, v in mapping.items()
-        ]
 
     def alias(self, key: str, *, include=False):
         """Get the alias for an existing key.
@@ -808,30 +846,5 @@ class NameMap(iterables.MappingBase):
     def copy(self):
         """Make a shallow copy of this object."""
         return type(self)(**self._init)
-
-
-class KeyMap(iterables.MappingBase):
-    """A collection that associates common aliases."""
-
-    def __init__(self, *keys: Aliases) -> None:
-        """
-        Parameters
-        ----------
-        keys
-            An iterable collection of associated keys. Each key may be a string
-            or an iterable of strings (including instances of `~MappingKey`).
-        """
-        self._aliased = [MappingKey(key) for key in keys]
-        self._flat = [key for alias in self._aliased for key in alias]
-        super().__init__(self._flat)
-
-    def __getitem__(self, key: str) -> MappingKey:
-        """Look up aliases for key."""
-        try:
-            found = next(entry for entry in self._aliased if key in entry)
-        except StopIteration as err:
-            raise KeyError(f"{key!r} not found") from err
-        else:
-            return found
 
 

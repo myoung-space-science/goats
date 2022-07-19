@@ -326,14 +326,37 @@ def test_mapping_fromkeys():
     assert mapping.flat == expected
 
 
+def test_mapping_from_keymap():
+    """Initialize an aliased mapping with a key map."""
+    init = {
+        'a': {'name': 'Annabez', 'k': ['Ka']},
+        'b': {'name': 'Borb', 'k': ('Kb', 'KB')},
+        'C': {'name': 'Chrunk'},
+        'D': {'name': 'Dilk'},
+    }
+    keymap = aliased.KeyMap(('a', 'A', 'a0'), ('b', 'B'), ('c', 'C'), 'D')
+    mapping = aliased.Mapping(init, keymap=keymap)
+    expected = {
+        'a': {'name': 'Annabez', 'k': ['Ka']},
+        'A': {'name': 'Annabez', 'k': ['Ka']},
+        'a0': {'name': 'Annabez', 'k': ['Ka']},
+        'b': {'name': 'Borb', 'k': ('Kb', 'KB')},
+        'B': {'name': 'Borb', 'k': ('Kb', 'KB')},
+        'C': {'name': 'Chrunk'},
+        'c': {'name': 'Chrunk'},
+        'D': {'name': 'Dilk'},
+    }
+    assert mapping.flat == expected
+
+
 def test_mapping_extract_keys():
-    """Test the class method that extracts aliased keys."""
+    """Test the module function that extracts aliased keys."""
     this = {
         'a': {'aliases': ('A', 'a0'), 'name': 'Annabez', 'k': ['Ka']},
         'b': {'aliases': 'B', 'name': 'Borb', 'k': ('Kb', 'KB')},
         'C': {'aliases': ('c',), 'name': 'Chrunk'}
     }
-    keys = aliased.Mapping.extract_keys(this)
+    keys = aliased.keysfrom(this)
     expected = [
         ['a', 'A', 'a0'],
         ['b', 'B'],
