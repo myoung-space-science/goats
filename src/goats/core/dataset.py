@@ -183,7 +183,7 @@ class Variables(aliased.Mapping):
         variable = self._system[observables.METADATA[name]['quantity']]
         return metric.Unit(variable.unit)
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> Variable:
         """Create the named variable, if possible."""
         if key in self._cache:
             return self._cache[key]
