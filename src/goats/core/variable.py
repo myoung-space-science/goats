@@ -165,7 +165,7 @@ class Interface(aliased.Mapping):
 
     @property
     def units(self):
-        """The MKS unit of each variable."""
+        """The unit of each variable in the given metric system."""
         if self._units is None:
             units = {
                 name: self._get_unit(name)
@@ -177,7 +177,7 @@ class Interface(aliased.Mapping):
     def _get_unit(self, name: str):
         """Get a standard unit for the named variable."""
         variable = self._system[observables.METADATA[name]['quantity']]
-        return metric.Unit(variable.unit)
+        return metadata.Unit(variable.unit)
 
     def __getitem__(self, key: str) -> Quantity:
         """Create the named variable, if possible."""
