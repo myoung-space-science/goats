@@ -1,6 +1,7 @@
 import typing
 
 from goats.core import aliased
+from goats.core import datafile
 from goats.core import index
 from goats.core import iterables
 from goats.core import metadata
@@ -90,16 +91,35 @@ class Interface(aliased.Mapping):
 
     def __init__(
         self,
-        variables: variable.Interface,
         indexers: typing.Mapping[str, index.Factory],
+        dataset: datafile.Interface,
+        system: str=None,
     ) -> None:
-        self._variables = variables
+        self._variables = variable.Interface(dataset, system)
         super().__init__(indexers, keymap=observables.ALIASES)
+        self.dataset = dataset
 
     def subscript(self, v: variable.Quantity, **user):
         """Extract the appropriate sub-variable."""
         idx = tuple(self[axis].at(*user.get(axis, ())) for axis in v.axes)
         return v[idx]
+
+    def resolve(
+        self,
+        names: typing.Iterable[str],
+        mode: str='strict',
+    ) -> typing.Tuple[str]:
+        """Compute and order the available axes in `names`."""
+        axes = self.dataset.available('axes').canonical
+        ordered = tuple(name for name in axes if name in names)
+        if mode == 'strict':
+            return ordered
+        extra = tuple(name for name in names if name not in ordered)
+        if not extra:
+            return ordered
+        if mode == 'append':
+            return ordered + extra
+        raise ValueError(f"Unrecognized mode {mode!r}")
 
     def __getitem__(self, __k: str) -> Quantity:
         """Get the named axis object, if possible."""
