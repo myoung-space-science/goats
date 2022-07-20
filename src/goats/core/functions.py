@@ -400,10 +400,10 @@ class Method(iterables.ReprStrMixin):
     def __init__(
         self,
         __callable: typing.Callable[..., numpy.ndarray],
-        __metadata: typing.Mapping[str, typing.Any]=None,
+        metadata: typing.Mapping[str, typing.Any]=None,
     ) -> None:
         self.callable = __callable
-        self.metadata = __metadata or {}
+        self.metadata = metadata or {}
         self.signature = inspect.signature(self.callable)
         self.parameters = tuple(self.signature.parameters)
 
