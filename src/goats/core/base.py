@@ -9,6 +9,7 @@ import numpy as np
 
 from goats.core import aliased
 from goats.core import variable
+from goats.core import index
 from goats.core import iterables
 from goats.core import measurable
 from goats.core import metadata
@@ -33,7 +34,7 @@ class Observation(iterables.ReprStrMixin):
     def __init__(
         self,
         data: variable.Quantity,
-        indices: typing.Mapping[str, variable.Indices],
+        indices: typing.Mapping[str, index.Quantity],
         assumptions: typing.Mapping[str, measurable.Scalar]=None,
     ) -> None:
         self._data = data

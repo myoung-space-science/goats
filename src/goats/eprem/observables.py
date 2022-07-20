@@ -6,6 +6,7 @@ from goats.core import base
 from goats.core import aliased
 from goats.core import metric
 from goats.core import algebraic
+from goats.core import index
 from goats.core import iterables
 from goats.core import measurable
 from goats.core import variable
@@ -87,7 +88,7 @@ class Application:
 
     def __init__(
         self,
-        indices: typing.Mapping[str, variable.Indices],
+        indices: typing.Mapping[str, index.Quantity],
         assumptions: typing.Mapping[str, Assumption],
         observables: typing.Mapping[str, Observable],
         reference: typing.Mapping[str, Reference],
@@ -306,7 +307,7 @@ class Interface(base.Interface):
 
     def _update_index(self, key: str, indices):
         """Update a single indexing object based on user input."""
-        if not isinstance(indices, variable.Indices):
+        if not isinstance(indices, index.Quantity):
             axis = self.axes[key]
             indices = axis(*iterables.whole(indices))
         if indices.unit is not None:
