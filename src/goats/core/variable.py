@@ -150,15 +150,14 @@ class Interface(aliased.Mapping):
 
     def __init__(
         self,
-        interface: datafile.Interface,
+        dataset: datafile.Interface,
         system: str=None,
     ) -> None:
         known = {
-            k: v for k, v in interface.variables.items(aliased=True)
+            k: v for k, v in dataset.variables.items(aliased=True)
             if k in observables.METADATA
         }
         super().__init__(known)
-        self.interface = interface
         self._system = metric.System(system or 'mks')
         self._units = None
         self._cache = {}
