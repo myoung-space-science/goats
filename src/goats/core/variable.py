@@ -158,7 +158,7 @@ class Interface(aliased.Mapping):
             if k in observables.METADATA
         }
         super().__init__(known)
-        self._system = metric.System(system or 'mks')
+        self.system = metric.System(system or 'mks')
         self._units = None
         self._cache = {}
 
@@ -175,7 +175,7 @@ class Interface(aliased.Mapping):
 
     def _get_unit(self, name: str):
         """Get a standard unit for the named variable."""
-        variable = self._system[observables.METADATA[name]['quantity']]
+        variable = self.system[observables.METADATA[name]['quantity']]
         return metadata.Unit(variable.unit)
 
     def __getitem__(self, key: str) -> Quantity:
