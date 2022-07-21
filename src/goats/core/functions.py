@@ -431,3 +431,5 @@ _METHODS = {
 METHODS = aliased.Mapping(_METHODS)
 
 
+REGISTRY = aliased.Mapping(registry, keymap=observables.ALIASES)
+
