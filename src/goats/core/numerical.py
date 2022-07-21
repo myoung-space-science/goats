@@ -194,7 +194,7 @@ def xyz2rtp(*args):
     Examples
     --------
     ```
-    >>> from eprem.tools.math import xyz2rtp
+    >>> from goats.core.numerical import xyz2rtp
     >>> xyz2rtp(1.0, 0.0, 0.0)
     (1.0, 1.5707963267948966, 0.0)
     >>> xyz2rtp(0.0, 0.0, 1.0)
@@ -248,7 +248,7 @@ def rtp2xyz(*args):
     Examples
     --------
     ```
-    >>> from eprem.tools.math import rtp2xyz
+    >>> from goats.core.numerical rtp2xyz
     >>> import numpy
     >>> rtp2xyz(1.0, 0.5*numpy.pi, 0)
     (1.0, 0.0, 0.0)
