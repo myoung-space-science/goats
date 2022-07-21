@@ -99,11 +99,6 @@ class Interface(aliased.Mapping):
         super().__init__(indexers, keymap=observables.ALIASES)
         self.dataset = dataset
 
-    def subscript(self, v: variable.Quantity, **user):
-        """Extract the appropriate sub-variable."""
-        idx = tuple(self[axis].at(*user.get(axis, ())) for axis in v.axes)
-        return v[idx]
-
     def resolve(
         self,
         names: typing.Iterable[str],
