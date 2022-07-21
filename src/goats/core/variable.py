@@ -207,9 +207,31 @@ class Caller(collections.abc.Mapping, iterables.ReprStrMixin):
         self.signature = inspect.signature(self.callable)
         self.parameters = tuple(self.signature.parameters)
 
-    def __call__(self, *args, **kwargs):
+    Argument = typing.TypeVar(
+        'Argument',
+        Quantity,
+        parameter.Assumption,
+    )
+    Argument = typing.Union[Quantity, parameter.Assumption]
+
+    def __call__(self, **arguments: Argument):
         """Produce the results of this method."""
-        return self.callable(*args, **kwargs)
+        arrays = []
+        floats = []
+        known = [
+            argument for key, argument in arguments.items()
+            if key in self.parameters
+        ]
+        for arg in known:
+            if isinstance(arg, physical.Array):
+                arrays.append(numpy.array(arg))
+            elif isinstance(arg, physical.Scalar):
+                floats.append(float(arg))
+            elif (
+                isinstance(arg, typing.Iterable)
+                and all(isinstance(a, physical.Scalar) for a in arg)
+            ): floats.extend([float(a) for a in arg])
+        return self.callable(*arrays, *floats)
 
     def __len__(self):
         """The number of available metadata attributes."""
@@ -229,61 +251,6 @@ class Caller(collections.abc.Mapping, iterables.ReprStrMixin):
         """A simplified representation of this object."""
         prms = ', '.join(str(p) for p in self.parameters)
         return f"{self.callable.__qualname__}({prms})"
-
-
-class Metadata(
-    metadata.UnitMixin,
-    metadata.NameMixin,
-    metadata.AxesMixin,
-): ...
-
-class Computer(Metadata):
-    """A callable object that creates a variable quantity."""
-
-    def __init__(
-        self,
-        __caller: Caller,
-        *,
-        axes: typing.Iterable[str],
-        unit: metadata.UnitLike=None,
-        name: typing.Union[str, typing.Iterable[str]]=None,
-    ) -> None:
-        self.caller = __caller
-        self._axes = axes
-        self._unit = unit
-        self._name = name
-
-    Argument = typing.TypeVar(
-        'Argument',
-        Quantity,
-        parameter.Assumption,
-    )
-    Argument = typing.Union[Quantity, parameter.Assumption]
-
-    def __call__(self, **arguments: Argument):
-        """Build a variable quantity from arguments."""
-        arrays = []
-        floats = []
-        known = [
-            argument for key, argument in arguments.items()
-            if key in self.caller.parameters
-        ]
-        for arg in known:
-            if isinstance(arg, physical.Array):
-                arrays.append(numpy.array(arg))
-            elif isinstance(arg, physical.Scalar):
-                floats.append(float(arg))
-            elif (
-                isinstance(arg, typing.Iterable)
-                and all(isinstance(a, physical.Scalar) for a in arg)
-            ): floats.extend([float(a) for a in arg])
-        data = self.caller(*arrays, *floats)
-        return Quantity(
-            data,
-            unit=metadata.Unit(self.unit),
-            name=self.name,
-            axes=self.axes,
-        )
 
 
 substitutions = {
