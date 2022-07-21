@@ -59,14 +59,6 @@ class Primary(Implementation):
 class Derived(Implementation):
     """A derived observable."""
 
-    def apply(self, **constraints):
-        variable = self._evaluate(self.name, *args, **kwargs)
-
-    def _evaluate(self, name: str, *args, **kwargs):
-        """Evaluate the named observable."""
-        if name in self.dataset:
-            return
-
 
 class Compound(Implementation):
     """A compound observable."""
@@ -128,18 +120,21 @@ class Quantity(Metadata):
 class Interface(collections.abc.Mapping):
     """ABC for interfaces to observable quantities."""
 
-    def __init__(self, *available: str) -> None:
-        self.available = available
-        """The names of all observable quantities."""
+    def __init__(self, **implemented: Implementation) -> None:
+        self.implemented = implemented
 
     def __len__(self) -> int:
-        return len(self.available)
+        return len(self.implemented)
 
     def __iter__(self) -> typing.Iterator:
-        return iter(self.available)
+        return iter(self.implemented)
 
     def __getitem__(self, __k: str) -> Quantity:
         """Get the named observable quantity."""
+        if __k in self.implemented:
+            return self.implemented[__k]
+        if '/' in __k or '*' in __k:
+            expression = algebraic.Expression(__k)
         raise NotImplementedError
 
 

@@ -7,19 +7,21 @@ import numpy.typing
 
 from goats import Environment
 from ..core import (
+    axis,
     aliased,
     base,
     datafile,
     fundamental,
     iterables,
     iotools,
+    index,
     measurable,
     metric,
     numerical,
     physical,
     variable,
 )
-from . import observables
+from . import observable
 from .parameters import BaseTypesH
 
 
@@ -42,7 +44,7 @@ def find_file_by_template(
             return test
 
 
-class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
+class Indexers(iterables.ReprStrMixin, aliased.Mapping):
     """A factory for EPREM array-indexing objects."""
 
     def __init__(self, data: datafile.Interface) -> None:
@@ -80,9 +82,9 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
         }
         super().__init__(mapping)
 
-    def __getitem__(self, key: str) -> variable.Indexer:
+    def __getitem__(self, key: str) -> index.Factory:
         this = super().__getitem__(key)
-        return variable.Indexer(this['method'], this['reference'])
+        return index.Factory(this['method'], this['reference'])
 
     def _build_time(self, targets):
         """Build the time-axis indexer."""
@@ -90,7 +92,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
 
     def _build_shell(self, targets):
         """Build the shell-axis indexer."""
-        return variable.Indices(targets)
+        return index.Quantity(targets)
 
     def _build_species(self, targets):
         """Build the species-axis indexer."""
@@ -103,7 +105,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
             elif isinstance(target, numbers.Integral):
                 indices.append(target)
                 symbols.append(self.symbols[target])
-        return variable.Indices(indices, values=targets)
+        return index.Quantity(indices, values=targets)
 
     def _build_energy(self, targets, species: typing.Union[str, int]=0):
         """Build the energy-axis indexer."""
@@ -123,7 +125,7 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
         self,
         targets: numpy.typing.ArrayLike,
         reference: variable.Quantity,
-    ) -> variable.Indices:
+    ) -> index.Quantity:
         """Build an arbitrary coordinate object."""
         result = measurable.measure(targets)
         array = physical.Array(result.values, unit=result.unit)
@@ -136,41 +138,11 @@ class IndexerFactory(iterables.ReprStrMixin, aliased.Mapping):
             numerical.find_nearest(reference, float(value)).index
             for value in values
         ]
-        return variable.Indices(indices, values=values, unit=reference.unit)
+        return index.Quantity(indices, values=values, unit=reference.unit)
 
 
     def __str__(self) -> str:
         return ', '.join(str(key) for key in self.keys(aliased=True))
-
-
-class Dataset(variable.Interface):
-    """Interface to an EPREM dataset."""
-
-    def __init__(
-        self,
-        path: iotools.PathLike,
-        indexers: typing.Type[IndexerFactory],
-    ) -> None:
-        super().__init__(path)
-        self.indexers = indexers
-        self._axes = None
-
-    @property
-    def axes(self):
-        """Objects representing the axes in this dataset."""
-        if self._axes is None:
-            self._axes = variable.Axes(self.view, self.indexers)
-        return self._axes
-
-    def get_indices(self, name: str, **user):
-        """Extract indexing objects for the named variable."""
-        variable = self.variables.get(name)
-        if not variable:
-            return ()
-        return tuple(
-            self.axes[axis](*user.get(axis, ()))
-            for axis in variable.axes
-        )
 
 
 class Observer(base.Observer):
@@ -191,8 +163,9 @@ class Observer(base.Observer):
         self.system = metric.System(system)
         self._data = None
         self._arguments = None
-        interface = observables.Observables(
-            self.data,
+        interface = observable.Interface(
+            axis.Interface(Indexers, self.data, self.system),
+            variable.Interface(self.data, self.system),
             self.arguments,
         )
         super().__init__(interface, self.arguments)
