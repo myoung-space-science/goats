@@ -2,7 +2,7 @@ import numbers
 import typing
 import sys
 
-import numpy as np
+import numpy
 import numpy.typing
 
 
@@ -10,7 +10,7 @@ def get_bounding_indices(
     array: numpy.typing.ArrayLike,
     target: numbers.Real,
     axis: typing.SupportsIndex=None,
-) -> np.ndarray:
+) -> numpy.ndarray:
     """Find the indices bounding the target value.
     
     Parameters
@@ -33,23 +33,23 @@ def get_bounding_indices(
     """
     if axis is None:
         axis = -1
-    return np.apply_along_axis(
+    return numpy.apply_along_axis(
         find_1d_indices,
         int(axis),
-        np.asfarray(array),
+        numpy.asfarray(array),
         float(target),
     )
 
 
 def find_1d_indices(
-    array: np.ndarray,
+    array: numpy.ndarray,
     target: float,
 ) -> typing.Tuple[int, int]:
     """Find the bounding indices in a 1-D array."""
     leq = array <= target
-    lower = np.where(leq)[0].max() if any(leq) else 0
+    lower = numpy.where(leq)[0].max() if any(leq) else 0
     geq = array >= target
-    upper = np.where(geq)[0].min() if any(geq) else len(array)-1
+    upper = numpy.where(geq)[0].min() if any(geq) else len(array)-1
     return lower, upper
 
 
@@ -106,8 +106,8 @@ def find_nearest(
     bisection-based method.
     """
 
-    array = np.asarray(values)
-    index = np.abs(array - target).argmin()
+    array = numpy.asarray(values)
+    index = numpy.abs(array - target).argmin()
     if bound == 'lower':
         try:
             while array[index] < target:
@@ -121,7 +121,7 @@ def find_nearest(
         except IndexError:
             index = 0
     if array.ndim > 1:
-        index = np.unravel_index(index, array.shape)
+        index = numpy.unravel_index(index, array.shape)
     return Nearest(index=index, value=array[index])
 
 
@@ -213,18 +213,18 @@ def xyz2rtp(*args):
         x, y, z = args
     else:
         raise ArgsNumberError
-    r = np.sqrt(x*x + y*y + z*z)
-    r[np.asarray(np.abs(r) < sys.float_info.epsilon).nonzero()] = 0.0
-    t = np.arccos(z/r)
-    t[np.asarray(r == 0).nonzero()] = 0.0
-    p = np.arctan2(y, x)
-    p[np.asarray(p < 0.0).nonzero()] += 2*np.pi
-    p[np.asarray(
+    r = numpy.sqrt(x*x + y*y + z*z)
+    r[numpy.asarray(numpy.abs(r) < sys.float_info.epsilon).nonzero()] = 0.0
+    t = numpy.arccos(z/r)
+    t[numpy.asarray(r == 0).nonzero()] = 0.0
+    p = numpy.arctan2(y, x)
+    p[numpy.asarray(p < 0.0).nonzero()] += 2*numpy.pi
+    p[numpy.asarray(
         [i == 0 and j >= 0 for (i, j) in zip(x, y)]
-    ).nonzero()] = +0.5*np.pi
-    p[np.asarray(
+    ).nonzero()] = +0.5*numpy.pi
+    p[numpy.asarray(
         [i == 0 and j < 0  for (i, j) in zip(x, y)]
-    ).nonzero()] = -0.5*np.pi
+    ).nonzero()] = -0.5*numpy.pi
     return (r, t, p)
 
 
@@ -249,12 +249,12 @@ def rtp2xyz(*args):
     --------
     ```
     >>> from eprem.tools.math import rtp2xyz
-    >>> import numpy as np
-    >>> rtp2xyz(1.0, 0.5*np.pi, 0)
+    >>> import numpy
+    >>> rtp2xyz(1.0, 0.5*numpy.pi, 0)
     (1.0, 0.0, 0.0)
-    >>> rtp2xyz(1.0, 0, 0.5*np.pi)
+    >>> rtp2xyz(1.0, 0, 0.5*numpy.pi)
     (0.0, 0.0, 1.0)
-    >>> rtp = (1.0, 0, 0.5*np.pi)
+    >>> rtp = (1.0, 0, 0.5*numpy.pi)
     >>> rtp2xyz(rtp)
     (0.0, 0.0, 1.0)
     ```
@@ -268,24 +268,26 @@ def rtp2xyz(*args):
         r, t, p = args
     else:
         raise ArgsNumberError
-    x = r * np.sin(t) * np.cos(p)
+    x = r * numpy.sin(t) * numpy.cos(p)
     x = zero_floor(x)
-    y = r * np.sin(t) * np.sin(p)
+    y = r * numpy.sin(t) * numpy.sin(p)
     y = zero_floor(y)
-    z = r * np.cos(t)
+    z = r * numpy.cos(t)
     z = zero_floor(z)
     return (x, y, z)
 
 
 def zero_floor(
-    value: typing.Union[float, np.ndarray],
-) -> typing.Union[float, np.ndarray]:
+    value: typing.Union[float, numpy.ndarray],
+) -> typing.Union[float, numpy.ndarray]:
     """Round a small number, or array of small numbers, to zero."""
     if value.shape:
-        condition = np.asarray(np.abs(value) < sys.float_info.epsilon).nonzero()
+        condition = numpy.asarray(
+            numpy.abs(value) < sys.float_info.epsilon
+        ).nonzero()
         value[condition] = 0.0
     else:
-        value = 0.0 if np.abs(value) < sys.float_info.epsilon else value
+        value = 0.0 if numpy.abs(value) < sys.float_info.epsilon else value
     return value
 
 
