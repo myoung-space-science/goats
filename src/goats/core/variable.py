@@ -1,5 +1,8 @@
 """Tools for managing datasets."""
 
+import collections.abc
+import inspect
+import numbers
 import typing
 
 import numpy
@@ -7,9 +10,11 @@ import numpy.typing
 
 from goats.core import aliased
 from goats.core import datafile
+from goats.core import iterables
 from goats.core import metric
 from goats.core import metadata
 from goats.core import observables
+from goats.core import parameter
 from goats.core import physical
 
 
@@ -90,6 +95,30 @@ class Quantity(physical.Array, metadata.AxesMixin):
             x._array if isinstance(x, type(self))
             else x for x in inputs
         )
+
+    def array_contains(self, value: numbers.Real):
+        """True if `value` is in this variable quantity's array.
+
+        Parameters
+        ----------
+        value : real
+            The value to check for among this variable's values.
+        
+        Notes
+        -----
+        This method exists to handle cases in which floating-point arithmetic
+        has caused a numeric operation to return an imprecise result, especially
+        for small numbers (e.g., converting energy from eV to J). It will first
+        check the built-in `__contains__` method via `in` before attempting to
+        determine if `value` is close enough to count, albeit within a very
+        strict tolerance.
+        """
+        if value in self._array:
+            return True
+        if value < numpy.min(self._array) or value > numpy.max(self._array):
+            return False
+        return numpy.any([numpy.isclose(value, self._array, atol=0.0)])
+
     def __getitem__(self, *args):
         result = super().__getitem__(*args)
         if isinstance(result, physical.Array) and result.ndim == self.axes:

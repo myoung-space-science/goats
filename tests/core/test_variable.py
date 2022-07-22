@@ -873,3 +873,21 @@ def test_full_mean(components):
         expected=numpy.mean(ref['data']),
     )
 
+
+def test_array_contains():
+    """Test the function that checks for a value in an array."""
+    v = variable.Quantity([1.1e-30, 2e-30], axes=['x'])
+    cases = [
+        {'value': 1.1e-30, 'in': True, 'contains': True},
+        {'value': 2.0e-30, 'in': True, 'contains': True},
+    ]
+    cases = [
+        (1.1e-30, (True, True)),
+        (2.0e-30, (True, True)),
+        (1.1e+30 / 1.0e+60, (False, True)),
+        (1.0e-30 + 1.0e-31, (False, True)),
+    ]
+    for value, test in cases:
+        assert (value in v) == test[0]
+        assert v.array_contains(value) == test[1]
+
