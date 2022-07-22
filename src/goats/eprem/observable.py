@@ -203,7 +203,7 @@ class Context:
         """Retrieve or compute the axes corresponding to `key`."""
         if key in self._axes_cache:
             return self._axes_cache[key]
-        method = functions.REGISTRY[self.name]
+        method = functions.REGISTRY[key]
         self._removed = self._get_metadata(method, 'removed')
         self._added = self._get_metadata(method, 'added')
         self._accumulated = []
