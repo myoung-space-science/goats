@@ -281,15 +281,17 @@ class Context:
         self._scalars.update(updates)
         return self._scalars
 
-    def _compute_index(self, key: str, indices):
-        """Compute a single indexing object."""
-        if not isinstance(indices, index.Quantity):
-            axis = self.axes[key]
-            indices = axis(*iterables.whole(indices))
-        if indices.unit is not None:
-            unit = self.variables.system.get_unit(unit=indices.unit)
-            return indices.convert(unit)
-        return indices
+    def _compute_index(self, key: str, this):
+        """Compute a single indexing object from input values."""
+        target = (
+            self.axes[key].at(*iterables.whole(this))
+            if not isinstance(this, index.Quantity)
+            else this
+        )
+        if target.unit is not None:
+            unit = self.variables.system.get_unit(unit=target.unit)
+            return target.convert(unit)
+        return target
 
     def _get_assumption(self, this):
         """Get a single assumption from user input."""
