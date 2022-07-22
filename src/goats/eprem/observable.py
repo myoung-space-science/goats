@@ -178,11 +178,12 @@ class Context:
         method = interface.pop('method')
         caller = variable.Caller(method, **interface)
         deps = {p: self.get_quantity(p) for p in caller.parameters}
+        quantity = observables.METADATA.get(name, {}).get('quantity', None)
         data = caller(**deps)
         return variable.Quantity(
             data,
             axes=self.get_axes(name),
-            unit=self.get_unit(name),
+            unit=self.variables.system.get_unit(quantity=quantity),
             name=name,
         )
 
@@ -193,11 +194,6 @@ class Context:
         if name in self.variables:
             return self.evaluate_variable(name)
         return self.evaluate_function(name)
-
-    def get_unit(self, key: str):
-        """Determine the metric unit corresponding to `key`."""
-        quantity = observables.METADATA.get(key, {}).get('quantity', None)
-        return self.variables.system.get_unit(quantity=quantity)
 
     def get_axes(self, key: str):
         """Retrieve or compute the axes corresponding to `key`."""
@@ -298,7 +294,7 @@ class Context:
     def _get_assumption(self, this):
         """Get a single assumption from user input."""
         scalar = self._force_scalar(this)
-        unit = self.get_unit(unit=scalar.unit)
+        unit = self.variables.system.get_unit(unit=scalar.unit)
         return scalar.convert(unit)
 
     def _force_scalar(self, this) -> measurable.Scalar:
