@@ -173,11 +173,11 @@ class Context:
         return q[tuple(self.indices)]
 
     def evaluate_function(self, name: str):
-        """"""
+        """Create a variable quantity from a function."""
         interface = functions.REGISTRY[name]
         method = interface.pop('method')
         caller = variable.Caller(method, **interface)
-        deps = {p: self.get_attribute(p) for p in caller.parameters}
+        deps = {p: self.get_quantity(p) for p in caller.parameters}
         data = caller(**deps)
         return variable.Quantity(
             data,
@@ -186,8 +186,8 @@ class Context:
             name=name,
         )
 
-    def get_attribute(self, name: str):
-        """"""
+    def get_quantity(self, name: str):
+        """Retrieve the named quantity from available attributes."""
         if name in self.scalars:
             return self.scalars[name]
         if name in self.variables:
@@ -400,10 +400,10 @@ class Interface:
 
     def implement(self, name: str):
         """Create the implementation of an observable quantity."""
-        if name in self.primary:
-            return Primary(name, self.context)
-        if name in self.derived:
-            return Derived(name, self.context)
-        if '/' in name or '*' in name:
-            return Composed(name, self.context)
+        # if name in self.primary:
+        #     return Primary(name, self.context)
+        # if name in self.derived:
+        #     return Derived(name, self.context)
+        # if '/' in name or '*' in name:
+        #     return Composed(name, self.context)
 
