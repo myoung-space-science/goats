@@ -136,75 +136,6 @@ class Interpolator:
         return numpy.moveaxis(interpolated, dst, src)
 
 
-# Unused
-class Application:
-    """Constraints applied to an observing context."""
-
-    def __init__(
-        self,
-        axes: axis.Interface,
-        variables: variable.Interface,
-        **constraints
-    ) -> None:
-        self.axes = axes
-        self.variables = variables
-        self.constraints = constraints
-        self._indices = None
-        self._assumptions = None
-
-    @property
-    def indices(self):
-        """The relevant axis indices."""
-        if self._indices is None:
-            self._indices = {
-                k: self._compute_index(k, v)
-                for k, v in self.constraints.items()
-                if k in self.axes
-            }
-        return self._indices
-
-    @property
-    def assumptions(self):
-        """The relevant physical assumptions."""
-        if self._assumptions is None:
-            self._assumptions = {
-                k: self._get_assumption(v)
-                for k, v in self.constraints.items()
-                if k not in self.axes
-            }
-        return self._assumptions
-
-    def _compute_index(self, key: str, indices):
-        """Compute a single indexing object."""
-        if not isinstance(indices, index.Quantity):
-            axis = self.axes[key]
-            indices = axis(*iterables.whole(indices))
-        if indices.unit is not None:
-            unit = self.variables.system.get_unit(unit=indices.unit)
-            return indices.convert(unit)
-        return indices
-
-    def _get_assumption(self, this):
-        """Get a single assumption from user input."""
-        scalar = self._force_scalar(this)
-        unit = self.variables.system.get_unit(unit=scalar.unit)
-        return scalar.convert(unit)
-
-    def _force_scalar(self, this) -> measurable.Scalar:
-        """Make sure `this` is a `~measurable.Scalar`."""
-        if isinstance(this, measurable.Scalar):
-            return this
-        if isinstance(this, parameter.Assumption):
-            return this[0]
-        if isinstance(this, measurable.Measurement):
-            return physical.Scalar(this.values[0], unit=this.unit)
-        measured = measurable.measure(this)
-        if len(measured) > 1:
-            raise ValueError("Can't use a multi-valued assumption") from None
-        return self._force_scalar(measured)
-
-
-
 class Context:
     """A general observing context."""
 
@@ -395,36 +326,6 @@ class Context:
             self._references = aliased.Mapping({**axes, **rtp})
         return self._references
 
-    # --Development graveyard--
-
-    # def get_axes(self, name: str):
-    #     """Get the named axis quantity, if available."""
-    #     if found := self.axes.get(name):
-    #         return found
-
-    # def get_variable(self, name: str):
-    #     """Get the named variable quantity, if available."""
-    #     if found := self.variables.get(name):
-    #         return found
-
-    # def get_assumption(self, name: str):
-    #     """Get a numerical assumption, if available."""
-    #     if found := self.assumptions.get(name):
-    #         return found
-
-    # def get_indices(self, **constraints):
-    #     """Compute array indices based on constraints."""
-    #     axes = {k: v for k, v in constraints.items() if k in self.axes}
-    #     return {k: self._compute_index(k, v) for k, v in axes.items()}
-
-    # def subscript(self, __q: variable.Quantity, **constraints):
-    #     """Extract the appropriate subset of a variable quantity."""
-    #     indices = [
-    #         self.get_indices(axis, **constraints)
-    #         for axis in __q.axes
-    #     ]
-    #     return __q[tuple(indices)]
-
 
 class Implementation(abc.ABC):
     """ABC for implementations of observable quantities."""
@@ -457,11 +358,6 @@ class Primary(Implementation):
 class Derived(Implementation):
     """Implementation of a derived observable quantity."""
 
-    # def __init__(self, name: str, context: Context) -> None:
-    #     super().__init__(name, context)
-    #     self._axes_cache = {}
-    #     self._dependencies_cache = {}
-
     def apply(self, **constraints) -> observed.Quantity:
         self.context.apply(**constraints)
         return observed.Quantity(
@@ -469,77 +365,6 @@ class Derived(Implementation):
             indices=self.context.indices,
             scalars=self.context.scalars,
         )
-        # interface = functions.REGISTRY[self.name]
-        # method = interface.pop('method')
-        # caller = variable.Caller(method, **interface)
-        # this = variable.Computer(
-        #     functions.REGISTRY[self.name],
-        #     axes=self.get_axes(self.name),
-        #     unit=self.get_unit(self.name),
-        #     name=self.name
-        # )
-
-    # def get_axes(self, key: str):
-    #     """Retrieve or compute the axes corresponding to `key`."""
-    #     if key in self._axes_cache:
-    #         return self._axes_cache[key]
-    #     method = functions.REGISTRY[self.name]
-    #     self._removed = self._get_metadata(method, 'removed')
-    #     self._added = self._get_metadata(method, 'added')
-    #     self._accumulated = []
-    #     axes = self._gather_axes(method)
-    #     self._axes_cache[key] = axes
-    #     return axes
-
-    # def get_unit(self, key: str):
-    #     """Determine the metric unit corresponding to `key`."""
-    #     quantity = observables.METADATA.get(key, {}).get('quantity', None)
-    #     return self.context.variables.system.get_unit(quantity=quantity)
-
-    # def _gather_axes(self, target: variable.Caller):
-    #     """Recursively gather appropriate axes."""
-    #     for parameter in target.parameters:
-    #         if parameter in self.context.variables:
-    #             axes = self.context.variables[parameter].axes
-    #             self._accumulated.extend(axes)
-    #         elif method := functions.REGISTRY[parameter]:
-    #             self._removed.extend(self._get_metadata(method, 'removed'))
-    #             self._added.extend(self._get_metadata(method, 'added'))
-    #             self._accumulated.extend(self._gather_axes(method))
-    #     unique = set(self._accumulated) - set(self._removed) | set(self._added)
-    #     return self.context.axes.resolve(unique, mode='append')
-
-    # def _get_metadata(self, method: variable.Caller, key: str) -> list:
-    #     """Helper for accessing a method's metadata dictionary."""
-    #     if key not in method.meta:
-    #         return [] # Don't go through the trouble if it's not there.
-    #     value = method.meta[key]
-    #     return list(iterables.whole(value))
-
-    # def get_dependencies(self, key: str):
-    #     """Compute the names of all dependencies of `key`."""
-    #     if key in self._dependencies_cache:
-    #         return self._dependencies_cache[key]
-    #     try:
-    #         target = functions.REGISTRY[parameter]
-    #         p = self._gather_dependencies(target)
-    #     except KeyError:
-    #         return set()
-    #     else:
-    #         self._dependencies_cache[key] = p
-    #         return p
-
-    # def _gather_dependencies(self, target: variable.Caller):
-    #     """Recursively gather the names of the target method's dependencies."""
-    #     resolved = []
-    #     for parameter in target.parameters:
-    #         if parameter in self.context.variables:
-    #             resolved.append(parameter)
-    #         elif parameter in self:
-    #             resolved.append(parameter)
-    #             method = functions.REGISTRY[parameter]
-    #             resolved.extend(self._gather_dependencies(method))
-    #     return set(resolved)
 
 
 class Composed(Implementation):
