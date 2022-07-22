@@ -250,7 +250,7 @@ class Context:
         for parameter in target.parameters:
             if parameter in self.variables:
                 resolved.append(parameter)
-            elif parameter in self:
+            elif parameter in functions.REGISTRY:
                 resolved.append(parameter)
                 method = functions.REGISTRY[parameter]
                 resolved.extend(self._gather_dependencies(method))
