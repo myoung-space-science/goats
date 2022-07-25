@@ -93,7 +93,7 @@ def apply(
     return numpy.array(interpolated)
 
 
-axes = {
+_AXES = {
     'time': 0,
     'radius': 1,
     'energy': 1,
@@ -111,7 +111,7 @@ def _apply_interp1d(
     if target in reference:
         idx = numerical.find_nearest(reference, target).index
         return array[idx]
-    if (axis := axes.get(coordinate)) is not None:
+    if (axis := _AXES.get(coordinate)) is not None:
         restriction = Restriction(
             restrict_coordinate,
             reference,
