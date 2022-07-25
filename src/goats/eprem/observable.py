@@ -73,28 +73,32 @@ class Interpolator:
             and bool(self.axes)
         )
 
-    @property
-    def result(self) -> variable.Quantity:
-        """The interpolated variable quantity."""
-        q = self._interpolated
+    def interpolate(
+        self,
+        indices: typing.Mapping[str, index.Quantity],
+    ) -> variable.Quantity:
+        """Interpolated the variable quantity."""
+        q = self._interpolate(indices)
         indexable = list(set(self.q.axes) - set(self.axes))
-        indices = tuple(
-            self.indices[axis]
+        idx = tuple(
+            indices[axis]
             if axis in indexable else slice(None)
             for axis in q.axes
         )
-        return q[indices]
+        return q[idx]
 
-    @property
-    def _interpolated(self) -> variable.Quantity:
+    def _interpolate(
+        self,
+        indices: typing.Mapping[str, index.Quantity],
+    ) -> variable.Quantity:
         """Internal interpolation logic."""
         coordinates = {
             axis: {
-                'targets': numpy.array(indices.data),
+                'targets': numpy.array(idx.data),
                 'reference': self.references[axis],
             }
-            for axis, indices in self.indices.items()
-            if axis in self.axes and indices.unit is not None
+            for axis, idx in indices.items()
+            if axis in self.axes and idx.unit is not None
         }
         if 'radius' in self.assumptions:
             radii = iterables.whole(self.assumptions['radius'])
@@ -136,7 +140,7 @@ class Interpolator:
         return numpy.moveaxis(interpolated, dst, src)
 
 
-class Context:
+class _Context:
     """A general observing context."""
 
     def __init__(
@@ -325,15 +329,12 @@ class Context:
         return self._references
 
 
-class Implementation(abc.ABC):
+class _Implementation(abc.ABC):
     """ABC for implementations of observable quantities."""
 
-    def __init__(self, name: str, context: Context) -> None:
+    def __init__(self, name: str, context: _Context) -> None:
         self.name = name
         self.context = context
-
-    # If everything ends up involving a call to `self.context`, this may be one
-    # level of abstraction too many.
 
     @abc.abstractmethod
     def apply(self, **constraints) -> observed.Quantity:
@@ -341,7 +342,7 @@ class Implementation(abc.ABC):
         raise NotImplementedError
 
 
-class Primary(Implementation):
+class Primary(_Implementation):
     """Implementation of a primary observable quantity."""
 
     def apply(self, **constraints) -> observed.Quantity:
@@ -353,7 +354,7 @@ class Primary(Implementation):
         )
 
 
-class Derived(Implementation):
+class Derived(_Implementation):
     """Implementation of a derived observable quantity."""
 
     def apply(self, **constraints) -> observed.Quantity:
@@ -365,11 +366,246 @@ class Derived(Implementation):
         )
 
 
-class Composed(Implementation):
+class Composed(_Implementation):
     """Implementation of a composed observable quantity."""
 
     def apply(self, **constraints) -> observed.Quantity:
         this = algebraic.Expression(self.name)
+
+
+class Context:
+    """A constrainable observing context."""
+
+    def __init__(
+        self,
+        axes: axis.Interface,
+        variables: variable.Interface,
+        arguments: parameters.Arguments,
+    ) -> None:
+        self.axes = axes
+        self.variables = variables
+        self.arguments = arguments
+        self._references is None
+        self._indices = aliased.MutableMapping.fromkeys(self.axes, value=())
+        self._scalars = aliased.MutableMapping(self.arguments)
+        self._cache = {}
+
+    @property
+    def references(self):
+        """Reference quantities for indexing and interpolation."""
+        if self._references is None:
+            axes = {k: v.reference for k, v in self.axes.items(aliased=True)}
+            rtp = {
+                (k, *self.variables.alias(k, include=True)): self.variables[k]
+                for k in {'radius', 'theta', 'phi'}
+            }
+            self._references = aliased.Mapping({**axes, **rtp})
+        return self._references
+
+    def get_scalars(self, **user):
+        """Gather the relevant scalar assumptions."""
+        updates = {
+            k: self._get_assumption(v)
+            for k, v in user.items()
+            if k not in self.axes
+        }
+        self._scalars.update(updates)
+        return self._scalars
+
+    def get_indices(self, **user):
+        """Create the relevant observing indices."""
+        updates = {
+            k: self._compute_index(k, v)
+            for k, v in user.items()
+            if k in self.axes
+        }
+        self._indices.update(updates)
+        return self._indices
+
+    def _compute_index(self, key: str, this):
+        """Compute a single indexing object from input values."""
+        target = (
+            self.axes[key].at(*iterables.whole(this))
+            if not isinstance(this, index.Quantity)
+            else this
+        )
+        if target.unit is not None:
+            unit = self.variables.system.get_unit(unit=target.unit)
+            return target.convert(unit)
+        return target
+
+    def _get_assumption(self, this):
+        """Get a single assumption from user input."""
+        scalar = self._force_scalar(this)
+        unit = self.variables.system.get_unit(unit=scalar.unit)
+        return scalar.convert(unit)
+
+    def _force_scalar(self, this) -> measurable.Scalar:
+        """Make sure `this` is a `~measurable.Scalar`."""
+        if isinstance(this, measurable.Scalar):
+            return this
+        if isinstance(this, parameter.Assumption):
+            return this[0]
+        if isinstance(this, measurable.Measurement):
+            return physical.Scalar(this.values[0], unit=this.unit)
+        measured = measurable.measure(this)
+        if len(measured) > 1:
+            raise ValueError("Can't use a multi-valued assumption") from None
+        return self._force_scalar(measured)
+
+    def get_axes(self, key: str):
+        """Retrieve or compute the axes corresponding to `key`."""
+        if key in self._cache:
+            return self._cache[key]
+        method = functions.REGISTRY[key]
+        self._removed = self._get_metadata(method, 'removed')
+        self._added = self._get_metadata(method, 'added')
+        self._accumulated = []
+        axes = self._gather_axes(method)
+        self._cache[key] = axes
+        return axes
+
+    def _gather_axes(self, target: variable.Caller):
+        """Recursively gather appropriate axes."""
+        for parameter in target.parameters:
+            if parameter in self.variables:
+                axes = self.variables[parameter].axes
+                self._accumulated.extend(axes)
+            elif method := functions.REGISTRY[parameter]:
+                self._removed.extend(self._get_metadata(method, 'removed'))
+                self._added.extend(self._get_metadata(method, 'added'))
+                self._accumulated.extend(self._gather_axes(method))
+        unique = set(self._accumulated) - set(self._removed) | set(self._added)
+        return self.axes.resolve(unique, mode='append')
+
+    def _get_metadata(self, method: variable.Caller, key: str) -> list:
+        """Helper for accessing a method's metadata dictionary."""
+        if key not in method.meta:
+            return [] # Don't go through the trouble if it's not there.
+        value = method.meta[key]
+        return list(iterables.whole(value))
+
+
+class Computer:
+    """"""
+
+
+class Application:
+    """The result of applying user values to an observing implementation."""
+
+    def __init__(
+        self,
+        context: Context,
+        **user
+    ) -> None:
+        self.user = user
+        self.indices = context.get_indices(**self.user)
+        self.scalars = context.get_scalars(**self.user)
+        self.axes = context.axes
+        self.variables = context.variables
+
+    def evaluate_variable(self, name: str):
+        """Apply user constraints to a variable quantity."""
+        q = self.variables[name] # use variable.Interface KeyError
+        interpolator = Interpolator(
+            q,
+            self.references,
+            self.indices,
+            self.scalars,
+        )
+        if interpolator.required:
+            return interpolator.result
+        return q[tuple(self.indices)]
+
+    def evaluate_function(self, name: str):
+        """Create a variable quantity from a function."""
+        interface = functions.REGISTRY[name]
+        method = interface.pop('method')
+        caller = variable.Caller(method, **interface)
+        deps = {p: self.get_quantity(p) for p in caller.parameters}
+        quantity = observables.METADATA.get(name, {}).get('quantity', None)
+        data = caller(**deps)
+        return variable.Quantity(
+            data,
+            axes=self.get_axes(name),
+            unit=self.variables.system.get_unit(quantity=quantity),
+            name=name,
+        )
+
+    def get_quantity(self, name: str):
+        """Retrieve the named quantity from available attributes."""
+        if name in self.scalars:
+            return self.scalars[name]
+        if name in self.variables:
+            return self.evaluate_variable(name)
+        return self.evaluate_function(name)
+
+    def get_axes(self, key: str):
+        """Retrieve or compute the axes corresponding to `key`."""
+        if key in self._axes_cache:
+            return self._axes_cache[key]
+        method = functions.REGISTRY[key]
+        self._removed = self._get_metadata(method, 'removed')
+        self._added = self._get_metadata(method, 'added')
+        self._accumulated = []
+        axes = self._gather_axes(method)
+        self._axes_cache[key] = axes
+        return axes
+
+    def _gather_axes(self, target: variable.Caller):
+        """Recursively gather appropriate axes."""
+        for parameter in target.parameters:
+            if parameter in self.variables:
+                axes = self.variables[parameter].axes
+                self._accumulated.extend(axes)
+            elif method := functions.REGISTRY[parameter]:
+                self._removed.extend(self._get_metadata(method, 'removed'))
+                self._added.extend(self._get_metadata(method, 'added'))
+                self._accumulated.extend(self._gather_axes(method))
+        unique = set(self._accumulated) - set(self._removed) | set(self._added)
+        return self.axes.resolve(unique, mode='append')
+
+    def _get_metadata(self, method: variable.Caller, key: str) -> list:
+        """Helper for accessing a method's metadata dictionary."""
+        if key not in method.meta:
+            return [] # Don't go through the trouble if it's not there.
+        value = method.meta[key]
+        return list(iterables.whole(value))
+
+    @property
+    def references(self):
+        """Reference quantities for indexing and interpolation."""
+        if self._references is None:
+            axes = {k: v.reference for k, v in self.axes.items(aliased=True)}
+            rtp = {
+                (k, *self.variables.alias(k, include=True)): self.variables[k]
+                for k in {'radius', 'theta', 'phi'}
+            }
+            self._references = aliased.Mapping({**axes, **rtp})
+        return self._references
+
+
+class Implementation:
+    """"""
+
+    def __init__(
+        self,
+        name: str,
+        context: Context,
+    ) -> None:
+        self.name = name
+        self.context = context
+
+    def apply(self, **constraints):
+        """"""
+        application = Application(self.context, **constraints)
+        data = self.interface.implement(self.name, indices, scalars)
+        return variable.Quantity(
+            data,
+            axes=self.context.get_axes(self.name),
+            unit=self.variables.system.get_unit(quantity=quantity),
+            name=name,
+        )
 
 
 class Interface:
@@ -381,11 +617,7 @@ class Interface:
         variables: variable.Interface,
         arguments: parameters.Arguments,
     ) -> None:
-        assumptions = {
-            k: v for k, v in arguments.items()
-            if isinstance(v, parameter.Assumption)
-        } # -> aliased mapping
-        self.context = Context(axes, variables, assumptions)
+        self.context = Context(axes, variables, arguments)
         # These could become input parameters that provide the caller with some
         # flexibility about which variables and functions are available to a
         # given observer. For example:
@@ -394,10 +626,13 @@ class Interface:
         # - [derived] If a dataset doesn't contain flux or the particle
         #   distribution, we can't expect to compute integral flux.
         self.primary = list(variables)
+        """The names of observable quantities in the dataset."""
         self.derived = list(functions.METHODS)
+        """The names of observable quantities computed from variables."""
 
     def implement(self, name: str):
         """Create the implementation of an observable quantity."""
+        return Implementation(name, self.context)
         # if name in self.primary:
         #     return Primary(name, self.context)
         # if name in self.derived:
