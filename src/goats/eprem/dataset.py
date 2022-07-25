@@ -14,8 +14,10 @@ from goats.core import index
 from goats.core import measurable
 from goats.core import metric
 from goats.core import numerical
+from goats.core import observables
 from goats.core import physical
 from goats.core import variable
+from goats.eprem import interpolation
 
 
 class Indexers(iterables.ReprStrMixin, aliased.Mapping):
@@ -163,6 +165,7 @@ class Interface:
         self.system = metric.System(system or 'mks')
         self._axes = None
         self._variables = None
+        self._indices = aliased.MutableMapping.fromkeys(self.axes, value=())
 
     @property
     def axes(self):
@@ -178,6 +181,141 @@ class Interface:
             self._variables = variable.Interface(self.dataset, self.system)
         return self._variables
 
+    def evaluate(self, name: str, **user):
+        """Apply user constraints to the named variable quantity."""
+        if name not in self.variables:
+            return
+        old = self.variables[name]
+        indices = self._compute_indices(user)
+        if any(self._get_reference(alias) for alias in old.name):
+            # This is an axis-reference quantity.
+            # - Should this even subscript `old`?
+            # - Maybe put a breakpoint here to see if `user` is ever non-empty
+            #   when getting an axis-reference quantity. If it is always empty,
+            #   we can't be certain; if it is ever non-empty, we know that we
+            #   need to subscript `old`.
+            return old[indices]
+        axes = self._compute_axes(old, user)
+        if not axes:
+            # There are no axes over which to interpolate.
+            return old[indices]
+        new = self._interpolate(old, user)
+        idx = tuple(
+            indices[axis]
+            if axis in axes else slice(None)
+            for axis in old.axes
+        )
+        return new[idx]
+
+    def _compute_coordinates(self, user: dict):
+        """Determine the measurable observing indices."""
+        indices = self._compute_indices(user)
+        coordinates = {
+            axis: {
+                'targets': numpy.array(idx.data),
+                'reference': self._get_reference(axis),
+            }
+            for axis, idx in indices.items()
+            if axis in self.axes and idx.unit is not None
+        }
+        for key in observables.ALIASES['radius']:
+            if values := user.get(key):
+                radii = iterables.whole(values)
+                floats = [float(radius) for radius in radii]
+                updates = {
+                    'targets': numpy.array(floats),
+                    'reference': self._get_reference('radius'),
+                }
+                coordinates.update(updates)
+        return coordinates
+
+    def _compute_axes(self, q: variable.Quantity, user: dict):
+        """Determine over which axes to interpolate, if any."""
+        indices = self._compute_indices(user)
+        crd = {k: v for k, v in indices.items() if v.unit is not None}
+        coordinates = {a: crd[a].data for a in q.axes if a in crd}
+        references = [self._get_reference(a) for a in q.axes if a in crd]
+        axes = [
+            a for (a, c), r in zip(coordinates.items(), references)
+            if not numpy.all([r.array_contains(target) for target in c])
+        ]
+        if any(r in user for r in observables.ALIASES['radius']):
+            axes.append('radius')
+        return list(set(q.axes) - set(axes))
+
+    def _compute_indices(self, user: dict) -> typing.Dict[str, index.Quantity]:
+        """Create the relevant observing indices."""
+        updates = {
+            k: self._compute_index(k, v)
+            for k, v in user.items()
+            if k in self.axes
+        }
+        return {**self._indices, **updates}
+
+    def _compute_index(self, key: str, this):
+        """Compute a single indexing object from input values."""
+        target = (
+            self.axes[key].at(*iterables.whole(this))
+            if not isinstance(this, index.Quantity)
+            else this
+        )
+        if target.unit is not None:
+            unit = self.system.get_unit(unit=target.unit)
+            return target.convert(unit)
+        return target
+
+    def _get_reference(self, name: str) -> typing.Optional[variable.Quantity]:
+        """Get a reference quantity for indexing."""
+        if self._references is None:
+            axes = {k: v.reference for k, v in self.axes.items(aliased=True)}
+            rtp = {
+                (k, *self.variables.alias(k, include=True)): self.variables[k]
+                for k in {'radius', 'theta', 'phi'}
+            }
+            self._references = aliased.Mapping({**axes, **rtp})
+        return self._references.get(name)
+
+    def _interpolate(
+        self,
+        q: variable.Quantity,
+        user: dict,
+    ) -> variable.Quantity:
+        """Internal interpolation logic."""
+        coordinates = self._compute_coordinates(user)
+        array = None
+        for coordinate, current in coordinates.items():
+            array = self._interpolate_coordinate(
+                current['targets'],
+                current['reference'],
+                coordinate=coordinate,
+                workspace=array,
+            )
+        meta = {k: getattr(q, k, None) for k in {'unit', 'name', 'axes'}}
+        return variable.Quantity(array, **meta)
+
+    def _interpolate_coordinate(
+        self,
+        q: variable.Quantity,
+        targets: numpy.ndarray,
+        reference: variable.Quantity,
+        coordinate: str=None,
+        workspace: numpy.ndarray=None,
+    ) -> numpy.ndarray:
+        """Interpolate a variable array based on a known coordinate."""
+        array = numpy.array(q) if workspace is None else workspace
+        indices = (q.axes.index(d) for d in reference.axes)
+        dst, src = zip(*enumerate(indices))
+        reordered = numpy.moveaxis(array, src, dst)
+        interpolated = interpolation.apply(
+            reordered,
+            numpy.array(reference),
+            targets,
+            coordinate=coordinate,
+        )
+        return numpy.moveaxis(interpolated, dst, src)
+
+    # We could remove this and let users directly call `axis.Interface.resolve`
+    # on the `axes` property.
     def resolve_axes(
         self,
         names: typing.Iterable[str],
