@@ -1159,7 +1159,7 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
     def _standardize(
         expression: typing.Union[str, iterables.whole],
     ) -> str:
-        """Convert an string expression to a standard format."""
+        """Convert a string expression to a standard format."""
         if not expression:
             return '1'
         if isinstance(expression, str):
