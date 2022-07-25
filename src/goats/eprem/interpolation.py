@@ -1,6 +1,6 @@
 import typing
 
-import numpy as np
+import numpy
 import numpy.typing
 from scipy.interpolate import interp1d
 
@@ -8,7 +8,7 @@ from goats.core import numerical
 
 
 def restrict_coordinate(
-    array: np.ndarray,
+    array: numpy.ndarray,
     target: float,
     axis: typing.SupportsIndex,
 ) -> range:
@@ -72,25 +72,25 @@ class Restriction:
         """
         if axis is None:
             axis = -1
-        permuted = np.moveaxis(array, axis, 0)
+        permuted = numpy.moveaxis(array, axis, 0)
         result = permuted[self.indices, ...]
-        return np.moveaxis(result, 0, axis)
+        return numpy.moveaxis(result, 0, axis)
 
 
 def apply(
-    array: np.ndarray,
-    reference: np.ndarray,
+    array: numpy.ndarray,
+    reference: numpy.ndarray,
     targets: typing.Iterable[float],
     coordinate: str=None,
-) -> np.ndarray:
+) -> numpy.ndarray:
     """Interpolate `array` to target values over `coordinate`."""
     interpolated = [
         _apply_interp1d(array, reference, target, coordinate=coordinate)
         for target in targets
     ]
     if reference.ndim == 2:
-        return np.swapaxes(interpolated, 0, 1)
-    return np.array(interpolated)
+        return numpy.swapaxes(interpolated, 0, 1)
+    return numpy.array(interpolated)
 
 
 axes = {
@@ -102,8 +102,8 @@ axes = {
 
 
 def _apply_interp1d(
-    array: np.ndarray,
-    reference: np.ndarray,
+    array: numpy.ndarray,
+    reference: numpy.ndarray,
     target: float,
     coordinate: str=None,
 ) -> typing.List[float]:
