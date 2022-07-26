@@ -128,13 +128,38 @@ class Context:
         return list(iterables.whole(value))
 
 
+class Variables(abc.ABC):
+    """ABC for classes that perform variable evaluation."""
+
+    def __init__(
+        self,
+        context: Context,
+        indices: typing.Mapping[str, index.Quantity],
+        scalars: typing.Mapping[str, physical.Scalar],
+    ) -> None:
+        self.context = context
+        self.indices = indices
+        self.scalars = scalars
+
+    @abc.abstractmethod
+    def evaluate(self, name: str):
+        """Create and update the named variable quantity."""
+        raise NotImplementedError
+
+
 class Application(abc.ABC):
     """ABC for observing applications."""
 
-    def __init__(self, context: Context, **constraints) -> None:
+    def __init__(
+        self,
+        __variables: typing.Type[Variables],
+        context: Context,
+        **constraints
+    ) -> None:
         self.context = context
         self.indices = self.context.get_indices(constraints)
         self.scalars = self.context.get_scalars(constraints)
+        self.variables = __variables(context, self.indices, self.scalars)
 
     @abc.abstractmethod
     def get_unit(self, name: str) -> metadata.Unit:
@@ -157,10 +182,9 @@ class Application(abc.ABC):
             return self.scalars[name]
         return self.evaluate_variable(name)
 
-    @abc.abstractmethod
     def evaluate_variable(self, name: str) -> variable.Quantity:
         """Apply user constraints to the named variable quantity."""
-        raise NotImplementedError
+        return self.variables.evaluate(name)
 
     def evaluate_function(self, name: str):
         """Create a variable quantity from a function."""
