@@ -180,13 +180,26 @@ class Application(abc.ABC):
         """Retrieve the named quantity from available attributes."""
         if name in self.scalars:
             return self.scalars[name]
-        return self.evaluate_variable(name)
-
-    def evaluate_variable(self, name: str) -> variable.Quantity:
-        """Apply user constraints to the named variable quantity."""
         return self.variables.evaluate(name)
 
-    def evaluate_function(self, name: str):
+
+class Primary(Application):
+    """Get an observable quantity from an observer's dataset."""
+
+    def create(self, name: str) -> variable.Quantity:
+        return self.get_quantity(name)
+
+    def get_unit(self, name: str) -> metadata.Unit:
+        return self.context.variables[name].unit
+
+    def get_axes(self, name: str) -> metadata.Axes:
+        return self.context.variables[name].axes
+
+
+class Derived(Application):
+    """Compute the result of a function of observable quantities."""
+
+    def create(self, name: str) -> variable.Quantity:
         """Create a variable quantity from a function."""
         interface = functions.REGISTRY[name]
         method = interface.pop('method')
@@ -201,36 +214,6 @@ class Application(abc.ABC):
             name=name,
         )
 
-    def evaluate_expression(self, name: str) -> variable.Quantity:
-        """Combine variables and functions based on this expression."""
-        expression = algebraic.Expression(name)
-        variables = [self.get_quantity(term.base) for term in expression]
-        exponents = [term.exponent for term in expression]
-        result = variables[0] ** exponents[0]
-        for variable, exponent in zip(variables[1:], exponents[1:]):
-            result *= variable ** exponent
-        return result
-
-
-class Primary(Application):
-    """Get an observable quantity from an observer's dataset."""
-
-    def create(self, name: str) -> variable.Quantity:
-        return self.evaluate_variable(name)
-
-    def get_unit(self, name: str) -> metadata.Unit:
-        return self.context.variables[name].unit
-
-    def get_axes(self, name: str) -> metadata.Axes:
-        return self.context.variables[name].axes
-
-
-class Derived(Application):
-    """Compute the result of a function of observable quantities."""
-
-    def create(self, name: str) -> variable.Quantity:
-        return self.evaluate_function(name)
-
     def get_unit(self, name: str) -> metadata.Unit:
         return self.context.get_unit(name)
 
@@ -242,7 +225,14 @@ class Composed(Application):
     """Evaluate an algebraic expression of other observable quantities."""
 
     def create(self, name: str) -> variable.Quantity:
-        return self.evaluate_expression(name)
+        """Combine variables and functions based on this expression."""
+        expression = algebraic.Expression(name)
+        variables = [self.get_quantity(term.base) for term in expression]
+        exponents = [term.exponent for term in expression]
+        result = variables[0] ** exponents[0]
+        for variable, exponent in zip(variables[1:], exponents[1:]):
+            result *= variable ** exponent
+        return result
 
     def get_unit(self, name: str) -> metadata.Unit:
         return self._build_attr(name, self.context.get_unit)
