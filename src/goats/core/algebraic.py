@@ -1280,6 +1280,26 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         """
         return cls(arg)
 
+    def apply(self: Instance, update: typing.Callable) -> Instance:
+        """Create a new expression by applying the given callable object.
+        
+        Parameters
+        ----------
+        update : callable
+            The callable object that this method should use to update the base
+            of each term in this expression.
+
+        Returns
+        -------
+        `~algebraic.Expression`
+        """
+        bases = [update(term.base) for term in self]
+        exponents = [term.exponent for term in self]
+        result = bases[0] ** exponents[0]
+        for base, exponent in zip(bases[1:], exponents[1:]):
+            result *= base ** exponent
+        return result
+
 
 def reduce(*groups: typing.Iterable[Term]):
     """Algebraically reduce terms with equal bases.

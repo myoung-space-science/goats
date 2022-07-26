@@ -608,3 +608,13 @@ def test_expression_index():
     assert expression[1:2] == terms[1:2]
     assert expression[-1] == terms[-1]
 
+
+@pytest.mark.expression
+def test_expression_apply():
+    """Test the ability to update an expression with a callable object."""
+    old = algebraic.Expression('a / b')
+    def capitalize(s: str):
+        return algebraic.Expression(s.capitalize())
+    new = old.apply(capitalize)
+    assert new == 'A / B'
+
