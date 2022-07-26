@@ -17,8 +17,8 @@ from goats.core import physical
 from goats.core import variable
 
 
-class Context(abc.ABC):
-    """ABC for observing contexts."""
+class Context:
+    """A general observing context."""
 
     def __init__(
         self,
@@ -33,15 +33,11 @@ class Context(abc.ABC):
             'indices': aliased.MutableMapping.fromkeys(axes, value=()),
             'scalars': aliased.MutableMapping(assumptions),
         }
+        self.names = list(variables) + list(assumptions)
 
     def __contains__(self, __k: str):
-        """True if `__k` names a variable or argument."""
-        return __k in self.variables or __k in self.arguments
-
-    @abc.abstractmethod
-    def get_variable(self, key: str, user: dict) -> variable.Quantity:
-        """Retrieve and update a variable quantity as necessary."""
-        raise NotImplementedError
+        """True if `__k` names a variable or an assumption."""
+        return __k in self.names
 
     def get_scalars(self, user: dict):
         """Extract relevant single-valued assumptions."""
