@@ -136,6 +136,21 @@ class Application(abc.ABC):
         self.indices = self.context.get_indices(constraints)
         self.scalars = self.context.get_scalars(constraints)
 
+    @abc.abstractmethod
+    def get_unit(self, name: str) -> metadata.Unit:
+        """Get the appropriate unit for the named observable quantity."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_axes(self, name: str) -> metadata.Axes:
+        """Get the appropriate axes for the named observable quantity."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def create(self, name: str) -> variable.Quantity:
+        """Create a variable quantity for the named observable quantity."""
+        raise NotImplementedError
+
     def get_quantity(self, name: str):
         """Retrieve the named quantity from available attributes."""
         if name in self.scalars:
@@ -173,87 +188,77 @@ class Application(abc.ABC):
         return result
 
 
-class Implementation(abc.ABC):
-    """ABC for implementations of observable quantities."""
-
-    def __init__(
-        self,
-        axes: axis.Interface,
-        variables: variable.Interface,
-        name: typing.Union[str, typing.Iterable[str], metadata.Name]=None,
-    ) -> None:
-        self.context = Context(axes, variables)
-        self.name = metadata.Name(name)
-
-    def apply(self, **constraints):
-        """Apply user-defined observing constraints."""
-        applied = Application(self.context, **constraints)
-        result = self.compute(applied)
-        return observed.Quantity(result, applied.indices, applied.scalars)
-
-    @abc.abstractmethod
-    def compute(self, application: Application) -> variable.Quantity:
-        """Create the observed variable quantity."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def get_unit(self) -> metadata.Unit:
-        """Determine the appropriate unit."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def get_axes(self) -> metadata.Axes:
-        """Determine the appropriate axes."""
-        raise NotImplementedError
-
-
-class Primary(Implementation):
+class Primary(Application):
     """Get an observable quantity from an observer's dataset."""
 
-    def compute(self, application: Application) -> variable.Quantity:
-        return application.evaluate_variable(self.name)
+    def create(self, name: str) -> variable.Quantity:
+        return self.evaluate_variable(name)
 
-    def get_unit(self) -> metadata.Unit:
-        return self.context.variables[self.name].unit
+    def get_unit(self, name: str) -> metadata.Unit:
+        return self.context.variables[name].unit
 
-    def get_axes(self) -> metadata.Axes:
-        return self.context.variables[self.name].axes
+    def get_axes(self, name: str) -> metadata.Axes:
+        return self.context.variables[name].axes
 
 
-class Derived(Implementation):
+class Derived(Application):
     """Compute the result of a function of observable quantities."""
 
-    def compute(self, application: Application) -> variable.Quantity:
-        return application.evaluate_function(self.name)
+    def create(self, name: str) -> variable.Quantity:
+        return self.evaluate_function(name)
 
-    def get_unit(self) -> metadata.Unit:
-        return self.context.get_unit(self.name)
+    def get_unit(self, name: str) -> metadata.Unit:
+        return self.context.get_unit(name)
 
-    def get_axes(self) -> metadata.Axes:
-        return self.context.get_axes(self.name)
+    def get_axes(self, name: str) -> metadata.Axes:
+        return self.context.get_axes(name)
 
 
-class Composed(Implementation):
+class Composed(Application):
     """Evaluate an algebraic expression of other observable quantities."""
 
-    def compute(self, application: Application) -> variable.Quantity:
-        return application.evaluate_expression(self.name)
+    def create(self, name: str) -> variable.Quantity:
+        return self.evaluate_expression(name)
 
-    def get_unit(self) -> metadata.Unit:
-        return self._build_attr(self.context.get_unit)
+    def get_unit(self, name: str) -> metadata.Unit:
+        return self._build_attr(name, self.context.get_unit)
 
-    def get_axes(self) -> metadata.Axes:
-        return self._build_attr(self.context.get_axes)
+    def get_axes(self, name: str) -> metadata.Axes:
+        return self._build_attr(name, self.context.get_axes)
 
-    def _build_attr(self, method: typing.Callable):
+    def _build_attr(self, name: str, method: typing.Callable):
         """Build an expression for a metadata attribute."""
-        expression = algebraic.Expression(self.name)
+        expression = algebraic.Expression(name)
         bases = [method(term.base) for term in expression]
         exponents = [term.exponent for term in expression]
         result = bases[0] ** exponents[0]
         for base, exponent in zip(bases[1:], exponents[1:]):
             result *= base ** exponent
         return result
+
+
+A = typing.TypeVar('A', bound=Application)
+
+
+class Implementation(typing.Generic[A]):
+    """ABC for implementations of observable quantities."""
+
+    def __init__(
+        self,
+        __type: typing.Type[A],
+        axes: axis.Interface,
+        variables: variable.Interface,
+        name: typing.Union[str, typing.Iterable[str], metadata.Name]=None,
+    ) -> None:
+        self._type = __type
+        self.context = Context(axes, variables)
+        self.name = metadata.Name(name)
+
+    def apply(self, **constraints):
+        """Apply user-defined observing constraints."""
+        applied = self._type(self.context, **constraints)
+        result = applied.create(self.name)
+        return observed.Quantity(result, applied.indices, applied.scalars)
 
 
 class Metadata(
