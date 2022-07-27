@@ -8,7 +8,7 @@ from goats.core import aliased
 from goats.core import index
 from goats.core import iterables
 from goats.core import numerical
-from goats.core import observables
+from goats.core import reference
 from goats.core import variable
 
 
@@ -167,7 +167,7 @@ class Interface:
             for axis, idx in indices.items()
             if axis in self.axes and idx.unit is not None
         }
-        for key in observables.ALIASES['radius']:
+        for key in reference.ALIASES['radius']:
             if values := user.get(key):
                 radii = iterables.whole(values)
                 floats = [float(radius) for radius in radii]
@@ -188,7 +188,7 @@ class Interface:
             a for (a, c), r in zip(coordinates.items(), references)
             if not numpy.all([r.array_contains(target) for target in c])
         ]
-        if any(r in user for r in observables.ALIASES['radius']):
+        if any(r in user for r in reference.ALIASES['radius']):
             axes.append('radius')
         return list(set(q.axes) - set(axes))
 

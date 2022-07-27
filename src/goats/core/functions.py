@@ -9,7 +9,7 @@ from goats.core import aliased
 from goats.core import variable
 from goats.core import iterables
 from goats.core import numerical
-from goats.core import observables
+from goats.core import reference
 from goats.core import fundamental
 
 
@@ -422,7 +422,7 @@ class Method(iterables.ReprStrMixin):
 
 
 _METHODS = {
-    observables.ALIASES[name]: Method(
+    reference.ALIASES[name]: Method(
         registered['method'],
         {k: v for k, v in registered.items() if k != 'method'},
     )
@@ -431,5 +431,5 @@ _METHODS = {
 METHODS = aliased.Mapping(_METHODS)
 
 
-REGISTRY = aliased.Mapping(registry, keymap=observables.ALIASES)
+REGISTRY = aliased.Mapping(registry, keymap=reference.ALIASES)
 

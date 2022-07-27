@@ -13,7 +13,7 @@ import numpy.typing
 from goats.core import aliased
 from goats.core import iotools
 from goats.core import iterables
-from goats.core import observables
+from goats.core import reference
 
 
 class Viewer(collections.abc.Mapping):
@@ -221,7 +221,7 @@ class Interface(iterables.ReprStrMixin, metaclass=iotools.PathSet):
         """The variables in this dataset."""
         if self._variables is None:
             variables = {
-                observables.ALIASES.get(name, name): variable
+                reference.ALIASES.get(name, name): variable
                 for name, variable in self.viewers['variables'].items()
             }
             self._variables = aliased.Mapping(variables)
@@ -243,7 +243,7 @@ class Interface(iterables.ReprStrMixin, metaclass=iotools.PathSet):
         """The axes in this dataset."""
         if self._axes is None:
             axes = {
-                observables.ALIASES.get(name, name): axis
+                reference.ALIASES.get(name, name): axis
                 for name, axis in self.viewers['axes'].items()
             }
             self._axes = aliased.Mapping(axes)

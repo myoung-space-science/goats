@@ -5,7 +5,7 @@ from goats.core import datafile
 from goats.core import index
 from goats.core import iterables
 from goats.core import metadata
-from goats.core import observables
+from goats.core import reference
 from goats.core import variable
 
 
@@ -96,7 +96,7 @@ class Interface(aliased.Mapping):
         system: str=None,
     ) -> None:
         self._variables = variable.Interface(dataset, system)
-        super().__init__(indexers, keymap=observables.ALIASES)
+        super().__init__(indexers, keymap=reference.ALIASES)
         self.dataset = dataset
 
     def resolve(

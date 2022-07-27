@@ -13,7 +13,7 @@ from goats.core import datafile
 from goats.core import iterables
 from goats.core import metric
 from goats.core import metadata
-from goats.core import observables
+from goats.core import reference
 from goats.core import parameter
 from goats.core import physical
 
@@ -184,7 +184,7 @@ class Interface(aliased.Mapping):
     ) -> None:
         known = {
             k: v for k, v in dataset.variables.items(aliased=True)
-            if k in observables.METADATA
+            if k in reference.METADATA
         }
         super().__init__(known)
         self.system = metric.System(system or 'mks')
@@ -204,7 +204,7 @@ class Interface(aliased.Mapping):
 
     def _get_unit(self, name: str):
         """Get a standard unit for the named variable."""
-        variable = self.system[observables.METADATA[name]['quantity']]
+        variable = self.system[reference.METADATA[name]['quantity']]
         return metadata.Unit(variable.unit)
 
     def __getitem__(self, key: str) -> Quantity:
@@ -216,7 +216,7 @@ class Interface(aliased.Mapping):
             datavar.data,
             unit=standardize(datavar.unit),
             axes=datavar.axes,
-            name=observables.ALIASES[key],
+            name=reference.ALIASES[key],
         )
         result = variable.convert(self.units[key])
         self._cache[key] = result

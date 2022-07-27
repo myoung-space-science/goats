@@ -7,7 +7,7 @@ from goats.core import variable
 from goats.core import physical
 from goats.core import functions
 from goats.core import iterables
-from goats.core import observables
+from goats.core import reference
 from goats.core import measurable
 from goats.core import metric
 from goats.eprem import parameters
@@ -103,7 +103,7 @@ class Functions(aliased.Mapping):
         """Construct the requested function object, if possible"""
         if method := self.get_method(key):
             axes = self.get_axes(key)
-            quantity = observables.METADATA.get(key, {}).get('quantity', None)
+            quantity = reference.METADATA.get(key, {}).get('quantity', None)
             dependencies = self.get_dependencies(key)
             return Function(
                 method,
