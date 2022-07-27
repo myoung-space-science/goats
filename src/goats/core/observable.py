@@ -155,6 +155,17 @@ class Primary(Context):
     """The context of a primary observable quantity."""
 
     def __init__(self, dataset: observer.Dataset) -> None:
+        """Initialize a primary observing context.
+        
+        This concrete observing context will initialize the base class with a
+        variable factory.
+
+        Parameters
+        ----------
+        dataset : `~observer.Dataset`
+            The dataset containing the target observer's axis and variable
+            quantities, as well as runtime or operational parameter values.
+        """
         super().__init__(dataset, Variables)
 
     def get_unit(self, name: str) -> metadata.Unit:
@@ -168,6 +179,17 @@ class Derived(Context):
     """The context of a derived observable quantity."""
 
     def __init__(self, dataset: observer.Dataset) -> None:
+        """Initialize a derived observing context.
+        
+        This concrete observing context will initialize the base class with a
+        functions factory.
+
+        Parameters
+        ----------
+        dataset : `~observer.Dataset`
+            The dataset containing the target observer's axis and variable
+            quantities, as well as runtime or operational parameter values.
+        """
         super().__init__(dataset, Functions)
 
     def get_unit(self, name: str) -> metadata.Unit:
@@ -181,6 +203,17 @@ class Composed(Context):
     """The context of a composed observable quantity."""
 
     def __init__(self, dataset: observer.Dataset) -> None:
+        """Initialize a composed observing context.
+        
+        This concrete observing context will initialize the base class with an
+        expressions factory.
+
+        Parameters
+        ----------
+        dataset : `~observer.Dataset`
+            The dataset containing the target observer's axis and variable
+            quantities, as well as runtime or operational parameter values.
+        """
         super().__init__(dataset, Expressions)
 
     def get_unit(self, name: str) -> metadata.Unit:
