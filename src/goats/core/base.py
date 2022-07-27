@@ -269,3 +269,8 @@ class Observer:
         raise KeyError(f"No observable for {key!r}") from None
 
 
+class Quantity:
+    """TBD base class for objects with an interface and metadata."""
+
+    # TODO: This currently exists just so other modules can use it in type
+    # hints.
