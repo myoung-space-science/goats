@@ -87,8 +87,8 @@ class Application(abc.ABC):
 class Factory(abc.ABC):
     """ABC for classes that create observed variable quantities."""
 
-    def __init__(self, dataset: observer.Dataset, **constraints) -> None:
-        self.application = Application(dataset, **constraints)
+    def __init__(self, application: Application) -> None:
+        self.application = application
 
     def observe(self, name: str) -> observed.Quantity:
         """Create the named observable quantity."""
@@ -134,6 +134,7 @@ class Context(abc.ABC):
         factory: typing.Type[Factory],
     ) -> None:
         self.dataset = dataset
+        self._type = Application
         self.factory = factory
 
     @abc.abstractmethod
@@ -146,9 +147,13 @@ class Context(abc.ABC):
         """Get the appropriate axes for this observable quantity."""
         raise NotImplementedError
 
+    def use(self, __type: typing.Type[Application]):
+        """Set the application class for this context."""
+        self._type = __type
+
     def apply(self, **user):
         """Apply user constraints to this observing context."""
-        return self.factory(self.dataset, **user)
+        return self.factory(self._type(self.dataset, **user))
 
 
 class Primary(Context):
@@ -229,15 +234,13 @@ T = typing.TypeVar('T', bound=Context)
 class Implementation(typing.Generic[T]):
     """An implementation of an observable quantity."""
 
-    def __init__(
-        self,
-        context: T,
-        name: typing.Union[str, typing.Iterable[str], metadata.Name]=None,
-    ) -> None:
+    def __init__(self, name: str, context: T) -> None:
+        self.name = name
         self.context = context
-        self.name = metadata.Name(name)
-        self.unit = context.get_unit(name)
-        self.axes = context.get_axes(name)
+
+    def apply(self, **user):
+        """Create an observation from user constraints."""
+        return self.context.apply(**user).observe(self.name)
 
 
 class Metadata(
@@ -254,11 +257,15 @@ class Quantity(Metadata, typing.Generic[T]):
         context: T,
         name: typing.Union[str, typing.Iterable[str], metadata.Name]=None,
     ) -> None:
-        self.context = context
-        self._name = metadata.Name(name)
+        name = name or "Anonymous"
+        self.implementation = Implementation(name, context)
+        self._name = name
         self._unit = context.get_unit(name)
         self._axes = context.get_axes(name)
-        self._constraints = None
+        self._cache = None
+
+    def convert(self, unit: metadata.UnitLike):
+        return super().convert(unit)
 
     def observe(self, update: bool=False, **constraints) -> observed.Quantity:
         """Create an observation within the given constraints.
@@ -282,11 +289,10 @@ class Quantity(Metadata, typing.Generic[T]):
         `~observed.Quantity`
             An object representing the resultant observation.
         """
-        if update:
-            self._constraints.update(constraints)
-        else:
-            self._constraints = constraints or {}
-        return self.context.apply(**self._constraints).observe(self._name)
+        if self._cache is None:
+            self._cache = {}
+        current = {**self._cache, **constraints} if update else constraints
+        return self.implementation.apply(**current)
 
     def __str__(self) -> str:
         attrs = ('unit', 'name', 'axes')
@@ -296,21 +302,53 @@ class Quantity(Metadata, typing.Generic[T]):
 class Interface(collections.abc.Mapping):
     """ABC for interfaces to observable quantities."""
 
-    def __init__(self, **implemented: Implementation) -> None:
-        self.implemented = implemented
+    def __init__(
+        self,
+        dataset: observer.Dataset,
+        application: typing.Type[Application],
+    ) -> None:
+        self.dataset = dataset
+        self.application = application
+        # These could become input parameters that provide the caller with some
+        # flexibility about which variables and functions are available to a
+        # given observer. For example:
+        # - [primary] The EPREM dataset contains scalar quantities, such as
+        #   `preEruption`, that should not be formally observable.
+        # - [derived] If a dataset doesn't contain flux or the particle
+        #   distribution, we can't expect to compute integral flux.
+        self.primary = list(dataset.variables)
+        """The names of observable quantities in the dataset."""
+        self.derived = list(functions.METHODS)
+        """The names of observable quantities computed from variables."""
+        self.names = self.primary + self.derived
+        """The names of all observable quantities."""
 
     def __len__(self) -> int:
-        return len(self.implemented)
+        return len(self.names)
 
     def __iter__(self) -> typing.Iterator:
-        return iter(self.implemented)
+        return iter(self.names)
 
     def __getitem__(self, __k: str) -> Quantity:
         """Get the named observable quantity."""
-        if __k in self.implemented:
-            return self.implemented[__k]
-        if '/' in __k or '*' in __k:
-            expression = algebraic.Expression(__k)
-        raise NotImplementedError
+        return Quantity(self.implement(__k), name=__k)
 
+    def implement(self, name: str):
+        """Create the implementation of an observable quantity."""
+        Type = self._get_type(name)
+        context = Type(self.dataset)
+        context.use(self.application)
+        return context
+
+    def _get_type(self, name: str):
+        """Get the appropriate implementation type."""
+        if name in self.primary:
+            return Primary
+        if name in self.derived:
+            return Derived
+        if expression(name):
+            return Composed
+        raise ValueError(
+            f"No implementation available for {name!r}"
+        ) from None
 
