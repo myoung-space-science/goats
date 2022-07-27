@@ -88,8 +88,9 @@ class KeyMap(iterables.MappingBase):
         self._flat = [key for alias in self._aliased for key in alias]
         super().__init__(self._flat)
 
-    def __getitem__(self, key: str) -> MappingKey:
-        """Look up aliases for key."""
+    def __getitem__(self, __k) -> MappingKey:
+        """Look up aliases by key."""
+        key = str(__k)
         try:
             found = next(entry for entry in self._aliased if key in entry)
         except StopIteration as err:
