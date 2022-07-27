@@ -389,7 +389,10 @@ class Mapping(collections.abc.Mapping):
         """Look up a value by one of its keys."""
         if resolved := self._resolve(key):
             return self._aliased[resolved]
-        raise KeyError(f"'{key!r}' is not a known name or alias.") from None
+        raise KeyError(
+            f"The key {str(key)!r}"
+            " does not correspond to a known name or alias"
+        ) from None
 
     def _resolve(self, key: typing.Union[MappingKey, typing.Any]):
         """Resolve `key` into an existing or new aliased key."""
