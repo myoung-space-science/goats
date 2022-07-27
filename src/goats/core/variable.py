@@ -1,4 +1,4 @@
-"""Tools for managing datasets."""
+"""Tools for managing variable quantities in datasets."""
 
 import collections.abc
 import inspect
