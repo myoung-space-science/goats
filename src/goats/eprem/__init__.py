@@ -9,7 +9,6 @@ from goats import Environment
 from ..core import (
     axis,
     aliased,
-    base,
     datafile,
     fundamental,
     iterables,
@@ -18,6 +17,7 @@ from ..core import (
     measurable,
     metric,
     numerical,
+    observer,
     physical,
     variable,
 )
@@ -145,7 +145,7 @@ class Indexers(iterables.ReprStrMixin, aliased.Mapping):
         return ', '.join(str(key) for key in self.keys(aliased=True))
 
 
-class Observer(base.Observer):
+class Observer(observer.Interface):
     """Base class for EPREM observers."""
 
     def __init__(

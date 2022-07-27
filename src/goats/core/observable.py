@@ -3,17 +3,11 @@ import collections.abc
 import typing
 
 from goats.core import algebraic
-from goats.core import aliased
-from goats.core import axis
 from goats.core import functions
-from goats.core import index
-from goats.core import iterables
-from goats.core import measurable
 from goats.core import metadata
-from goats.core import observables
+from goats.core import reference
 from goats.core import observed
-from goats.core import parameter
-from goats.core import physical
+from goats.core import observer
 from goats.core import variable
 
 
@@ -46,7 +40,7 @@ class Application(abc.ABC):
 
     def __init__(
         self,
-        dataset: Dataset,
+        dataset: observer.Dataset,
         **constraints
     ) -> None:
         self.dataset = dataset
@@ -70,7 +64,7 @@ class Application(abc.ABC):
         method = interface.pop('method')
         caller = variable.Caller(method, **interface)
         deps = {p: self.get_quantity(p) for p in caller.parameters}
-        quantity = observables.METADATA.get(name, {}).get('quantity', None)
+        quantity = reference.METADATA.get(name, {}).get('quantity', None)
         data = caller(**deps)
         return variable.Quantity(
             data,
@@ -93,7 +87,7 @@ class Application(abc.ABC):
 class Factory(abc.ABC):
     """ABC for classes that create observed variable quantities."""
 
-    def __init__(self, dataset: Dataset, **constraints) -> None:
+    def __init__(self, dataset: observer.Dataset, **constraints) -> None:
         self.application = Application(dataset, **constraints)
 
     def observe(self, name: str) -> observed.Quantity:
@@ -136,7 +130,7 @@ class Context(abc.ABC):
 
     def __init__(
         self,
-        dataset: Dataset,
+        dataset: observer.Dataset,
         factory: typing.Type[Factory],
     ) -> None:
         self.dataset = dataset
@@ -160,7 +154,7 @@ class Context(abc.ABC):
 class Primary(Context):
     """The context of a primary observable quantity."""
 
-    def __init__(self, dataset: Dataset) -> None:
+    def __init__(self, dataset: observer.Dataset) -> None:
         super().__init__(dataset, Variables)
 
     def get_unit(self, name: str) -> metadata.Unit:
@@ -173,7 +167,7 @@ class Primary(Context):
 class Derived(Context):
     """The context of a derived observable quantity."""
 
-    def __init__(self, dataset: Dataset) -> None:
+    def __init__(self, dataset: observer.Dataset) -> None:
         super().__init__(dataset, Functions)
 
     def get_unit(self, name: str) -> metadata.Unit:
@@ -186,7 +180,7 @@ class Derived(Context):
 class Composed(Context):
     """The context of a composed observable quantity."""
 
-    def __init__(self, dataset: Dataset) -> None:
+    def __init__(self, dataset: observer.Dataset) -> None:
         super().__init__(dataset, Expressions)
 
     def get_unit(self, name: str) -> metadata.Unit:
