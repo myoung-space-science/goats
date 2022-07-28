@@ -3,6 +3,7 @@ import typing
 from goats.core import aliased
 from goats.core import physical
 from goats.core import iterables
+from goats.core import measurable
 from goats.core import metadata
 
 
@@ -69,5 +70,37 @@ class Option(metadata.NameMixin, iterables.ReprStrMixin):
         if isinstance(other, Option):
             return other.value == self.value
         return other == self.value
+
+
+def scalar(this) -> measurable.Scalar:
+    """Make sure `this` is a `~measurable.Scalar`."""
+    if isinstance(this, measurable.Scalar):
+        return this
+    if isinstance(this, Assumption):
+        return this[0]
+    if isinstance(this, measurable.Measurement):
+        return physical.Scalar(this.values[0], unit=this.unit)
+    measured = measurable.measure(this)
+    if len(measured) > 1:
+        raise ValueError(
+            "Can't create a scalar from a multi-valued quantity"
+        ) from None
+    return scalar(measured)
+
+
+class Interface(aliased.Mapping):
+    """An interface to operational assumptions and options."""
+
+    def __getitem__(self, __k: str):
+        """Create the appropriate object for the named parameter."""
+        try:
+            this = super().__getitem__(__k)
+        except KeyError:
+            raise KeyError(f"No parameter corresponding to {__k!r}") from None
+        value = this['value']
+        aliases = self.alias(__k, include=True)
+        if unit := this['unit']:
+            return Assumption(value, unit=unit, name=aliases)
+        return Option(value, name=aliases)
 
 
