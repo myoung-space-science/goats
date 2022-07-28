@@ -504,15 +504,6 @@ class Interface(aliased.Mapping):
         axes: axis.Interface,
         variables: variable.Interface,
     ) -> None:
-        base = {
-            name: Method(
-                registered['method'],
-                **{k: v for k, v in registered.items() if k != 'method'},
-            )
-            for name, registered in registry.items()
-        }
-        # super().__init__(base, keymap=reference.ALIASES)
-        # super().__init__(REGISTRY)
         super().__init__(registry, keymap=reference.ALIASES)
         self.axes = axes
         self.variables = variables
@@ -544,8 +535,6 @@ class Interface(aliased.Mapping):
 
     def get_unit(self, key: str) -> metadata.Unit:
         """Determine the unit of `key` based on its metric quantity."""
-        # This is generating a RecursionError when calling
-        # aliased.Mapping.__str__ via print()
         this = reference.METADATA.get(key, {}).get('quantity')
         return self.variables.system.get_unit(quantity=this)
 
