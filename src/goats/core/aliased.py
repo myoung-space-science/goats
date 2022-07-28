@@ -544,8 +544,7 @@ class Mapping(collections.abc.Mapping):
     def __str__(self) -> str:
         """A simplified representation of this instance."""
         return ', '.join(
-            f"'{g}': {v!r}"
-            for g, v in zip(self.as_dict.keys(), self.as_dict.values())
+            f"{str(k)!r}: {self[k]!r}" for k in self.keys(aliased=True)
         )
 
     def __repr__(self) -> str:
