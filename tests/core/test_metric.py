@@ -1,7 +1,4 @@
 import operator
-import numbers
-import math
-import typing
 
 import pytest
 
