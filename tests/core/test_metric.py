@@ -76,6 +76,12 @@ def check_conversion(u0: str, u1: str, factor: float):
     assert conversion.factor == pytest.approx(factor)
 
 
+def test_create_quantity():
+    """Test the ability to represent arbitrary metric quantities."""
+    q = metric.Quantity('length / magnetic field')
+    assert q['mks'].unit == 'm T^-1'
+
+
 def test_quantity_convert():
     """Test conversions with substitution within a quantity."""
     cases = {

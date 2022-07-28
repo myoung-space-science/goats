@@ -860,8 +860,8 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
 
     def _parse(self, string: str):
         """Parse a string representing a compound quantity."""
-        if ' ' in string and all(c not in string for c in ['*', '/']):
-            string = string.replace(' ', '_')
+        for k in _QUANTITIES:
+            string = string.replace(k, k.replace(' ', '_'))
         parts = [self._expand(term) for term in algebraic.Expression(string)]
         keys = {key for part in parts for key in part.keys()}
         merged = {key: [] for key in keys}
