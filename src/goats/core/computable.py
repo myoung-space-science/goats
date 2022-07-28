@@ -415,6 +415,14 @@ class Method(collections.abc.Mapping, iterables.ReprStrMixin):
         self.info = info
         self.signature = inspect.signature(self.callable)
         self.parameters = tuple(self.signature.parameters)
+        self._name = None
+
+    @property
+    def name(self):
+        """The name of this method's callable object."""
+        if self._name is None:
+            self._name = str(self.callable)
+        return self._name
 
     Argument = typing.TypeVar(
         'Argument',
@@ -459,7 +467,7 @@ class Method(collections.abc.Mapping, iterables.ReprStrMixin):
     def __str__(self) -> str:
         """A simplified representation of this object."""
         prms = ', '.join(str(p) for p in self.parameters)
-        return f"{self.callable.__qualname__}({prms})"
+        return f"{self.name}({prms})"
 
 
 class Metadata(
@@ -468,7 +476,7 @@ class Metadata(
     metadata.AxesMixin,
 ): ...
 
-class Quantity(Metadata):
+class Quantity(Metadata, iterables.ReprStrMixin):
     """A callable quantity that produces a variable quantity."""
 
     def __init__(
@@ -495,6 +503,15 @@ class Quantity(Metadata):
             unit=self.unit,
             name=self.name,
         )
+
+    def __str__(self) -> str:
+        attrs = [
+            self.interface.name,
+            f"axes={self.axes}",
+            f"unit={str(self.unit)!r}",
+        ]
+        return ', '.join(attrs)
+
 
 class Interface(aliased.Mapping):
     """An interface to computable quantities."""
