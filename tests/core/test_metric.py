@@ -470,7 +470,7 @@ def test_system():
         assert metric.System(lower) == metric.System(upper)
         system = metric.System(lower)
         for key, definition in cases.items():
-            assert system[key] == metric.Metric(**definition)
+            assert system[key] == metric.Attributes(**definition)
 
 
 def test_system_unit_lookup():

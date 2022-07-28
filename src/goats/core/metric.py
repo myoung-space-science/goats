@@ -886,11 +886,11 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
         return self.key
 
 
-class Metric(typing.NamedTuple):
-    """A canonical physical quantity within a named metric system."""
+class Attributes(typing.NamedTuple):
+    """Canonical values of a quantity within a metric system."""
 
     # NOTE: These types are not `Unit` and `Dimension` because we need
-    # `Quantity` and `Metric` to define `Unit`.
+    # `Quantity` and `Attributes` to define `Unit`.
     unit: str=None
     dimension: str=None
 
@@ -1595,7 +1595,7 @@ class Quantity(iterables.ReprStrMixin):
                 f"No metric available for system '{system}'"
             ) from err
         else:
-            return Metric(dimension=dimension, unit=unit)
+            return Attributes(dimension=dimension, unit=unit)
 
     # NOTE: This is here because unit conversions are only defined within their
     # respective quantities, even though two quantities may have identical
@@ -1719,7 +1719,7 @@ class Dimension(algebraic.Expression):
 
     def __new__(
         cls: typing.Type[Instance],
-        arg: typing.Union[Unit, Metric, str, iterables.whole],
+        arg: typing.Union[Unit, Attributes, str, iterables.whole],
     ) -> Instance:
         if isinstance(arg, Unit):
             terms = [
@@ -1729,7 +1729,7 @@ class Dimension(algebraic.Expression):
                 ) for term in algebraic.Expression(arg)
             ]
             return super().__new__(cls, terms)
-        if isinstance(arg, Metric):
+        if isinstance(arg, Attributes):
             return super().__new__(cls, arg.dimension)
         return super().__new__(cls, arg)
 
@@ -1899,10 +1899,10 @@ class System(collections.abc.Mapping, iterables.ReprStrMixin):
     def keys(self) -> typing.KeysView[str]:
         return super().keys()
 
-    def values(self) -> typing.ValuesView[Metric]:
+    def values(self) -> typing.ValuesView[Attributes]:
         return super().values()
 
-    def items(self) -> typing.ItemsView[str, Metric]:
+    def items(self) -> typing.ItemsView[str, Attributes]:
         return super().items()
 
     def __str__(self) -> str:
