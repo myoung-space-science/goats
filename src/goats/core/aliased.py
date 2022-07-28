@@ -358,20 +358,20 @@ class Mapping(collections.abc.Mapping):
     ) -> None:
         """Initialize this instance."""
         if isinstance(mapping, Mapping):
-            self._aliased = dict(mapping.items(aliased=True))
+            self.as_dict = dict(mapping.items(aliased=True))
         else:
-            self._aliased = _build_mapping(
+            self.as_dict = _build_mapping(
                 mapping=mapping,
                 key=key,
                 keymap=keymap,
             )
-        self._internal = {
-            alias: key for key in self._aliased for alias in key
+        self._flat_dict = {
+            alias: key for key in self.as_dict for alias in key
         }
 
     def _flat_keys(self) -> typing.KeysView[str]:
         """Define a flat list of all the keys in this mapping."""
-        flattened = [key for keys in self._aliased.keys() for key in keys]
+        flattened = [key for keys in self.as_dict.keys() for key in keys]
         return collections.abc.KeysView(flattened)
 
     @property
@@ -388,7 +388,7 @@ class Mapping(collections.abc.Mapping):
     def __getitem__(self, key: typing.Union[str, MappingKey]) -> _VT:
         """Look up a value by one of its keys."""
         if resolved := self._resolve(key):
-            return self._aliased[resolved]
+            return self.as_dict[resolved]
         raise KeyError(
             f"The key {str(key)!r}"
             " does not correspond to a known name or alias"
@@ -398,14 +398,14 @@ class Mapping(collections.abc.Mapping):
         """Resolve `key` into an existing or new aliased key."""
         if isinstance(key, MappingKey):
             return self._look_up_key(key)
-        return self._internal.get(key)
+        return self._flat_dict.get(key)
 
     def _look_up_key(self, target: MappingKey):
         """Find the aliased key equivalent to `target`.
         
         Notes
         -----
-        Checking ``key in self._aliased`` doesn't always work because `dict`
+        Checking ``key in self.as_dict`` doesn't always work because `dict`
         look-up will first compare the key's hash value to those of existing
         keys before comparing the key itself. This may fail in the first stage
         due to the fact that `MappingKey.__hash__` uses `tuple.__hash__`, which
@@ -415,7 +415,7 @@ class Mapping(collections.abc.Mapping):
         """
         try:
             found = next(
-                key for key in self._aliased
+                key for key in self.as_dict
                 if key == target
             )
         except StopIteration:
@@ -436,7 +436,7 @@ class Mapping(collections.abc.Mapping):
             If true, raise an exception when attempting to remove singleton
             interior mappings with different keys.
         """
-        interior = tuple(self._aliased.values())
+        interior = tuple(self.as_dict.values())
         if all(len(mapping) == 1 for mapping in interior):
             if strict:
                 errmsg = (
@@ -449,9 +449,9 @@ class Mapping(collections.abc.Mapping):
                     if k != k0:
                         raise TypeError(errmsg) from None
             new = {
-                k: tuple(v.values())[0] for k, v in self._aliased.items()
+                k: tuple(v.values())[0] for k, v in self.as_dict.items()
             }
-            self._aliased = new.copy()
+            self.as_dict = new.copy()
         return self
 
     @classmethod
@@ -545,7 +545,7 @@ class Mapping(collections.abc.Mapping):
         """A simplified representation of this instance."""
         return ', '.join(
             f"'{g}': {v!r}"
-            for g, v in zip(self._aliased.keys(), self._aliased.values())
+            for g, v in zip(self.as_dict.keys(), self.as_dict.values())
         )
 
     def __repr__(self) -> str:
@@ -568,7 +568,7 @@ class Mapping(collections.abc.Mapping):
 
     def copy(self):
         """Create a shallow copy of this instance."""
-        return type(self)(self._aliased)
+        return type(self)(self.as_dict)
 
 
 class MappingView(iterables.ReprStrMixin, collections.abc.MappingView):
@@ -578,7 +578,7 @@ class MappingView(iterables.ReprStrMixin, collections.abc.MappingView):
 
     def __init__(self, mapping: Mapping, aliased: bool=False) -> None:
         super().__init__(mapping)
-        aliases = mapping._aliased.keys()
+        aliases = mapping.as_dict.keys()
         self._keys = aliases if aliased else mapping._flat_keys()
         self._mapping = mapping
 
@@ -666,7 +666,7 @@ class MutableMapping(Mapping, collections.abc.MutableMapping):
     def __setitem__(self, key: str, value: _VT):
         """Assign a value to `key` and its aliases."""
         resolved = self._resolve(key) or MappingKey(key)
-        self._aliased[resolved] = value
+        self.as_dict[resolved] = value
         self._refresh()
 
     def __delitem__(self, key: str):
@@ -674,13 +674,13 @@ class MutableMapping(Mapping, collections.abc.MutableMapping):
         resolved = self._resolve(key)
         if not resolved:
             raise KeyError(f"'{key!r}' is not a known name or alias.") from None
-        del self._aliased[resolved]
+        del self.as_dict[resolved]
         self._refresh()
 
     def _refresh(self):
         """Perform common tasks after setting or deleting an item."""
-        self._internal = {
-            alias: key for key in self._aliased for alias in key
+        self._flat_dict = {
+            alias: key for key in self.as_dict for alias in key
         }
 
     def alias(self, key: str, *aliases: str, include=False):
@@ -710,7 +710,7 @@ class MutableMapping(Mapping, collections.abc.MutableMapping):
                     f"'{key}' is already an alias for {this!r}"
                 ) from None
             updated = self._resolve(key) | alias
-            self._aliased[updated] = self[key]
+            self.as_dict[updated] = self[key]
             del self[key]
 
 
