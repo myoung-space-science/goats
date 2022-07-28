@@ -403,6 +403,29 @@ def _interpolate(
 REGISTRY = aliased.Mapping(registry, keymap=reference.ALIASES)
 
 
+class Arguments:
+    """Helper for extracting argument values based on parameters."""
+
+    def __init__(self, *parameters: str) -> None:
+        self.parameters = parameters
+        self.arrays = []
+        self.floats = []
+
+    def parse(self, dependencies: typing.Mapping):
+        """Extract arrays and floats from `dependencies`."""
+        for parameter in self.parameters:
+            arg = dependencies[parameter]
+            if isinstance(arg, physical.Array):
+                self.arrays.append(numpy.array(arg))
+            elif isinstance(arg, physical.Scalar):
+                self.floats.append(float(arg))
+            elif (
+                isinstance(arg, typing.Iterable)
+                and all(isinstance(a, physical.Scalar) for a in arg)
+            ): self.floats.extend([float(a) for a in arg])
+        return self
+
+
 class Method(collections.abc.Mapping, iterables.ReprStrMixin):
     """A callable object with associated information."""
 
@@ -414,7 +437,6 @@ class Method(collections.abc.Mapping, iterables.ReprStrMixin):
         self.callable = __callable
         self.info = info
         self.signature = inspect.signature(self.callable)
-        self.parameters = tuple(self.signature.parameters)
         self._name = None
 
     @property
@@ -424,31 +446,9 @@ class Method(collections.abc.Mapping, iterables.ReprStrMixin):
             self._name = str(self.callable)
         return self._name
 
-    Argument = typing.TypeVar(
-        'Argument',
-        variable.Quantity,
-        parameter.Assumption,
-    )
-    Argument = typing.Union[variable.Quantity, parameter.Assumption]
-
-    def __call__(self, **arguments: Argument):
+    def compute(self, arguments: Arguments):
         """Produce the results of this method."""
-        arrays = []
-        floats = []
-        known = [
-            argument for key, argument in arguments.items()
-            if key in self.parameters
-        ]
-        for arg in known:
-            if isinstance(arg, physical.Array):
-                arrays.append(numpy.array(arg))
-            elif isinstance(arg, physical.Scalar):
-                floats.append(float(arg))
-            elif (
-                isinstance(arg, typing.Iterable)
-                and all(isinstance(a, physical.Scalar) for a in arg)
-            ): floats.extend([float(a) for a in arg])
-        return self.callable(*arrays, *floats)
+        return self.callable(*arguments.arrays, *arguments.floats)
 
     def __len__(self):
         """The number of available metadata attributes."""
@@ -466,8 +466,7 @@ class Method(collections.abc.Mapping, iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        prms = ', '.join(str(p) for p in self.parameters)
-        return f"{self.name}({prms})"
+        return f"{self.name}{self.signature}"
 
 
 class Metadata(
@@ -481,24 +480,30 @@ class Quantity(Metadata, iterables.ReprStrMixin):
 
     def __init__(
         self,
-        __interface: Method,
+        __method: Method,
         *,
         axes: typing.Iterable[str],
         unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None:
-        self.interface = __interface
+        self.method = __method
         self._axes = axes
         self._unit = unit
         self._name = name
+        self._parameters = None
+        self._args = Arguments(self.parameters)
 
-    def __call__(self, *args, **kwargs):
-        """Create a variable quantity from arguments."""
-        from_pos = dict(zip(self.interface.parameters, args))
-        n = len(args)
-        from_kwd = {k: kwargs[k] for k in self.interface.parameters[n:]}
+    @property
+    def parameters(self):
+        """The parameters to this quantity's method."""
+        if self._parameters is None:
+            self._parameters = tuple(self.method.signature.parameters)
+        return self._parameters
+
+    def __call__(self, **quantities):
+        """Create a variable quantity from input quantities."""
         return variable.Quantity(
-            self.interface(**from_pos, **from_kwd),
+            self.method(self._args.parse(**quantities)),
             axes=self.axes,
             unit=self.unit,
             name=self.name,
@@ -506,7 +511,7 @@ class Quantity(Metadata, iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         attrs = [
-            self.interface.name,
+            self.method.name,
             f"axes={self.axes}",
             f"unit={str(self.unit)!r}",
         ]
