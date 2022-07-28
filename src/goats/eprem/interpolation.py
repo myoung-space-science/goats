@@ -264,3 +264,11 @@ class Interface:
         return numpy.moveaxis(interpolated, dst, src)
 
 
+_PARAMETERS = [
+    ('radius', 'r', 'R'),
+    ('theta', 'T'),
+    ('phi', 'P'),
+]
+PARAMETERS = aliased.KeyMap(_PARAMETERS)
+"""User-constrainable parameters that affect interpolation."""
+
