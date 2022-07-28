@@ -1218,7 +1218,7 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         formatted = (term.format(style=style) for term in self)
         return separator.join(formatted)
 
-    def __eq__(self, other: 'Expression') -> bool:
+    def __eq__(self, other) -> bool:
         """True if two expressions have the same algebraic terms.
 
         This method defines two expressions as equal if they have equivalent
@@ -1239,7 +1239,7 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         key = attrgetter('base', 'exponent', 'coefficient')
         return sorted(self, key=key) == sorted(other, key=key)
 
-    def __mul__(self, other: 'Expression'):
+    def __mul__(self, other):
         """Called for self * other.
 
         This method implements multiplication between two expressions by
@@ -1257,7 +1257,7 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         """Called for other * self."""
         return self._new(other).__mul__(self)
 
-    def __truediv__(self, other: 'Expression'):
+    def __truediv__(self, other):
         """Called for self / other.
 
         This method implements division between two expressions by raising all
