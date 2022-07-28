@@ -1116,6 +1116,37 @@ class OperandError(TypeError):
     pass
 
 
+def standard(this, missing: str='1', joiner: str='*') -> str:
+    """Convert a string to a standard format.
+    
+    Parameters
+    ----------
+    this : string or iterable
+        The object to convert.
+
+    missing : string, default='1'
+        The value to use if `this` is null.
+
+    joiner : string, default='*'
+        The string token to use when joining parts of an iterable argument.
+
+    See Also
+    --------
+    `~algebraic.Expression`: A class that represents one or more terms joined by
+    algebraic operators and grouped by separator characters. Instances support
+    multiplication and division with strings or other instances, and
+    exponentiation by real numbers. Instantiation automatically calls this
+    function.
+    """
+    if not this:
+        return missing
+    if isinstance(this, str):
+        return this
+    if not isinstance(this, typing.Iterable):
+        return str(this)
+    return joiner.join(f"({part})" for part in this)
+
+
 Instance = typing.TypeVar('Instance', bound='Expression')
 
 
@@ -1149,24 +1180,11 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         if isinstance(expression, cls):
             return expression
         new = super().__new__(cls)
-        string = cls._standardize(expression)
+        string = standard(expression, joiner=' * ')
         terms = Parser(**kwargs).parse(string)
         new.terms = reduce(terms)
         """The algebraic terms in this expression."""
         return new
-
-    @staticmethod
-    def _standardize(
-        expression: typing.Union[str, iterables.whole],
-    ) -> str:
-        """Convert a string expression to a standard format."""
-        if not expression:
-            return '1'
-        if isinstance(expression, str):
-            return expression
-        if not isinstance(expression, typing.Iterable):
-            return str(expression)
-        return ' * '.join(f"({part})" for part in expression)
 
     def __iter__(self) -> typing.Iterator[Term]:
         return iter(self.terms)
