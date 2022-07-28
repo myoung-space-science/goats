@@ -535,7 +535,7 @@ class Interface(aliased.Mapping):
             self.get_method(__k),
             axes=self.get_axes(__k),
             unit=self.get_unit(__k),
-            name=__k,
+            name=self.get_name(__k),
         )
         self._cache['quantity'][__k] = quantity
         return quantity
@@ -550,7 +550,11 @@ class Interface(aliased.Mapping):
             method = this.pop('method')
             return Method(method, **this)
 
-    def get_unit(self, key: str) -> metadata.Unit:
+    def get_name(self, key: str):
+        """Get the set of aliases for `key`."""
+        return self.alias(key, include=True)
+
+    def get_unit(self, key: str):
         """Determine the unit of `key` based on its metric quantity."""
         this = reference.METADATA.get(key, {}).get('quantity')
         return self.variables.system.get_unit(quantity=this)
