@@ -1788,6 +1788,7 @@ class System(collections.abc.Mapping, iterables.ReprStrMixin):
 
     def get_unit(
         self,
+        *,
         unit: typing.Union[str, Unit]=None,
         dimension: typing.Union[str, Dimension]=None,
         quantity: typing.Union[str, Quantity]=None,
