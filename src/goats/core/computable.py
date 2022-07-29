@@ -590,7 +590,7 @@ class Interface(aliased.Mapping):
         unique = set(self._accumulated) - set(self._removed) | set(self._added)
         return self.axes.resolve(unique, mode='append')
 
-    def _get_metadata(self, method: variable.Caller, key: str) -> list:
+    def _get_metadata(self, method: Method, key: str) -> list:
         """Helper for accessing a method's metadata dictionary."""
         value = method.get(key)
         return list(iterables.whole(value)) if value else []
