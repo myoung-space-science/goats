@@ -1,7 +1,7 @@
 import pytest
 
 from goats.core import constant
-from goats.eprem import parameters
+from goats.eprem import runtime
 
 
 @pytest.fixture
@@ -19,7 +19,7 @@ def config_path(datadirs):
 def test_basetypes_h(source_path):
     """Regression test for values defined in src/baseTypes.h."""
     for path in (source_path, None):
-        b = parameters.BaseTypesH(path)
+        b = runtime.BaseTypesH(path)
         for key, value in _BASETYPES_H.items():
             assert b[key] == value
 
@@ -27,39 +27,39 @@ def test_basetypes_h(source_path):
 def test_configuration_c(source_path):
     """Make sure the object contains everything in src/configuration.c."""
     for path in (source_path, None):
-        c = parameters.ConfigurationC(path)
+        c = runtime.ConfigurationC(path)
         for key, value in _CONFIGURATION_C.items():
             assert c[key] == value
 
 
 def test_default_values(source_path):
     """Compare the values of all parameters to reference values."""
-    cfg = parameters.Runtime(source_path)
+    cfg = runtime.Runtime(source_path)
     for key, parameter in reference.items():
         assert cfg[key] == parameter['default']
 
 
 def test_paths(source_path, config_path):
     """Test the ability to get and set paths."""
-    cfg = parameters.Runtime(source_path)
+    cfg = runtime.Runtime(source_path)
     assert cfg.path_to('source') == source_path
     assert cfg.path_to('config') is None
     cfg.path_to(config=config_path)
     assert cfg.path_to('config') == config_path
-    assert cfg == parameters.Runtime(source_path, config_path)
+    assert cfg == runtime.Runtime(source_path, config_path)
 
 
 def test_read_config(source_path, config_path):
     """Make sure we get updated runtime values from a config-file."""
-    cfg = parameters.Runtime(source_path, config_path)
+    cfg = runtime.Runtime(source_path, config_path)
     assert cfg['numNodesPerStream'] == 2000
     assert cfg['simStopTime'] == 5.0
 
 
 def test_argument(source_path, config_path):
     """Test aliased access to parameter arguments."""
-    cfg = parameters.Runtime(source_path, config_path)
-    args = parameters.Arguments(cfg)
+    cfg = runtime.Runtime(source_path, config_path)
+    args = runtime.Arguments(cfg)
     for alias in 'lam0', 'lambda0':
         assert args[alias] == args['lamo']
     assumptions = {

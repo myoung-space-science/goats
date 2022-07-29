@@ -13,7 +13,7 @@ from goats.core import variable
 from goats.core import physical
 from goats.core import constant
 from goats.eprem import functions
-from goats.eprem import parameters
+from goats.eprem import runtime
 from goats.eprem import interpolation
 
 
@@ -395,7 +395,7 @@ class Observables(iterables.MappingBase):
     def __init__(
         self,
         data: variable.Interface,
-        arguments: parameters.Arguments,
+        arguments: runtime.Arguments,
     ) -> None:
         self.variables = data.variables
         self.functions = functions.Functions(data, arguments)

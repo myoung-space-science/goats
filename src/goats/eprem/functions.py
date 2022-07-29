@@ -10,7 +10,7 @@ from goats.core import iterables
 from goats.core import reference
 from goats.core import measurable
 from goats.core import metric
-from goats.eprem import parameters
+from goats.eprem import runtime
 
 
 class Function(iterables.ReprStrMixin):
@@ -88,7 +88,7 @@ class Functions(aliased.Mapping):
     def __init__(
         self,
         data: variable.Interface,
-        arguments: parameters.Arguments,
+        arguments: runtime.Arguments,
     ) -> None:
         super().__init__(mapping=functions.METHODS)
         self.dataset = data
