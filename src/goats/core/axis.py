@@ -119,6 +119,21 @@ class Interface(aliased.Mapping):
     def __getitem__(self, __k: str) -> Quantity:
         """Get the named axis object, if possible."""
         indexer = super().__getitem__(__k)
-        data = self._variables.get(__k)
-        return Quantity(indexer, unit=data.unit, name=data.name)
+        return Quantity(
+            indexer,
+            unit=self.get_unit(__k),
+            name=self.get_name(__k),
+        )
+
+    def get_unit(self, key: str):
+        """Get the metric unit corresponding to `key`."""
+        if key in {'shell', 'species'}:
+            return None
+        return self._variables[key].unit
+
+    def get_name(self, key: str):
+        """Get the set of aliases for `key`."""
+        return self.alias(key, include=True)
+
+
 
