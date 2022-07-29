@@ -304,24 +304,19 @@ class Interface(collections.abc.Mapping):
 
     def __init__(
         self,
-        dataset: observer.Dataset,
+        available: observer.Quantities,
         application: typing.Type[Application],
+        primary: typing.Iterable[str],
+        derived: typing.Iterable[str],
     ) -> None:
-        self.dataset = dataset
+        self.available = available
         self.application = application
-        # These could become input parameters that provide the caller with some
-        # flexibility about which variables and functions are available to a
-        # given observer. For example:
-        # - [primary] The EPREM dataset contains scalar quantities, such as
-        #   `preEruption`, that should not be formally observable.
-        # - [derived] If a dataset doesn't contain flux or the particle
-        #   distribution, we can't expect to compute integral flux.
-        self.primary = list(dataset.variables)
+        self.primary = primary
         """The names of observable quantities in the dataset."""
-        self.derived = list(functions.METHODS)
+        self.derived = derived
         """The names of observable quantities computed from variables."""
         self.names = self.primary + self.derived
-        """The names of all observable quantities."""
+        """The names of all primary and derived observable quantities."""
 
     def __len__(self) -> int:
         return len(self.names)
@@ -336,7 +331,7 @@ class Interface(collections.abc.Mapping):
     def implement(self, name: str):
         """Create the implementation of an observable quantity."""
         Type = self._get_type(name)
-        context = Type(self.dataset)
+        context = Type(self.available)
         context.use(self.application)
         return context
 
