@@ -1,6 +1,6 @@
 import pytest
 
-from goats.core import parameter
+from goats.core import constant
 from goats.eprem import parameters
 
 
@@ -86,7 +86,7 @@ def test_argument(source_path, config_path):
     }
     for name, expected in assumptions.items():
         assumption = args[name]
-        assert isinstance(assumption, parameter.Assumption)
+        assert isinstance(assumption, constant.Assumption)
         assert [float(v) for v in assumption[:]] == expected['values']
         assert assumption.unit == expected['unit']
     options = {
@@ -96,7 +96,7 @@ def test_argument(source_path, config_path):
     }
     for name, expected in options.items():
         option = args[name]
-        assert isinstance(option, parameter.Option)
+        assert isinstance(option, constant.Option)
         assert option == expected
 
 

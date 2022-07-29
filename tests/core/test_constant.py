@@ -1,7 +1,7 @@
 import pytest
 
 from goats.core import physical
-from goats.core import parameter
+from goats.core import constant
 
 
 @pytest.mark.xfail
@@ -10,7 +10,7 @@ def test_assumption():
     values = [1.0, 2.0]
     unit = 'm'
     aliases = 'this', 'a0'
-    assumption = parameter.Assumption(values, unit, *aliases)
+    assumption = constant.Assumption(values, unit, *aliases)
     assert assumption.unit == unit
     assert all(alias in assumption.name for alias in aliases)
     scalars = [physical.Scalar(value, unit) for value in values]

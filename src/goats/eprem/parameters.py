@@ -55,10 +55,10 @@ import json
 
 from goats.core import algebraic
 from goats.core import aliased
+from goats.core import constant
 from goats.core import iotools
 from goats.core import iterables
 from goats.core import numerical
-from goats.core import parameter
 
 
 class BaseTypeDef:
@@ -710,7 +710,7 @@ class Runtime(iterables.MappingBase):
         return arg
 
 
-class Arguments(aliased.Mapping):
+class Arguments(constant.Interface):
     """Aliased access to EPREM parameter arguments."""
 
     def __init__(
@@ -736,19 +736,7 @@ class Arguments(aliased.Mapping):
             See `~parameters.Runtime`.
         """
         runtime = runtime or Runtime(**runtime_init)
-        super().__init__(mapping=self._build_mapping(runtime))
-
-    def __getitem__(self, key: str):
-        """Get the value (and unit, if applicable) of a named parameter."""
-        try:
-            this = super().__getitem__(key)
-        except KeyError:
-            raise KeyError(f"No parameter corresponding to '{key}'") from None
-        value = this['value']
-        aliases = self.alias(key, include=True)
-        if unit := this['unit']:
-            return parameter.Assumption(value, unit=unit, name=aliases)
-        return parameter.Option(value, name=aliases)
+        super().__init__(self._build_mapping(runtime))
 
     def _build_mapping(self, runtime: Runtime):
         """Build the mapping of available parameters."""

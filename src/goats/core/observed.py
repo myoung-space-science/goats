@@ -3,9 +3,9 @@ import typing
 import numpy
 
 from goats.core import aliased
+from goats.core import constant
 from goats.core import index
 from goats.core import variable
-from goats.core import parameter
 
 
 class Quantity(variable.Quantity):
@@ -15,7 +15,7 @@ class Quantity(variable.Quantity):
         self,
         __v: variable.Quantity,
         indices: typing.Mapping[str, index.Quantity],
-        scalars: typing.Mapping[str, parameter.Assumption]
+        scalars: typing.Mapping[str, constant.Assumption]
     ) -> None:
         self._result = __v
         self._indices = indices

@@ -9,12 +9,12 @@ import numpy
 import numpy.typing
 
 from goats.core import aliased
+from goats.core import constant
 from goats.core import datafile
 from goats.core import iterables
 from goats.core import metric
 from goats.core import metadata
 from goats.core import reference
-from goats.core import parameter
 from goats.core import physical
 
 
@@ -239,9 +239,9 @@ class Caller(collections.abc.Mapping, iterables.ReprStrMixin):
     Argument = typing.TypeVar(
         'Argument',
         Quantity,
-        parameter.Assumption,
+        constant.Assumption,
     )
-    Argument = typing.Union[Quantity, parameter.Assumption]
+    Argument = typing.Union[Quantity, constant.Assumption]
 
     def __call__(self, **arguments: Argument):
         """Produce the results of this method."""
