@@ -1,124 +1,83 @@
+import abc
+import collections.abc
 import typing
 
 from goats.core import aliased
 from goats.core import axis
 from goats.core import base
+from goats.core import computable
+from goats.core import constant
 from goats.core import functions
 from goats.core import index
 from goats.core import iterables
 from goats.core import measurable
 from goats.core import metadata
-from goats.core import parameter
 from goats.core import physical
 from goats.core import reference
 from goats.core import spelling
 from goats.core import variable
 
 
-class Dataset:
-    """Interface to observer dataset quantities."""
+class Attribute(collections.abc.Collection):
+    """A collection of observer attributes."""
 
     def __init__(
         self,
         axes: axis.Interface,
         variables: variable.Interface,
-        assumptions: typing.Mapping[str, parameter.Assumption],
     ) -> None:
         self.axes = axes
         self.variables = variables
-        self._cache = {}
-        self._default = {
-            'indices': aliased.MutableMapping.fromkeys(axes, value=()),
-            'scalars': aliased.MutableMapping(assumptions),
-        }
-        self.names = list(variables) + list(assumptions)
+        self._defaults = None
+        self._defined = False
 
-    def __contains__(self, __k: str):
-        """True if `__k` names a variable or an assumption."""
-        return __k in self.names
+    @property
+    def defaults(self) -> dict:
+        """The default attribute values."""
+        if not self._defined:
+            if self._defaults is None:
+                raise TypeError(
+                    f"Can't instantiate {type(self)!r} without default values"
+                ) from None
+            self._defined = True
+        return self._defaults
 
-    def get_unit(self, key: str) -> metadata.Unit:
-        """Determine the unit of `key` based on its metric quantity."""
-        this = reference.METADATA.get(key, {}).get('quantity')
-        return self.variables.system.get_unit(quantity=this)
+    def __contains__(self, __x) -> bool:
+        return __x in self._defaults
 
-    def get_axes(self, key: str):
-        """Retrieve or compute appropriate axis names for `key`."""
-        if key in self.variables:
-            return self.variables[key].axes
-        if key in functions.REGISTRY:
-            return self._compute_axes(key)
+    def __iter__(self) -> typing.Iterator:
+        """Iterate over attribute names."""
+        return iter(self._defaults)
 
-    def _compute_axes(self, key: str):
-        """Compute appropriate axis names."""
-        if 'axes' not in self._cache:
-            self._cache['axes'] = {}
-        if key in self._cache['axes']:
-            return self._cache['axes'][key]
-        method = functions.REGISTRY[key]
-        self._removed = self._get_metadata(method, 'removed')
-        self._added = self._get_metadata(method, 'added')
-        self._accumulated = []
-        axes = self._gather_axes(method)
-        self._cache['axes'][key] = axes
-        return axes
+    def __len__(self) -> int:
+        """The number of available attributes."""
+        return len(self._defaults)
 
-    def _gather_axes(self, target: variable.Caller):
-        """Recursively gather appropriate axes."""
-        for parameter in target.parameters:
-            if parameter in self.variables:
-                axes = self.variables[parameter].axes
-                self._accumulated.extend(axes)
-            elif method := functions.REGISTRY[parameter]:
-                self._removed.extend(self._get_metadata(method, 'removed'))
-                self._added.extend(self._get_metadata(method, 'added'))
-                self._accumulated.extend(self._gather_axes(method))
-        unique = set(self._accumulated) - set(self._removed) | set(self._added)
-        return self.axes.resolve(unique, mode='append')
+    @abc.abstractmethod
+    def convert(self, user: dict):
+        """Extract appropriate values from user input."""
+        raise NotImplementedError
 
-    def _get_metadata(self, method: variable.Caller, key: str) -> list:
-        """Helper for accessing a method's metadata dictionary."""
-        if key not in method.meta:
-            return [] # Don't go through the trouble if it's not there.
-        value = method.meta[key]
-        return list(iterables.whole(value))
 
-    def get_scalars(self, user: dict):
-        """Extract relevant single-valued assumptions."""
-        updates = {
-            k: self._get_assumption(v)
-            for k, v in user.items()
-            if k not in self.axes
-        }
-        return {**self._default['scalars'], **updates}
+class Indices(Attribute):
+    """An observer's array-indexing objects."""
 
-    def _get_assumption(self, this):
-        """Get a single assumption from user input."""
-        scalar = self._force_scalar(this)
-        unit = self.variables.system.get_unit(unit=scalar.unit)
-        return scalar.convert(unit)
+    def __init__(
+        self,
+        axes: axis.Interface,
+        variables: variable.Interface,
+    ) -> None:
+        super().__init__(axes, variables)
+        self._defaults = aliased.MutableMapping.fromkeys(axes, value=())
 
-    def _force_scalar(self, this) -> measurable.Scalar:
-        """Make sure `this` is a `~measurable.Scalar`."""
-        if isinstance(this, measurable.Scalar):
-            return this
-        if isinstance(this, parameter.Assumption):
-            return this[0]
-        if isinstance(this, measurable.Measurement):
-            return physical.Scalar(this.values[0], unit=this.unit)
-        measured = measurable.measure(this)
-        if len(measured) > 1:
-            raise ValueError("Can't use a multi-valued assumption") from None
-        return self._force_scalar(measured)
-
-    def get_indices(self, user: dict) -> typing.Dict[str, index.Quantity]:
+    def convert(self, user: dict) -> typing.Dict[str, index.Quantity]:
         """Create the relevant observing indices."""
         updates = {
             k: self._compute_index(k, v)
             for k, v in user.items()
             if k in self.axes
         }
-        return {**self._default['indices'], **updates}
+        return {**self.defaults, **updates}
 
     def _compute_index(self, key: str, this):
         """Compute a single indexing object from input values."""
@@ -131,6 +90,99 @@ class Dataset:
             unit = self.variables.system.get_unit(unit=target.unit)
             return target.convert(unit)
         return target
+
+
+class Scalars(Attribute):
+    """An observer's scalar parameter values."""
+
+    def __init__(
+        self,
+        axes: axis.Interface,
+        variables: variable.Interface,
+        constants: constant.Interface,
+    ) -> None:
+        super().__init__(axes, variables)
+        assumptions = {
+            k: v for k, v in constants
+            if isinstance(v, constant.Assumption)
+        }
+        self._defaults = aliased.MutableMapping(assumptions)
+
+    def convert(self, user: dict) -> typing.Mapping[str, physical.Scalar]:
+        """Extract relevant single-valued assumptions."""
+        updates = {
+            k: self._get_scalar(v)
+            for k, v in user.items()
+            if k not in self.axes
+        }
+        return {**self.defaults, **updates}
+
+    def _get_scalar(self, this):
+        """Get a single scalar assumption from user input."""
+        scalar = constant.scalar(this)
+        unit = self.variables.system.get_unit(unit=scalar.unit)
+        return scalar.convert(unit)
+
+
+class Quantities:
+    """Interface to all quantities available to this observer."""
+
+    def __init__(
+        self,
+        axes: axis.Interface,
+        variables: variable.Interface,
+        constants: constant.Interface,
+    ) -> None:
+        self.axes = axes
+        """The axis-managing objects available to this observer."""
+        self.variables = variables
+        """The variable quantities available to this observer."""
+        self.constants = constants
+        """The constant quantities available to this observer."""
+        self._system = None
+        self._names = None
+        self._functions = None
+        self._indices = None
+        self._scalars = None
+
+    @property
+    def system(self):
+        """The metric system of this observer's dataset quantities."""
+        if self._system is None:
+            self._system = self.variables.system
+        return self._system
+
+    @property
+    def names(self):
+        """The names of all available quantities."""
+        if self._names is None:
+            self._names = list(self.variables) + list(self.scalars)
+        return self._names
+
+    @property
+    def functions(self):
+        """The computable quantities available to this observer."""
+        if self._functions is None:
+            self._functions = computable.Interface(self.axes, self.variables)
+        return self._functions
+
+    @property
+    def indices(self):
+        """This observer's array-indexing objects."""
+        if self._indices is None:
+            self._indices = Indices(self.axes, self.variables)
+        return self._indices
+
+    @property
+    def scalars(self):
+        """This observer's single-valued assumptions."""
+        if self._scalars is None:
+            self._scalars = Scalars(self.axes, self.variables, self.constants)
+        return self._scalars
+
+    def __contains__(self, __k: str):
+        """True if `__k` names a variable or an assumption."""
+        return __k in self.names
 
 
 class Interface:
