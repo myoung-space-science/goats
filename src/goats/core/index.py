@@ -41,6 +41,7 @@ class Quantity(physical.Quantity):
     def __init__(
         self: Instance,
         __data: Data,
+        *,
         unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None: ...
