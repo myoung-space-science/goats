@@ -13,7 +13,6 @@ from goats.core import fundamental
 from goats.core import iterables
 from goats.core import metadata
 from goats.core import numerical
-from goats.core import parameter
 from goats.core import physical
 from goats.core import reference
 from goats.core import variable
