@@ -27,7 +27,7 @@ class Data:
     ) -> None:
         self.points = tuple(__points)
         """The integral index points."""
-        self.values = values or self.points
+        self.values = self.points if iterables.missing(values) else values
         """The values associated with index points."""
 
 
