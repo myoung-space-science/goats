@@ -2,6 +2,9 @@ import pytest
 import numpy
 
 from goats.core import aliased
+from goats.core import axis
+from goats.core import datafile
+from goats.core import index
 from goats.core import variable
 from goats import eprem
 
@@ -14,7 +17,6 @@ def datapath(datadirs: dict):
 
 def test_axes(datapath):
     """Test the axis-indexing objects."""
-    axes = eprem.Dataset(datapath, eprem.IndexerFactory).axes
     cases = {
         'time': {
             'length': 50,
@@ -56,14 +58,16 @@ def test_axes(datapath):
             },
         },
     }
+    data = datafile.Interface(datapath)
+    axes = axis.Interface(eprem.Indexers(data), data)
     for name, expected in cases.items():
         if name != 'energy':
-            axis = axes[name]
-            full = axis()
-            assert isinstance(full, variable.Indices)
+            this = axes[name]
+            full = this.at()
+            assert isinstance(full, index.Quantity)
             assert len(full) == expected['length']
             test = expected['test']
-            user = axis(*test['user'])
+            user = this.at(*test['user'])
             assert list(user) == test['indices']
             if user.unit is not None:
                 assert numpy.allclose(user.data, test['values'])
@@ -72,20 +76,19 @@ def test_axes(datapath):
     name = 'energy'
     expected = cases['energy']
     species = axes['species']
-    for s in species():
-        axis = axes[name]
-        full = axis(species=s)
-        assert isinstance(full, variable.Indices)
+    for s in species.at():
+        this = axes[name]
+        full = this.at(species=s)
+        assert isinstance(full, index.Quantity)
         assert len(full) == expected['length']
         test = expected['test']
-        user = axis(*test['user'])
+        user = this.at(*test['user'])
         assert list(user) == test['indices']
         assert numpy.allclose(user.data, test['values'])
 
 
 def test_single_index(datapath):
     """Users should be able to provide a single numerical value."""
-    axes = eprem.Dataset(datapath, eprem.IndexerFactory).axes
     cases = {
         'time': {
             'input': 8640.0,
@@ -115,14 +118,67 @@ def test_single_index(datapath):
             'unit': '1',
         }
     }
+    data = datafile.Interface(datapath)
+    axes = axis.Interface(eprem.Indexers(data), data)
     for name, expected in cases.items():
-        axis = axes[name]
-        result = axis(expected['input'])
+        this = axes[name]
+        result = this.at(expected['input'])
         assert list(result) == expected['index']
         if 'value' in expected:
             assert list(result.data) == expected['value']
         if 'unit' in expected:
             assert result.unit == expected['unit']
+
+
+def test_resolve_axes(datapath):
+    """Test the method that orders EPREM axes."""
+    # This is only a subset of the possible cases and there's probably a more
+    # efficient way to build the collection.
+    cases = [
+        {
+            'input': ('shell', 'energy', 'time'),
+            'output': ('time', 'shell', 'energy'),
+        },
+        {
+            'input': ('shell', 'energy', 'time', 'extra'),
+            'output': ('time', 'shell', 'energy'),
+        },
+        {
+            'input': ('shell', 'energy', 'time'),
+            'mode': 'strict',
+            'output': ('time', 'shell', 'energy'),
+        },
+        {
+            'input': ('shell', 'energy', 'time', 'extra'),
+            'mode': 'strict',
+            'output': ('time', 'shell', 'energy'),
+        },
+        {
+            'input': ('shell', 'energy', 'time', 'extra'),
+            'mode': 'append',
+            'output': ('time', 'shell', 'energy', 'extra'),
+        },
+        {
+            'input': ('extra', 'shell', 'energy', 'time'),
+            'mode': 'append',
+            'output': ('time', 'shell', 'energy', 'extra'),
+        },
+        {
+            'input': ('shell', 'extra', 'energy', 'time'),
+            'mode': 'append',
+            'output': ('time', 'shell', 'energy', 'extra'),
+        },
+    ]
+    data = datafile.Interface(datapath)
+    axes = axis.Interface(eprem.Indexers(data), data)
+    for case in cases:
+        names = case['input']
+        expected = case['output']
+        result = (
+            axes.resolve(names, mode=case['mode']) if 'mode' in case
+            else axes.resolve(names)
+        )
+        assert result == expected
 
 
 def test_variables(datapath):
@@ -224,12 +280,13 @@ def test_variables(datapath):
             'aliases': ['dist', 'f'],
         },
     }
-    variables = eprem.Dataset(datapath, eprem.IndexerFactory).variables
+    data = datafile.Interface(datapath)
+    variables = variable.Interface(data)
     for name, expected in cases.items():
-        variable = variables[name]
-        assert variable.axes == expected['axes']
-        assert variable.unit == expected['unit']
+        current = variables[name]
+        assert current.axes == expected['axes']
+        assert current.unit == expected['unit']
         key = aliased.MappingKey(name, *expected['aliases'])
-        assert variable.name == key
+        assert current.name == key
 
 
