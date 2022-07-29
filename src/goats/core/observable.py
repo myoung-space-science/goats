@@ -3,9 +3,9 @@ import collections.abc
 import typing
 
 from goats.core import algebraic
-from goats.core import functions
+from goats.core import aliased
+from goats.core import constant
 from goats.core import metadata
-from goats.core import reference
 from goats.core import observed
 from goats.core import observer
 from goats.core import variable
@@ -40,18 +40,44 @@ class Application(abc.ABC):
 
     def __init__(
         self,
-        dataset: observer.Dataset,
+        quantities: observer.Quantities,
         **constraints
     ) -> None:
-        self.dataset = dataset
-        self.indices = self.dataset.get_indices(constraints)
-        self.scalars = self.dataset.get_scalars(constraints)
+        self.observer = quantities
+        self.user = constraints
+        self._scalars = None
+
+    @property
+    def scalars(self):
+        """This observer's single-valued assumptions."""
+        if self._scalars is None:
+            assumptions = {
+                k: v for k, v in self.observer.constants
+                if isinstance(v, constant.Assumption)
+            } if self.observer.constants else {}
+            defaults = aliased.MutableMapping(assumptions)
+            updates = {
+                k: self._get_scalar(v)
+                for k, v in self.user.items()
+                if k not in self.observer.axes
+            }
+            self._scalars = {**defaults, **updates}
+        return self._scalars
+
+    def _get_scalar(self, this):
+        """Internal helper for creating `self.scalars`."""
+        scalar = constant.scalar(this)
+        unit = self.observer.system.get_unit(unit=scalar.unit)
+        return scalar.convert(unit)
 
     def get_quantity(self, name: str):
         """Retrieve the named quantity from available attributes."""
         if name in self.scalars:
             return self.scalars[name]
-        return self.evaluate_variable(name)
+        if name in self.observer.variables:
+            return self.evaluate_variable(name)
+        if name in self.observer.functions:
+            return self.evaluate_function(name)
 
     @abc.abstractmethod
     def evaluate_variable(self, name: str) -> variable.Quantity:
@@ -60,18 +86,9 @@ class Application(abc.ABC):
 
     def evaluate_function(self, name: str) -> variable.Quantity:
         """Create a variable quantity from a function."""
-        interface = functions.REGISTRY[name]
-        method = interface.pop('method')
-        caller = variable.Caller(method, **interface)
-        deps = {p: self.get_quantity(p) for p in caller.parameters}
-        quantity = reference.METADATA.get(name, {}).get('quantity', None)
-        data = caller(**deps)
-        return variable.Quantity(
-            data,
-            axes=self.dataset.get_axes(name),
-            unit=self.dataset.get_unit(quantity=quantity),
-            name=name,
-        )
+        quantity = self.observer.functions[name]
+        dependencies = {p: self.get_quantity(p) for p in quantity.parameters}
+        return quantity(dependencies)
 
     def evaluate_expression(self, name: str) -> variable.Quantity:
         """Combine variables and functions based on this expression."""
@@ -130,12 +147,12 @@ class Context(abc.ABC):
 
     def __init__(
         self,
-        dataset: observer.Dataset,
+        quantities: observer.Quantities,
         factory: typing.Type[Factory],
     ) -> None:
-        self.dataset = dataset
-        self._type = Application
+        self.quantities = quantities
         self.factory = factory
+        self._type = Application
 
     @abc.abstractmethod
     def get_unit(self, name: str) -> metadata.Unit:
@@ -153,13 +170,14 @@ class Context(abc.ABC):
 
     def apply(self, **user):
         """Apply user constraints to this observing context."""
-        return self.factory(self._type(self.dataset, **user))
+        application = self._type(self.quantities, **user)
+        return self.factory(application)
 
 
 class Primary(Context):
     """The context of a primary observable quantity."""
 
-    def __init__(self, dataset: observer.Dataset) -> None:
+    def __init__(self, quantities: observer.Quantities) -> None:
         """Initialize a primary observing context.
         
         This concrete observing context will initialize the base class with a
@@ -167,23 +185,27 @@ class Primary(Context):
 
         Parameters
         ----------
-        dataset : `~observer.Dataset`
-            The dataset containing the target observer's axis and variable
-            quantities, as well as runtime or operational parameter values.
+        quantities : `~observer.Quantities`
+            The quantities available within this context.
         """
-        super().__init__(dataset, Variables)
+        super().__init__(quantities, Variables)
+
+    @property
+    def variables(self):
+        """An interface to the available variable quantities."""
+        return self.quantities.variables
 
     def get_unit(self, name: str) -> metadata.Unit:
-        return self.dataset.variables[name].unit
+        return self.variables[name].unit
 
     def get_axes(self, name: str) -> metadata.Axes:
-        return self.dataset.variables[name].axes
+        return self.variables[name].axes
 
 
 class Derived(Context):
     """The context of a derived observable quantity."""
 
-    def __init__(self, dataset: observer.Dataset) -> None:
+    def __init__(self, quantities: observer.Quantities) -> None:
         """Initialize a derived observing context.
         
         This concrete observing context will initialize the base class with a
@@ -191,23 +213,27 @@ class Derived(Context):
 
         Parameters
         ----------
-        dataset : `~observer.Dataset`
-            The dataset containing the target observer's axis and variable
-            quantities, as well as runtime or operational parameter values.
+        quantities : `~observer.Quantities`
+            The quantities available within this context.
         """
-        super().__init__(dataset, Functions)
+        super().__init__(quantities, Functions)
+
+    @property
+    def functions(self):
+        """An interface to the available computable quantities."""
+        return self.quantities.functions
 
     def get_unit(self, name: str) -> metadata.Unit:
-        return self.dataset.get_unit(name)
+        return self.functions.get_unit(name)
 
     def get_axes(self, name: str) -> metadata.Axes:
-        return self.dataset.get_axes(name)
+        return self.functions.get_axes(name)
 
 
 class Composed(Context):
     """The context of a composed observable quantity."""
 
-    def __init__(self, dataset: observer.Dataset) -> None:
+    def __init__(self, quantities: observer.Quantities) -> None:
         """Initialize a composed observing context.
         
         This concrete observing context will initialize the base class with an
@@ -215,17 +241,21 @@ class Composed(Context):
 
         Parameters
         ----------
-        dataset : `~observer.Dataset`
-            The dataset containing the target observer's axis and variable
-            quantities, as well as runtime or operational parameter values.
+        quantities : `~observer.Quantities`
+            The quantities available within this context.
         """
-        super().__init__(dataset, Expressions)
+        super().__init__(quantities, Expressions)
+
+    @property
+    def functions(self):
+        """An interface to the available computable quantities."""
+        return self.quantities.functions
 
     def get_unit(self, name: str) -> metadata.Unit:
-        return algebraic.Expression(name).apply(self.dataset.get_unit)
+        return algebraic.Expression(name).apply(self.functions.get_unit)
 
     def get_axes(self, name: str) -> metadata.Axes:
-        return algebraic.Expression(name).apply(self.dataset.get_axes)
+        return algebraic.Expression(name).apply(self.functions.get_axes)
 
 
 T = typing.TypeVar('T', bound=Context)
