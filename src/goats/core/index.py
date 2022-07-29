@@ -91,6 +91,16 @@ class Quantity(physical.Quantity):
         raise TypeError("Can't convert null unit") from None
 
 
+def create(indices, values=None, unit=None):
+    """Create an index quantity from arguments.
+    
+    This function is a simple interface that converts separate `indices` and
+    `values` to an instance of `~index.Data` appropriate for initializing
+    `~index.Quantity`.
+    """
+    return Quantity(Data(indices, values=values), unit=unit)
+
+
 class Factory:
     """A callable object that generates array indices from user arguments."""
 
@@ -108,7 +118,7 @@ class Factory:
         """Call the array-indexing method."""
         targets = self.normalize(*args)
         if all(isinstance(value, numbers.Integral) for value in targets):
-            return Quantity(targets)
+            return create(targets)
         return self.method(targets, **kwargs)
 
     def normalize(self, *user):
