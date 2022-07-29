@@ -402,29 +402,6 @@ def _interpolate(
 REGISTRY = aliased.Mapping(registry, keymap=reference.ALIASES)
 
 
-class Arguments:
-    """Helper for extracting argument values based on parameters."""
-
-    def __init__(self, *parameters: str) -> None:
-        self.parameters = parameters
-        self.arrays = []
-        self.floats = []
-
-    def parse(self, dependencies: typing.Mapping):
-        """Extract arrays and floats from `dependencies`."""
-        for parameter in self.parameters:
-            arg = dependencies[parameter]
-            if isinstance(arg, physical.Array):
-                self.arrays.append(numpy.array(arg))
-            elif isinstance(arg, physical.Scalar):
-                self.floats.append(float(arg))
-            elif (
-                isinstance(arg, typing.Iterable)
-                and all(isinstance(a, physical.Scalar) for a in arg)
-            ): self.floats.extend([float(a) for a in arg])
-        return self
-
-
 class Method(collections.abc.Mapping, iterables.ReprStrMixin):
     """A callable object with associated information."""
 
@@ -437,6 +414,14 @@ class Method(collections.abc.Mapping, iterables.ReprStrMixin):
         self.info = info
         self.signature = inspect.signature(self.callable)
         self._name = None
+        self._parameters = None
+
+    @property
+    def parameters(self):
+        """The names of arguments to this method."""
+        if self._parameters is None:
+            self._parameters = tuple(self.signature.parameters)
+        return self._parameters
 
     @property
     def name(self):
@@ -445,9 +430,25 @@ class Method(collections.abc.Mapping, iterables.ReprStrMixin):
             self._name = str(self.callable)
         return self._name
 
-    def compute(self, arguments: Arguments):
+    def compute(self, **dependencies):
         """Produce the results of this method."""
-        return self.callable(*arguments.arrays, *arguments.floats)
+        return self.callable(*self.parse(**dependencies))
+
+    def parse(self, dependencies: typing.Mapping):
+        """Extract arrays and floats from `dependencies`."""
+        arrays = []
+        floats = []
+        for name in self:
+            arg = dependencies[name]
+            if isinstance(arg, physical.Array):
+                arrays.append(numpy.array(arg))
+            elif isinstance(arg, physical.Scalar):
+                floats.append(float(arg))
+            elif (
+                isinstance(arg, typing.Iterable)
+                and all(isinstance(a, physical.Scalar) for a in arg)
+            ): floats.extend([float(a) for a in arg])
+        return *arrays, *floats
 
     def __len__(self):
         """The number of available metadata attributes."""
@@ -490,19 +491,18 @@ class Quantity(Metadata, iterables.ReprStrMixin):
         self._unit = unit
         self._name = name
         self._parameters = None
-        self._args = Arguments(self.parameters)
 
     @property
     def parameters(self):
         """The parameters to this quantity's method."""
         if self._parameters is None:
-            self._parameters = tuple(self.method.signature.parameters)
+            self._parameters = tuple(self.method.parameters)
         return self._parameters
 
     def __call__(self, **quantities):
         """Create a variable quantity from input quantities."""
         return variable.Quantity(
-            self.method(self._args.parse(**quantities)),
+            self.method(**quantities),
             axes=self.axes,
             unit=self.unit,
             name=self.name,
