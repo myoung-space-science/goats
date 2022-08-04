@@ -365,9 +365,7 @@ class Mapping(collections.abc.Mapping):
                 key=key,
                 keymap=keymap,
             )
-        self._flat_dict = {
-            alias: key for key in self.as_dict for alias in key
-        }
+        self._flat_dict = {alias: k for k in self.as_dict for alias in k}
 
     def _flat_keys(self) -> typing.KeysView[str]:
         """Define a flat list of all the keys in this mapping."""
@@ -421,10 +419,7 @@ class Mapping(collections.abc.Mapping):
         https://stackoverflow.com/q/327311/4739101.
         """
         try:
-            found = next(
-                key for key in self.as_dict
-                if key == target
-            )
+            found = next(key for key in self.as_dict if key == target)
         except StopIteration:
             return
         else:
