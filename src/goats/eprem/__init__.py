@@ -9,6 +9,7 @@ from goats import Environment
 from ..core import (
     axis,
     aliased,
+    computable,
     datafile,
     fundamental,
     iterables,
@@ -17,12 +18,15 @@ from ..core import (
     measurable,
     metric,
     numerical,
+    observable,
     observer,
+    observing,
     physical,
+    reference,
     variable,
 )
-from . import observable
-from .parameters import BaseTypesH
+from . import interpolation
+from .runtime import BaseTypesH
 
 
 ENV = Environment('eprem')
@@ -149,6 +153,110 @@ class Indexers(aliased.Mapping, iterables.ReprStrMixin):
         return ', '.join(str(key) for key in self.keys(aliased=True))
 
 
+class Application(observing.Application):
+    """An EPREM-specific variable evaluator."""
+
+    def process(self, old: variable.Quantity) -> variable.Quantity:
+        if any(self._get_reference(alias) for alias in old.name):
+            # This is an axis-reference quantity.
+            return old[self.indices]
+        axes = self._compute_axes(old)
+        if not axes:
+            # There are no axes over which to interpolate.
+            return old[self.indices]
+        new = self._interpolate(old)
+        idx = tuple(
+            self.indices[axis]
+            if axis in axes else slice(None)
+            for axis in old.axes
+        )
+        return new[idx]
+
+    def _compute_axes(self, q: variable.Quantity):
+        """Determine over which axes to interpolate, if any."""
+        crd = {k: v for k, v in self.indices.items() if v.unit is not None}
+        coordinates = {a: crd[a].data for a in q.axes if a in crd}
+        references = [self._get_reference(a) for a in q.axes if a in crd]
+        axes = [
+            a for (a, c), r in zip(coordinates.items(), references)
+            if not numpy.all([r.array_contains(target) for target in c])
+        ]
+        if any(r in self.scalars for r in reference.ALIASES['radius']):
+            axes.append('radius')
+        return list(set(q.axes) - set(axes))
+
+    def _get_reference(self, name: str) -> typing.Optional[variable.Quantity]:
+        """Get a reference quantity for indexing."""
+        if self._references is None:
+            axes = {
+                k: v.reference
+                for k, v in self.data.axes.items(aliased=True)
+            }
+            rtp = {
+                (k, *self.data.variables.alias(k, include=True)):
+                self.data.variables[k]
+                for k in {'radius', 'theta', 'phi'}
+            }
+            self._references = aliased.Mapping({**axes, **rtp})
+        return self._references.get(name)
+
+    def _interpolate(self, q: variable.Quantity) -> variable.Quantity:
+        """Internal interpolation logic."""
+        coordinates = self._compute_coordinates()
+        array = None
+        for coordinate, current in coordinates.items():
+            array = self._interpolate_coordinate(
+                current['targets'],
+                current['reference'],
+                coordinate=coordinate,
+                workspace=array,
+            )
+        meta = {k: getattr(q, k, None) for k in {'unit', 'name', 'axes'}}
+        return variable.Quantity(array, **meta)
+
+    def _compute_coordinates(self):
+        """Determine the measurable observing indices."""
+        coordinates = {
+            axis: {
+                'targets': numpy.array(idx.data),
+                'reference': self._get_reference(axis),
+            }
+            for axis, idx in self.indices.items()
+            if axis in self.data.axes and idx.unit is not None
+        }
+        for key in reference.ALIASES['radius']:
+            if values := self.scalars.get(key):
+                radii = iterables.whole(values)
+                floats = [float(radius) for radius in radii]
+                updates = {
+                    'targets': numpy.array(floats),
+                    'reference': self._get_reference('radius'),
+                }
+                coordinates.update(updates)
+        return coordinates
+
+    def _interpolate_coordinate(
+        self,
+        q: variable.Quantity,
+        targets: numpy.ndarray,
+        reference: variable.Quantity,
+        coordinate: str=None,
+        workspace: numpy.ndarray=None,
+    ) -> numpy.ndarray:
+        """Interpolate a variable array based on a known coordinate."""
+        array = numpy.array(q) if workspace is None else workspace
+        indices = (q.axes.index(d) for d in reference.axes)
+        dst, src = zip(*enumerate(indices))
+        reordered = numpy.moveaxis(array, src, dst)
+        interpolated = interpolation.apply(
+            reordered,
+            numpy.array(reference),
+            targets,
+            coordinate=coordinate,
+        )
+        return numpy.moveaxis(interpolated, dst, src)
+
+
 class Observer(observer.Interface):
     """Base class for EPREM observers."""
 
@@ -167,12 +275,18 @@ class Observer(observer.Interface):
         self.system = metric.System(system)
         self._data = None
         self._arguments = None
-        interface = observable.Interface(
-            axis.Interface(Indexers, self.data, self.system),
-            variable.Interface(self.data, self.system),
+        variables = variable.Interface(self.data, self.system)
+        interface = observing.Interface(
+            axis.Interface(Indexers(self.data), self.data, self.system),
+            variables,
             self.arguments,
         )
-        super().__init__(interface, self.arguments)
+        observables = observable.Interface(
+            interface,
+            Application,
+            *[*variables, *computable.REGISTRY],
+        )
+        super().__init__(observables, self.arguments)
 
     @property
     def path(self) -> iotools.ReadOnlyPath:
@@ -201,7 +315,7 @@ class Observer(observer.Interface):
         if self._arguments is None:
             source_path = ENV['src']
             config_path = self._config
-            self._arguments = parameters.Arguments(
+            self._arguments = runtime.Arguments(
                 source_path=source_path,
                 config_path=config_path,
             )
