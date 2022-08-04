@@ -120,6 +120,13 @@ class Interface(collections.abc.Mapping):
         self.names = names or list(available)
         """The names of all observable quantities."""
 
+    def __contains__(self, __o) -> bool:
+        """True if `__o` names an observable quantity.
+        
+        Overloaded to avoid going through `__getitem__`.
+        """
+        return __o in self.names
+
     def __len__(self) -> int:
         return len(self.names)
 
