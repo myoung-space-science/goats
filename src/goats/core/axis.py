@@ -127,9 +127,11 @@ class Interface(aliased.Mapping):
 
     def get_unit(self, key: str):
         """Get the metric unit corresponding to `key`."""
-        if key in {'shell', 'species'}:
-            return None
-        return self._variables[key].unit
+        try:
+            unit = self._variables[key].unit
+        except KeyError:
+            unit = None
+        return unit
 
     def get_name(self, key: str):
         """Get the set of aliases for `key`."""
