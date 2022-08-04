@@ -379,6 +379,13 @@ class Mapping(collections.abc.Mapping):
         """Expand aliased items into a standard dictionary."""
         return {key: self[key] for key in self._flat_keys()}
 
+    def __contains__(self, __o) -> bool:
+        """True if `__o` is a key in this mapping.
+        
+        Overloaded to avoid going through `__getitem__`.
+        """
+        return self._resolve(__o) is not None
+
     def __iter__(self) -> typing.Iterator:
         yield from self._flat_keys()
 
