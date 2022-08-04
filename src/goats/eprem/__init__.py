@@ -44,7 +44,7 @@ def find_file_by_template(
             return test
 
 
-class Indexers(iterables.ReprStrMixin, aliased.Mapping):
+class Indexers(aliased.Mapping, iterables.ReprStrMixin):
     """A factory for EPREM array-indexing objects."""
 
     def __init__(self, data: datafile.Interface) -> None:
@@ -57,22 +57,27 @@ class Indexers(iterables.ReprStrMixin, aliased.Mapping):
         indexers = {
             'time': {
                 'method': self._build_time,
+                'size': data.axes['time'].size,
                 'reference': self.variables['time'],
             },
             'shell': {
                 'method': self._build_shell,
+                'size': data.axes['shell'].size,
                 'reference': numpy.array(self.variables['shell'], dtype=int),
             },
             'species': {
                 'method': self._build_species,
+                'size': data.axes['species'].size,
                 'reference': self.symbols,
             },
             'energy': {
                 'method': self._build_energy,
+                'size': data.axes['energy'].size,
                 'reference': self.variables['energy'],
             },
             'mu': {
                 'method': self._build_mu,
+                'size': data.axes['mu'].size,
                 'reference': self.variables['mu'],
             },
         }
@@ -84,7 +89,7 @@ class Indexers(iterables.ReprStrMixin, aliased.Mapping):
 
     def __getitem__(self, key: str) -> index.Factory:
         this = super().__getitem__(key)
-        return index.Factory(this['method'], this['reference'])
+        return index.Factory(this['method'], this['size'], this['reference'])
 
     def _build_time(self, targets):
         """Build the time-axis indexer."""
@@ -92,7 +97,7 @@ class Indexers(iterables.ReprStrMixin, aliased.Mapping):
 
     def _build_shell(self, targets):
         """Build the shell-axis indexer."""
-        return index.Quantity(targets)
+        return index.create(targets)
 
     def _build_species(self, targets):
         """Build the species-axis indexer."""
@@ -105,7 +110,7 @@ class Indexers(iterables.ReprStrMixin, aliased.Mapping):
             elif isinstance(target, numbers.Integral):
                 indices.append(target)
                 symbols.append(self.symbols[target])
-        return index.Quantity(indices, values=targets)
+        return index.create(indices, values=targets)
 
     def _build_energy(self, targets, species: typing.Union[str, int]=0):
         """Build the energy-axis indexer."""
@@ -138,8 +143,7 @@ class Indexers(iterables.ReprStrMixin, aliased.Mapping):
             numerical.find_nearest(reference, float(value)).index
             for value in values
         ]
-        return index.Quantity(indices, values=values, unit=reference.unit)
-
+        return index.create(indices, values=values, unit=reference.unit)
 
     def __str__(self) -> str:
         return ', '.join(str(key) for key in self.keys(aliased=True))
