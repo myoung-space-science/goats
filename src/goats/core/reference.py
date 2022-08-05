@@ -4,10 +4,11 @@ from goats.core import aliased
 __all__ = [
     'ALIASES',
     'METADATA',
+    'NAMES',
 ]
 
 
-_METADATA = {
+_BASE = {
     ('time', 't', 'times'): {
         'quantity': 'time',
     },
@@ -27,19 +28,19 @@ _METADATA = {
     ('charge', 'q'): {
         'quantity': 'charge',
     },
-    ('egrid', 'energy', 'energies', 'E'): {
+    ('energy', 'egrid', 'energies', 'E'): {
         'quantity': 'energy',
     },
-    ('vgrid', 'speed', 'v', 'vparticle'): {
+    ('speed', 'vgrid', 'vparticle'): {
         'quantity': 'velocity',
     },
-    ('R', 'r', 'radius'): {
+    ('radius', 'R', 'r'): {
         'quantity': 'length',
     },
-    ('T', 'theta'): {
+    ('theta', 'T'): {
         'quantity': 'plane angle',
     },
-    ('P', 'phi'): {
+    ('phi', 'P'): {
         'quantity': 'plane angle',
     },
     ('Br', 'br'): {
@@ -60,10 +61,10 @@ _METADATA = {
     ('Vp', 'vp', 'Vphi', 'vphi'): {
         'quantity': 'velocity',
     },
-    ('Rho', 'rho'): {
+    ('rho', 'Rho'): {
         'quantity': 'number density',
     },
-    ('Dist', 'dist', 'f'): {
+    ('dist', 'Dist', 'f'): {
         'quantity': 'particle distribution',
     },
     ('flux', 'Flux', 'J', 'J(E)', 'j', 'j(E)'): {
@@ -80,19 +81,19 @@ _METADATA = {
     ('z', 'Z'): {
         'quantity': 'length',
     },
-    ('b_mag', '|B|', 'B', 'bmag', 'b mag'): {
+    ('B', 'b_mag', '|B|', 'bmag', 'b mag'): {
         'quantity': 'magnetic field',
     },
-    ('v_mag', '|V|', 'V', 'vmag', 'v mag'): {
+    ('V', 'v_mag', '|V|', 'vmag', 'v mag', 'v', '|v|'): {
         'quantity': 'velocity',
     },
-    ('bv_mag', 'bv', '|bv|', 'BV', '|BV|'): {
+    ('BV', 'bv_mag', 'bv', '|bv|', '|BV|'): {
         'quantity': 'velocity * magnetic field',
     },
-    ('v_para', 'vpara', 'Vpara'): {
+    ('Vpara', 'v_para', 'vpara'): {
         'quantity': 'velocity',
     },
-    ('v_perp', 'vperp', 'Vperp'): {
+    ('Vperp', 'v_perp', 'vperp'): {
         'quantity': 'velocity',
     },
     ('flow_angle', 'flow angle', 'angle'): {
@@ -119,7 +120,7 @@ _METADATA = {
     ('average_energy', 'average energy'): {
         'quantity': 'energy',
     },
-    ('isotropic_distribution', 'isotropic distribution', 'isodist', 'f'): {
+    ('isotropic_distribution', 'isotropic distribution', 'isodist'): {
         'removed axes': ['mu'],
         'quantity': 'particle distribution',
     },
@@ -133,6 +134,17 @@ _METADATA = {
     },
 }
 
+_NAMES = {
+    v.get('name', k if isinstance(k, str) else k[0]): k
+    for k, v in _BASE.items()
+}
+
+NAMES = aliased.NameMap(_NAMES)
+
+_METADATA = {
+    k: {i: j for i, j in v.items() if i != 'name'}
+    for k, v in _BASE.items()
+}
 
 ALIASES = aliased.KeyMap(*_METADATA.keys())
 METADATA = aliased.Mapping(_METADATA)
