@@ -89,12 +89,21 @@ class KeyMap(iterables.MappingBase):
         super().__init__(self._flat)
 
     def __getitem__(self, __k) -> MappingKey:
-        """Look up aliases by key."""
-        key = str(__k)
+        """Look up aliases by key.
+        
+        This method will sequentially check for a one of the following cases:
+            - one of the internal mapping keys contains the given key
+            - the given key is equal to one of the internal mapping keys
+        If it finds a match, it will immediately return it (i.e., without
+        checking other keys); if not, it will raise a ``KeyError``.
+        """
+        s = str(__k)
+        m = MappingKey(__k)
+        alias = (k for k in self._aliased if s in k or m == k)
         try:
-            found = next(entry for entry in self._aliased if key in entry)
+            found = next(alias)
         except StopIteration as err:
-            raise KeyError(f"{key!r} not found") from err
+            raise KeyError(f"{s!r} not found") from err
         else:
             return found
 
