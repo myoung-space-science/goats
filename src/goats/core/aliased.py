@@ -258,12 +258,6 @@ def _build_from_key(
 class Mapping(collections.abc.Mapping):
     """A mapping class that supports aliased keys.
     
-    Parameters
-    ----------
-    mapping : mapping
-        An object that maps strings or iterables of strings to values of any
-        type.
-
     Examples
     --------
     Create an instance from a standard `dict` with strings or tuples of strings
@@ -333,9 +327,9 @@ class Mapping(collections.abc.Mapping):
     >>> list(amap.items())
     [('a', 1), ('b', 2), ('B', 2)]
 
-    Users may access all aliases for a given key via the
-    `alias` method. Attempting to register an alias will raise a `KeyError` if
-    it is already an alias for a different key.
+    Users may access all aliases for a given key via the `alias` method.
+    Attempting to register an alias will raise a `KeyError` if it is already an
+    alias for a different key.
 
     >>> amap.alias('b')
     MappingKey('B')
@@ -356,7 +350,6 @@ class Mapping(collections.abc.Mapping):
     to the number of valid aliases it contains. This is consistent with the
     many-to-one nature of the mapping despite the fact that it internally stores
     aliases and values in a one-to-one mapping.
-
     """
 
     def __init__(
@@ -365,7 +358,28 @@ class Mapping(collections.abc.Mapping):
         key: str=None,
         keymap: KeyMap=None,
     ) -> None:
-        """Initialize this instance."""
+        """Initialize this instance.
+        
+        Parameters
+        ----------
+        mapping : mapping, default=None
+            An object that maps strings or iterables of strings to values of any
+            type. If the keys are iterables of strings, grouped keys will
+            represent aliases for each other. Omitting this argument will
+            produce an empty mapping.
+
+        key : string, default=None
+            A key that points to values in `mapping` to use as aliases when the
+            values of `mapping` are themselves mappings. These values will not
+            appear in the aliased mapping values. Omitting this argument will
+            cause all input mapping values to appear in the the aliased mapping
+            unless `keymap` is also ``None``, in which case the initialization
+            algorithm will search for aliases under the key 'aliases'.
+
+        keymap : `~aliased.KeyMap`, default=None
+            An instance of `~aliased.KeyMap` that maps keys in `mapping` to the
+            values to use as their aliases.
+        """
         if isinstance(mapping, Mapping):
             self.as_dict = dict(mapping.items(aliased=True))
         else:
