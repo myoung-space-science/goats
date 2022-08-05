@@ -795,37 +795,38 @@ class NameMap(iterables.MappingBase):
             namemap.alias(current, *new)
         return Mapping(namemap)
 
-    def _get_aliases(self, names, defs: AliasDefinitions, key):
+    def _get_aliases(self, names, these: AliasDefinitions, key):
         """Determine the appropriate aliases for each canonical name."""
         # Mapping <: Iterable, so we need to check Mapping first.
-        if isinstance(defs, typing.Mapping):
+        if isinstance(these, typing.Mapping):
             # There are two allowed types of Mapping:
             # 1) Mapping[str, Mapping[str, Iterable[str]]]
             # 2) Mapping[str, Iterable[str]]
             
-            # Make sure the keys are all strings.
-            if any(k for k in defs if not isinstance(k, str)):
+            # Make sure the keys are all strings. NOTE: I'm not sure that this
+            # catches cases in which `these` values are mappings. Need to add a
+            # test case.
+            if any(k for k in these if not isinstance(k, str)):
                 raise TypeError("All aliases must be strings") from None
             # Again, we need to check Mapping values before Iterable values.
-            if all(isinstance(v, typing.Mapping) for v in defs.values()):
-                return {
-                    name: tuple(v.get(key, ()))
-                    for name, v in defs.items()
-                }
-            if all(isinstance(v, typing.Iterable) for v in defs.values()):
-                return {name: tuple(aliases) for name, aliases in defs.items()}
-        # Alias definitions are in a non-mapping iterable. We may want to
-        # further check that each member of `defs` is itself an iterable of
-        # strings.
-        only_iterables = all(isinstance(d, typing.Iterable) for d in defs)
-        if isinstance(defs, typing.Iterable) and only_iterables:
             return {
-                name: tuple(aliases)
-                for aliases in defs
-                for name in names
-                if name in aliases
+                k: self._remove(k, v.get(key, ()))
+                if isinstance(v, typing.Mapping)
+                else self._remove(k, v)
+                for k, v in these.items()
             }
+        # Alias definitions are in a non-mapping iterable. We may want to
+        # further check that each member of `aliases` is itself an iterable of
+        # strings.
+        only_iterables = all(isinstance(d, typing.Iterable) for d in these)
+        if isinstance(these, typing.Iterable) and only_iterables:
+            return {k: tuple(v) for v in these for k in names if k in v}
         return {}
+
+    def _remove(self, name: str, aliases: typing.Iterable):
+        """Remove `name` from `aliases`."""
+        w = (aliases,) if isinstance(aliases, str) else aliases
+        return tuple(i for i in w if i != name)
 
     def invert(self):
         """Invert the mapping from {aliases -> name} to {name -> aliases}."""

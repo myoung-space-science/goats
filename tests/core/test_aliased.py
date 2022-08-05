@@ -460,11 +460,11 @@ def test_namemap():
     ]
     cases = [
         # Iterable of aliased keys
-        [['b', 'B'], ['c', 'c0', 'C']],
+        [['b', 'b0'], ['c', 'c0', 'C']],
         # Mapping from name to aliases
-        {'b': 'B', 'c': ['c0', 'C']},
+        {'b': 'b0', 'c': ['c0', 'C']},
         # Mapping from name to mapping with default alias key
-        {'b': {'aliases': 'B'}, 'c': {'aliases': ['c0', 'C']}},
+        {'b': {'aliases': 'b0'}, 'c': {'aliases': ['c0', 'C']}},
     ]
     n_aliases = 6 # Non-trivial to compute for an arbitrary case in cases
     for aliases in cases:
@@ -481,7 +481,7 @@ def test_namemap():
 
 def check_namemap_defs_only(namemap):
     """Helper for `test_namemap` without given `refs`."""
-    for alias in ['b', 'B']:
+    for alias in ['b', 'b0']:
         assert namemap[alias] == 'b'
     for alias in ['c', 'C', 'c0']:
         assert namemap[alias] == 'c'
