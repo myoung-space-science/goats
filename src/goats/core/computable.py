@@ -464,6 +464,10 @@ class Method(collections.abc.Mapping, iterables.ReprStrMixin):
             return self.info[__k]
         raise KeyError(f"Unknown metadata attribute {__k!r}")
 
+    def __bool__(self) -> bool:
+        """Same as the truth value of this method's callable object."""
+        return bool(self.callable)
+
     def __str__(self) -> str:
         """A simplified representation of this object."""
         return f"{self.name}{self.signature}"
