@@ -222,7 +222,7 @@ def test_variables(datapath):
         'vgrid': {
             'axes': (P, E),
             'unit': 'm/s',
-            'aliases': ['speed', 'v', 'vparticle'],
+            'aliases': ['speed', 'vparticle'],
         },
         'R': {
             'axes': (T, S),
