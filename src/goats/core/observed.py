@@ -23,11 +23,11 @@ class Quantity(variable.Quantity):
         self.parameters = list(self._scalars)
         """The names of scalar assumptions relevant to this observation."""
 
-    def __getitem__(self, __k):
+    def __getitem__(self, __x):
         """Get a scalar by name or array values by index."""
-        if __k in self._scalars:
-            return self._scalars[__k]
-        return super().__getitem__(__k)
+        if isinstance(__x, str) and __x in self._scalars:
+            return self._scalars[__x]
+        return super().__getitem__(__x)
 
     def __eq__(self, other) -> bool:
         """True if two instances have equivalent attributes."""
