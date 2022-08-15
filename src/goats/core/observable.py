@@ -47,8 +47,9 @@ class Quantity(Metadata):
         self.interface = interface
         self._type = application
         self._name = name
-        self._unit = interface.get_unit(name)
-        self._axes = interface.get_axes(name)
+        meta = interface.get_metadata(name)
+        self._unit = meta.get('unit')
+        self._axes = meta.get('axes')
         self._cache = None
 
     def observe(self, update: bool=False, **constraints) -> observed.Quantity:
@@ -78,10 +79,7 @@ class Quantity(Metadata):
         current = {**self._cache, **constraints} if update else constraints
         self._cache = current.copy()
         application = self._type(self.interface, **current)
-        result = application.observe(self.name)
-        indices = {k: application.indices[k] for k in result.axes}
-        scalars = {k: application.scalars[k] for k in result.parameters}
-        return observed.Quantity(result.quantity, {**indices, **scalars})
+        return application.observe(self.name)
 
     def __str__(self) -> str:
         attrs = ('unit', 'name', 'axes')
