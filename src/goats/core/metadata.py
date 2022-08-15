@@ -678,6 +678,8 @@ class Name(collections.abc.Collection, *_metadata_mixins):
                     return self
             if that == self:
                 return [f'{i}{symbol}{i}' for i in self]
+            if str(that) == '1':
+                return [str(i) for i in self]
             return compute(that, self) if reverse else compute(self, that)
         s = f"other {symbol} self" if reverse else f"self {symbol} other"
         operator.__doc__ = f"Called for {s}"
