@@ -11,6 +11,7 @@ from goats.core import index
 from goats.core import iterables
 from goats.core import metadata
 from goats.core import physical
+from goats.core import reference
 from goats.core import variable
 
 
@@ -36,15 +37,13 @@ class Interface(collections.abc.Collection):
         self._system = None
         self._names = None
         self._functions = None
-        self._cache = {}
         assumptions = {
-            k: v for k, v in constants
+            k: v
+            for k, v in constants.items(aliased=True)
             if isinstance(v, constant.Assumption)
         } if constants else {}
-        self._default = {
-            'indices': aliased.MutableMapping.fromkeys(axes, value=()),
-            'scalars': aliased.MutableMapping(assumptions),
-        }
+        self.assumptions = aliased.Mapping(assumptions)
+        """The default physical assumptions."""
 
     def __contains__(self, __x) -> bool:
         return __x in self.names
@@ -82,42 +81,50 @@ class Interface(collections.abc.Collection):
             if key in this:
                 return this[key]
 
+    def get_metadata(self, key: str):
+        """Get metadata attributes corresponding to `key`."""
+        return {
+            'unit': self.get_unit(key),
+            'axes': self.get_axes(key),
+        }
+
     def get_unit(self, key: str):
-        """Get the metric unit corresponding to `key`."""
+        """Determine the unit corresponding to `key`."""
         if key in self.variables:
             return self.variables[key].unit
         if key in self.functions:
             return self.functions[key].unit
+        s = str(key)
+        expression = algebraic.Expression(reference.NAMES.get(s, s))
+        term = expression[0]
+        this = self.get_unit(term.base) ** term.exponent
+        if len(expression) > 1:
+            for term in expression[1:]:
+                this *= self.get_unit(term.base) ** term.exponent
+        return metadata.Unit(this)
 
     def get_axes(self, key: str):
-        """Get the axis names corresponding to `key`."""
+        """Determine the axes corresponding to `key`."""
         if key in self.variables:
             return self.variables[key].axes
         if key in self.functions:
             return self.functions[key].axes
+        s = str(key)
+        expression = algebraic.Expression(reference.NAMES.get(s, s))
+        term = expression[0]
+        this = self.get_axes(term.base)
+        if len(expression) > 1:
+            for term in expression[1:]:
+                this *= self.get_axes(term.base)
+        return metadata.Axes(this)
 
-    def compute_indices(self, **user) -> typing.Dict[str, index.Quantity]:
-        """Compute all available axis-indexing objects."""
-        updates = {
-            k: self._compute_index(k, v)
-            for k, v in user.items()
-            if k in self.axes
-        }
-        self._indices = {**self._default['indices'], **updates}
-
-    def compute_index(self, key: str, **constraints):
+    def compute_index(self, key: str, **constraints) -> index.Quantity:
         """Compute the axis-indexing object for `key`."""
-        if 'indices' not in self._cache:
-            self._cache['indices'] = {}
-        if key in self._cache['indices']:
-            return self._cache[key]
         if key not in self.axes:
             raise ValueError(f"No axis corresponding to {key!r}") from None
         if key not in constraints:
             return self.axes[key].at()
-        idx = self._compute_index(key, constraints[key])
-        self._cache['indices'] = idx
-        return idx
+        return self._compute_index(key, constraints[key])
 
     def _compute_index(self, key: str, this):
         """Compute a single indexing object from input values."""
@@ -130,30 +137,13 @@ class Interface(collections.abc.Collection):
             return target.convert(unit)
         return target
 
-    def compute_scalars(self, **user) -> typing.Mapping[str, physical.Scalar]:
-        """Compute the available single-valued assumptions."""
-        if self._scalars is None:
-            updates = {
-                k: self._compute_scalar(v)
-                for k, v in user.items()
-                if k not in self.axes
-            }
-            self._scalars = {**self._default['scalars'], **updates}
-        return self._scalars
-
-    def compute_scalar(self, key: str, **constraints):
+    def compute_scalar(self, key: str, **constraints) -> physical.Scalar:
         """Create a single-valued physical assumption for `key`."""
-        if 'scalars' not in self._cache:
-            self._cache['scalars'] = {}
-        if key in self._cache['scalars']:
-            return self._cache[key]
         if key not in self.constants:
             raise ValueError(
                 f"No parameter corresponding to {key!r}"
             ) from None
-        val = self._compute_scalar(constraints.get(key, self.constants[key]))
-        self._cache['scalars'] = val
-        return val
+        return self._compute_scalar(constraints.get(key, self.constants[key]))
 
     def _compute_scalar(self, this):
         """Compute a single scalar assumption."""
