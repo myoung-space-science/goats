@@ -534,14 +534,10 @@ class Unit(metric.Unit):
         """Implement the square-root function for a unit."""
         return arg**0.5
 
-    def restrict(method: typing.Callable, reverse: bool=False):
-        """Restrict allowed operand types for an operation."""
-        return restrict(method, str, reverse=reverse)
-
-    __mul__ = restrict(standard.mul)
-    __rmul__ = restrict(standard.mul, reverse=True)
-    __truediv__ = restrict(standard.truediv)
-    __rtruediv__ = restrict(standard.truediv, reverse=True)
+    __mul__ = restrict(standard.mul, str)
+    __rmul__ = restrict(standard.mul, str, reverse=True)
+    __truediv__ = restrict(standard.truediv, str)
+    __rtruediv__ = restrict(standard.truediv, str, reverse=True)
 
     def __add__(self, other):
         """Called for self + other; either a no-op or an error."""
