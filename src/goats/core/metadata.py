@@ -7,6 +7,7 @@ import collections.abc
 import fractions
 import inspect
 import math
+import numbers
 import operator as standard
 import typing
 
@@ -171,7 +172,7 @@ class Operator(iterables.ReprStrMixin):
                 return values[0]
             if operands.allhave(name):
                 raise MetadataError(err) from err
-            return operands.getany(name)
+            raise err
 
     def __str__(self) -> str:
         return str(self.method)
@@ -522,22 +523,55 @@ UnitLike.register(str)
 UnitLike.register(metric.Unit)
 
 
-class Unit(metric.Unit):
-    """The unit attribute of a quantity."""
+_metadata_mixins = (
+    numpy.lib.mixins.NDArrayOperatorsMixin,
+    iterables.ReprStrMixin,
+)
+
+
+class Attribute(*_metadata_mixins):
+    """Base class for metadata attributes."""
 
     def __array_ufunc__(self, ufunc, method, *args, **kwargs):
         """Provide support for `numpy` universal functions."""
         if func := getattr(self, f'_ufunc_{ufunc.__name__}', None):
             return func(*args, **kwargs)
+        return NotImplemented
+
+    def __ne__(self, __o) -> bool:
+        return not __o == self
+
+
+class Unit(metric.Unit, Attribute):
+    """The unit attribute of a quantity."""
 
     def _ufunc_sqrt(self, arg):
         """Implement the square-root function for a unit."""
         return arg**0.5
 
-    __mul__ = restrict(standard.mul, str)
-    __rmul__ = restrict(standard.mul, str, reverse=True)
-    __truediv__ = restrict(standard.truediv, str)
-    __rtruediv__ = restrict(standard.truediv, str, reverse=True)
+    def __mul__(self, other):
+        """Called for self * other."""
+        if isinstance(other, UnitLike):
+            return super().__mul__(other)
+        return self
+
+    def __rmul__(self, other):
+        """Called for other * self."""
+        if isinstance(other, UnitLike):
+            return super().__mul__(other)
+        return self
+
+    def __truediv__(self, other):
+        """Called for self / other."""
+        if isinstance(other, UnitLike):
+            return super().__truediv__(other)
+        return self
+
+    def __rtruediv__(self, other):
+        """Called for other / self."""
+        if isinstance(other, UnitLike):
+            return super().__truediv__(other)
+        return self
 
     def __add__(self, other):
         """Called for self + other; either a no-op or an error."""
@@ -549,9 +583,11 @@ class Unit(metric.Unit):
 
     def _add_sub(self, other):
         """Called for self +/- other; either a no-op or an error."""
+        if not isinstance(other, UnitLike):
+            return NotImplemented
+        if self == other:
+            return self
         if isinstance(other, Unit):
-            if self == other:
-                return self
             errmsg = "The units '{}' and '{}' have different {}"
             if self.dimension == other.dimension:
                 raise ScaleMismatch(
@@ -560,7 +596,9 @@ class Unit(metric.Unit):
             raise DimensionMismatch(
                 errmsg.format(self, other, 'dimensions')
             ) from None
-        return NotImplemented
+        raise UnitError(
+            "The units '{self}' and '{other}' are incompatible"
+        ) from None
 
 
 class UnitMixin:
@@ -589,12 +627,6 @@ class UnitMixin:
         scaling a data attribute). The default implementation does nothing.
         """
         pass
-
-
-_metadata_mixins = (
-    numpy.lib.mixins.NDArrayOperatorsMixin,
-    iterables.ReprStrMixin,
-)
 
 
 class Name(collections.abc.Collection, *_metadata_mixins):
@@ -681,6 +713,7 @@ class Name(collections.abc.Collection, *_metadata_mixins):
         operator.__doc__ = f"Called for {s}"
         return operator
 
+    # TODO: Make these return a new instance.
     __add__ = _implement(' + ', strict=True)
     __radd__ = _implement(' + ', strict=True, reverse=True)
     __sub__ = _implement(' - ', strict=True)
@@ -779,6 +812,12 @@ class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
     """Called for other * self."""
     __truediv__ = merge
     """Called for self / other."""
+
+    def __pow__(self, other):
+        """Called for self ** other."""
+        if isinstance(other, numbers.Real):
+            return self
+        return NotImplemented
 
     def __eq__(self, other):
         """True if self and other represent the same axes."""
