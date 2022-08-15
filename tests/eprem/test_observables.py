@@ -179,9 +179,7 @@ def test_reset_constraints(stream: eprem.Stream):
         mu=(-1.0, -0.5, 0.5, 1.0),
     )
     assert numpy.array(observation).shape == (2, 5, 1, 3, 4)
-    observation = observable.update()
-    assert numpy.array(observation).shape == (2, 5, 1, 3, 4)
-    observation = observable.update(time=[0.2, 0.4, 0.5, 'day'])
+    observation = observable.observe(time=[0.2, 0.4, 0.5, 'day'], update=True)
     assert numpy.array(observation).shape == (3, 5, 1, 3, 4)
     observation = observable.observe()
     assert numpy.array(observation).shape == (50, 2000, 1, 20, 8)
