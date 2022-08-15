@@ -118,13 +118,6 @@ class Interface(collections.abc.Mapping):
         self.names = names or list(available)
         """The names of all observable quantities."""
 
-    def __contains__(self, __o) -> bool:
-        """True if `__o` names an observable quantity.
-        
-        Overloaded to avoid going through `__getitem__`.
-        """
-        return __o in self.names
-
     def __len__(self) -> int:
         return len(self.names)
 
@@ -133,5 +126,7 @@ class Interface(collections.abc.Mapping):
 
     def __getitem__(self, __k: str) -> Quantity:
         """Get the named observable quantity."""
-        return Quantity(self.available, self.application, name=__k)
+        if __k in self.names or expression(__k):
+            return Quantity(self.available, self.application, name=__k)
+        raise KeyError(f"Cannot observe {__k!r}") from None
 
