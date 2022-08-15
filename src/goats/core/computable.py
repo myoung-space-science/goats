@@ -585,8 +585,7 @@ class Interface(aliased.Mapping):
         """Recursively gather appropriate axes."""
         for parameter in target.parameters:
             if parameter in self.variables:
-                axes = self.variables[parameter].axes
-                self._accumulated.extend(axes)
+                self._accumulated.extend(self.variables[parameter].axes)
             elif method := self.get_method(parameter):
                 self._removed.extend(self._get_metadata(method, 'removed'))
                 self._added.extend(self._get_metadata(method, 'added'))
