@@ -134,6 +134,11 @@ def test_variable_init():
     # axes are required
     with pytest.raises(ValueError):
         variable.Quantity([3.0, 4.5])
+    # must be idempotent
+    v0 = variable.Quantity([3.0, 4.5], axes=['x'], unit='m', name='Var')
+    v1 = variable.Quantity(v0)
+    assert v1 is not v0
+    assert v1 == v0
 
 
 @pytest.fixture
