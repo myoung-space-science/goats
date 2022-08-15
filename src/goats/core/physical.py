@@ -325,7 +325,12 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         return self._new_from_func(data, updates=meta)
 
     def _ufunc_hook(self, ufunc, *inputs):
-        """Convert input arrays into arrays appropriate to `ufunc`."""
+        """Convert input object types based on `ufunc`."""
+        if ufunc.__name__ == 'power':
+            inputs = [
+                float(x) if isinstance(x, numbers.Real)
+                else x for x in inputs
+            ]
         return tuple(
             x._array if isinstance(x, Array)
             else x for x in inputs
