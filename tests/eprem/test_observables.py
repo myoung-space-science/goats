@@ -5,7 +5,7 @@ This module contains high-level tests of the observer/observable/observation fra
 from pathlib import Path
 import typing
 
-import numpy as np
+import numpy
 import matplotlib.pyplot as plt
 import pytest
 
@@ -112,11 +112,11 @@ def test_observation_unit(stream: eprem.Stream):
     """Change the unit of an observation's values."""
     obs = stream['r'].observe()
     assert obs.unit == 'm'
-    old = np.array(obs)
+    old = numpy.array(obs)
     obs.convert('au')
     assert obs.unit == 'au'
-    new = np.array(obs)
-    assert np.allclose(old, new * float(fundamental.mks['au']))
+    new = numpy.array(obs)
+    assert numpy.allclose(old, new * float(fundamental.mks['au']))
 
 
 def test_interpolation(stream: eprem.Stream):
@@ -155,7 +155,7 @@ def test_interpolation(stream: eprem.Stream):
             **{name: value},
             species='H+',
         )
-        result = np.array(observation)
+        result = numpy.array(observation)
         assert result.shape == (50, 1, 1, 1)
         plt.plot(
             result.squeeze(),
@@ -178,13 +178,13 @@ def test_reset_constraints(stream: eprem.Stream):
         energy=[0.1, 1.0, 5.0, 'MeV'],
         mu=(-1.0, -0.5, 0.5, 1.0),
     )
-    assert np.array(observation).shape == (2, 5, 1, 3, 4)
+    assert numpy.array(observation).shape == (2, 5, 1, 3, 4)
     observation = observable.update()
-    assert np.array(observation).shape == (2, 5, 1, 3, 4)
+    assert numpy.array(observation).shape == (2, 5, 1, 3, 4)
     observation = observable.update(time=[0.2, 0.4, 0.5, 'day'])
-    assert np.array(observation).shape == (3, 5, 1, 3, 4)
+    assert numpy.array(observation).shape == (3, 5, 1, 3, 4)
     observation = observable.observe()
-    assert np.array(observation).shape == (50, 2000, 1, 20, 8)
+    assert numpy.array(observation).shape == (50, 2000, 1, 20, 8)
 
 
 def test_observable_aliases(stream: eprem.Stream):
