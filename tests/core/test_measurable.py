@@ -143,11 +143,11 @@ def test_quantity_number():
     ]
     for opr in oprs:
         # forward
-        expected = measurable.Quantity(opr(*values), unit=unit)
-        assert opr(quantity, value) == expected
+        with pytest.raises(TypeError):
+            opr(quantity, value)
         # reverse
-        expected = measurable.Quantity(opr(*values[::-1]), unit=unit)
-        assert opr(value, quantity) == expected
+        with pytest.raises(TypeError):
+            opr(value, quantity)
 
     # MULTIPLICATION
     opr = operator.mul

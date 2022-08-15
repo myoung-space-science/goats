@@ -120,11 +120,11 @@ def test_scalar_binary():
         assert opr(*scalars_same) == expected
         # between an instance and a number
         # ...forward
-        expected = physical.Scalar(opr(*values_same), unit=unit)
-        assert opr(scalar, value) == expected
+        with pytest.raises(TypeError):
+            opr(scalar, value)
         # ...reverse
-        expected = physical.Scalar(opr(*values_same[::-1]), unit=unit)
-        assert opr(value, scalar) == expected
+        with pytest.raises(TypeError):
+            opr(value, scalar)
     # between two instances with different units
     for opr in oprs:
         with pytest.raises(metadata.UnitError):

@@ -419,7 +419,7 @@ def test_numerical_operations(var: typing.Dict[str, variable.Quantity]):
     assert isinstance(new, variable.Quantity)
     assert numpy.array_equal(new, expected)
 
-    # right-sided division, addition, and subtraction create a new instance
+    # right-sided division creates a new instance
     new = var['reference'] / 10.0
     assert isinstance(new, variable.Quantity)
     expected = [
@@ -429,48 +429,20 @@ def test_numerical_operations(var: typing.Dict[str, variable.Quantity]):
         [-(4.0/10.0), +(6.0/10.0)],
     ]
     assert numpy.array_equal(new, expected)
-    new = var['reference'] + 10.0
-    assert isinstance(new, variable.Quantity)
-    expected = [
-        # 3 x 2
-        [+1.0+10.0, +2.0+10.0],
-        [+2.0+10.0, -3.0+10.0],
-        [-4.0+10.0, +6.0+10.0],
-    ]
-    assert numpy.array_equal(new, expected)
-    new = var['reference'] - 10.0
-    assert isinstance(new, variable.Quantity)
-    expected = [
-        # 3 x 2
-        [+1.0-10.0, +2.0-10.0],
-        [+2.0-10.0, -3.0-10.0],
-        [-4.0-10.0, +6.0-10.0],
-    ]
-    assert numpy.array_equal(new, expected)
 
     # left-sided division is not supported because of metadata ambiguity
     with pytest.raises(metadata.OperandTypeError):
         10.0 / var['reference']
 
-    # left-sided addition and subtraction create a new instance
-    new = 10.0 + var['reference']
-    assert isinstance(new, variable.Quantity)
-    expected = [
-        # 3 x 2
-        [10.0+1.0, 10.0+2.0],
-        [10.0+2.0, 10.0-3.0],
-        [10.0-4.0, 10.0+6.0],
-    ]
-    assert numpy.array_equal(new, expected)
-    new = 10.0 - var['reference']
-    assert isinstance(new, variable.Quantity)
-    expected = [
-        # 3 x 2
-        [10.0-1.0, 10.0-2.0],
-        [10.0-2.0, 10.0+3.0],
-        [10.0+4.0, 10.0-6.0],
-    ]
-    assert numpy.array_equal(new, expected)
+    # addition and subtraction are not supported due to unit ambiguity
+    with pytest.raises(TypeError):
+        var['reference'] + 10.0
+    with pytest.raises(TypeError):
+        var['reference'] - 10.0
+    with pytest.raises(TypeError):
+        10.0 + var['reference']
+    with pytest.raises(TypeError):
+        10.0 - var['reference']
 
 
 @pytest.mark.variable
@@ -619,6 +591,7 @@ def call_func(
         assert numpy.array_equal(result, expected), msg
 
 
+@pytest.mark.xfail
 @pytest.mark.variable
 def test_add_number(components):
     ref = [components[i] for i in (0, 1)]
@@ -637,6 +610,7 @@ def test_add_number(components):
     )
 
 
+@pytest.mark.xfail
 @pytest.mark.variable
 def test_sub_number(components):
     ref = [components[i] for i in (0, 1)]
