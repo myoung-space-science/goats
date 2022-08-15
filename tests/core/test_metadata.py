@@ -260,11 +260,17 @@ def test_name_builtin():
         pow: '^',
     }
     for method, s in cases.items():
+        # Values not equivalent to 1 should appear.
         for other in others:
             expected = metadata.Name(*[f'{i}{s}{other}' for i in name])
             assert method(name, other) == expected
             expected = metadata.Name(*[f'{other}{s}{i}' for i in name])
             assert method(other, name) == expected
+        # Values equivalent to 1 should not appear.
+        for other in ['1', 1]:
+            assert method(name, other) == name
+            assert method(other, name) == name
+    # TODO: multiplcation, division, and exponentiation by 0
 
 
 def test_name_name():
