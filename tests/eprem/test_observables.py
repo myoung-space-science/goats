@@ -9,9 +9,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pytest
 
-from goats.core import base
+from goats.core import observable
+from goats.core import observed
 from goats.core import fundamental
-from goats.core import parameter
+from goats.core import constant
 from goats import eprem
 
 
@@ -75,8 +76,8 @@ def test_observable_access(
 ) -> None:
     """Access all observables."""
     for name in observables:
-        observable = stream[name]
-        assert isinstance(observable, base.Observable)
+        quantity = stream[name]
+        assert isinstance(quantity, observable.Quantity)
 
 
 def test_create_observation(
@@ -86,7 +87,7 @@ def test_create_observation(
     """Create default observation from each observable."""
     for name, expected in observables.items():
         observation = stream[name].observe()
-        assert isinstance(observation, base.Observation)
+        assert isinstance(observation, observed.Quantity)
         assert all(axis in observation.axes for axis in expected['axes'])
 
 
@@ -101,7 +102,7 @@ def test_parameter_access(stream: eprem.Stream) -> None:
     for aliases, expected in cases.items():
         for alias in aliases:
             argument = stream[alias]
-            assert isinstance(argument, parameter.Assumption)
+            assert isinstance(argument, constant.Assumption)
             assert alias in argument.name
             assert float(argument) == expected['value']
             assert argument.unit == expected['unit']
