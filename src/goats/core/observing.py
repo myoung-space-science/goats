@@ -1,5 +1,6 @@
 import abc
 import collections.abc
+import contextlib
 import typing
 
 from goats.core import algebraic
@@ -10,6 +11,7 @@ from goats.core import constant
 from goats.core import index
 from goats.core import iterables
 from goats.core import metadata
+from goats.core import observed
 from goats.core import physical
 from goats.core import reference
 from goats.core import variable
@@ -175,49 +177,35 @@ class Application(abc.ABC):
     ) -> None:
         self.data = interface
         self.user = constraints
-        self._indices = None
-        self._scalars = None
-
-    @property
-    def indices(self) -> typing.Dict[str, index.Quantity]:
-        """The available array-indexing objects."""
-        if self._indices is None:
-            self._indices = self.data.compute_indices(**self.user)
-        return self._indices
-
-    @property
-    def scalars(self) -> typing.Mapping[str, physical.Scalar]:
-        """The available single-valued assumptions."""
-        if self._scalars is None:
-            self._scalars = self.data.compute_scalars(**self.user)
-        return self._scalars
+        self._cache = {}
 
     def observe(self, name: str):
         """Compute the target variable quantity and its observing context."""
-        expression = algebraic.Expression(name)
+        s = str(name)
+        expression = algebraic.Expression(reference.NAMES.get(s, s))
         axes = []
         parameters = []
         term = expression[0]
-        quantity = self.data.get_observable(term.base)
-        result = self.evaluate(quantity)
+        result = self.get_observable(term.base)
         q0 = result.quantity ** term.exponent
-        axes.append(result.axes)
-        parameters.append(result.parameters)
+        axes.extend(result.axes)
+        parameters.extend(result.parameters)
         if len(expression) > 1:
             for term in expression[1:]:
-                quantity = self.data.get_observable(term.base)
-                result = self.evaluate(quantity)
+                result = self.get_observable(term.base)
                 q0 *= result.quantity ** term.exponent
-                axes.append(result.axes)
-                parameters.append(result.parameters)
+                axes.extend(result.axes)
+                parameters.extend(result.parameters)
         # NOTE: These axes are not guaranteed to be sorted or unique. We could
         # consider defining `Quantity` as a subclass of `variable.Quantity`, so
         # that it correctly updates axes, and define parameter updates via
         # multiplication. The parameters could even be a formal metadata
         # attribute.
-        return Result(q0, axes, parameters)
+        indices = {k: self.get_index(k) for k in axes}
+        scalars = {k: self.get_assumption(k) for k in parameters}
+        return observed.Quantity(q0, {**indices, **scalars})
 
-    def evaluate(self, this):
+    def evaluate(self, this) -> Result:
         """Create an observing result based on this quantity."""
         if isinstance(this, computable.Quantity):
             return Result(self.compute(this), this.axes, this.parameters)
@@ -237,7 +225,35 @@ class Application(abc.ABC):
 
     def get_dependency(self, key: str):
         """Get the named constant or variable quantity."""
-        if key in self.scalars:
-            return self.scalars[key]
-        return self.observe(key)
+        if this := self.get_observable(key):
+            return this.quantity
+        return self.get_assumption(key)
+
+    def get_observable(self, key: str):
+        """Retrieve and evaluate an observable quantity."""
+        if quantity := self.data.get_observable(key):
+            return self.evaluate(quantity)
+
+    def get_index(self, key: str) -> index.Quantity:
+        """Get the axis-indexing object for `key`."""
+        if 'indices' not in self._cache:
+            self._cache['indices'] = {}
+        if key in self._cache['indices']:
+            return self._cache['indices'][key]
+        with contextlib.suppress(ValueError):
+            idx = self.data.compute_index(key, **self.user)
+            self._cache['indices'][key] = idx
+            return idx
+
+    def get_assumption(self, key: str) -> physical.Scalar:
+        """Get the physical assumption correpsonding to `key`."""
+        if 'scalars' not in self._cache:
+            self._cache['scalars'] = {}
+        if key in self._cache['scalars']:
+            return self._cache['scalars'][key]
+        with contextlib.suppress(ValueError):
+            val = self.data.compute_scalar(key, **self.user)
+            self._cache['scalars'][key] = val
+            return val
+
 
