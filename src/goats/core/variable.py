@@ -91,10 +91,7 @@ class Quantity(physical.Array, metadata.AxesMixin):
                 idx = tuple(indices[axes.index(d)] for d in v.shape_dict)
                 arrays.append(v._get_array(idx))
             return arrays
-        return tuple(
-            x._array if isinstance(x, type(self))
-            else x for x in inputs
-        )
+        return super()._ufunc_hook(ufunc, *inputs)
 
     def array_contains(self, value: numbers.Real):
         """True if `value` is in this variable quantity's array.
