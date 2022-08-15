@@ -506,7 +506,7 @@ class Quantity(Metadata, iterables.ReprStrMixin):
     def __call__(self, **quantities):
         """Create a variable quantity from input quantities."""
         return variable.Quantity(
-            self.method(**quantities),
+            self.method.compute(**quantities),
             axes=self.axes,
             unit=self.unit,
             name=self.name,
