@@ -432,13 +432,13 @@ class Method(collections.abc.Mapping, iterables.ReprStrMixin):
 
     def compute(self, **dependencies):
         """Produce the results of this method."""
-        return self.callable(*self.parse(**dependencies))
+        return self.callable(*self.parse(dependencies))
 
     def parse(self, dependencies: typing.Mapping):
         """Extract arrays and floats from `dependencies`."""
         arrays = []
         floats = []
-        for name in self:
+        for name in self.parameters:
             arg = dependencies[name]
             if isinstance(arg, physical.Array):
                 arrays.append(numpy.array(arg))
