@@ -81,6 +81,12 @@ class Quantity(Metadata):
         application = self._type(self.interface, **current)
         return application.observe(self.name)
 
+    def __eq__(self, other):
+        """True if two observables have the same name and constraints."""
+        if isinstance(other, Quantity):
+            return self.name == other.name and self._cache == other._cache
+        return NotImplemented
+
     def __str__(self) -> str:
         attrs = ('unit', 'name', 'axes')
         return ', '.join(f"{a}={getattr(self, a)}" for a in attrs)
