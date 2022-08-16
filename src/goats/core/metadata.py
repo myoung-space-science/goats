@@ -565,10 +565,14 @@ class Unit(metric.Unit, Attribute):
     """Called for self * other."""
     __rmul__ = _mul
     """Called for other * self."""
+    __imul__ = _mul
+    """Called for self *= other."""
     __truediv__ = _truediv
     """Called for self / other."""
     __rtruediv__ = _truediv
     """Called for other / self."""
+    __itruediv__ = _truediv
+    """Called for self /= other."""
 
     def __add__(self, other):
         """Called for self + other; either a no-op or an error."""
