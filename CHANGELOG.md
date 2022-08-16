@@ -4,6 +4,7 @@
 
 - Improve efficiency of observing process.
 - Improve string representation of observable quantity.
+- Add support for a default EPREM data directory.
 
 ## v0.0.26 (16Aug2022)
 
