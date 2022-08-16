@@ -601,7 +601,7 @@ class Unit(metric.Unit, Attribute):
         ) from None
 
 
-class Name(collections.abc.Collection, *_metadata_mixins):
+class Name(collections.abc.Collection, Attribute):
     """The name attribute of a quantity."""
 
     def __init__(self, *aliases: str) -> None:
@@ -611,11 +611,6 @@ class Name(collections.abc.Collection, *_metadata_mixins):
         """Add `aliases` to this name."""
         self._aliases = self._aliases | aliases
         return self
-
-    def __array_ufunc__(self, ufunc, method, *args, **kwargs):
-        """Provide support for `numpy` universal functions."""
-        if func := getattr(self, f'_ufunc_{ufunc.__name__}', None):
-            return func(*args, **kwargs)
 
     def _ufunc_sqrt(self, arg):
         """Implement the square-root function for a name."""
