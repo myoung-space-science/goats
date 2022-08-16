@@ -291,6 +291,7 @@ def test_name_name():
         standard.sub: ' - ',
         standard.mul: ' * ',
         standard.truediv: ' / ',
+        pow: '^',
     }
     for method, s in cases.items():
         other = metadata.Name('b', 'B')
@@ -308,6 +309,7 @@ def test_same_name():
     multiplicative = {
         standard.mul: ' * ',
         standard.truediv: ' / ',
+        pow: '^',
     }
     for method in additive:
         assert method(name, name) == name
