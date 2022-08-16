@@ -2,6 +2,9 @@
 
 ## Next
 
+- Improve efficiency of observing process.
+- Improve string representation of observable quantity.
+
 ## v0.0.26 (16Aug2022)
 
 - Refactor core interface to observable quantities.
