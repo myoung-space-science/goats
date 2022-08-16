@@ -1,5 +1,7 @@
 # Changelog
 
+## Next
+
 ## v0.0.26 (16Aug2022)
 
 - Refactor core interface to observable quantities.
