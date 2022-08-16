@@ -138,9 +138,9 @@ def scalar(this) -> Scalar:
     """Make sure `this` is a `~physical.Scalar`."""
     if isinstance(this, Scalar):
         return this
-    if isinstance(this, Vector):
+    if isinstance(this, Vector) and len(this) == 1:
         return this[0]
-    if isinstance(this, measurable.Measurement):
+    if isinstance(this, measurable.Measurement) and len(this) == 1:
         return Scalar(this.values[0], unit=this.unit)
     measured = measurable.measure(this)
     if len(measured) > 1:

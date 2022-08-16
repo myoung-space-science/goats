@@ -281,10 +281,18 @@ def rescale(amount, factor):
 def test_scalar():
     """Test the function that converts an object to a scalar, if possible."""
     reference = physical.Scalar(1.1, unit='m')
-    cases = [
+    valid = [
         physical.Vector([1.1], unit='m'),
         measurable.Measurement([1.1], unit='m'),
         (1.1, 'm'),
     ]
-    for case in cases:
+    for case in valid:
         assert physical.scalar(case) == reference
+    error = [
+        physical.Vector([1.1, 2.3], unit='m'),
+        measurable.Measurement([1.1, 2.3], unit='m'),
+        (1.1, 2.3, 'm'),
+    ]
+    for case in error:
+        with pytest.raises(ValueError):
+            physical.scalar(case)
