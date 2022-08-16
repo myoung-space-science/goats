@@ -658,16 +658,16 @@ class Name(collections.abc.Collection, *_metadata_mixins):
             """Symbolically combine `a` and `b`."""
             x, y = (b, a) if reverse else (a, b)
             if isinstance(y, typing.Iterable) and not isinstance(y, str):
-                return [f'{i}{symbol}{j}' for i in x for j in y]
+                return Name([f'{i}{symbol}{j}' for i in x for j in y])
             try:
                 fixed = fractions.Fraction(y)
             except ValueError:
                 fixed = y
             t = '{1}{s}{0}' if reverse else '{0}{s}{1}'
-            return [t.format(i, fixed, s=symbol) for i in x]
+            return Name([t.format(i, fixed, s=symbol) for i in x])
         def operator(self, that):
             if not self or not that:
-                return ['']
+                return Name([''])
             if strict:
                 if not isinstance(that, type(self)):
                     raise TypeError(
@@ -677,9 +677,9 @@ class Name(collections.abc.Collection, *_metadata_mixins):
                 if that == self:
                     return self
             if that == self:
-                return [f'{i}{symbol}{i}' for i in self]
+                return Name([f'{i}{symbol}{i}' for i in self])
             if str(that) == '1':
-                return [str(i) for i in self]
+                return Name([str(i) for i in self])
             return compute(that, self) if reverse else compute(self, that)
         s = f"other {symbol} self" if reverse else f"self {symbol} other"
         operator.__doc__ = f"Called for {s}"

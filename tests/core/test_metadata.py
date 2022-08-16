@@ -262,14 +262,22 @@ def test_name_builtin():
     for method, s in cases.items():
         # Values not equivalent to 1 should appear.
         for other in others:
+            result = method(name, other)
+            assert isinstance(result, metadata.Name)
             expected = metadata.Name(*[f'{i}{s}{other}' for i in name])
-            assert method(name, other) == expected
+            assert result == expected
+            result = method(other, name)
+            assert isinstance(result, metadata.Name)
             expected = metadata.Name(*[f'{other}{s}{i}' for i in name])
-            assert method(other, name) == expected
+            assert result == expected
         # Values equivalent to 1 should not appear.
         for other in ['1', 1]:
-            assert method(name, other) == name
-            assert method(other, name) == name
+            result = method(name, other)
+            assert isinstance(result, metadata.Name)
+            assert result == name
+            result = method(other, name)
+            assert isinstance(result, metadata.Name)
+            assert result == name
     # TODO: multiplcation, division, and exponentiation by 0
 
 
