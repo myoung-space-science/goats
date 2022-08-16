@@ -240,19 +240,19 @@ def test_name():
 
 def test_name_builtin():
     """Test operations between a name metadata object and a built-in object."""
-    name = metadata.Name('a', 'A')
-    others = ['2', 2]
+    original = metadata.Name('a', 'A')
+    values = ['2', 2]
     # Addition and subtraction require two instances.
     cases = {
         standard.add: ' + ',
         standard.sub: ' - ',
     }
     for method in cases:
-        for other in others:
+        for value in values:
             with pytest.raises(TypeError):
-                method(name, other)
+                method(original, value)
             with pytest.raises(TypeError):
-                method(other, name)
+                method(value, original)
     # Multiplication, division, and exponentiation are valid with numbers.
     cases = {
         standard.mul: ' * ',
@@ -261,23 +261,23 @@ def test_name_builtin():
     }
     for method, s in cases.items():
         # Values not equivalent to 1 should appear.
-        for other in others:
-            result = method(name, other)
+        for value in values:
+            result = method(original, value)
             assert isinstance(result, metadata.Name)
-            expected = metadata.Name(*[f'{i}{s}{other}' for i in name])
-            assert result == expected
-            result = method(other, name)
+            updated = metadata.Name(*[f'{i}{s}{value}' for i in original])
+            assert result == updated
+            result = method(value, original)
             assert isinstance(result, metadata.Name)
-            expected = metadata.Name(*[f'{other}{s}{i}' for i in name])
-            assert result == expected
+            updated = metadata.Name(*[f'{value}{s}{i}' for i in original])
+            assert result == updated
         # Values equivalent to 1 should not appear.
-        for other in ['1', 1]:
-            result = method(name, other)
+        for value in ['1', 1]:
+            result = method(original, value)
             assert isinstance(result, metadata.Name)
-            assert result == name
-            result = method(other, name)
+            assert result == original
+            result = method(value, original)
             assert isinstance(result, metadata.Name)
-            assert result == name
+            assert result == original
     # TODO: multiplcation, division, and exponentiation by 0
 
 
