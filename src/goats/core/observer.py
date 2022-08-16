@@ -1,7 +1,7 @@
 import typing
 import contextlib
 
-from goats.core import observing
+from goats.core import observable
 from goats.core import spelling
 
 
@@ -10,7 +10,7 @@ class Interface:
 
     def __init__(
         self,
-        *observables: typing.Mapping[str, observing.Quantity],
+        *observables: typing.Mapping[str, observable.Quantity],
     ) -> None:
         """Initialize this instance.
         
