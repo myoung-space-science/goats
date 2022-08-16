@@ -601,34 +601,6 @@ class Unit(metric.Unit, Attribute):
         ) from None
 
 
-class UnitMixin:
-    """Mixin class for quantities with a unit."""
-
-    _unit: Unit=None
-
-    @property
-    def unit(self):
-        """This quantity's metric unit."""
-        return Unit(self._unit)
-
-    def convert(self, unit: UnitLike):
-        """Set the unit of this object's values."""
-        if unit != self._unit:
-            new = Unit(unit)
-            self.apply_conversion(new)
-            self._unit = new
-        return self
-
-    def apply_conversion(self, new: Unit):
-        """Update data values for unit conversion.
-        
-        Classes that use this mixin class to manage a unit attribute may
-        overload this method to customize the result of updating the unit (e.g.,
-        scaling a data attribute). The default implementation does nothing.
-        """
-        pass
-
-
 class Name(collections.abc.Collection, *_metadata_mixins):
     """The name attribute of a quantity."""
 
@@ -749,23 +721,6 @@ class Name(collections.abc.Collection, *_metadata_mixins):
         return str(self._aliases)
 
 
-class NameMixin:
-    """Mixin class for quantities with a name."""
-
-    _name: Name=None
-
-    @property
-    def name(self):
-        """This quantity's name."""
-        return Name(self._name)
-
-    def alias(self, *updates: str, reset: bool=False):
-        """Set or add to this object's name(s)."""
-        aliases = updates if reset else self.name.add(updates)
-        self._name = Name(*aliases)
-        return self
-
-
 class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
     """A representation of one or more axis names."""
 
@@ -849,6 +804,51 @@ class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         return f"[{', '.join(repr(name) for name in self.names)}]"
+
+
+class UnitMixin:
+    """Mixin class for quantities with a unit."""
+
+    _unit: Unit=None
+
+    @property
+    def unit(self):
+        """This quantity's metric unit."""
+        return Unit(self._unit)
+
+    def convert(self, unit: UnitLike):
+        """Set the unit of this object's values."""
+        if unit != self._unit:
+            new = Unit(unit)
+            self.apply_conversion(new)
+            self._unit = new
+        return self
+
+    def apply_conversion(self, new: Unit):
+        """Update data values for unit conversion.
+        
+        Classes that use this mixin class to manage a unit attribute may
+        overload this method to customize the result of updating the unit (e.g.,
+        scaling a data attribute). The default implementation does nothing.
+        """
+        pass
+
+
+class NameMixin:
+    """Mixin class for quantities with a name."""
+
+    _name: Name=None
+
+    @property
+    def name(self):
+        """This quantity's name."""
+        return Name(self._name)
+
+    def alias(self, *updates: str, reset: bool=False):
+        """Set or add to this object's name(s)."""
+        aliases = updates if reset else self.name.add(updates)
+        self._name = Name(*aliases)
+        return self
 
 
 class AxesMixin:
