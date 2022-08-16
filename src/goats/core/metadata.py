@@ -772,11 +772,6 @@ class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
             f" with {names!r}"
         )
 
-    @property
-    def names(self):
-        """The names of these axes."""
-        return tuple(self._names)
-
     __abs__ = identity(abs)
     """Called for abs(self)."""
     __pos__ = identity(standard.pos)
@@ -791,10 +786,10 @@ class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
 
     def merge(a, *others):
         """Return the unique axis names in order."""
-        names = list(a.names)
+        names = list(a._names)
         for b in others:
             if isinstance(b, Axes):
-                names.extend(b.names)
+                names.extend(b._names)
         return Axes(*iterables.unique(*names))
 
     __mul__ = merge
@@ -813,11 +808,11 @@ class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
     def __eq__(self, other):
         """True if self and other represent the same axes."""
         return (
-            isinstance(other, Axes) and other.names == self.names
+            isinstance(other, Axes) and other._names == self._names
             or (
                 isinstance(other, str)
                 and len(self) == 1
-                and other == self.names[0]
+                and other == self._names[0]
             )
             or (
                 isinstance(other, typing.Iterable)
@@ -828,18 +823,18 @@ class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
 
     def __hash__(self):
         """Support use as a mapping key."""
-        return hash(self.names)
+        return hash(self._names)
 
     def __len__(self) -> int:
         """Called for len(self)."""
-        return len(self.names)
+        return len(self._names)
 
     def __getitem__(self, __i: typing.SupportsIndex):
         """Called for index-based access."""
-        return self.names[__i]
+        return self._names[__i]
 
     def __str__(self) -> str:
-        return f"[{', '.join(repr(name) for name in self.names)}]"
+        return f"[{', '.join(repr(name) for name in self._names)}]"
 
 
 class UnitMixin:
