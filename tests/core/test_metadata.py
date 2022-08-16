@@ -274,9 +274,11 @@ def test_name_builtin():
         for value in ['1', 1]:
             result = method(original, value)
             assert isinstance(result, metadata.Name)
+            assert result is not original
             assert result == original
             result = method(value, original)
             assert isinstance(result, metadata.Name)
+            assert result is not original
             assert result == original
     # TODO: multiplcation, division, and exponentiation by 0
 
