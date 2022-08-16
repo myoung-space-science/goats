@@ -289,7 +289,7 @@ class Application(observing.Application):
         return numpy.moveaxis(interpolated, dst, src)
 
 
-class Observer(observer.Interface):
+class Observer(observer.Interface, iterables.ReprStrMixin):
     """Base class for EPREM observers."""
 
     def __init__(
@@ -412,6 +412,9 @@ class Observer(observer.Interface):
         if unit and values.unit is not None:
             return values.with_unit(unit)
         return values
+
+    def __str__(self) -> str:
+        return str(self.path)
 
 
 class Stream(Observer):
