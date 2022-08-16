@@ -2,6 +2,7 @@ import collections.abc
 import typing
 
 from goats.core import algebraic
+from goats.core import iterables
 from goats.core import metadata
 from goats.core import observed
 from goats.core import observing
@@ -35,7 +36,7 @@ class Metadata(
 ): ...
 
 
-class Quantity(Metadata):
+class Quantity(Metadata, iterables.ReprStrMixin):
     """A quantity that produces an observation."""
 
     def __init__(
@@ -89,8 +90,12 @@ class Quantity(Metadata):
         return NotImplemented
 
     def __str__(self) -> str:
-        attrs = ('unit', 'name', 'axes')
-        return ', '.join(f"{a}={getattr(self, a)}" for a in attrs)
+        attrs = {
+            'unit': f"'{self.unit}'",
+            'name': f"'{self.name}'",
+            'axes': str(self.axes),
+        }
+        return ', '.join(f"{k}={v}" for k, v in attrs.items())
 
 
 class Interface(collections.abc.Mapping):
