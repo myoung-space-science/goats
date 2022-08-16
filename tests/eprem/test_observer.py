@@ -11,6 +11,7 @@ import pytest
 
 from goats.core import observable
 from goats.core import observed
+from goats.core import observer
 from goats.core import fundamental
 from goats.core import constant
 from goats import eprem
@@ -68,6 +69,17 @@ def observables() -> typing.Dict[str, dict]:
         'integral flux': {'axes': (T, S, P)},
         'Vr / Br': {'axes': (T, S)},
     }
+
+
+def test_init_stream(rootpath: Path):
+    """Attempt to initialize a stream observer with various arguments."""
+    datadir = rootpath / 'cone' / 'obs'
+    # from ID and directory
+    stream = eprem.Stream(0, path=datadir)
+    assert isinstance(stream, observer.Interface)
+    # from full path
+    stream = eprem.Stream(path=datadir / 'obs000000.nc')
+    assert isinstance(stream, observer.Interface)
 
 
 def test_observable_access(
