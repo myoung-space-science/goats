@@ -179,9 +179,9 @@ class Application(abc.ABC):
         self.user = constraints
         self._cache = {}
 
-    def observe(self, name: str):
+    def observe(self, name: typing.Union[str, metadata.Name]):
         """Compute the target variable quantity and its observing context."""
-        s = str(name)
+        s = list(name)[0] if isinstance(name, metadata.Name) else str(name)
         expression = algebraic.Expression(reference.NAMES.get(s, s))
         axes = []
         parameters = []
