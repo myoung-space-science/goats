@@ -181,15 +181,29 @@ class Application(abc.ABC):
 
     def observe(self, name: typing.Union[str, metadata.Name]):
         """Compute the target variable quantity and its observing context."""
-        s = list(name)[0] if isinstance(name, metadata.Name) else str(name)
-        expression = algebraic.Expression(reference.NAMES.get(s, s))
         axes = []
         parameters = []
+        s = list(name)[0] if isinstance(name, metadata.Name) else str(name)
+        expression = algebraic.Expression(reference.NAMES.get(s, s))
         term = expression[0]
         result = self.get_observable(term.base)
-        q0 = result.quantity ** term.exponent
         axes.extend(result.axes)
         parameters.extend(result.parameters)
+        if len(expression) == 1:
+            # We don't need to multiply or divide quantities.
+            indices = {k: self.get_index(k) for k in axes}
+            scalars = {k: self.get_assumption(k) for k in parameters}
+            if term.exponent == 1:
+                # We don't even need to raise this quantity to a power.
+                return observed.Quantity(
+                    result.quantity,
+                    {**indices, **scalars},
+                )
+            return observed.Quantity(
+                result.quantity ** term.exponent,
+                {**indices, **scalars},
+            )
+        q0 = result.quantity ** term.exponent
         if len(expression) > 1:
             for term in expression[1:]:
                 result = self.get_observable(term.base)
