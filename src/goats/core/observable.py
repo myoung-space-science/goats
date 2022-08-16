@@ -29,14 +29,7 @@ def expression(this):
     )
 
 
-class Metadata(
-    metadata.UnitMixin,
-    metadata.NameMixin,
-    metadata.AxesMixin,
-): ...
-
-
-class Quantity(Metadata, iterables.ReprStrMixin):
+class Quantity(iterables.ReprStrMixin):
     """A quantity that produces an observation."""
 
     def __init__(
@@ -53,6 +46,27 @@ class Quantity(Metadata, iterables.ReprStrMixin):
         self._unit = meta.get('unit')
         self._axes = meta.get('axes')
         self._cache = None
+
+    def __getitem__(self, __x: metadata.UnitLike):
+        """Set the unit of this quantity."""
+        if __x != self._unit:
+            self._unit = metadata.Unit(__x)
+        return self
+
+    @property
+    def unit(self):
+        """This quantity's metric unit."""
+        return metadata.Unit(self._unit)
+
+    @property
+    def name(self):
+        """This quantity's name."""
+        return metadata.Name(self._name)
+
+    @property
+    def axes(self):
+        """This quantity's indexable axes."""
+        return metadata.Axes(self._axes)
 
     def observe(self, update: bool=False, **constraints) -> observed.Quantity:
         """Create an observation within the given constraints.

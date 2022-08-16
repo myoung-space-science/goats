@@ -123,6 +123,13 @@ def test_parameter_access(stream: eprem.Stream) -> None:
             assert argument.unit == expected['unit']
 
 
+def test_observing_unit(stream: eprem.Stream):
+    """Change the unit of an observable quantity."""
+    q = stream['vr']
+    assert q.unit == 'm / s'
+    assert q['km / h'].unit == 'km / h'
+
+
 def test_observation_unit(stream: eprem.Stream):
     """Change the unit of an observation's values."""
     obs = stream['r'].observe()
