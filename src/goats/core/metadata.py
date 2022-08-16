@@ -597,7 +597,7 @@ class Unit(metric.Unit, Attribute):
                 errmsg.format(self, other, 'dimensions')
             ) from None
         raise UnitError(
-            "The units '{self}' and '{other}' are incompatible"
+            f"The units '{self}' and '{other}' are incompatible"
         ) from None
 
 
