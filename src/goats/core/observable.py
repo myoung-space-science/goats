@@ -5,6 +5,7 @@ from goats.core import algebraic
 from goats.core import metadata
 from goats.core import observed
 from goats.core import observing
+from goats.core import reference
 
 
 def expression(this):
@@ -132,7 +133,13 @@ class Interface(collections.abc.Mapping):
 
     def __getitem__(self, __k: str) -> Quantity:
         """Get the named observable quantity."""
-        if __k in self.names or expression(__k):
+        if expression(__k):
             return Quantity(self.available, self.application, name=__k)
+        if __k in self.names:
+            return Quantity(
+                self.available,
+                self.application,
+                name=reference.ALIASES[__k],
+            )
         raise KeyError(f"Cannot observe {__k!r}") from None
 
