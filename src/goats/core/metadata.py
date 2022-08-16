@@ -685,7 +685,6 @@ class Name(collections.abc.Collection, *_metadata_mixins):
         operator.__doc__ = f"Called for {s}"
         return operator
 
-    # TODO: Make these return a new instance.
     __add__ = _implement(' + ', strict=True)
     __radd__ = _implement(' + ', strict=True, reverse=True)
     __sub__ = _implement(' - ', strict=True)
