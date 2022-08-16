@@ -80,6 +80,9 @@ def test_init_stream(rootpath: Path):
     # from full path
     stream = eprem.Stream(path=datadir / 'obs000000.nc')
     assert isinstance(stream, observer.Interface)
+    # from only ID, with default path
+    stream = eprem.Stream(0)
+    assert isinstance(stream, observer.Interface)
 
 
 def test_observable_access(

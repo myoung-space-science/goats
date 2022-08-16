@@ -360,10 +360,11 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     ) -> pathlib.Path:
         """Create the full path for a given observer from components."""
         if directory is None:
+            default = ENV['datadir'] or pathlib.Path.cwd()
             return find_file_by_template(
                 self._templates,
                 name,
-                datadir=pathlib.Path.cwd(),
+                datadir=default,
             )
         dpath = pathlib.Path(directory).expanduser().resolve()
         if dpath.is_dir():
