@@ -134,6 +134,22 @@ class Vector(Quantity):
         return numpy.array_equal(other, self)
 
 
+def scalar(this) -> Scalar:
+    """Make sure `this` is a `~physical.Scalar`."""
+    if isinstance(this, Scalar):
+        return this
+    if isinstance(this, Vector):
+        return this[0]
+    if isinstance(this, measurable.Measurement):
+        return Scalar(this.values[0], unit=this.unit)
+    measured = measurable.measure(this)
+    if len(measured) > 1:
+        raise ValueError(
+            "Can't create a scalar from a multi-valued quantity"
+        ) from None
+    return scalar(measured)
+
+
 IndexLike = typing.TypeVar(
     'IndexLike',
     typing.Iterable[int],

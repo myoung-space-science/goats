@@ -277,3 +277,14 @@ def rescale(amount, factor):
     if isinstance(amount, typing.Iterable):
         return [factor * value for value in amount]
 
+
+def test_scalar():
+    """Test the function that converts an object to a scalar, if possible."""
+    reference = physical.Scalar(1.1, unit='m')
+    cases = [
+        physical.Vector([1.1], unit='m'),
+        measurable.Measurement([1.1], unit='m'),
+        (1.1, 'm'),
+    ]
+    for case in cases:
+        assert physical.scalar(case) == reference

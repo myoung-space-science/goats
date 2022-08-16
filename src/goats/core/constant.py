@@ -72,22 +72,6 @@ class Option(metadata.NameMixin, iterables.ReprStrMixin):
         return other == self.value
 
 
-def scalar(this) -> measurable.Scalar:
-    """Make sure `this` is a `~measurable.Scalar`."""
-    if isinstance(this, measurable.Scalar):
-        return this
-    if isinstance(this, Assumption):
-        return this[0]
-    if isinstance(this, measurable.Measurement):
-        return physical.Scalar(this.values[0], unit=this.unit)
-    measured = measurable.measure(this)
-    if len(measured) > 1:
-        raise ValueError(
-            "Can't create a scalar from a multi-valued quantity"
-        ) from None
-    return scalar(measured)
-
-
 class Interface(aliased.Mapping):
     """An interface to operational assumptions and options."""
 

@@ -149,7 +149,7 @@ class Interface(collections.abc.Collection):
 
     def _compute_scalar(self, this):
         """Compute a single scalar assumption."""
-        scalar = constant.scalar(this)
+        scalar = physical.scalar(this)
         unit = self.system.get_unit(unit=scalar.unit)
         return scalar.convert(unit)
 
