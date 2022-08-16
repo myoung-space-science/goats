@@ -1,6 +1,9 @@
 # Changelog
 
-## Next
+## v0.0.26 (16Aug2022)
+
+- Refactor core interface to observable quantities.
+- Update EPREM observer based on new interface.
 
 ## v0.0.25 (12Jul2022)
 
