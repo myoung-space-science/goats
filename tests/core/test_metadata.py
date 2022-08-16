@@ -1,3 +1,4 @@
+import math
 import numbers
 import operator as standard
 import typing
@@ -281,6 +282,18 @@ def test_name_builtin():
             assert result is not original
             assert result == original
     # TODO: multiplcation, division, and exponentiation by 0
+
+
+def test_name_unary():
+    """Test unary arithmetic operations on a name metadata object."""
+    name = metadata.Name('a', 'A')
+    assert +name == metadata.Name('+a', '+A')
+    assert -name == metadata.Name('-a', '-A')
+    assert abs(name) == metadata.Name('abs(a)', 'abs(A)')
+    assert round(name) == metadata.Name('round(a)', 'round(A)')
+    assert math.floor(name) == metadata.Name('floor(a)', 'floor(A)')
+    assert math.ceil(name) == metadata.Name('ceil(a)', 'ceil(A)')
+    assert math.trunc(name) == metadata.Name('trunc(a)', 'trunc(A)')
 
 
 def test_name_name():

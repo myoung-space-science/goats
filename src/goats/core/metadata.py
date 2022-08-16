@@ -691,6 +691,48 @@ class Name(collections.abc.Collection, Attribute):
     __pow__ = _implement('^')
     __rpow__ = _implement('^', reverse=True)
 
+    def __pos__(self):
+        """Called for +self."""
+        if not self:
+            return Name()
+        return Name([f"+{i}" for i in self])
+
+    def __neg__(self):
+        """Called for -self."""
+        if not self:
+            return Name()
+        return Name([f"-{i}" for i in self])
+
+    def __abs__(self):
+        """Called for abs(self)."""
+        if not self:
+            return Name()
+        return Name([f"abs({i})" for i in self])
+
+    def __round__(self):
+        """Called for round(self)."""
+        if not self:
+            return Name()
+        return Name([f"round({i})" for i in self])
+
+    def __floor__(self):
+        """Called for math.floor(self)."""
+        if not self:
+            return Name()
+        return Name([f"floor({i})" for i in self])
+
+    def __ceil__(self):
+        """Called for math.ceil(self)."""
+        if not self:
+            return Name()
+        return Name([f"ceil({i})" for i in self])
+
+    def __trunc__(self):
+        """Called for math.trunc(self)."""
+        if not self:
+            return Name()
+        return Name([f"trunc({i})" for i in self])
+
     def __bool__(self) -> bool:
         return bool(self._aliases)
 
