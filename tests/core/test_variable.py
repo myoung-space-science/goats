@@ -78,8 +78,8 @@ def test_standardize():
 def test_variable_display():
     """Test the results of printing a variable."""
     v = variable.Quantity([1.2], unit='m', name='V', axes=['x'])
-    assert str(v) == "'V': [1.2] [m] axes=['x']"
-    assert repr(v).endswith("([1.2], unit='m', name='V', axes=['x'])")
+    assert str(v) == "'V': <class 'list'> [m] axes=['x']"
+    assert repr(v).endswith("(<class 'list'>, unit='m', name='V', axes=['x'])")
 
 
 @pytest.mark.variable

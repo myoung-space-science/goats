@@ -155,7 +155,11 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         self._full_array = None
         self._ndim = None
         self._shape = None
-        self.display.register(data='_array')
+        self.display.register(data='_get_data_type')
+
+    def _get_data_type(self):
+        """Internal helper for displaying the type of data object."""
+        return self.data.__class__
 
     def apply_conversion(self, new: metadata.UnitLike):
         self._scale *= new // self._unit
