@@ -25,8 +25,11 @@ class Quantity(variable.Quantity):
 
     def __getitem__(self, __x):
         """Get a scalar by name or array values by index."""
-        if isinstance(__x, str) and __x in self._scalars:
-            return self._scalars[__x]
+        if isinstance(__x, str):
+            if __x in self._indices:
+                return self._indices[__x]
+            if __x in self._scalars:
+                return self._scalars[__x]
         return super().__getitem__(__x)
 
     def __eq__(self, other) -> bool:
