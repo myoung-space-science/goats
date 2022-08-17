@@ -68,7 +68,7 @@ class Quantity(iterables.ReprStrMixin):
         """This quantity's indexable axes."""
         return metadata.Axes(self._axes)
 
-    def observe(self, update: bool=False, **constraints) -> observed.Quantity:
+    def at(self, update: bool=False, **constraints) -> observed.Quantity:
         """Create an observation within the given constraints.
         
         This method will create a new observation of this observable quantity by
