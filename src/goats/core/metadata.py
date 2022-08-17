@@ -737,6 +737,9 @@ class Name(collections.abc.Collection, Attribute):
     def __bool__(self) -> bool:
         return bool(self._aliases)
 
+    def __hash__(self) -> int:
+        return hash(self._aliases)
+
     def __contains__(self, __x) -> bool:
         return __x in self._aliases
 
