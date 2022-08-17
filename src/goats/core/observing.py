@@ -111,10 +111,10 @@ class Interface(collections.abc.Collection):
         s = str(key)
         expression = algebraic.Expression(reference.NAMES.get(s, s))
         term = expression[0]
-        this = self.get_unit(term.base) ** term.exponent
+        this = self._get_unit(term.base) ** term.exponent
         if len(expression) > 1:
             for term in expression[1:]:
-                this *= self.get_unit(term.base) ** term.exponent
+                this *= self._get_unit(term.base) ** term.exponent
         return metadata.Unit(this)
 
     def get_axes(
@@ -136,10 +136,10 @@ class Interface(collections.abc.Collection):
         s = str(key)
         expression = algebraic.Expression(reference.NAMES.get(s, s))
         term = expression[0]
-        this = self.get_axes(term.base)
+        this = self._get_axes(term.base)
         if len(expression) > 1:
             for term in expression[1:]:
-                this *= self.get_axes(term.base)
+                this *= self._get_axes(term.base)
         return metadata.Axes(this)
 
     def compute_index(self, key: str, **constraints) -> index.Quantity:
