@@ -50,9 +50,14 @@ class Quantity(iterables.ReprStrMixin):
 
     def __getitem__(self, __x: metadata.UnitLike):
         """Set the unit of this quantity."""
-        if __x != self._unit:
-            self._unit = metadata.Unit(__x)
-        return self
+        unit = metadata.Unit(__x) if __x != self._unit else self._unit
+        return type(self)(
+            self.interface,
+            self._type,
+            unit=unit,
+            axes=self.axes,
+            name=self.name,
+        )
 
     @property
     def unit(self):
