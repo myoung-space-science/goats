@@ -1,35 +1,46 @@
 import typing
 
+import numpy
+
+from goats.core import index
 from goats.core import variable
 
 
-class Quantity(variable.Quantity):
+class Quantity:
     """The result of observing an observable quantity."""
 
     def __init__(
         self,
         __v: variable.Quantity,
-        context: typing.Mapping,
+        indices: typing.Mapping[str, index.Quantity],
+        **assumptions
     ) -> None:
-        super().__init__(__v)
-        self._indices = {
-            k: v for k, v in context.items()
-            if k in self.axes
-        }
-        self._scalars = {
-            k: v for k, v in context.items()
-            if k not in self.axes
-        }
-        self.parameters = list(self._scalars)
+        self.data = numpy.array(__v.data)
+        """The array of this observation's data."""
+        self.unit = property(__v.unit)
+        """The metric unit of this observation's data values."""
+        self.name = property(__v.name)
+        """The name(s) of this observation."""
+        self.dimensions = property(__v.axes)
+        """The names of axes in this observation's data array."""
+        self._indices = indices
+        self._assumptions = assumptions
+        self._parameters = None
+
+    @property
+    def parameters(self):
         """The names of scalar assumptions relevant to this observation."""
+        if self._parameters is None:
+            self._parameters = list(self._assumptions)
+        return self._parameters
 
     def __getitem__(self, __x):
         """Get a scalar by name or array values by index."""
         if isinstance(__x, str):
             if __x in self._indices:
                 return self._indices[__x]
-            if __x in self._scalars:
-                return self._scalars[__x]
+            if __x in self._assumptions:
+                return self._assumptions[__x]
         return super().__getitem__(__x)
 
     def __eq__(self, other) -> bool:
@@ -49,12 +60,10 @@ class Quantity(variable.Quantity):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        axes = [str(axis) for axis in self.axes]
-        parameters = [str(parameter) for parameter in self.parameters]
         attrs = [
             f"unit='{self.unit}'",
-            f"axes={axes}",
-            f"parameters={parameters}",
+            f"dimensions={self.dimensions}",
+            f"parameters={self.parameters}",
         ]
         return f"'{self.name}': {', '.join(attrs)}"
 
