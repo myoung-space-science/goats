@@ -90,8 +90,20 @@ class Interface(collections.abc.Collection):
             'axes': self.get_axes(key),
         }
 
-    def get_unit(self, key: str):
-        """Determine the unit corresponding to `key`."""
+    # TODO: Refactor `get_unit` and `get_axes` to reduce overlap.
+
+    def get_unit(
+        self,
+        name: typing.Union[str, typing.Iterable[str], metadata.Name],
+    ) -> metadata.Unit:
+        """Determine the unit corresponding to `name`."""
+        if isinstance(name, str):
+            return self._get_unit(name)
+        unit = (self._get_unit(key) for key in name)
+        return next(unit, None)
+
+    def _get_unit(self, key: str):
+        """Internal helper for `~Interface.get_unit`."""
         if key in self.variables:
             return self.variables[key].unit
         if key in self.functions:
@@ -105,7 +117,17 @@ class Interface(collections.abc.Collection):
                 this *= self.get_unit(term.base) ** term.exponent
         return metadata.Unit(this)
 
-    def get_axes(self, key: str):
+    def get_axes(
+        self,
+        name: typing.Union[str, typing.Iterable[str], metadata.Name],
+    ) -> metadata.Axes:
+        """Determine the axes corresponding to `name`."""
+        if isinstance(name, str):
+            return self._get_axes(name)
+        axes = (self._get_axes(key) for key in name)
+        return next(axes, None)
+
+    def _get_axes(self, key: str):
         """Determine the axes corresponding to `key`."""
         if key in self.variables:
             return self.variables[key].axes
