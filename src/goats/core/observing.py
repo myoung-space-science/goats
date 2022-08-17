@@ -219,11 +219,13 @@ class Application(abc.ABC):
                 # We don't even need to raise this quantity to a power.
                 return observed.Quantity(
                     result.quantity,
-                    {**indices, **scalars},
+                    indices=indices,
+                    **scalars
                 )
             return observed.Quantity(
                 result.quantity ** term.exponent,
-                {**indices, **scalars},
+                indices=indices,
+                **scalars
             )
         q0 = result.quantity ** term.exponent
         if len(expression) > 1:
@@ -239,15 +241,16 @@ class Application(abc.ABC):
         # attribute.
         indices = {k: self.get_index(k) for k in axes}
         scalars = {k: self.get_assumption(k) for k in parameters}
-        return observed.Quantity(q0, {**indices, **scalars})
+        return observed.Quantity(q0, indices=indices, **scalars)
 
-    def evaluate(self, this) -> Result:
+    def evaluate(self, q) -> Result:
         """Create an observing result based on this quantity."""
-        if isinstance(this, computable.Quantity):
-            return Result(self.compute(this), this.axes, this.parameters)
-        if isinstance(this, variable.Quantity):
-            return Result(self.process(this), this.axes)
-        raise ValueError(f"Unknown quantity: {this!r}") from None
+        if isinstance(q, computable.Quantity):
+            parameters = [p for p in q.parameters if p in self.data.constants]
+            return Result(self.compute(q), q.axes, parameters)
+        if isinstance(q, variable.Quantity):
+            return Result(self.process(q), q.axes)
+        raise ValueError(f"Unknown quantity: {q!r}") from None
 
     @abc.abstractmethod
     def process(self, name: str) -> variable.Quantity:
