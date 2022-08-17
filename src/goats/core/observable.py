@@ -9,8 +9,8 @@ from goats.core import observing
 from goats.core import reference
 
 
-def expression(this):
-    """True if `this` has the form of an `~algebraic.Expression`.
+def iscomposed(this):
+    """True if `this` is an algebraic composition of observable quantities.
     
     Parameters
     ----------
@@ -36,15 +36,16 @@ class Quantity(iterables.ReprStrMixin):
         self,
         interface: observing.Interface,
         application: typing.Type[observing.Application],
+        unit: metadata.UnitLike,
+        axes: typing.Union[str, typing.Iterable[str], metadata.Axes],
         name: typing.Union[str, typing.Iterable[str], metadata.Name]=None,
     ) -> None:
         name = name or "Anonymous"
         self.interface = interface
         self._type = application
+        self._unit = unit
+        self._axes = axes
         self._name = name
-        meta = interface.get_metadata(name)
-        self._unit = meta.get('unit')
-        self._axes = meta.get('axes')
         self._cache = None
 
     def __getitem__(self, __x: metadata.UnitLike):
@@ -152,13 +153,49 @@ class Interface(collections.abc.Mapping):
 
     def __getitem__(self, __k: str) -> Quantity:
         """Get the named observable quantity."""
-        if expression(__k):
-            return Quantity(self.available, self.application, name=__k)
+        if not self.knows(__k):
+            raise KeyError(f"Cannot observe {__k!r}") from None
+        meta = self.available.get_metadata(__k)
+        unit = meta.get('unit', '1'),
+        axes = meta.get('axes', ())
+        if iscomposed(__k):
+            return Quantity(
+                self.available,
+                self.application,
+                unit=unit,
+                axes=axes,
+                name=__k,
+            )
         if __k in self.names:
             return Quantity(
                 self.available,
                 self.application,
+                unit=unit,
+                axes=axes,
                 name=reference.ALIASES[__k],
             )
-        raise KeyError(f"Cannot observe {__k!r}") from None
+        # NOTE: If `self.knows` is consistent with the two previous `if` blocks,
+        # execution should never reach this point. However, this exception is
+        # here to avoid silently failing in case they are inconsistent.
+        raise ValueError(
+            f"Something went wrong while trying to observe {__k!r}"
+        ) from None
+
+    def knows(
+        self,
+        name: typing.Union[str, typing.Iterable[str], metadata.Name],
+    ) -> bool:
+        """True if this interface can observe the named quantity."""
+        if isinstance(name, str):
+            return self._knows(name)
+        return next((self._knows(key) for key in name), False)
+
+    def _knows(self, key: str):
+        """Internal helper for `~Interface.knows`."""
+        if key in self.names:
+            return True
+        if iscomposed(key):
+            expression = algebraic.Expression(key)
+            return all(term.base in self.names for term in expression)
+        return False
 
