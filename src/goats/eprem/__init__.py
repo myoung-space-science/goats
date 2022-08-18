@@ -53,8 +53,8 @@ class Indexers(aliased.Mapping, iterables.ReprStrMixin):
 
     def __init__(self, data: datafile.Interface) -> None:
         self.variables = variable.Interface(data)
-        mass = self.variables['mass'].convert('nuc')
-        charge = self.variables['charge'].convert('e')
+        mass = self.variables['mass']['nuc']
+        charge = self.variables['charge']['e']
         self.symbols = fundamental.elements(mass, charge)
         # TODO: Consider using reference arrays in methods, with the possible
         # exception of `_build_shell`.
@@ -139,7 +139,7 @@ class Indexers(aliased.Mapping, iterables.ReprStrMixin):
         result = measurable.measure(targets)
         array = physical.Array(result.values, unit=result.unit)
         values = numpy.array(
-            array.convert(reference.unit)
+            array[reference.unit]
             if array.unit.dimension == reference.unit.dimension
             else array
         )
