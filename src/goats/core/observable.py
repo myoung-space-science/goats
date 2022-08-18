@@ -46,7 +46,8 @@ class Quantity(iterables.ReprStrMixin):
         self._unit = unit
         self._axes = axes
         self._name = name
-        self._cache = None
+        self.context = {}
+        self._cached = {}
 
     def __getitem__(self, __x: metadata.UnitLike):
         """Set the unit of this quantity."""
@@ -74,20 +75,22 @@ class Quantity(iterables.ReprStrMixin):
         """This quantity's indexable axes."""
         return metadata.Axes(self._axes)
 
-    def at(self, update: bool=False, **constraints) -> observed.Quantity:
+    @property
+    def data(self):
+        """The data array of the current observing state."""
+        q = self._type(self.interface, **self._cached).observe(self.name)
+        self._current = self.context.copy()
+        return q # -> convert to this instance's unit.
+
+    def at(self, **constraints) -> observed.Quantity:
         """Create an observation within the given constraints.
         
         This method will create a new observation of this observable quantity by
-        applying `constraints`, if given, or the default constraints. The
-        default collection of observational constraints uses all relevant axis
-        indices and default parameter values.
+        applying the given constraints. The default collection of observational
+        constraints uses all relevant axis indices and default parameter values.
 
         Parameters
         ----------
-        update : bool, default=False
-            If true, update the existing constraints from the given constraints.
-            The default behavior is to use only the given constraints.
-
         **constraints
             Key-value pairs of axes or parameters to update.
 
@@ -96,12 +99,8 @@ class Quantity(iterables.ReprStrMixin):
         `~observed.Quantity`
             An object representing the resultant observation.
         """
-        if self._cache is None:
-            self._cache = {}
-        current = {**self._cache, **constraints} if update else constraints
-        self._cache = current.copy()
-        application = self._type(self.interface, **current)
-        return application.observe(self.name)
+        # BUG: Doesn't account for modified unit.
+        return self._type(self.interface, **constraints).observe(self.name)
 
     def __eq__(self, other):
         """True if two observables have the same name and constraints."""

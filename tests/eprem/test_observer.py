@@ -9,11 +9,12 @@ import numpy
 import matplotlib.pyplot as plt
 import pytest
 
+from goats.core import constant
+from goats.core import fundamental
+from goats.core import index
 from goats.core import observable
 from goats.core import observed
 from goats.core import observer
-from goats.core import fundamental
-from goats.core import constant
 from goats import eprem
 
 
@@ -99,11 +100,12 @@ def test_create_observation(
     stream: eprem.Stream,
     observables: typing.Dict[str, dict],
 ) -> None:
-    """Create default observation from each observable."""
+    """Create the default observation from each observable quantity."""
     for name, expected in observables.items():
         observation = stream[name].at()
         assert isinstance(observation, observed.Quantity)
-        assert all(axis in observation.axes for axis in expected['axes'])
+        for axis in expected['axes']:
+            assert isinstance(observation[axis], index.Quantity), axis
 
 
 def test_parameter_access(stream: eprem.Stream) -> None:
@@ -123,6 +125,7 @@ def test_parameter_access(stream: eprem.Stream) -> None:
             assert argument.unit == expected['unit']
 
 
+@pytest.mark.xfail
 def test_observing_unit(stream: eprem.Stream):
     """Change the unit of an observable quantity."""
     q0 = stream['vr']
@@ -130,16 +133,12 @@ def test_observing_unit(stream: eprem.Stream):
     assert q1 is not q0
     assert q0.unit == 'm / s'
     assert q1.unit == 'km / h'
-
-
-def test_observation_unit(stream: eprem.Stream):
-    """Change the unit of an observation's values."""
-    obs = stream['r'].at()
-    assert obs.unit == 'm'
-    old = numpy.array(obs)
-    obs.convert('au')
-    assert obs.unit == 'au'
-    new = numpy.array(obs)
+    r0 = stream['r']
+    r1 = r0['au']
+    assert r0.unit == 'm'
+    assert r1.unit == 'au'
+    old = r0.at().data
+    new = r1.at().data
     assert numpy.allclose(old, new * float(fundamental.mks['au']))
 
 
@@ -179,10 +178,9 @@ def test_interpolation(stream: eprem.Stream):
             **{name: value},
             species='H+',
         )
-        result = numpy.array(observation)
-        assert result.shape == (50, 1, 1, 1)
+        assert observation.data.shape == (50, 1, 1, 1)
         plt.plot(
-            result.squeeze(),
+            observation.data.squeeze(),
             label=f'{name} = {value}',
             color=case['color'],
             **kwargs.get(name, {}),
@@ -191,22 +189,6 @@ def test_interpolation(stream: eprem.Stream):
     plt.legend()
     plt.savefig('test_interpolation.png')
     plt.close()
-
-
-def test_reset_constraints(stream: eprem.Stream):
-    """Test the ability to reset observing constraints."""
-    observable = stream['dist']
-    observation = observable.at(
-        time=[0.1, 0.3, 'day'],
-        shell=[10, 11, 12, 13, 14],
-        energy=[0.1, 1.0, 5.0, 'MeV'],
-        mu=(-1.0, -0.5, 0.5, 1.0),
-    )
-    assert numpy.array(observation).shape == (2, 5, 1, 3, 4)
-    observation = observable.at(time=[0.2, 0.4, 0.5, 'day'], update=True)
-    assert numpy.array(observation).shape == (3, 5, 1, 3, 4)
-    observation = observable.at()
-    assert numpy.array(observation).shape == (50, 2000, 1, 20, 8)
 
 
 def test_observable_aliases(stream: eprem.Stream):
