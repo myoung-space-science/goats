@@ -488,9 +488,11 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
     def _copy_with(self, **updates):
         """Create a new instance from the current attributes."""
         data = updates.get('data', self.data)
-        unit = updates.get('unit', self.unit)
-        name = updates.get('name', self.name)
-        return Array(data, unit=unit, name=name)
+        meta = {
+            k: updates.get(k, getattr(self, k))
+            for k in self.meta.parameters
+        }
+        return type(self)(data, **meta)
 
     @classmethod
     def implements(cls, numpy_function):

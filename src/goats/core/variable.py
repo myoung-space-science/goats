@@ -133,12 +133,6 @@ class Quantity(physical.Array, metadata.AxesMixin):
         """Label and size for each axis."""
         return dict(zip(self.axes, self.shape))
 
-    def _copy_with(self, **updates):
-        """Create a new instance from the current attributes."""
-        array = super()._copy_with(**updates)
-        axes = updates.get('axes', self.axes)
-        return Quantity(array, axes=axes)
-
 
 @Quantity.implements(numpy.squeeze)
 def _squeeze(v: Quantity, **kwargs):
