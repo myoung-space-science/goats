@@ -17,8 +17,113 @@ from goats.core import reference
 from goats.core import variable
 
 
-class Quantity(metadata.NameMixin, metadata.UnitMixin, metadata.AxesMixin):
+class Parameters(collections.abc.Sequence, iterables.ReprStrMixin):
+    """The parameters of an `~observing.Quantity`."""
+
+    def __init__(self, *names: str) -> None:
+        self._names = self._init(*names)
+
+    def _init(self, *args):
+        names = iterables.unique(*iterables.unwrap(args, wrap=tuple))
+        if not names or all(isinstance(name, str) for name in names):
+            return names
+        raise TypeError(
+            f"Can't initialize instance of {type(self)}"
+            f" with {names!r}"
+        )
+
+    __abs__ = metadata.identity(abs)
+    """Called for abs(self)."""
+    __pos__ = metadata.identity(standard.pos)
+    """Called for +self."""
+    __neg__ = metadata.identity(standard.neg)
+    """Called for -self."""
+
+    __add__ = metadata.identity(standard.add)
+    """Called for self + other."""
+    __sub__ = metadata.identity(standard.sub)
+    """Called for self - other."""
+
+    def merge(a, *others):
+        """Return the unique axis names in order."""
+        names = list(a._names)
+        for b in others:
+            if isinstance(b, Parameters):
+                names.extend(b._names)
+        return Parameters(*set(names))
+
+    __mul__ = merge
+    """Called for self * other."""
+    __rmul__ = merge
+    """Called for other * self."""
+    __truediv__ = merge
+    """Called for self / other."""
+
+    def __pow__(self, other):
+        """Called for self ** other."""
+        if isinstance(other, numbers.Real):
+            return self
+        return NotImplemented
+
+    def __eq__(self, other):
+        """True if self and other represent the same axes."""
+        return (
+            isinstance(other, Parameters) and other._names == self._names
+            or (
+                isinstance(other, str)
+                and len(self) == 1
+                and other == self._names[0]
+            )
+            or (
+                isinstance(other, typing.Iterable)
+                and len(other) == len(self)
+                and all(i in self for i in other)
+            )
+        )
+
+    def __hash__(self):
+        """Support use as a mapping key."""
+        return hash(self._names)
+
+    def __len__(self) -> int:
+        """Called for len(self)."""
+        return len(self._names)
+
+    def __getitem__(self, __i: typing.SupportsIndex):
+        """Called for index-based access."""
+        return self._names[__i]
+
+    def __str__(self) -> str:
+        return f"[{', '.join(repr(name) for name in self._names)}]"
+
+
+class Quantity(variable.Quantity):
     """A quantity with one or more name(s), a unit, and axes."""
+
+    _parameters: Parameters=None
+
+    def __init__(self, __data, **meta) -> None:
+        super().__init__(__data, **meta)
+        parsed = self.parse_attrs(__data, meta, parameters=())
+        self._parameters = Parameters(parsed['parameters'])
+        self.meta.register('parameters')
+        self.display.register('parameters')
+        self.display['__str__'].append("parameters={parameters}")
+        self.display['__repr__'].append("parameters={parameters}")
+
+    def parse_attrs(self, this, meta: dict, **targets):
+        if (
+            isinstance(this, variable.Quantity)
+            and not isinstance(this, Quantity)
+        ): # barf
+            meta.update({k: getattr(this, k) for k in ('unit', 'name', 'axes')})
+            this = this.data
+        return super().parse_attrs(this, meta, **targets)
+
+    @property
+    def parameters(self):
+        """The optional parameters that define this observing quantity."""
+        return Parameters(self._parameters)
 
 
 class Interface(collections.abc.Collection):
