@@ -215,7 +215,7 @@ class Interface(aliased.Mapping):
             axes=datavar.axes,
             name=reference.ALIASES[key],
         )
-        result = variable.convert(self.units[key])
+        result = variable[self.units[key]]
         self._cache[key] = result
         return result
 

@@ -115,6 +115,8 @@ class Vector(Quantity):
 
     def __getitem__(self, index):
         """Called for index-based value access."""
+        if isinstance(index, str):
+            return super().__getitem__(index)
         if isinstance(index, typing.SupportsIndex) and index < 0:
             index += len(self)
         values = self.data[index]
@@ -177,9 +179,6 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         """Internal helper for displaying the type of data object."""
         return self.data.__class__
 
-    def apply_conversion(self, new: metadata.UnitLike):
-        self._scale *= new // self._unit
-
     def __measure__(self):
         """Create a measurement from this array's data and unit."""
         # NOTE: This may produce unexpected results when `self.ndim` > 1.
@@ -233,12 +232,17 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
 
     _builtin = (int, slice, type(...))
 
-    def __getitem__(self, *args: IndexLike):
+    def __getitem__(self, *args: typing.Union[metadata.UnitLike, IndexLike]):
         """Create a new instance from a subset of data."""
+        if len(args) == 1 and isinstance(args[0], metadata.UnitLike):
+            return super().__getitem__(args[0])
         unwrapped = iterables.unwrap(args)
         if self._types_match(unwrapped, self._builtin):
             return self._subscript_standard(unwrapped)
         return self._subscript_custom(unwrapped)
+
+    def apply_unit(self, new: metadata.UnitLike):
+        self._scale *= new // self._unit
 
     def _types_match(self, args, types):
         """True if `args` is one `types` or a collection of `types`."""

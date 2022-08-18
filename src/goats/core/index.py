@@ -72,8 +72,10 @@ class Quantity(physical.Quantity):
         """The points at which to index a data array."""
         return self._indices
 
-    def __getitem__(self, __i: typing.SupportsIndex):
+    def __getitem__(self, __i: typing.Union[str, typing.SupportsIndex]):
         """Called for index look-up and iteration."""
+        if isinstance(__i, str):
+            return super().__getitem__(__i)
         return self.indices[__i]
 
     def __len__(self):
@@ -87,7 +89,7 @@ class Quantity(physical.Quantity):
 
     def apply_conversion(self, new: metadata.Unit):
         if self._unit is not None:
-            return super().apply_conversion(new)
+            return super().apply_unit(new)
         raise TypeError("Can't convert null unit") from None
 
 

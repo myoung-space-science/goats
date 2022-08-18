@@ -183,9 +183,9 @@ def test_quantity_unit():
     # NOTE: use an integer to avoid failing due to precision
     q = measurable.Quantity(1, unit='m')
     assert q.unit == 'm'
-    assert q.convert('cm') == measurable.Quantity(100, unit='cm')
+    assert q['cm'] == measurable.Quantity(100, unit='cm')
     with pytest.raises(metric.UnitConversionError):
-        q.convert('J')
+        q['J']
 
 
 @pytest.mark.quantity

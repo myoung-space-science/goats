@@ -340,7 +340,7 @@ class Quantified(Quantifiable, iterables.ReprStrMixin):
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
-class Quantity(Quantified, AlgebraicOperators, metadata.UnitMixin):
+class Quantity(Quantified, AlgebraicOperators):
     """A measurable quantity."""
 
     @typing.overload
@@ -369,12 +369,18 @@ class Quantity(Quantified, AlgebraicOperators, metadata.UnitMixin):
             symmetric=True
         )
         parsed = self.parse_attrs(__a, meta, unit='1')
-        self._unit = metadata.Unit(parsed['unit'])
+        self._unit = parsed['unit']
+        """This quantity's metric unit."""
         self.meta.register('unit')
         self.display.register('data', 'unit')
         self.display['__str__'] = "{data} [{unit}]"
         self.display['__repr__'] = "{data}, unit='{unit}'"
         self.display['__repr__'].separator = ', '
+
+    @property
+    def unit(self):
+        """This quantity's metric unit."""
+        return metadata.Unit(self._unit)
 
     def parse_attrs(self, this, meta: dict, **targets):
         """Get instance attributes from initialization arguments."""
@@ -382,7 +388,30 @@ class Quantity(Quantified, AlgebraicOperators, metadata.UnitMixin):
             return {k: getattr(this, k) for k in targets}
         return {k: meta.get(k, v) for k, v in targets.items()}
 
-    def apply_conversion(self, new: metadata.Unit):
+    def __getitem__(self, unit: metadata.UnitLike):
+        """Set the unit of this object's values.
+        
+        Notes
+        -----
+        Using this special method to update the instance unit causes it to act
+        like an in-place version of ``__setitem__``. It supports a simple and
+        relatively intuitive syntax but is arguably an abuse of notation.
+        """
+        if unit != self._unit:
+            new = metadata.Unit(unit)
+            self.apply_unit(new)
+            self._unit = new
+        return self
+
+    def apply_unit(self, new: metadata.Unit):
+        """Update data values based on the new unit.
+        
+        Extracted for overloading, to allow subclasses to customize how to
+        update the instance unit and to apply the corresponding conversion
+        factor. For example, some subclasses may wish to simply store an updated
+        scale factor, and to defer application of the scale factor to the data
+        object if doing so here would be inefficient.
+        """
         self._data *= new // self._unit
 
     def __measure__(self):

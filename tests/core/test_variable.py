@@ -113,7 +113,7 @@ def test_variable():
     assert r.unit == metadata.Unit('m^2')
     reference = variable.Quantity(v0)
     assert reference is not v0
-    v0_cm = v0.convert('cm')
+    v0_cm = v0['cm']
     assert v0_cm is v0
     expected = 100 * reference
     assert numpy.array_equal(v0_cm, expected)
@@ -392,7 +392,7 @@ def test_variable_units(var: typing.Dict[str, variable.Quantity]):
     """Test the ability to update a variable's unit."""
     v0 = var['reference']
     reference = variable.Quantity(v0)
-    v0_km = v0.convert('km')
+    v0_km = v0['km']
     assert isinstance(v0_km, variable.Quantity)
     assert v0_km is v0
     assert v0_km is not reference

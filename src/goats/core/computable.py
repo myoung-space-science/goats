@@ -474,7 +474,6 @@ class Method(collections.abc.Mapping, iterables.ReprStrMixin):
 
 
 class Metadata(
-    metadata.UnitMixin,
     metadata.NameMixin,
     metadata.AxesMixin,
 ): ...
@@ -497,11 +496,27 @@ class Quantity(Metadata, iterables.ReprStrMixin):
         self._parameters = None
 
     @property
+    def unit(self):
+        """This quantity's metric unit."""
+        return metadata.Unit(self._unit)
+
+    @property
     def parameters(self):
         """The parameters to this quantity's method."""
         if self._parameters is None:
             self._parameters = tuple(self.method.parameters)
         return self._parameters
+
+    def __getitem__(self, unit: metadata.UnitLike):
+        """Set the unit of the resultant values.
+        
+        Notes
+        -----
+        See note at `~measurable.Quantity.__getitem__`.
+        """
+        if unit != self._unit:
+            self._unit = unit
+        return self
 
     def __call__(self, **quantities):
         """Create a variable quantity from input quantities."""

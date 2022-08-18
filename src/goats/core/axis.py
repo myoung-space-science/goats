@@ -12,12 +12,7 @@ from goats.core import variable
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
-class Metadata(
-    metadata.UnitMixin,
-    metadata.NameMixin,
-): ...
-
-class Quantity(Metadata, iterables.ReprStrMixin):
+class Quantity(metadata.NameMixin, iterables.ReprStrMixin):
     """A callable representation of a single dataset axis."""
 
     @typing.overload
@@ -63,12 +58,20 @@ class Quantity(Metadata, iterables.ReprStrMixin):
     @property
     def unit(self):
         if self._unit is not None:
-            return super().unit
+            return metadata.Unit(self._unit)
 
-    def apply_conversion(self, new: metadata.Unit):
-        if self._unit is not None:
-            return super().apply_conversion(new)
-        raise TypeError("Can't convert null unit") from None
+    def __getitem__(self, unit: metadata.UnitLike):
+        """Set the unit of this object's values.
+        
+        Notes
+        -----
+        See note at `~measurable.Quantity.__getitem__`.
+        """
+        if self._unit is None:
+            raise TypeError("Can't convert null unit") from None
+        if unit != self._unit:
+            self._unit = unit
+        return self
 
     def at(self, *args, **kwargs):
         """Convert arguments into an index quantity."""

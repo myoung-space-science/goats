@@ -213,7 +213,7 @@ def test_scalar_display():
     scalar = physical.Scalar(1.234, unit='m')
     assert str(scalar) == "1.234 [m]"
     assert repr(scalar).endswith("Scalar(1.234, unit='m')")
-    scalar.convert('cm')
+    scalar['cm']
     assert str(scalar) == "123.4 [cm]"
     assert repr(scalar).endswith("Scalar(123.4, unit='cm')")
 
@@ -224,7 +224,7 @@ def test_vector_display():
     vector = physical.Vector(1.234, unit='m')
     assert str(vector) == "[1.234] [m]"
     assert repr(vector).endswith("Vector([1.234], unit='m')")
-    vector.convert('cm')
+    vector['cm']
     assert str(vector) == "[123.4] [cm]"
     assert repr(vector).endswith("Vector([123.4], unit='cm')")
 
@@ -262,7 +262,7 @@ def check_units(
     """Extracted for testing the unit attribute on Measured subclasses."""
     original = obj(amount, unit=reference)
     assert original.unit == reference
-    updated = original.convert(new)
+    updated = original[new]
     assert updated is original
     assert updated.unit == new
     factor = metadata.Unit(new) // metadata.Unit(reference)
