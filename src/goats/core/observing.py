@@ -158,7 +158,7 @@ class Interface(collections.abc.Collection):
         )
         if target.unit is not None:
             unit = self.variables.system.get_unit(unit=target.unit)
-            return target.convert(unit)
+            return target[unit]
         return target
 
     def compute_scalar(self, key: str, **constraints) -> physical.Scalar:
@@ -173,7 +173,7 @@ class Interface(collections.abc.Collection):
         """Compute a single scalar assumption."""
         scalar = physical.scalar(this)
         unit = self.system.get_unit(unit=scalar.unit)
-        return scalar.convert(unit)
+        return scalar[unit]
 
 
 class Result(typing.NamedTuple):
