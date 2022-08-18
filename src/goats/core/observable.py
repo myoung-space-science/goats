@@ -106,7 +106,8 @@ class Quantity(iterables.ReprStrMixin):
     def __eq__(self, other):
         """True if two observables have the same name and constraints."""
         if isinstance(other, Quantity):
-            return self.name == other.name and self._cache == other._cache
+            attrs = ('unit', 'name', 'axes')
+            return all(getattr(self, a) == getattr(other, a) for a in attrs)
         return NotImplemented
 
     def __str__(self) -> str:
