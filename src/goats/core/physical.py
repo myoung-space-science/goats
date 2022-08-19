@@ -64,6 +64,18 @@ class Scalar(Quantity, measurable.ScalarOperators):
     def __init__(self, __data, **meta) -> None:
         super().__init__(float(__data), **meta)
 
+    def __iter__(self):
+        """Explicitly suppress iteration.
+        
+        This is necessary because `~measurable.Quantity` uses `__getitem__` for
+        unit updates. At the same time, built-in code will attempt to use the
+        old-style iterator protocol if it doesn't find an `__iter__` method,
+        which includes calling `__getitem__` (cf.
+        https://docs.python.org/3/library/collections.abc.html). Defining
+        `__iter__` as not implemented circumvents that problem.
+        """
+        raise TypeError(f"Can't iterate over {type(self)!r}") from None
+
 
 class Vector(Quantity):
     """A multi-valued named quantity.
