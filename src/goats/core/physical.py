@@ -237,19 +237,12 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         if len(args) == 1 and isinstance(args[0], metadata.UnitLike):
             return super().__getitem__(args[0])
         unwrapped = iterables.unwrap(args)
-        if self._types_match(unwrapped, self._builtin):
+        if iterables.hastype(unwrapped, self._builtin, tuple):
             return self._subscript_standard(unwrapped)
         return self._subscript_custom(unwrapped)
 
     def apply_unit(self, new: metadata.UnitLike):
         self._scale *= new // self._unit
-
-    def _types_match(self, args, types):
-        """True if `args` is one `types` or a collection of `types`."""
-        return (
-            isinstance(args, types)
-            or all(isinstance(arg, types) for arg in args)
-        )
 
     def _subscript_standard(self, indices):
         """Perform standard array subscription.
