@@ -17,14 +17,16 @@ class Assumption(physical.Vector):
 
     def __getitem__(self, index):
         values = super().__getitem__(index)
-        iter_values = isinstance(values, typing.Iterable)
-        return (
-            [
+        try:
+            iter(values)
+        except TypeError:
+            result = physical.Scalar(values, unit=self.unit, name=self.name)
+        else:
+            result = [
                 physical.Scalar(value, unit=self.unit, name=self.name)
                 for value in values
-            ] if iter_values
-            else physical.Scalar(values, unit=self.unit, name=self.name)
-        )
+            ]
+        return result
 
     def __float__(self):
         """Represent a single-valued measurement as a `float`."""
