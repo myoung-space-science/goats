@@ -415,3 +415,31 @@ def test_oftype():
         with pytest.raises(TypeError):
             itr(args['bad'])
 
+
+def test_hastype():
+    """Test the function that checks for compound type matches."""
+    # TODO: Expand these initial cases.
+    assert iterables.hastype(1, int)
+    assert iterables.hastype('s', str)
+    assert iterables.hastype([1, 2], list)
+    assert iterables.hastype([1, 2], int, list)
+    assert not iterables.hastype([1, 2], int)
+    assert not iterables.hastype([1, 2], int, tuple)
+    assert not iterables.hastype([1, 2.0], int, list)
+    assert iterables.hastype([1, 2.0], (int, float), list)
+    assert not iterables.hastype([1, 2.0], int, float, list)
+    # The indices below mirror those tested in
+    # test_variable.py::test_variable_getitem.
+    indices = [
+        slice(None),
+        Ellipsis,
+        (0, 0),
+        (0, slice(None)),
+        (slice(None), 0),
+        (slice(None), slice(0, 1, None)),
+    ]
+    types = (int, slice, type(...))
+    for index in indices:
+        assert iterables.hastype(index, types, tuple)
+    assert not iterables.hastype('hello', types)
+

@@ -1487,3 +1487,77 @@ def oftype(__type: typing.Type[T]):
         (collections.abc.Iterable,),
         {'__new__': dunder_new}
     )
+
+
+def hastype(
+    __obj,
+    __types: typing.Union[type, typing.Tuple[type, ...]],
+    *wrappers: typing.Type[typing.Iterable],
+) -> bool:
+    """True if an object is a certain type or contains only certain __types.
+    
+    Parameters
+    ----------
+    __obj : Any
+        The object to compare.
+
+    __types : type or tuple of types
+        One or more types of which the target object may be an instance.
+
+    *wrappers : iterable type
+        Zero or more iterable types of which the target object may be an
+        instance. If the target object is an instance of a given wrapper type,
+        this function will test whether every members of the target object is an
+        instance of the given types.
+
+    Examples
+    --------
+    When called without wrappers, this function is identical to ``isinstance``:
+
+    >>> iterables.hastype(1, int)
+    True
+
+    >>> iterables.hastype('s', str)
+    True
+
+    >>> iterables.hastype([1, 2], list)
+    True
+    
+    The target object contains the given type but ``list`` is not a declared
+    wrapper:
+    
+    >>> iterables.hastype([1, 2], int)
+    False
+    
+    Same as above, but this time ``list`` is a known wrapper:
+
+    >>> iterables.hastype([1, 2], int, list)
+    True
+    
+    Similar, except only ``tuple`` is declared as a wrapper:
+
+    >>> iterables.hastype([1, 2], int, tuple)
+    False
+
+    Each member of a declared wrapper type must be one of the target types:
+
+    >>> iterables.hastype([1, 2.0], int, list)
+    False
+
+    Multiple target types must be passed as a ``tuple``, just as when calling
+    ``isinstance``:
+
+    >>> iterables.hastype([1, 2.0], (int, float), list)
+    True
+
+    Otherwise, this function will interpret them as wrapper types:
+
+    >>> iterables.hastype([1, 2.0], int, float, list)
+    False
+    """
+    if isinstance(__obj, __types):
+        return True
+    for wrapper in wrappers:
+        if isinstance(__obj, wrapper):
+            return all(isinstance(i, __types) for i in __obj)
+    return False
