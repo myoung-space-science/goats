@@ -4,7 +4,6 @@ import typing
 from goats.core import algebraic
 from goats.core import iterables
 from goats.core import metadata
-from goats.core import observed
 from goats.core import observing
 from goats.core import reference
 
@@ -34,27 +33,19 @@ class Quantity(iterables.ReprStrMixin):
 
     def __init__(
         self,
-        interface: observing.Interface,
-        application: typing.Type[observing.Application],
         unit: metadata.UnitLike,
         axes: typing.Union[str, typing.Iterable[str], metadata.Axes],
         name: typing.Union[str, typing.Iterable[str], metadata.Name]=None,
     ) -> None:
-        name = name or "Anonymous"
-        self.interface = interface
-        self._type = application
         self._unit = unit
         self._axes = axes
-        self._name = name
-        self.context = {}
-        self._cached = {}
+        self._name = name or "Anonymous"
+        self.constraints = None
 
     def __getitem__(self, __x: metadata.UnitLike):
         """Set the unit of this quantity."""
         unit = metadata.Unit(__x) if __x != self._unit else self._unit
         return type(self)(
-            self.interface,
-            self._type,
             unit=unit,
             axes=self.axes,
             name=self.name,
@@ -75,32 +66,17 @@ class Quantity(iterables.ReprStrMixin):
         """This quantity's indexable axes."""
         return metadata.Axes(self._axes)
 
-    @property
-    def data(self):
-        """The data array of the current observing state."""
-        q = self._type(self.interface, **self._cached).observe(self.name)
-        self._current = self.context.copy()
-        return q # -> convert to this instance's unit.
+    def apply(self, **constraints):
+        """Apply the given constraints to observations of this quantity."""
+        if self.constraints is None:
+            self.constraints = {}
+        self.constraints.update(constraints)
+        return self
 
-    def at(self, **constraints) -> observed.Quantity:
-        """Create an observation within the given constraints.
-        
-        This method will create a new observation of this observable quantity by
-        applying the given constraints. The default collection of observational
-        constraints uses all relevant axis indices and default parameter values.
-
-        Parameters
-        ----------
-        **constraints
-            Key-value pairs of axes or parameters to update.
-
-        Returns
-        -------
-        `~observed.Quantity`
-            An object representing the resultant observation.
-        """
-        # BUG: Doesn't account for modified unit.
-        return self._type(self.interface, **constraints).observe(self.name)
+    def reset(self):
+        """Clear all user constraints."""
+        self.constraints = {}
+        return self
 
     def __eq__(self, other):
         """True if two observables have the same name and constraints."""
@@ -124,7 +100,6 @@ class Interface(collections.abc.Mapping):
     def __init__(
         self,
         available: observing.Interface,
-        application: typing.Type[observing.Application],
         *names: str,
     ) -> None:
         """Initialize this instance.
@@ -135,20 +110,19 @@ class Interface(collections.abc.Mapping):
             The interface to all observable quantities available to this
             observer.
 
-        application : type
-            A concrete implementation of `~observing.Application` to use when
-            creating observed quantities.
-
         *names : string
-            Zero or more names of allowed observable quantities. Then default
+            Zero or more names of allowed observable quantities. The default
             behavior (when `names` is empty) is to use all available quantities.
             This parameter allows observers to limit the allowed observable
             quantities to a subset of those in `available`.
         """
         self.available = available
-        self.application = application
-        self.names = names or list(available)
+        self._names = names
+
+    @property
+    def names(self):
         """The names of all observable quantities."""
+        return self._names or tuple(self.available)
 
     def __len__(self) -> int:
         return len(self.names)
@@ -165,16 +139,12 @@ class Interface(collections.abc.Mapping):
         axes = meta.get('axes', ())
         if iscomposed(__k):
             return Quantity(
-                self.available,
-                self.application,
                 unit=unit,
                 axes=axes,
                 name=__k,
             )
         if __k in self.names:
             return Quantity(
-                self.available,
-                self.application,
                 unit=unit,
                 axes=axes,
                 name=reference.ALIASES[__k],

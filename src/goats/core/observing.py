@@ -1,6 +1,9 @@
 import abc
+import collections
 import collections.abc
 import contextlib
+import numbers
+import operator as standard
 import typing
 
 from goats.core import algebraic
@@ -266,16 +269,19 @@ class Interface(collections.abc.Collection):
             return target[unit]
         return target
 
-    def compute_scalar(self, key: str, **constraints) -> physical.Scalar:
-        """Create a single-valued physical assumption for `key`."""
-        if key not in self.constants:
+    def compute_value(self, key: str, **constraints) -> physical.Scalar:
+        """Create a parameter value for `key`."""
+        if key not in self.constants and key not in constraints:
             raise ValueError(
                 f"No parameter corresponding to {key!r}"
             ) from None
-        return self._compute_scalar(constraints.get(key, self.constants[key]))
+        if key in constraints:
+            return self._compute_value(constraints[key])
+        return self._compute_value(self.constants[key])
 
-    def _compute_scalar(self, this):
-        """Compute a single scalar assumption."""
+    def _compute_value(self, this):
+        """Compute a parameter value."""
+        # TODO: Generalize beyond scalar parameters.
         scalar = physical.scalar(this)
         unit = self.system.get_unit(unit=scalar.unit)
         return scalar[unit]
@@ -289,94 +295,65 @@ class Result(typing.NamedTuple):
     parameters: typing.Tuple[str, ...]=()
 
 
-class Application(abc.ABC):
-    """ABC for observing applications.
-    
-    Concrete subclasses must define a method called `process` that takes a
-    `~variable.Quantity` and returns a `~variable.Quantity` after applying
-    observer-specific updates.
-    """
+class Context:
+    """A general observing context."""
 
-    def __init__(
-        self,
-        interface: Interface,
-        **constraints
-    ) -> None:
-        self.data = interface
-        self.user = constraints
+    def __init__(self, interface: Interface) -> None:
+        self.interface = interface
+        """The interface to an observer's dataset."""
+        self.user = None
+        """The current set of user constraints within this context."""
         self._cache = {}
 
-    def observe(self, name: typing.Union[str, metadata.Name]):
-        """Compute the target variable quantity and its observing context."""
-        axes = []
-        parameters = []
-        s = list(name)[0] if isinstance(name, metadata.Name) else str(name)
-        expression = algebraic.Expression(reference.NAMES.get(s, s))
-        term = expression[0]
-        result = self.get_observable(term.base)
-        axes.extend(result.axes)
-        parameters.extend(result.parameters)
-        if len(expression) == 1:
-            # We don't need to multiply or divide quantities.
-            indices = {k: self.get_index(k) for k in axes}
-            scalars = {k: self.get_assumption(k) for k in parameters}
-            if term.exponent == 1:
-                # We don't even need to raise this quantity to a power.
-                return observed.Quantity(
-                    result.quantity,
-                    indices=indices,
-                    **scalars
-                )
-            return observed.Quantity(
-                result.quantity ** term.exponent,
-                indices=indices,
-                **scalars
-            )
-        q0 = result.quantity ** term.exponent
-        if len(expression) > 1:
-            for term in expression[1:]:
-                result = self.get_observable(term.base)
-                q0 *= result.quantity ** term.exponent
-                axes.extend(result.axes)
-                parameters.extend(result.parameters)
-        # NOTE: These axes are not guaranteed to be sorted or unique. We could
-        # consider defining `Quantity` as a subclass of `variable.Quantity`, so
-        # that it correctly updates axes, and define parameter updates via
-        # multiplication. The parameters could even be a formal metadata
-        # attribute.
-        indices = {k: self.get_index(k) for k in axes}
-        scalars = {k: self.get_assumption(k) for k in parameters}
-        return observed.Quantity(q0, indices=indices, **scalars)
+    def __contains__(self, __k: str):
+        """True if this context contains the named constraint."""
+        # Should this check all dimensions and parameters or only user
+        # constraints?
+        return __k in self.user
 
-    def evaluate(self, q) -> Result:
-        """Create an observing result based on this quantity."""
-        if isinstance(q, computable.Quantity):
-            parameters = [p for p in q.parameters if p in self.data.constants]
-            return Result(self.compute(q), q.axes, parameters)
-        if isinstance(q, variable.Quantity):
-            return Result(self.process(q), q.axes)
-        raise ValueError(f"Unknown quantity: {q!r}") from None
+    # TODO: Extract common methods from here and `observable.Quantity`.
+    # - constraints attribute
+    # - apply method
+    # - reset method
 
-    @abc.abstractmethod
-    def process(self, name: str) -> variable.Quantity:
-        """Compute observer-specific updates to a variable quantity."""
-        raise NotImplementedError
+    def apply(self, **constraints):
+        """Update the observing constraints.
+        
+        This method will apply the given constraints when computing axis indices
+        and parameter values within this context. It will also clear the
+        corresponding items from the instance cache.
+        """
+        if self.user is None:
+            self.user = {}
+        for key in constraints:
+            for subset in self._cache.values():
+                if key in subset:
+                    del subset[key]
+        self.user.update(constraints)
+        return self
 
-    def compute(self, q: computable.Quantity):
-        """Determine dependencies and compute the result of this function."""
-        dependencies = {p: self.get_dependency(p) for p in q.parameters}
-        return q(**dependencies)
-
-    def get_dependency(self, key: str):
-        """Get the named constant or variable quantity."""
-        if this := self.get_observable(key):
-            return this.quantity
-        return self.get_assumption(key)
-
-    def get_observable(self, key: str):
-        """Retrieve and evaluate an observable quantity."""
-        if quantity := self.data.get_observable(key):
-            return self.evaluate(quantity)
+    def reset(self, *keys: str):
+        """Reset constraints to their default values.
+        
+        Parameters
+        ----------
+        *keys : string
+            Zero or more names of constraints to reset. This method will also
+            remove all named items from the instance cache By default, this
+            method will reset all constraints and clear the cache.
+        """
+        if not keys:
+            self.user = {}
+            self._cache = {}
+        else:
+            subsets = self._cache.values()
+            for key in keys:
+                if key in self.user:
+                    del self.user[key]
+                for subset in subsets:
+                    if key in subset:
+                        del subset[key]
+        return self
 
     def get_index(self, key: str) -> index.Quantity:
         """Get the axis-indexing object for `key`."""
@@ -385,19 +362,19 @@ class Application(abc.ABC):
         if key in self._cache['indices']:
             return self._cache['indices'][key]
         with contextlib.suppress(ValueError):
-            idx = self.data.compute_index(key, **self.user)
+            idx = self.interface.compute_index(key, **self.user)
             self._cache['indices'][key] = idx
             return idx
 
-    def get_assumption(self, key: str) -> physical.Scalar:
-        """Get the physical assumption correpsonding to `key`."""
-        if 'scalars' not in self._cache:
-            self._cache['scalars'] = {}
-        if key in self._cache['scalars']:
-            return self._cache['scalars'][key]
+    def get_value(self, key: str) -> physical.Scalar:
+        """Get the parameter value correpsonding to `key`."""
+        if 'values' not in self._cache:
+            self._cache['values'] = {}
+        if key in self._cache['values']:
+            return self._cache['values'][key]
         with contextlib.suppress(ValueError):
-            val = self.data.compute_scalar(key, **self.user)
-            self._cache['scalars'][key] = val
+            val = self.interface.compute_value(key, **self.user)
+            self._cache['values'][key] = val
             return val
 
-
+    # Consider moving `get_unit` and `get_axes` from `Interface` to here.

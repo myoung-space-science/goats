@@ -153,8 +153,35 @@ class Indexers(aliased.Mapping, iterables.ReprStrMixin):
         return ', '.join(str(key) for key in self.keys(aliased=True))
 
 
-class Application(observing.Application):
-    """An EPREM-specific variable evaluator."""
+class Observer(observer.Interface, iterables.ReprStrMixin):
+    """Base class for EPREM observers."""
+
+    def __init__(
+        self,
+        templates: typing.Iterable[typing.Callable],
+        name: int=None,
+        path: iotools.PathLike=None,
+        config: iotools.PathLike=None,
+        system: str='mks',
+    ) -> None:
+        self._templates = templates
+        self._name = name
+        self._path = path
+        self._config = self._build_confpath(config or ENV['config'])
+        self.system = metric.System(system)
+        self._dataset = None
+        self._arguments = None
+        variables = variable.Interface(self.dataset, self.system)
+        interface = observing.Interface(
+            axis.Interface(Indexers(self.dataset), self.dataset, self.system),
+            variables,
+            self.arguments,
+        )
+        observables = observable.Interface(
+            interface,
+            *[*variables, *computable.REGISTRY],
+        )
+        super().__init__(interface, observables, self.arguments)
 
     def process(self, old: variable.Quantity) -> variable.Quantity:
         if any(self._get_reference(alias) for alias in old.name):
@@ -174,14 +201,14 @@ class Application(observing.Application):
         return self._subscript(new, *axes)
 
     def _subscript(self, q: variable.Quantity, *axes: str):
-        """"""
+        """Extract a subset of this quantity."""
         if axes:
             indices = [
-                self.get_index(a) if a in axes else slice(None)
+                self.context.get_index(a) if a in axes else slice(None)
                 for a in q.axes
             ]
         else:
-            indices = [self.get_index(a) for a in q.axes]
+            indices = [self.context.get_index(a) for a in q.axes]
         return q[tuple(indices)]
 
     def _compute_coordinates(self, q: variable.Quantity):
@@ -191,35 +218,32 @@ class Application(observing.Application):
         if not dimensions:
             return coordinates
         for a in q.axes:
-            idx = self.get_index(a)
+            idx = self.context.get_index(a)
             if a in dimensions and idx.unit is not None:
                 coordinates[a] = {
                     'targets': numpy.array(idx.data),
                     'reference': self._get_reference(a),
                 }
         for key in reference.ALIASES['radius']:
-            if values := self.get_assumption(key):
-                radii = iterables.whole(values)
-                floats = [float(radius) for radius in radii]
+            if values := self.context.get_value(key):
+                try:
+                    iter(values)
+                except TypeError:
+                    floats = [float(values)]
+                else:
+                    floats = [float(value) for value in values]
                 coordinates['radius'] = {
                     'targets': numpy.array(floats),
                     'reference': self._get_reference('radius'),
                 }
         return coordinates
 
-    def get_assumption(self, key: str) -> physical.Scalar:
-        if key in reference.ALIASES['radius']:
-            # I hate this.
-            if this := self.user.get('radius'):
-                return self.data._compute_scalar(this)
-        return super().get_assumption(key)
-
     def _compute_dimensions(self, q: variable.Quantity):
         """Determine over which axes to interpolate, if any."""
         coordinates = {}
         references = []
         for a in q.axes:
-            idx = self.get_index(a)
+            idx = self.context.get_index(a)
             if idx.unit is not None:
                 coordinates[a] = idx.data
                 references.append(self._get_reference(a))
@@ -227,7 +251,7 @@ class Application(observing.Application):
             a for (a, c), r in zip(coordinates.items(), references)
             if not numpy.all([r.array_contains(target) for target in c])
         ]
-        if any(r in self.user for r in reference.ALIASES['radius']):
+        if any(r in self.context for r in reference.ALIASES['radius']):
             axes.append('radius')
         return axes
 
@@ -288,38 +312,6 @@ class Application(observing.Application):
         )
         return numpy.moveaxis(interpolated, dst, src)
 
-
-class Observer(observer.Interface, iterables.ReprStrMixin):
-    """Base class for EPREM observers."""
-
-    def __init__(
-        self,
-        templates: typing.Iterable[typing.Callable],
-        name: int=None,
-        path: iotools.PathLike=None,
-        config: iotools.PathLike=None,
-        system: str='mks',
-    ) -> None:
-        self._templates = templates
-        self._name = name
-        self._path = path
-        self._config = self._build_confpath(config or ENV['config'])
-        self.system = metric.System(system)
-        self._data = None
-        self._arguments = None
-        variables = variable.Interface(self.data, self.system)
-        interface = observing.Interface(
-            axis.Interface(Indexers(self.data), self.data, self.system),
-            variables,
-            self.arguments,
-        )
-        observables = observable.Interface(
-            interface,
-            Application,
-            *[*variables, *computable.REGISTRY],
-        )
-        super().__init__(observables, self.arguments)
-
     @property
     def path(self) -> iotools.ReadOnlyPath:
         """The path to this observer's dataset."""
@@ -335,11 +327,9 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         raise TypeError(message) from None
 
     @property
-    def data(self):
+    def dataset(self):
         """The interface to this observer's data."""
-        if self._data is None:
-            self._data = datafile.Interface(self.path)
-        return self._data
+        return datafile.Interface(self.path)
 
     @property
     def arguments(self):

@@ -96,13 +96,26 @@ def test_observable_access(
         assert isinstance(quantity, observable.Quantity)
 
 
-def test_create_observation(
+def test_create_observation_from_quantity(
     stream: eprem.Stream,
     observables: typing.Dict[str, dict],
 ) -> None:
     """Create the default observation from each observable quantity."""
     for name, expected in observables.items():
-        observation = stream[name].at()
+        this = stream[name]
+        observation = stream.observe(this)
+        assert isinstance(observation, observed.Quantity)
+        for axis in expected['axes']:
+            assert isinstance(observation[axis], index.Quantity), axis
+
+
+def test_create_observation_by_name(
+    stream: eprem.Stream,
+    observables: typing.Dict[str, dict],
+) -> None:
+    """Create the default observation from each observable quantity."""
+    for name, expected in observables.items():
+        observation = stream.observe(name)
         assert isinstance(observation, observed.Quantity)
         for axis in expected['axes']:
             assert isinstance(observation[axis], index.Quantity), axis
@@ -144,7 +157,6 @@ def test_observing_unit(stream: eprem.Stream):
 
 def test_interpolation(stream: eprem.Stream):
     """Interpolate an observation."""
-    intflux = stream['integral flux']
     cases = [
         {
             'index': 'shell',
@@ -171,10 +183,13 @@ def test_interpolation(stream: eprem.Stream):
         'radius': {'linestyle': 'solid'},
         'shell': {'linestyle': '', 'marker': 'o', 'markevery': 10},
     }
+    # TODO: This should test actual values to make sure that the results at
+    # difference shells are different.
     for case in cases:
         name = case['index']
         value = case['value']
-        observation = intflux.at(
+        observation = stream.observe(
+            'integral flux',
             **{name: value},
             species='H+',
         )
