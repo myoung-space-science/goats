@@ -18,7 +18,6 @@ from ..core import (
     measurable,
     metric,
     numerical,
-    observable,
     observer,
     observing,
     physical,
@@ -244,7 +243,6 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
 
     _references = None
 
-    # Convert to property?
     def _get_reference(self, name: str) -> typing.Optional[variable.Quantity]:
         """Get a reference quantity for indexing."""
         if self._references is None:
