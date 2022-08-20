@@ -33,13 +33,13 @@ class Quantity(iterables.ReprStrMixin):
 
     def __init__(
         self,
-        unit: metadata.UnitLike,
-        axes: typing.Union[str, typing.Iterable[str], metadata.Axes],
-        name: typing.Union[str, typing.Iterable[str], metadata.Name]=None,
+        name: typing.Union[str, typing.Iterable[str], metadata.Name],
+        context: observing.Context,
     ) -> None:
-        self._unit = unit
-        self._axes = axes
-        self._name = name or "Anonymous"
+        self._name = name
+        self._context = context
+        self._unit = None
+        self._axes = None
         self.constraints = None
 
     def __getitem__(self, __x: metadata.UnitLike):
@@ -54,7 +54,12 @@ class Quantity(iterables.ReprStrMixin):
     @property
     def unit(self):
         """This quantity's metric unit."""
-        return metadata.Unit(self._unit)
+        return self.context.get_unit(self.name)
+
+    @property
+    def axes(self):
+        """This quantity's indexable axes."""
+        return self.context.get_axes(self.name)
 
     @property
     def name(self):
@@ -62,9 +67,11 @@ class Quantity(iterables.ReprStrMixin):
         return metadata.Name(self._name)
 
     @property
-    def axes(self):
-        """This quantity's indexable axes."""
-        return metadata.Axes(self._axes)
+    def context(self):
+        """This quantity's observing context."""
+        if self.constraints:
+            self._context.apply(**self.constraints)
+        return self._context
 
     def apply(self, **constraints):
         """Apply the given constraints to observations of this quantity."""
@@ -101,6 +108,7 @@ class Interface(collections.abc.Mapping):
         self,
         available: observing.Interface,
         *names: str,
+        context: observing.Context=None,
     ) -> None:
         """Initialize this instance.
         
@@ -115,14 +123,26 @@ class Interface(collections.abc.Mapping):
             behavior (when `names` is empty) is to use all available quantities.
             This parameter allows observers to limit the allowed observable
             quantities to a subset of those in `available`.
+
+        context : `~observing.Context`, optional
+            An existing observing context with which to initialize observable
+            quantities.
         """
         self.available = available
         self._names = names
+        self._context = context
 
     @property
     def names(self):
         """The names of all observable quantities."""
         return self._names or tuple(self.available)
+
+    @property
+    def context(self):
+        """The observing context to pass to observable quantities."""
+        if self._context is None:
+            self._context = observing.Context(self.available)
+        return self._context
 
     def __len__(self) -> int:
         return len(self.names)
@@ -134,27 +154,8 @@ class Interface(collections.abc.Mapping):
         """Get the named observable quantity."""
         if not self.knows(__k):
             raise KeyError(f"Cannot observe {__k!r}") from None
-        meta = self.available.get_metadata(__k)
-        unit = meta.get('unit', '1'),
-        axes = meta.get('axes', ())
-        if iscomposed(__k):
-            return Quantity(
-                unit=unit,
-                axes=axes,
-                name=__k,
-            )
-        if __k in self.names:
-            return Quantity(
-                unit=unit,
-                axes=axes,
-                name=reference.ALIASES[__k],
-            )
-        # NOTE: If `self.knows` is consistent with the two previous `if` blocks,
-        # execution should never reach this point. However, this exception is
-        # here to avoid silently failing in case they are inconsistent.
-        raise ValueError(
-            f"Something went wrong while trying to observe {__k!r}"
-        ) from None
+        name = __k if iscomposed(__k) else reference.ALIASES[__k]
+        return Quantity(name, self.context)
 
     def knows(
         self,
