@@ -29,7 +29,7 @@ class Quantity(iterables.ReprStrMixin):
     def data(self):
         """The array of this observation's data."""
         if self._data is None:
-            self._data = numpy.array(self._quantity.data)
+            self._data = numpy.array(self._quantity)
         return self._data
 
     @property
