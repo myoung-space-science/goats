@@ -138,20 +138,15 @@ def test_parameter_access(stream: eprem.Stream) -> None:
             assert argument.unit == expected['unit']
 
 
-@pytest.mark.xfail
 def test_observing_unit(stream: eprem.Stream):
     """Change the unit of an observable quantity."""
-    q0 = stream['vr']
-    q1 = q0['km / h']
-    assert q1 is not q0
-    assert q0.unit == 'm / s'
-    assert q1.unit == 'km / h'
-    r0 = stream['r']
-    r1 = r0['au']
-    assert r0.unit == 'm'
-    assert r1.unit == 'au'
-    old = r0.at().data
-    new = r1.at().data
+    r = stream['r']
+    assert r.unit == 'm'
+    assert r['au'].unit == 'au'
+    r.reset()
+    assert r.unit == 'm'
+    old = stream.observe(r).data
+    new = stream.observe(r['au']).data
     assert numpy.allclose(old, new * float(fundamental.mks['au']))
 
 
