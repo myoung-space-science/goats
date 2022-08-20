@@ -187,6 +187,17 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         self._shape = None
         self.display.register(data='_get_data_type')
 
+    @property
+    def data(self):
+        """The initial data.
+        
+        This attribute represents the data-containing object used to create this
+        instance. It does not necessarily represent the current array data,
+        which may differ as a result of changing the instance unit, or due to
+        other allowed updates defined on subclasses.
+        """
+        return super().data
+
     def _get_data_type(self):
         """Internal helper for displaying the type of data object."""
         return self.data.__class__
