@@ -21,7 +21,7 @@ class Interface:
     def __init__(
         self,
         data: observing.Interface,
-        observables: typing.Mapping[str, observable.Quantity],
+        names: typing.Iterable[str],
         *others: typing.Mapping[str, typing.Any]
     ) -> None:
         """Initialize this instance.
@@ -32,9 +32,8 @@ class Interface:
             The interface to variable, axis, and constant quantities available
             to this observer.
 
-        observables : mapping
-            A mapping from string key to implementations of
-            `~observable.Quantity`.
+        names : iterable of string
+            The names of formally observable quantities.
 
         *others : mappings
             Zero or more mappings from string key to any object that users
@@ -43,22 +42,16 @@ class Interface:
             `observer[<key>]`).
         """
         self.data = data
-        self.observables = observables
+        self.context = observing.Context(self.data)
+        self.observables = observable.Interface(
+            data,
+            *names,
+            context=self.context,
+        )
         self.others = others
-        self._context = None
-        keys = list(observables)
+        keys = list(self.observables)
         keys.append([key for mapping in others for key in mapping.keys()])
         self._spellcheck = spelling.SpellChecker(keys)
-
-    # NOTE: Making this a property of the observer allows users to set default
-    # constraints for all observations (e.g., every observation occurs at a
-    # radius of 1 au).
-    @property
-    def context(self):
-        """The observing-context manager."""
-        if self._context is None:
-            self._context = observing.Context(self.data)
-        return self._context
 
     def __getitem__(self, key: str):
         """Access an observable quantity by keyword, if possible."""
