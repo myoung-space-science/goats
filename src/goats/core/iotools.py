@@ -194,6 +194,21 @@ def search(paths: typing.Iterable[PathLike], file: PathLike):
     for p in paths:
         path = ReadOnlyPath(p)
         if path.is_dir():
-            test = path / file
+            test = path / str(file)
             if test.exists():
                 return test
+
+
+def find_file_by_template(
+    templates: typing.List[typing.Callable],
+    name: str,
+    datadir: PathLike=pathlib.Path.cwd(),
+) -> pathlib.Path:
+    """Find a valid path that conforms to a given template."""
+    d = ReadOnlyPath(datadir)
+    for template in templates:
+        test = d / str(template(name))
+        if test.exists():
+            return test
+
+

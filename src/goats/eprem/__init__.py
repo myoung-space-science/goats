@@ -35,19 +35,6 @@ ENV = Environment('eprem')
 basetypes = BaseTypesH(source=ENV['src'])
 
 
-def find_file_by_template(
-    templates: typing.List[typing.Callable],
-    name: str,
-    datadir: iotools.PathLike=pathlib.Path.cwd(),
-) -> pathlib.Path:
-    """Find a valid path that conforms to a given template."""
-    datadir = iotools.ReadOnlyPath(datadir)
-    for template in templates:
-        test = datadir / str(template(name))
-        if test.exists():
-            return test
-
-
 class Indexers(aliased.Mapping, iterables.ReprStrMixin):
     """A factory for EPREM array-indexing objects."""
 
@@ -351,14 +338,14 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         """Create the full path for a given observer from components."""
         if directory is None:
             default = ENV['datadir'] or pathlib.Path.cwd()
-            return find_file_by_template(
+            return iotools.find_file_by_template(
                 self._templates,
                 name,
                 datadir=default,
             )
         dpath = pathlib.Path(directory).expanduser().resolve()
         if dpath.is_dir():
-            return find_file_by_template(
+            return iotools.find_file_by_template(
                 self._templates,
                 name,
                 datadir=dpath,
