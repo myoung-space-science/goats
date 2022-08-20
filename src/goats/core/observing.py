@@ -191,26 +191,9 @@ class Interface(collections.abc.Collection):
             if key in this:
                 return this[key]
 
-    def get_metadata(self, key: str):
-        """Get metadata attributes corresponding to `key`."""
-        return {
-            'unit': self.get_unit(key),
-            'axes': self.get_axes(key),
-        }
-
     # TODO: Refactor `get_unit` and `get_axes` to reduce overlap.
 
-    def get_unit(
-        self,
-        name: typing.Union[str, typing.Iterable[str], metadata.Name],
-    ) -> metadata.Unit:
-        """Determine the unit corresponding to `name`."""
-        if isinstance(name, str):
-            return self._get_unit(name)
-        unit = (self._get_unit(key) for key in name)
-        return next(unit, None)
-
-    def _get_unit(self, key: str):
+    def get_unit(self, key: str):
         """Internal helper for `~Interface.get_unit`."""
         if key in self.variables:
             return self.variables[key].unit
@@ -219,23 +202,13 @@ class Interface(collections.abc.Collection):
         s = str(key)
         expression = algebraic.Expression(reference.NAMES.get(s, s))
         term = expression[0]
-        this = self._get_unit(term.base) ** term.exponent
+        this = self.get_unit(term.base) ** term.exponent
         if len(expression) > 1:
             for term in expression[1:]:
-                this *= self._get_unit(term.base) ** term.exponent
+                this *= self.get_unit(term.base) ** term.exponent
         return metadata.Unit(this)
 
-    def get_axes(
-        self,
-        name: typing.Union[str, typing.Iterable[str], metadata.Name],
-    ) -> metadata.Axes:
-        """Determine the axes corresponding to `name`."""
-        if isinstance(name, str):
-            return self._get_axes(name)
-        axes = (self._get_axes(key) for key in name)
-        return next(axes, None)
-
-    def _get_axes(self, key: str):
+    def get_axes(self, key: str):
         """Determine the axes corresponding to `key`."""
         if key in self.variables:
             return self.variables[key].axes
@@ -244,10 +217,10 @@ class Interface(collections.abc.Collection):
         s = str(key)
         expression = algebraic.Expression(reference.NAMES.get(s, s))
         term = expression[0]
-        this = self._get_axes(term.base)
+        this = self.get_axes(term.base)
         if len(expression) > 1:
             for term in expression[1:]:
-                this *= self._get_axes(term.base)
+                this *= self.get_axes(term.base)
         return metadata.Axes(this)
 
     def compute_index(self, key: str, **constraints) -> index.Quantity:
@@ -377,4 +350,35 @@ class Context:
             self._cache['values'][key] = val
             return val
 
-    # Consider moving `get_unit` and `get_axes` from `Interface` to here.
+    # TODO:
+    # - Refactor `get_unit` and `get_axes` to reduce overlap.
+    # - Redefine `_cache` as an aliased mapping.
+
+    def get_unit(
+        self,
+        name: typing.Union[str, typing.Iterable[str], metadata.Name],
+    ) -> metadata.Unit:
+        """Determine the unit corresponding to `name`."""
+        if 'unit' not in self._cache:
+            self._cache['unit'] = {}
+        if name in self._cache['unit']:
+            return self._cache['unit'][name]
+        if isinstance(name, str):
+            return self.interface.get_unit(name)
+        unit = (self.interface.get_unit(key) for key in name)
+        return next(unit, None)
+
+    def get_axes(
+        self,
+        name: typing.Union[str, typing.Iterable[str], metadata.Name],
+    ) -> metadata.Axes:
+        """Determine the axes corresponding to `name`."""
+        if 'axes' not in self._cache:
+            self._cache['axes'] = {}
+        if name in self._cache['axes']:
+            return self._cache['axes'][name]
+        if isinstance(name, str):
+            return self.interface.get_axes(name)
+        axes = (self.interface.get_axes(key) for key in name)
+        return next(axes, None)
+
