@@ -1,7 +1,5 @@
 """Tools for managing variable quantities in datasets."""
 
-import collections.abc
-import inspect
 import numbers
 import typing
 
@@ -9,9 +7,7 @@ import numpy
 import numpy.typing
 
 from goats.core import aliased
-from goats.core import constant
 from goats.core import datafile
-from goats.core import iterables
 from goats.core import metric
 from goats.core import metadata
 from goats.core import reference
