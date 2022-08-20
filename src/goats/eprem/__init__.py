@@ -177,11 +177,11 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
             variables,
             self.arguments,
         )
-        observables = observable.Interface(
+        super().__init__(
             interface,
-            *[*variables, *computable.REGISTRY],
+            [*variables, *computable.REGISTRY],
+            self.arguments,
         )
-        super().__init__(interface, observables, self.arguments)
 
     def process(self, old: variable.Quantity) -> variable.Quantity:
         if any(self._get_reference(alias) for alias in old.name):
