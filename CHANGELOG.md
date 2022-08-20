@@ -1,8 +1,8 @@
 # Changelog
 
-## Next
+## v0.0.27 (20Aug2022)
 
-- Improve efficiency of observing process.
+- Develop new observer interface and observing API.
 - Improve string representation of observable quantity.
 - Add support for a default EPREM data directory.
 
