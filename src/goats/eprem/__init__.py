@@ -153,21 +153,81 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         self._templates = templates
         self._name = name
         self._path = path
-        self._config = self._build_confpath(config or ENV['config'])
         self.system = metric.System(system)
         self._dataset = None
-        self._arguments = None
+        arguments = self._get_arguments(config or ENV['config'])
         variables = variable.Interface(self.dataset, self.system)
         interface = observing.Interface(
             axis.Interface(Indexers(self.dataset), self.dataset, self.system),
             variables,
-            self.arguments,
+            arguments,
         )
         super().__init__(
             interface,
             [*variables, *computable.REGISTRY],
-            self.arguments,
+            arguments,
         )
+
+    @property
+    def dataset(self):
+        """The interface to this observer's data."""
+        return datafile.Interface(self.path)
+
+    @property
+    def path(self) -> iotools.ReadOnlyPath:
+        """The path to this observer's dataset."""
+        if not iterables.missing(self._name):
+            path = self._build_datapath(self._name, self._path)
+            return iotools.ReadOnlyPath(path)
+        if self._path and self._path.is_file():
+            return iotools.ReadOnlyPath(self._path)
+        message = (
+            "You must provide either a name (and optional directory)"
+            " or the path to a dataset."
+        )
+        raise TypeError(message) from None
+
+    def _build_datapath(
+        self,
+        name: typing.Union[int, str],
+        directory: iotools.PathLike=None,
+    ) -> pathlib.Path:
+        """Create the full path for a given observer from components."""
+        if directory is None:
+            default = ENV['datadir'] or pathlib.Path.cwd()
+            return iotools.find_file_by_template(
+                self._templates,
+                name,
+                datadir=default,
+            )
+        dpath = pathlib.Path(directory).expanduser().resolve()
+        if dpath.is_dir():
+            return iotools.find_file_by_template(
+                self._templates,
+                name,
+                datadir=dpath,
+            )
+        raise TypeError(
+            "Can't create path to dataset"
+            f" from directory {directory!r}"
+            f" ({dpath})"
+        )
+
+    def _get_arguments(self, path: iotools.PathLike):
+        """Create an interface to this observer's runtime arguments."""
+        source_path = ENV['src']
+        config_path = self._build_confpath(path)
+        return runtime.Arguments(
+            source_path=source_path,
+            config_path=config_path,
+        )
+
+    def _build_confpath(self, arg: iotools.PathLike):
+        """Create the full path to the named configuration file."""
+        path = pathlib.Path(arg)
+        if path.name == arg: # just the file name
+            return iotools.ReadOnlyPath(self.path.parent / arg)
+        return iotools.ReadOnlyPath(arg)
 
     def process(self, old: variable.Quantity) -> variable.Quantity:
         if any(self._get_reference(alias) for alias in old.name):
@@ -297,70 +357,6 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         )
         return numpy.moveaxis(interpolated, dst, src)
 
-    @property
-    def path(self) -> iotools.ReadOnlyPath:
-        """The path to this observer's dataset."""
-        if not iterables.missing(self._name):
-            path = self._build_datapath(self._name, self._path)
-            return iotools.ReadOnlyPath(path)
-        if self._path and self._path.is_file():
-            return iotools.ReadOnlyPath(self._path)
-        message = (
-            "You must provide either a name (and optional directory)"
-            " or the path to a dataset."
-        )
-        raise TypeError(message) from None
-
-    @property
-    def dataset(self):
-        """The interface to this observer's data."""
-        return datafile.Interface(self.path)
-
-    @property
-    def arguments(self):
-        """The parameter arguments available to this observer."""
-        if self._arguments is None:
-            source_path = ENV['src']
-            config_path = self._config
-            self._arguments = runtime.Arguments(
-                source_path=source_path,
-                config_path=config_path,
-            )
-        return self._arguments
-
-    def _build_datapath(
-        self,
-        name: typing.Union[int, str],
-        directory: iotools.PathLike=None,
-    ) -> pathlib.Path:
-        """Create the full path for a given observer from components."""
-        if directory is None:
-            default = ENV['datadir'] or pathlib.Path.cwd()
-            return iotools.find_file_by_template(
-                self._templates,
-                name,
-                datadir=default,
-            )
-        dpath = pathlib.Path(directory).expanduser().resolve()
-        if dpath.is_dir():
-            return iotools.find_file_by_template(
-                self._templates,
-                name,
-                datadir=dpath,
-            )
-        raise TypeError(
-            "Can't create path to dataset"
-            f" from directory {directory!r}"
-            f" ({dpath})"
-        )
-
-    def _build_confpath(self, arg: iotools.PathLike):
-        """Create the full path to the named configuration file."""
-        path = pathlib.Path(arg)
-        if path.name == arg: # just the file name
-            return iotools.ReadOnlyPath(self.path.parent / arg)
-        return iotools.ReadOnlyPath(arg)
-
     def time(self, unit: str=None):
         """This observer's times."""
         return self._get_indices('time', unit=unit).values
@@ -386,7 +382,7 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         axis = self.dataset.axes[name]
         values = axis(**kwargs)
         if unit and values.unit is not None:
-            return values.with_unit(unit)
+            return values[unit]
         return values
 
     def __str__(self) -> str:
