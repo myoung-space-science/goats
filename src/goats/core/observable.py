@@ -36,7 +36,7 @@ class Quantity(iterables.ReprStrMixin):
         name: typing.Union[str, typing.Iterable[str], metadata.Name],
         context: observing.Context,
     ) -> None:
-        self._name = name
+        self._name = metadata.Name(name)
         self._context = context
         self._unit = None
         self._axes = None
@@ -44,27 +44,28 @@ class Quantity(iterables.ReprStrMixin):
 
     def __getitem__(self, __x: metadata.UnitLike):
         """Set the unit of this quantity."""
-        unit = metadata.Unit(__x) if __x != self._unit else self._unit
-        return type(self)(
-            unit=unit,
-            axes=self.axes,
-            name=self.name,
-        )
+        if __x != self._unit:
+            self._unit = metadata.Unit(__x)
+        return self
 
     @property
     def unit(self):
         """This quantity's metric unit."""
-        return self.context.get_unit(self.name)
+        if self._unit is None:
+            self._unit = self.context.get_unit(self.name)
+        return self._unit
 
     @property
     def axes(self):
         """This quantity's indexable axes."""
-        return self.context.get_axes(self.name)
+        if self._axes is None:
+            self._axes = self.context.get_axes(self.name)
+        return self._axes
 
     @property
     def name(self):
         """This quantity's name."""
-        return metadata.Name(self._name)
+        return self._name
 
     @property
     def context(self):
@@ -81,8 +82,9 @@ class Quantity(iterables.ReprStrMixin):
         return self
 
     def reset(self):
-        """Clear all user constraints."""
+        """Clear all user constraints and reset the unit."""
         self.constraints = {}
+        self._unit = None
         return self
 
     def __eq__(self, other):
