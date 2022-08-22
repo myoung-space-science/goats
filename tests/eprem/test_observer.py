@@ -26,7 +26,7 @@ def get_stream(rootpath: Path):
     and calling simple plotting routines for visual end-to-end tests.
     """
     datadir = rootpath / 'cone' / 'obs'
-    return eprem.Stream(name=0, path=datadir)
+    return eprem.Stream(0, path=datadir)
 
 
 @pytest.fixture
@@ -78,9 +78,9 @@ def test_init_stream(rootpath: Path):
     # from ID and directory
     stream = eprem.Stream(0, path=datadir)
     assert isinstance(stream, observer.Interface)
-    # from full path
-    stream = eprem.Stream(path=datadir / 'obs000000.nc')
-    assert isinstance(stream, observer.Interface)
+    # from full path: DEPRECATED
+    with pytest.raises(TypeError):
+        eprem.Stream(path=datadir / 'obs000000.nc')
     # from only ID, with default path
     stream = eprem.Stream(0)
     assert isinstance(stream, observer.Interface)

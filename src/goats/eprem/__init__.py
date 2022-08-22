@@ -146,12 +146,12 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
 
     def __init__(
         self,
-        name: int=None,
+        __id: int,
         path: iotools.PathLike=None,
         config: iotools.PathLike=None,
         system: str='mks',
     ) -> None:
-        self._name = name
+        self._id = __id
         self._path = path
         self.system = metric.System(system)
         self._dataset = None
@@ -176,8 +176,8 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     @property
     def path(self) -> iotools.ReadOnlyPath:
         """The path to this observer's dataset."""
-        if not iterables.missing(self._name):
-            path = self._build_datapath(self._name, self._path)
+        if not iterables.missing(self._id):
+            path = self._build_datapath(self._id, self._path)
             return iotools.ReadOnlyPath(path)
         if self._path and self._path.is_file():
             return iotools.ReadOnlyPath(self._path)
