@@ -29,30 +29,41 @@ class SpellChecker:
     
     This is based on https://norvig.com/spell-correct.html
     """
-    def __init__(self, valid: typing.Iterable) -> None:
-        self.valid = valid
+    def __init__(self, *words: str) -> None:
+        self.words = set(words)
         letters = 'abcdefghijklmnopqrstuvwxyz'
         self.letters = letters + letters.upper()
-        self.suggestions = None
 
-    def misspelled(self, name: str) -> bool:
-        """Is the given name a misspelling of a known attribute?"""
-        if name in self.valid:
-            return False
+    def check(self, name: str, mode: str=None):
+        """Check the spelling of `name` based on known words."""
+        suggestions = self._check(name)
+        if mode == 'suggest':
+            return suggestions
+        if mode == 'truth':
+            return not suggestions
+        if mode is not None:
+            raise ValueError(f"Unknown mode {mode!r}") from None
+        if suggestions:
+            raise SpellingError(name, suggestions)
+
+    def _check(self, name: str):
+        """Internal helper for `~SpellChecker.check`."""
+        if name in self.words:
+            return []
         edits = list(self.edits(name))
-        self.suggestions = self.get_suggestions(edits)
-        if not self.suggestions:
+        suggestions = self.get_suggestions(edits)
+        if not suggestions:
             edits = [w for edit in edits for w in list(self.edits(edit))]
-            self.suggestions = self.get_suggestions(edits)
-        return bool(self.suggestions)
+            suggestions = self.get_suggestions(edits)
+        return suggestions
 
     def get_suggestions(self, edits: list):
         """Get a batch of suggested words based on `edits`."""
-        return [n for n in self.valid if n in edits]
+        return [n for n in self.words if n in edits]
 
     def known(self, words: typing.Iterable[str]) -> set:
-        """The subset of `words` that is in the list of valid names."""
-        return {word for word in words if word in self.valid}
+        """The subset of `words` that is in the list of known words."""
+        return {word for word in words if word in self.words}
 
     def edits(self, word: str) -> typing.Set[typing.List[str]]:
         """All edits that are one edit away from `word`."""

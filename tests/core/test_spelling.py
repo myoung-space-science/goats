@@ -1,3 +1,5 @@
+import pytest
+
 from goats.core import spelling
 
 
@@ -8,9 +10,16 @@ def test_spell_checker():
         'dog': ['ddog', 'dg', 'odg', 'Dog'],
         'cheese': ['chheese', 'chese', 'cheees', 'Cheese'],
     }
-    checker = spelling.SpellChecker(words)
+    checker = spelling.SpellChecker(*words)
     for word, errors in words.items():
-        assert not checker.misspelled(word)
+        assert checker.check(word, mode='suggest') == []
+        assert checker.check(word, mode='truth')
+        assert checker.check(word) is None
         for error in errors:
-            assert checker.misspelled(error)
+            assert checker.check(error, mode='suggest') == [word]
+            assert not checker.check(error, mode='truth')
+            with pytest.raises(spelling.SpellingError):
+                checker.check(error)
+    with pytest.raises(ValueError):
+        checker.check('apple', mode='edit')
 
