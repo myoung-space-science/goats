@@ -23,3 +23,12 @@ def test_spell_checker():
     with pytest.raises(ValueError):
         checker.check('apple', mode='edit')
 
+
+def test_update_words():
+    """Make sure the user can update the correctly-spelled words."""
+    words = ['apple', 'pear']
+    checker = spelling.SpellChecker(*words)
+    assert checker.words == set(words)
+    checker.words |= {'pie'}
+    assert checker.words == set(words) | {'pie'}
+
