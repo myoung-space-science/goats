@@ -87,7 +87,7 @@ class Quantity(physical.Quantity):
         if self._unit is not None:
             return super().unit
 
-    def apply_conversion(self, new: metadata.Unit):
+    def apply_unit(self, new: metadata.Unit):
         if self._unit is not None:
             return super().apply_unit(new)
         raise TypeError("Can't convert null unit") from None
