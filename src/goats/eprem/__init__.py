@@ -139,6 +139,9 @@ class Indexers(aliased.Mapping, iterables.ReprStrMixin):
         return ', '.join(str(key) for key in self.keys(aliased=True))
 
 
+Instance = typing.TypeVar('Instance', bound='Observer')
+
+
 class Observer(observer.Interface, iterables.ReprStrMixin):
     """Base class for EPREM observers."""
 
@@ -147,87 +150,78 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     def __init__(
         self,
         __id: int,
-        path: iotools.PathLike=None,
-        config: iotools.PathLike=None,
+        source: iotools.PathLike=ENV['source'],
+        config: iotools.PathLike=ENV['config'],
         system: str='mks',
     ) -> None:
         self._id = __id
-        self._path = path
-        self.system = metric.System(system)
-        self._dataset = None
-        arguments = self._get_arguments(config or ENV['config'])
-        variables = variable.Interface(self.dataset, self.system)
-        interface = observing.Interface(
-            axis.Interface(Indexers(self.dataset), self.dataset, self.system),
-            variables,
-            arguments,
-        )
-        super().__init__(
-            interface,
-            [*variables, *computable.REGISTRY],
-            arguments,
-        )
+        super().__init__('preEruption', 'phiOffset', system=system)
+        self._confpath = None
+        self.readfrom(source, config=config)
 
-    @property
-    def dataset(self):
-        """The interface to this observer's data."""
-        return datafile.Interface(self.path)
+    def readfrom(
+        self: Instance,
+        source: iotools.PathLike,
+        config: iotools.PathLike=None
+    ) -> Instance:
+        # Use arguments to update paths.
+        datapath = self._build_datapath(source)
+        confpath = self._build_confpath(config, directory=datapath.parent)
+        # Update internal dataset attribute.
+        dataset = datafile.Interface(datapath)
+        system = self.system()
+        axes = axis.Interface(Indexers(dataset), dataset, system)
+        variables = variable.Interface(dataset, system)
+        constants = runtime.Arguments(
+            source_path=ENV['src'],
+            config_path=confpath,
+        )
+        self._data = observing.Interface(axes, variables, constants)
+        # Update path attributes if everything succeeded.
+        self._confpath = confpath
+        return super().readfrom(datapath)
 
-    @property
-    def path(self) -> iotools.ReadOnlyPath:
-        """The path to this observer's dataset."""
-        if not iterables.missing(self._id):
-            path = self._build_datapath(self._id, self._path)
+    def _build_datapath(self, directory: iotools.PathLike):
+        """Create the path to the dataset from `directory`."""
+        default = ENV['source'] or pathlib.Path.cwd()
+        this = iotools.ReadOnlyPath(directory or default)
+        if this.is_dir():
+            path = iotools.find_file_by_template(
+                self._templates,
+                self._id,
+                directory=this,
+            )
             return iotools.ReadOnlyPath(path)
-        if self._path and self._path.is_file():
-            return iotools.ReadOnlyPath(self._path)
-        message = (
-            "You must provide either a name (and optional directory)"
-            " or the path to a dataset."
-        )
-        raise TypeError(message) from None
-
-    def _build_datapath(
-        self,
-        name: typing.Union[int, str],
-        directory: iotools.PathLike=None,
-    ) -> pathlib.Path:
-        """Create the full path for a given observer from components."""
-        if directory is None:
-            default = ENV['datadir'] or pathlib.Path.cwd()
-            return iotools.find_file_by_template(
-                self._templates,
-                name,
-                datadir=default,
-            )
-        dpath = pathlib.Path(directory).expanduser().resolve()
-        if dpath.is_dir():
-            return iotools.find_file_by_template(
-                self._templates,
-                name,
-                datadir=dpath,
-            )
         raise TypeError(
-            "Can't create path to dataset"
-            f" from directory {directory!r}"
-            f" ({dpath})"
-        )
+            f"Can't create path to dataset from {directory!r}"
+        ) from None
 
-    def _get_arguments(self, path: iotools.PathLike):
-        """Create an interface to this observer's runtime arguments."""
-        source_path = ENV['src']
-        config_path = self._build_confpath(path)
-        return runtime.Arguments(
-            source_path=source_path,
-            config_path=config_path,
-        )
+    def _build_confpath(
+        self,
+        config: iotools.PathLike,
+        directory: iotools.PathLike=pathlib.Path.cwd(),
+    ) -> iotools.ReadOnlyPath:
+        """Create the path to the configuration file."""
+        if not config: # use default directory and name
+            return iotools.ReadOnlyPath(directory / ENV['config'])
+        this = pathlib.Path(config)
+        if this.is_dir(): # use default directory
+            return iotools.ReadOnlyPath(this / ENV['config'])
+        if this.name == config: # use default name
+            return iotools.ReadOnlyPath(directory / this)
+        raise ValueError(
+            f"Can't create path to configuration file from {config!r}"
+        ) from None
 
-    def _build_confpath(self, arg: iotools.PathLike):
-        """Create the full path to the named configuration file."""
-        path = pathlib.Path(arg)
-        if path.name == arg: # just the file name
-            return iotools.ReadOnlyPath(self.path.parent / arg)
-        return iotools.ReadOnlyPath(arg)
+    @property
+    def confpath(self):
+        """The full path to this observer's runtime parameter file."""
+        return self._confpath
+
+    @property
+    def datapath(self) -> iotools.ReadOnlyPath:
+        """The path to this observer's dataset."""
+        return self._source
 
     def process(self, old: variable.Quantity) -> variable.Quantity:
         if any(self._get_reference(alias) for alias in old.name):
@@ -358,7 +352,7 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         return numpy.moveaxis(interpolated, dst, src)
 
     def __str__(self) -> str:
-        return str(self.path)
+        return str(self.datapath)
 
 
 class Stream(Observer):

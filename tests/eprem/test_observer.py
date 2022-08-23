@@ -25,8 +25,8 @@ def get_stream(rootpath: Path):
     `stream` fixture. One example application may be adding a `__main__` section
     and calling simple plotting routines for visual end-to-end tests.
     """
-    datadir = rootpath / 'cone' / 'obs'
-    return eprem.Stream(0, path=datadir)
+    source = rootpath / 'cone' / 'obs'
+    return eprem.Stream(0, source=source)
 
 
 @pytest.fixture
@@ -74,16 +74,28 @@ def observables() -> typing.Dict[str, dict]:
 
 def test_init_stream(rootpath: Path):
     """Attempt to initialize a stream observer with various arguments."""
-    datadir = rootpath / 'cone' / 'obs'
+    source = rootpath / 'cone' / 'obs'
     # from ID and directory
-    stream = eprem.Stream(0, path=datadir)
+    stream = eprem.Stream(0, source=source)
     assert isinstance(stream, observer.Interface)
     # from full path: DEPRECATED
     with pytest.raises(TypeError):
-        eprem.Stream(path=datadir / 'obs000000.nc')
+        eprem.Stream(source=source / 'obs000000.nc')
     # from only ID, with default path
     stream = eprem.Stream(0)
     assert isinstance(stream, observer.Interface)
+
+
+def test_change_source(rootpath: Path):
+    """Make sure changing the source paths updates the observer."""
+    olddir = rootpath / 'cone' / 'obs'
+    stream = eprem.Stream(0, source=olddir)
+    assert stream.datapath == olddir / 'obs000000.nc'
+    assert stream.confpath == olddir / 'eprem_input_file'
+    newdir = rootpath / 'wind' / 'obs'
+    stream.readfrom(newdir)
+    assert stream.datapath == newdir / 'obs000000.nc'
+    assert stream.confpath == newdir / 'eprem_input_file'
 
 
 def test_observable_access(
