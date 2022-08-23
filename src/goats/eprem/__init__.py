@@ -212,7 +212,7 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         ) from None
 
     @property
-    def confpath(self):
+    def confpath(self) -> iotools.ReadOnlyPath:
         """The full path to this observer's runtime parameter file."""
         return self._confpath
 
