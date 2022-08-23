@@ -202,10 +202,10 @@ def search(paths: typing.Iterable[PathLike], file: PathLike):
 def find_file_by_template(
     templates: typing.List[typing.Callable],
     name: str,
-    datadir: PathLike=pathlib.Path.cwd(),
+    directory: PathLike=pathlib.Path.cwd(),
 ) -> pathlib.Path:
     """Find a valid path that conforms to a given template."""
-    d = ReadOnlyPath(datadir)
+    d = ReadOnlyPath(directory)
     for template in templates:
         test = d / str(template(name))
         if test.exists():
