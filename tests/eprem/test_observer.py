@@ -40,35 +40,214 @@ def observables() -> typing.Dict[str, dict]:
     """Information about each observable."""
     T, S, P, E, M = 'time', 'shell', 'species', 'energy', 'mu'
     return {
-        'r': {'axes': (T, S)},
-        'theta': {'axes': (T, S)},
-        'phi': {'axes': (T, S)},
-        'Br': {'axes': (T, S)},
-        'Btheta': {'axes': (T, S)},
-        'Bphi': {'axes': (T, S)},
-        'Vr': {'axes': (T, S)},
-        'Vtheta': {'axes': (T, S)},
-        'Vphi': {'axes': (T, S)},
-        'rho': {'axes': (T, S)},
-        'dist': {'axes': (T, S, P, E, M)},
-        'x': {'axes': (T, S)},
-        'y': {'axes': (T, S)},
-        'z': {'axes': (T, S)},
-        'B': {'axes': (T, S)},
-        'V': {'axes': (T, S)},
-        'flow angle': {'axes': (T, S)},
-        'div(V)': {'axes': (T, S)},
-        'density ratio': {'axes': (T, S)},
-        'rigidity': {'axes': (P, E)},
-        'mean free path': {'axes': (T, S, P, E)},
-        'acceleration rate': {'axes': (T, S, P, E)},
-        'energy density': {'axes': (T, S, P)},
-        'average energy': {'axes': (T, S, P)},
-        'isotropic distribution': {'axes': (T, S, P, E)},
-        'flux': {'axes': (T, S, P, E)},
-        'fluence': {'axes': (S, P, E)},
-        'integral flux': {'axes': (T, S, P)},
-        'Vr / Br': {'axes': (T, S)},
+        'time': {
+            'axes': (T,),
+            'unit': {'mks': 's', 'cgs': 's'},
+            'aliases': ['t', 'times'],
+        },
+        'shell': {
+            'axes': (S,),
+            'unit': {'mks': '1', 'cgs': '1'},
+            'aliases': ['shells'],
+        },
+        'mu': {
+            'axes': (M,),
+            'unit': {'mks': '1', 'cgs': '1'},
+            'aliases': [
+                'mu', 'mus',
+                'pitch angle', 'pitch-angle', 'pitch-angle cosine',
+                'pitch angles', 'pitch-angles', 'pitch-angle cosines',
+            ],
+        },
+        'mass': {
+            'axes': (P,),
+            'unit': {'mks': 'kg', 'cgs': 'g'},
+            'aliases': ['m'],
+        },
+        'charge': {
+            'axes': (P,),
+            'unit': {'mks': 'C', 'cgs': 'statC'},
+            'aliases': ['q'],
+        },
+        'egrid': {
+            'axes': (P, E),
+            'unit': {'mks': 'J', 'cgs': 'erg'},
+            'aliases': ['energy', 'energies', 'E'],
+        },
+        'vgrid': {
+            'axes': (P, E),
+            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'aliases': ['speed', 'vparticle'],
+        },
+        'R': {
+            'axes': (T, S),
+            'unit': {'mks': 'm', 'cgs': 'cm'},
+            'aliases': ['r', 'radius'],
+        },
+        'T': {
+            'axes': (T, S),
+            'unit': {'mks': 'rad', 'cgs': 'rad'},
+            'aliases': ['theta'],
+        },
+        'P': {
+            'axes': (T, S),
+            'unit': {'mks': 'rad', 'cgs': 'rad'},
+            'aliases': ['phi'],
+        },
+        'Br': {
+            'axes': (T, S),
+            'unit': {'mks': 'T', 'cgs': 'G'},
+            'aliases': ['br'],
+        },
+        'Bt': {
+            'axes': (T, S),
+            'unit': {'mks': 'T', 'cgs': 'G'},
+            'aliases': ['bt', 'Btheta', 'btheta'],
+        },
+        'Bp': {
+            'axes': (T, S),
+            'unit': {'mks': 'T', 'cgs': 'G'},
+            'aliases': ['bp', 'Bphi', 'bphi'],
+        },
+        'Vr': {
+            'axes': (T, S),
+            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'aliases': ['vr'],
+        },
+        'Vt': {
+            'axes': (T, S),
+            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'aliases': ['vt', 'Vtheta', 'vtheta'],
+        },
+        'Vp': {
+            'axes': (T, S),
+            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'aliases': ['vp', 'Vphi', 'vphi'],
+        },
+        'Rho': {
+            'axes': (T, S),
+            'unit': {'mks': 'm^-3', 'cgs': 'cm^-3'},
+            'aliases': ['rho'],
+        },
+        'Dist': {
+            'axes': (T, S, P, E, M),
+            'unit': {'mks': 's^3/m^6', 'cgs': 's^3/cm^6'},
+            'aliases': ['dist', 'f'],
+        },
+        'x': {
+            'axes': (T, S),
+            'unit': {'mks': 'm', 'cgs': 'cm'},
+            'aliases': ['X'],
+        },
+        'y': {
+            'axes': (T, S),
+            'unit': {'mks': 'm', 'cgs': 'cm'},
+            'aliases': ['Y'],
+        },
+        'z': {
+            'axes': (T, S),
+            'unit': {'mks': 'm', 'cgs': 'cm'},
+            'aliases': ['Z'],
+        },
+        'B': {
+            'axes': (T, S),
+            'unit': {'mks': 'T', 'cgs': 'G'},
+            'aliases': ['b_mag', '|B|', 'bmag', 'b mag'],
+        },
+        'V': {
+            'axes': (T, S),
+            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'aliases': ['v_mag', '|V|', 'vmag', 'v mag', 'v', '|v|'],
+        },
+        'BV': {
+            'axes': (T, S),
+            'unit': {'mks': 'T * m/s', 'cgs': 'G * cm/s'},
+            'aliases': ['bv_mag', 'bv', '|bv|', '|BV|'],
+        },
+        'Vpara': {
+            'axes': (T, S),
+            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'aliases': ['v_para', 'vpara'],
+        },
+        'Vperp': {
+            'axes': (T, S),
+            'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
+            'aliases': ['v_perp', 'vperp'],
+        },
+        'flow angle': {
+            'axes': (T, S),
+            'unit': {'mks': 'rad', 'cgs': 'rad'},
+            'aliases': ['flow_angle', 'angle'],
+        },
+        'div(V)': {
+            'axes': (T, S),
+            'unit': {'mks': '1/s', 'cgs': '1/s'},
+            'aliases': ['div_v', 'divV', 'divv', 'div V', 'div v', 'div(v)'],
+        },
+        'density ratio': {
+            'axes': (T, S),
+            'unit': {'mks': '1', 'cgs': '1'},
+            'aliases': ['density_ratio', 'n2/n1', 'n_2/n_1'],
+        },
+        'rigidity': {
+            'axes': (P, E),
+            'unit': {'mks': 'kg m / (s C)', 'cgs': 'g cm / (s statC)'},
+            'aliases': ['Rg', 'R_g'],
+        },
+        'mean free path': {
+            'axes': (T, S, P, E),
+            'unit': {'mks': 'm', 'cgs': 'cm'},
+            'aliases': ['mean_free_path', 'mfp'],
+        },
+        'acceleration rate': {
+            'axes': (T, S, P, E),
+            'unit': {'mks': '1/s', 'cgs': '1/s'},
+            'aliases': ['acceleration_rate'],
+        },
+        'energy density': {
+            'axes': (T, S, P),
+            'unit': {'mks': 'J/m^3', 'cgs': 'erg/cm^3'},
+            'aliases': ['energy_density'],
+        },
+        'average energy': {
+            'axes': (T, S, P),
+            'unit': {'mks': 'J', 'cgs': 'erg'},
+            'aliases': ['average_energy'],
+        },
+        'isotropic distribution': {
+            'axes': (T, S, P, E),
+            'unit': {'mks': 's^3/m^6', 'cgs': 's^3/cm^6'},
+            'aliases': ['isotropic_distribution', 'isodist'],
+        },
+        'flux': {
+            'axes': (T, S, P, E),
+            'unit': {
+                'mks': '# / (s sr m^2 J)',
+                'cgs': '# / (s sr cm^2 erg)',
+            },
+            'aliases': ['Flux', 'J', 'J(E)', 'j', 'j(E)'],
+        },
+        'fluence': {
+            'axes': (S, P, E),
+            'unit': {
+                'mks': '# / (sr m^2 J)',
+                'cgs': '# / (sr cm^2 erg)',
+            },
+            'aliases': [],
+        },
+        'integral flux': {
+            'axes': (T, S, P),
+            'unit': {
+                'mks': '# / (s sr m^2)',
+                'cgs': '# / (s sr cm^2)',
+            },
+            'aliases': ['integral_flux'],
+        },
+        'Vr / Br': {
+            'axes': (T, S),
+            'unit': {'mks': 'm / (s T)', 'cgs': 'cm / (s G)'},
+            'aliases': [],
+        },
     }
 
 
