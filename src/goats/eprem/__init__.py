@@ -357,34 +357,6 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         )
         return numpy.moveaxis(interpolated, dst, src)
 
-    def time(self, unit: str=None):
-        """This observer's times."""
-        return self._get_indices('time', unit=unit).values
-
-    def shell(self):
-        """This observer's shells."""
-        return self._get_indices('shell')
-
-    def species(self):
-        """This observer's species."""
-        return self._get_indices('species')
-
-    def energy(self, unit: str=None):
-        """This observer's energies."""
-        return self._get_indices('energy', unit=unit).values
-
-    def mu(self, unit: str=None):
-        """This observer's pitch-angle cosines."""
-        return self._get_indices('mu', unit=unit).values
-
-    def _get_indices(self, name: str, unit: str=None, **kwargs):
-        """Get the index-like object for this axis."""
-        axis = self.dataset.axes[name]
-        values = axis(**kwargs)
-        if unit and values.unit is not None:
-            return values[unit]
-        return values
-
     def __str__(self) -> str:
         return str(self.path)
 
