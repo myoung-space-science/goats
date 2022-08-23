@@ -228,7 +228,7 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         return self._dataset
 
     def process(self, old: variable.Quantity) -> variable.Quantity:
-        if any(self._get_reference(alias) for alias in old.name):
+        if any(self._get_reference(alias) is not None for alias in old.name):
             # This is an axis-reference quantity.
             return self._subscript(old)
         needed = self._compute_coordinates(old)
