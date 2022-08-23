@@ -1,16 +1,13 @@
 import abc
 import typing
-import contextlib
 
 from goats.core import algebraic
 from goats.core import computable
-from goats.core import index
 from goats.core import metadata
 from goats.core import metric
 from goats.core import observable
 from goats.core import observed
 from goats.core import observing
-from goats.core import physical
 from goats.core import reference
 from goats.core import variable
 from goats.core import spelling

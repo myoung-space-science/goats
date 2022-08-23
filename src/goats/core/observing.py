@@ -1,4 +1,3 @@
-import abc
 import collections
 import collections.abc
 import contextlib
@@ -14,7 +13,6 @@ from goats.core import constant
 from goats.core import index
 from goats.core import iterables
 from goats.core import metadata
-from goats.core import observed
 from goats.core import physical
 from goats.core import reference
 from goats.core import variable
