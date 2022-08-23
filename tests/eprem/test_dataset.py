@@ -204,6 +204,11 @@ def test_variables(datapath):
                 'pitch angles', 'pitch-angles', 'pitch-angle cosines',
             ],
         },
+        'phiOffset': {
+            'axes': (T,),
+            'unit': 's',
+            'aliases': [],
+        },
         'mass': {
             'axes': (P,),
             'unit': 'kg',
