@@ -127,9 +127,9 @@ def v_perp(
     bp: numpy.ndarray,
 ) -> numpy.ndarray:
     """The velocity-field component parallel to the magnetic field."""
-    v_mag = v_mag(vr, vt, vp)
-    v_para = v_para(vr, vt, vp, br, bt, bp)
-    return numpy.sqrt(v_mag**2 - v_para**2)
+    mag = v_mag(vr, vt, vp)
+    para = v_para(vr, vt, vp, br, bt, bp)
+    return numpy.sqrt(mag**2 - para**2)
 
 
 @registry.register
