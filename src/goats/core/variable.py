@@ -164,14 +164,17 @@ class Interface(aliased.Mapping):
     instance with the appropriate MKS unit.
     """
 
-    def __init__(
-        self,
-        dataset: datafile.Interface,
-        system: str=None,
-    ) -> None:
+    def __init__(self, dataset: datafile.Interface) -> None:
         super().__init__(dataset.variables)
-        self.system = metric.System(system or 'mks')
+        self._system = None
         self._cache = {}
+
+    @property
+    def system(self):
+        """This observer's metric system."""
+        if self._system is None:
+            self._system = metric.System('mks')
+        return self._system
 
     def __getitem__(self, key: str) -> Quantity:
         """Create the named variable, if possible."""

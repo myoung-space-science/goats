@@ -96,9 +96,8 @@ class Interface(aliased.Mapping):
         self,
         indexers: typing.Mapping[str, index.Factory],
         dataset: datafile.Interface,
-        system: str=None,
     ) -> None:
-        self._variables = variable.Interface(dataset, system)
+        self._variables = variable.Interface(dataset)
         super().__init__(indexers, keymap=reference.ALIASES)
         self.dataset = dataset
 

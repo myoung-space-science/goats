@@ -155,6 +155,7 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         self._id = __id
         super().__init__('preEruption', 'phiOffset', system=system)
         self._confpath = None
+        self._dataset = None
         self.readfrom(source, config=config)
 
     def readfrom(
@@ -165,17 +166,17 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         # Use arguments to update paths.
         datapath = self._build_datapath(source)
         confpath = self._build_confpath(config, directory=datapath.parent)
-        # Update internal dataset attribute.
+        # Update the internal data interface.
         dataset = datafile.Interface(datapath)
-        system = self.system()
-        axes = axis.Interface(Indexers(dataset), dataset, system)
-        variables = variable.Interface(dataset, system)
+        axes = axis.Interface(Indexers(dataset), dataset)
+        variables = variable.Interface(dataset)
         constants = runtime.Arguments(
             source_path=ENV['src'],
             config_path=confpath,
         )
         self._data = observing.Interface(axes, variables, constants)
-        # Update path attributes if everything succeeded.
+        # Update other attributes if everything succeeded.
+        self._dataset = dataset
         self._confpath = confpath
         return super().readfrom(datapath)
 
@@ -220,6 +221,11 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     def datapath(self) -> iotools.ReadOnlyPath:
         """The path to this observer's dataset."""
         return self._source
+
+    @property
+    def dataset(self) -> datafile.Interface:
+        """This observer's original dataset."""
+        return self._dataset
 
     def process(self, old: variable.Quantity) -> variable.Quantity:
         if any(self._get_reference(alias) for alias in old.name):
