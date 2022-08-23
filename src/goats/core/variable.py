@@ -169,30 +169,9 @@ class Interface(aliased.Mapping):
         dataset: datafile.Interface,
         system: str=None,
     ) -> None:
-        known = {
-            k: v for k, v in dataset.variables.items(aliased=True)
-            if k in reference.METADATA
-        }
-        super().__init__(known)
+        super().__init__(dataset.variables)
         self.system = metric.System(system or 'mks')
-        self._units = None
         self._cache = {}
-
-    @property
-    def units(self):
-        """The unit of each variable in the given metric system."""
-        if self._units is None:
-            units = {
-                name: self._get_unit(name)
-                for name in self.keys(aliased=True)
-            }
-            self._units = aliased.Mapping(units)
-        return self._units
-
-    def _get_unit(self, name: str):
-        """Get a standard unit for the named variable."""
-        variable = self.system[reference.METADATA[name]['quantity']]
-        return metadata.Unit(variable.unit)
 
     def __getitem__(self, key: str) -> Quantity:
         """Create the named variable, if possible."""
@@ -203,11 +182,19 @@ class Interface(aliased.Mapping):
             datavar.data,
             unit=standardize(datavar.unit),
             axes=datavar.axes,
-            name=reference.ALIASES[key],
+            name=reference.ALIASES.get(key, key),
         )
-        result = variable[self.units[key]]
+        result = self._convert(variable)
         self._cache[key] = result
         return result
+
+    def _convert(self, variable: Quantity):
+        """Convert the unit of `variable` to the current metric system."""
+        if this := reference.METADATA.get(list(variable.name)[0]):
+            unit = self.system.get_unit(quantity=this['quantity'])
+            return variable[unit]
+        unit = self.system.get_unit(unit=variable.unit)
+        return variable[unit]
 
 
 substitutions = {
