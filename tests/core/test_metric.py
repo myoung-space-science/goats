@@ -443,6 +443,23 @@ def test_unit_equality():
     assert metric.Unit('m/s') == metric.Unit('m*s^-1')
 
 
+def test_unit_identity():
+    """Instances that represent the same unit should be identical"""
+    cases = [
+        ('m', 'meter'),
+        ('J', 'joule'),
+        ('eV', 'electronvolt'),
+        ('G', 'gauss'),
+        ('T', 'tesla'),
+        ('s', 'second'),
+        ('rad', 'radian'),
+        ('deg', 'degree'),
+        ('Hz', 'hertz'),
+    ]
+    for (u0, u1) in cases:
+        assert metric.Unit(u0) is metric.Unit(u1)
+
+
 def test_system():
     """Test the object that represents a system of quantities."""
     # Cases:

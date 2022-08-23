@@ -1631,7 +1631,7 @@ Instance = typing.TypeVar('Instance', bound='Unit')
 class Unit(algebraic.Expression):
     """An algebraic expression representing a physical unit."""
 
-    _instances = {}
+    _instances = aliased.MutableMapping()
 
     _dimension=None
     _quantity=None
@@ -1649,7 +1649,11 @@ class Unit(algebraic.Expression):
         self = super().__new__(cls, arg, **kwargs)
         self._dimension = None
         self._quantity = None
-        cls._instances[str(self)] = self
+        try:
+            this = NamedUnit(arg)
+            cls._instances[(this.name, this.symbol)] = self
+        except UnitParsingError:
+            cls._instances[str(self)] = self
         return self
 
     @property
