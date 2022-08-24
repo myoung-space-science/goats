@@ -255,7 +255,7 @@ class Term(Operand):
     def __init__(self, *args, **kwargs) -> None:
         if not kwargs and len(args) == 1:
             arg = args[0]
-            if self._base_re.match(str(arg)):
+            if self._base_re.fullmatch(str(arg)):
                 return super().__init__(base=arg)
             raise ValueError(
                 f"Can't create term with base {arg!r}"
