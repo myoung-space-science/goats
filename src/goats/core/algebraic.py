@@ -1253,6 +1253,73 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         formatted = (term.format(style=style) for term in self)
         return separator.join(formatted)
 
+    def difference(self, other, symmetric: bool=False, split: bool=False):
+        """Compute the difference between two expressions.
+        
+        Parameters
+        ----------
+        other
+            The object with respect to which to compute the difference. If
+            `other` is not an `~algebraic.Expression`, this method will convert
+            it to one before proceeding.
+
+        symmetric : bool, default=False
+            If true, compute the symmetric difference between this expression
+            and `other`.
+
+        split : bool, default=False
+            If true, return the one-sided differences in a ``list``. The first
+            element contains the terms in this expression that are not in
+            `other`, and the second element contains the terms in `other` that
+            are not in this expression.
+
+        Notes
+        -----
+        The `split` keyword argument takes precedence over the `symmetric`
+        keyword argument because the result of the former contains more
+        imformation than the result of the latter. See Examples for a suggestion
+        on converting a split result into a symmetric result.
+
+        Examples
+        --------
+        Consider the following two expressions:
+        
+        >>> e0 = algebraic.Expression('a * b')
+        >>> e1 = algebraic.Expression('a * c')
+
+        Their formal (one-sided) difference is
+
+        >>> e0.difference(e1)
+        {core.algebraic.Term(b)}
+
+        Their formal symmetric difference is
+
+        >>> e0.difference(e1, symmetric=True)
+        {core.algebraic.Term(b), core.algebraic.Term(c)}
+
+        Passing ``split=True`` produces a ``list`` of ``set``s
+
+        >>> e0.difference(e1, split=True)
+        [{core.algebraic.Term(b)}, {core.algebraic.Term(c)}]
+
+        To convert a split result into a symmetric result, simply compute the
+        union of the former:
+
+        >>> symmetric = e0.difference(e1, symmetric=True)
+        >>> split = e0.difference(e1, split=True)
+        >>> set.union(*split) == symmetric
+        True
+        """
+        if not isinstance(other, Expression):
+            other = self._new(other)
+        s0 = set(self.terms)
+        s1 = set(other.terms)
+        if split:
+            return [s0 - s1, s1 - s0]
+        if symmetric:
+            return s0 ^ s1
+        return s0 - s1
+
     def __eq__(self, other) -> bool:
         """True if two expressions have the same algebraic terms.
 

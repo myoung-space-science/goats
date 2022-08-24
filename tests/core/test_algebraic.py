@@ -618,3 +618,15 @@ def test_expression_apply():
     new = old.apply(capitalize)
     assert new == 'A / B'
 
+
+@pytest.mark.expression
+def test_expression_diff():
+    """Test the method that detects different terms between expressions."""
+    e0 = algebraic.Expression('a * b')
+    e1 = algebraic.Expression('a * c')
+    assert e0.difference(e1) == {algebraic.Term('b')}
+    expected = {algebraic.Term('b'), algebraic.Term('c')}
+    assert e0.difference(e1, symmetric=True) == expected
+    expected = [{algebraic.Term('b')}, {algebraic.Term('c')}]
+    assert e0.difference(e1, split=True) == expected
+
