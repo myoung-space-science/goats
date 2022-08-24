@@ -1713,6 +1713,29 @@ class Unit(algebraic.Expression):
         """Compute the inverse of self // other."""
         return 1.0 / self.__floordiv__(other)
 
+    def __eq__(self, other) -> bool:
+        """Called for self == other.
+        
+        Two unit expressions are equal if they are algebraically equal (cf.
+        `~algebraic.Expression`) or they differ only by dimensionless terms.
+        Otherwise, they are unequal. This method does not attempt to determine
+        if two unit expressions are equivalent (e.g., 'N' and 'kg m / s') by
+        comparing their ratio to unity.
+        """
+        equal = super().__eq__(other)
+        if equal:
+            # If the expressions are equal, the units are equal.
+            return True
+        this = type(self)(other)
+        if len(this) == len(self):
+            # If the expressions are not equal and their lengths are the same,
+            # we can declare them not equal without additional tests.
+            return False
+        difference = self.difference(other)
+        # If the only terms that differ between the units are dimensionless
+        # terms, we can declare them equal. Otherwise, they're unequal.
+        return all(str(term) in UNITY for term in difference)
+
 
 Instance = typing.TypeVar('Instance', bound='Dimension')
 

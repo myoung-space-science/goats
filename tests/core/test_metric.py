@@ -439,8 +439,14 @@ def test_unit_raise():
 
 def test_unit_equality():
     """Test the definition of strict equality between units."""
-    assert metric.Unit('m/s') == metric.Unit('m/s')
-    assert metric.Unit('m/s') == metric.Unit('m*s^-1')
+    cases = [
+        ('m/s', 'm/s'),
+        ('m/s', 'm s^-1'),
+        ('# / (m^2 s sr J)', 'm^-2 s^-1 sr^-1 J^-1'),
+        ('# / (m^2 s sr J)', '1 / (m^2 s sr J)'),
+    ]
+    for (u0, u1) in cases:
+        assert metric.Unit(u0) == metric.Unit(u1)
 
 
 def test_unit_identity():
