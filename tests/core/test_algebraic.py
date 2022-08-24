@@ -88,6 +88,19 @@ def test_create_term():
 
 
 @pytest.mark.term
+def test_init_term():
+    """Test various ways to initialize an algebraic term."""
+    bases = ['1', 'a', 'a_b']
+    for base in bases:
+        term = algebraic.Term(base)
+        assert term.coefficient == 1
+        assert term.base == base
+        assert term.exponent == 1
+    with pytest.raises(ValueError):
+        algebraic.Term('a^-1')
+
+
+@pytest.mark.term
 def test_simple_term_operators():
     """Test allowed arithmetic operations on a simple algebraic term."""
     x = algebraic.Term('x')
