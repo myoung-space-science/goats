@@ -168,11 +168,11 @@ class Operand(Part):
         base: str='1',
         exponent: numbers.Real=1,
     ) -> None:
-        self.coefficient = coefficient
+        self.coefficient = fractions.Fraction(coefficient)
         """The numerical coefficient."""
         self.base = base
         """The base term or complex."""
-        self.exponent = exponent
+        self.exponent = fractions.Fraction(exponent)
         """The numerical exponent."""
 
     @property
