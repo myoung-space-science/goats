@@ -1,4 +1,5 @@
 import abc
+import collections
 import collections.abc
 import fractions
 import functools
@@ -9,6 +10,84 @@ from operator import attrgetter
 import typing
 
 from goats.core import iterables
+
+
+class Patterns(collections.UserDict):
+    """Compiled regular expressions for algebraic operands."""
+
+    rational = r""" # Modeled after `fractions._RATIONAL_FORMAT`
+        [-+]?                 # an optional sign, ...
+        (?=\d|\.\d)           # ... only if followed by <digit> or .<digit>
+        \d*                   # possibly empty numerator
+        (?:                   # followed by ...
+            (?:/\d+?)         # ... an optional denominator
+        |                     # OR
+            (?:\.\d*)?        # ... an optional fractional part
+            (?:[eE][-+]?\d+)? #     and optional exponent
+        )
+    """
+    base = r"""
+        [a-zA-Z#_]+ # one or more accepted non-digit character(s)
+        \d*         # followed by optional digits
+    """
+
+    def __init__(
+        self,
+        multiplication: str='*',
+        division: str='/',
+        opening: str='(',
+        closing: str=')',
+        raising: str='^',
+    ) -> None:
+        multiply = fr'\{multiplication}'
+        divide = fr'\{division}'
+        exponent = fr'\{raising}{self.rational}'
+        patterns = {
+            'multiply': (
+                fr'(?<!{divide})(\s*{multiply}\s*)(?!{divide})'
+            ),
+            'divide': (
+                fr'(?<!{multiply})(\s*{divide}\s*)(?!{multiply})'
+            ),
+            'sqrt': (r'\s*sqrt\s*'),
+            'constant': (
+                fr'(?P<coefficient>{self.rational})'
+                fr'(?P<exponent>{exponent})?'
+            ),
+            'variable': (
+                fr'(?P<coefficient>{self.rational})?'
+                fr'(?P<base>{self.base})'
+                fr'(?P<exponent>{exponent})?'
+            ),
+            'expression': (
+                fr'(?P<coefficient>{self.rational})?'
+                fr'(?P<base>\{opening}.+?\{closing})'
+                fr'(?P<exponent>{exponent})?'
+            ),
+            'exponent': exponent,
+            'opening': fr'\{opening}',
+            'closing': fr'\{closing}',
+            'raising': fr'\{raising}',
+        }
+        self._compiled = {}
+        super().__init__(patterns)
+
+    def __getitem__(self, __k: str):
+        if __k in self._compiled:
+            return self._compiled[__k]
+        if __k in self.data:
+            compiled = re.compile(self.data[__k], re.VERBOSE)
+            self._compiled[__k] = compiled
+            return compiled
+        raise KeyError(f"No pattern for {__k}") from None
+
+    def __setitem__(self, __k: str, __v: str) -> None:
+        self._compiled.pop(__k, None)
+        return super().__setitem__(__k, __v)
+
+    def __delitem__(self, __k: str) -> None:
+        self._compiled.pop(__k, None)
+        return super().__delitem__(__k)
 
 
 class Part(abc.ABC, iterables.ReprStrMixin):
