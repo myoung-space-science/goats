@@ -647,11 +647,22 @@ def test_expression_apply():
 @pytest.mark.expression
 def test_expression_diff():
     """Test the method that detects different terms between expressions."""
-    e0 = algebraic.Expression('a * b')
-    e1 = algebraic.Expression('a * c')
-    assert e0.difference(e1) == {algebraic.Term('b')}
-    expected = {algebraic.Term('b'), algebraic.Term('c')}
-    assert e0.difference(e1, symmetric=True) == expected
-    expected = [{algebraic.Term('b')}, {algebraic.Term('c')}]
-    assert e0.difference(e1, split=True) == expected
+    cases = {
+        ('a * b', 'a * c'): {
+            'standard': {algebraic.Term('b')},
+            'symmetric': {algebraic.Term('b'), algebraic.Term('c')},
+            'split': [{algebraic.Term('b')}, {algebraic.Term('c')}],
+        },
+        ('a * b', 'a / b'): {
+            'standard': {algebraic.Term('b')},
+            'symmetric': {algebraic.Term('b'), algebraic.Term(1, 'b', -1)},
+            'split': [{algebraic.Term('b')}, {algebraic.Term(1, 'b', -1)}],
+        },
+    }
+    for (s0, s1), expected in cases.items():
+        e0 = algebraic.Expression(s0)
+        e1 = algebraic.Expression(s1)
+        assert e0.difference(e1) == expected['standard']
+        assert e0.difference(e1, symmetric=True) == expected['symmetric']
+        assert e0.difference(e1, split=True) == expected['split']
 
