@@ -231,6 +231,13 @@ class Term(Operand):
             return super().__eq__(term)
         return super().__eq__(other)
 
+    def __hash__(self) -> int:
+        # NOTE: If we decide to implement `Operand.__hash__`, we will still need
+        # to explicitly define `Term.__hash__`. See
+        # https://docs.python.org/3/reference/datamodel.html#object.__hash__ for
+        # an explanation.
+        return hash(self.attrs)
+
 
 def asterms(these: typing.Iterable[str]):
     """Convert strings to terms, if possible."""
