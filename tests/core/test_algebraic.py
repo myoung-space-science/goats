@@ -90,17 +90,17 @@ def test_create_term():
 @pytest.mark.term
 def test_simple_term_operators():
     """Test allowed arithmetic operations on a simple algebraic term."""
-    x = algebraic.OperandFactory().create('x')
+    x = algebraic.Term('x')
     assert isinstance(x, algebraic.Term)
     assert x**2 == algebraic.Term(1, 'x', 2)
     assert 3 * x == algebraic.Term(3, 'x', 1)
     assert x * 3 == algebraic.Term(3, 'x', 1)
     assert (3 * x) ** 2 == algebraic.Term(9, 'x', 2)
-    y = algebraic.OperandFactory().create('y')
+    y = algebraic.Term('y')
     assert isinstance(y, algebraic.Term)
     y *= 2.5
     assert y == algebraic.Term(2.5, 'y', 1)
-    z = algebraic.OperandFactory().create('z')
+    z = algebraic.Term('z')
     assert isinstance(z, algebraic.Term)
     z **= -3
     assert z == algebraic.Term(1, 'z', -3)
@@ -132,7 +132,7 @@ def test_term_evaluate():
         with pytest.raises(TypeError):
             variable(badtype)
     with pytest.raises(TypeError):
-        constant = algebraic.Term(9)
+        constant = algebraic.Term(coefficient=9)
         constant(2)
 
 

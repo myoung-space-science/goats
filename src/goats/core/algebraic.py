@@ -144,6 +144,45 @@ class Operand(Part):
 class Term(Operand):
     """An algebraic operand with an irreducible base."""
 
+    # NOTE: currently same as `OperandFactory.base`
+    rational = r""" # Modeled after `fractions._RATIONAL_FORMAT`
+        [-+]?                 # an optional sign, ...
+        (?=\d|\.\d)           # ... only if followed by <digit> or .<digit>
+        \d*                   # possibly empty numerator
+        (?:                   # followed by ...
+            (?:/\d+?)         # ... an optional denominator
+        |                     # OR
+            (?:\.\d*)?        # ... an optional fractional part
+            (?:[eE][-+]?\d+)? #     and optional exponent
+        )
+    """
+    base = r"""
+        [a-zA-Z#_]+ # one or more accepted non-digit character(s)
+        \d*         # followed by optional digits
+    """
+    _base_re = re.compile(fr'({rational}|{base})', re.VERBOSE)
+
+    @typing.overload
+    def __init__(self, base: str, /) -> None: ...
+
+    @typing.overload
+    def __init__(
+        self,
+        coefficient: numbers.Real=1,
+        base: str='1',
+        exponent: numbers.Real=1,
+    ) -> None: ...
+
+    def __init__(self, *args, **kwargs) -> None:
+        if not kwargs and len(args) == 1:
+            arg = args[0]
+            if self._base_re.match(str(arg)):
+                return super().__init__(base=arg)
+            raise ValueError(
+                f"Can't create term with base {arg!r}"
+            ) from None
+        super().__init__(*args, **kwargs)
+
     def __call__(self, value: numbers.Real):
         """Evaluate a variable term at this value.
         
