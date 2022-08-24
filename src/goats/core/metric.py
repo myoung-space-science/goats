@@ -934,7 +934,7 @@ class UnitConversionError(Exception):
         self._to = u1
 
     def __str__(self) -> str:
-        return f"Can't convert {self._from} to {self._to}"
+        return f"Can't convert {self._from!r} to {self._to!r}"
 
 
 class Prefix(typing.NamedTuple):
