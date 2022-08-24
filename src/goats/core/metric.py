@@ -37,6 +37,10 @@ _prefixes = [
 _PREFIXES = iterables.Table(_prefixes)
 
 
+UNITY = {'#', '1'}
+"""Strings that represent dimensionless units."""
+
+
 _units = [
     {
         'symbol': 'm',
