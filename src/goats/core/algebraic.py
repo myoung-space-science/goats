@@ -107,23 +107,12 @@ class Operand(Part):
         exponent = self.exponent * power
         return type(self)(coefficient, self.base, exponent)
 
-    def __ipow__(self, power):
-        """Update this operand's exponent."""
-        self.coefficient **= power
-        self.exponent *= power
-        return self
-
     def __mul__(self, other):
         """Create a new operand, multiplied by `other`."""
         coefficient = self.coefficient * other
         return type(self)(coefficient, self.base, self.exponent)
 
     __rmul__ = __mul__
-
-    def __imul__(self, other):
-        """Update this operand's coefficient."""
-        self.coefficient *= other
-        return self
 
     def __eq__(self, other) -> bool:
         """True if two operands' attributes are equal."""
