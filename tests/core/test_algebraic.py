@@ -46,10 +46,10 @@ def test_ordered():
     assert this >= 1
 
 
-@pytest.mark.term
-def test_create_term():
-    """Create variable and constant algebraic terms."""
-    valid = {
+@pytest.fixture
+def term_args():
+    """Arguments for initializing algebraic terms."""
+    return {
         '1': {'coefficient': 1, 'base': '1', 'exponent': 1},
         '2': {'coefficient': 2, 'base': '1', 'exponent': 1},
         '2^3': {'coefficient': 8, 'base': '1', 'exponent': 1},
@@ -71,13 +71,18 @@ def test_create_term():
         '4ab^3/2': {'coefficient': 4, 'base': 'ab', 'exponent': '3/2'},
         '4b0^3/2': {'coefficient': 4, 'base': 'b0', 'exponent': '3/2'},
     }
-    for string, expected in valid.items():
+
+
+@pytest.mark.term
+def test_create_term(term_args: dict):
+    """Create variable and constant algebraic terms."""
+    for string, expected in term_args.items():
         term = algebraic.OperandFactory().create(string)
         assert isinstance(term, algebraic.Term)
         assert float(term.coefficient) == float(expected['coefficient'])
         assert term.base == expected['base']
         assert term.exponent == fractions.Fraction(expected['exponent'])
-        assert term == string # Probably should be separate test
+        assert term == string
     invalid = [
         '^3', # exponent only
         'a^', # missing exponent
@@ -88,14 +93,21 @@ def test_create_term():
 
 
 @pytest.mark.term
-def test_init_term():
+def test_init_term(term_args: dict):
     """Test various ways to initialize an algebraic term."""
+    for string, kwargs in term_args.items():
+        term = algebraic.Term(**kwargs)
+        assert term.coefficient == kwargs['coefficient']
+        assert term.base == kwargs['base']
+        assert term.exponent == fractions.Fraction(kwargs['exponent'])
+        assert term == string
     bases = ['1', 'a', 'a_b']
     for base in bases:
         term = algebraic.Term(base)
         assert term.coefficient == 1
         assert term.base == base
         assert term.exponent == 1
+        assert term == base
     with pytest.raises(ValueError):
         algebraic.Term('a^-1')
 
