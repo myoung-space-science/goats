@@ -1002,6 +1002,7 @@ class NamedUnit(iterables.ReprStrMixin):
     """The physical quantity of this unit."""
     dimension: str=None
     """The physical dimension of this unit."""
+    _decomposed=None
 
     def __new__(cls, arg):
         """Concrete implementation."""
@@ -1022,6 +1023,7 @@ class NamedUnit(iterables.ReprStrMixin):
         dimensions = cls._dimensions[self.quantity]
         system = self.base.system or 'mks'
         self.dimension = dimensions[system]
+        self._decomposed = None
         cls._instances[key] = self
         return self
 
@@ -1080,23 +1082,25 @@ class NamedUnit(iterables.ReprStrMixin):
     @property
     def decomposed(self):
         """The representation of this unit in base-quantity units."""
-        terms = algebraic.Expression(self.dimension)
-        quantities = [
-            _BASE_QUANTITIES.find(term.base)[0]['name']
-            for term in terms
-        ]
-        units = [
-            _QUANTITIES[quantity]['units'][self.base.system]
-            for quantity in quantities
-        ]
-        parsed = [self.parse(unit) for unit in units]
-        return [
-            algebraic.Term(
-                coefficient=part[0].factor*self.scale,
-                base=part[1].symbol,
-                exponent=term.exponent,
-            ) for part, term in zip(parsed, terms)
-        ]
+        if self._decomposed is None:
+            terms = algebraic.Expression(self.dimension)
+            quantities = [
+                _BASE_QUANTITIES.find(term.base)[0]['name']
+                for term in terms
+            ]
+            units = [
+                _QUANTITIES[quantity]['units'][self.base.system]
+                for quantity in quantities
+            ]
+            parsed = [self.parse(unit) for unit in units]
+            return [
+                algebraic.Term(
+                    coefficient=part[0].factor*self.scale,
+                    base=part[1].symbol,
+                    exponent=term.exponent,
+                ) for part, term in zip(parsed, terms)
+            ]
+        return self._decomposed
 
     def __eq__(self, other) -> bool:
         """True if two representations have equal magnitude and base unit."""
