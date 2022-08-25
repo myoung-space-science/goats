@@ -214,6 +214,7 @@ def test_named_unit_decompose():
         ('mJ', [(1e0, 'g', 1), (1e-3, 'm', 2), (1e-3, 's', -2)]),
         ('erg', [(1e0, 'g', 1), (1e-2, 'm', 2), (1e0, 's', -2)]),
         ('merg', [(1e-3, 'g', 1), (1e-5, 'm', 2), (1e-3, 's', -2)]),
+        ('N', [(1e3, 'g', 1), (1e0, 'm', 1), (1e0, 's', -2)]),
     ]
     for (unit, expected) in cases:
         decomposed = metric.NamedUnit(unit).decomposed
