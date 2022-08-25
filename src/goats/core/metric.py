@@ -1152,6 +1152,27 @@ class NamedUnit(iterables.ReprStrMixin):
 
         Therefore, this operation is not intended for unit conversion.
         """
+        return self._floordiv(other)
+
+    def __rfloordiv__(self, other):
+        """The magnitude of other relative to self."""
+        return self._floordiv(other, reverse=True)
+
+    def _floordiv(self, other, reverse: bool=False):
+        """Compute the relative magnitude of two named units.
+        
+        Notes
+        -----
+        Prior to this method, this class defined floor division with reflected
+        operands as::
+
+            def __rfloordiv__(self, other):
+                return 1.0 / (self // other)
+
+        However, that approach resulted in degraded precision. This method
+        directly computes either ``self // other`` or ``other // self``, as
+        appropriate.
+        """
         if not isinstance(other, (str, NamedUnit)):
             return NotImplemented
         that = type(self)(other)
@@ -1161,11 +1182,7 @@ class NamedUnit(iterables.ReprStrMixin):
             raise ValueError(
                 f"Can't compute magnitude of {self!r} relative to {other!r}"
             ) from None
-        return that.scale / self.scale
-
-    def __rfloordiv__(self, other):
-        """The magnitude of other relative to self."""
-        return 1.0 / (self // other)
+        return self.scale / that.scale if reverse else that.scale / self.scale
 
     def __str__(self) -> str:
         """A printable representation of this unit."""
