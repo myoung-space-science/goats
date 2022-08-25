@@ -1093,7 +1093,7 @@ class NamedUnit(iterables.ReprStrMixin):
         """
         return unit in named_units
 
-    def decompose(self, system: str):
+    def decompose(self, system: str) -> Decomposition:
         """Represent this unit in base units of `system`, if possible."""
         if self._decompositions[system]:
             return self._decompositions[system]
