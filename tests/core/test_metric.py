@@ -224,6 +224,16 @@ def test_named_unit_floordiv():
 def decompositions():
     """Test cases for named-unit decompositions."""
     return {
+        's': {
+            'mks': {
+                'scale': 1e0,
+                'terms': [{'base': 's'}],
+            },
+            'cgs': {
+                'scale': 1e0,
+                'terms': [{'base': 's'}],
+            },
+        },
         'm': {
             'mks': {
                 'scale': 1e0,
