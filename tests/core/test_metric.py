@@ -253,6 +253,26 @@ def test_named_unit_decompose():
                 'terms': [{'base': 'cm'}],
             },
         },
+        'kg': {
+            'mks': {
+                'scale': 1e0,
+                'terms': [{'base': 'kg'}],
+            },
+            'cgs': {
+                'scale': 1e3,
+                'terms': [{'base': 'g'}],
+            },
+        },
+        'g': {
+            'mks': {
+                'scale': 1e-3,
+                'terms': [{'base': 'kg'}],
+            },
+            'cgs': {
+                'scale': 1e0,
+                'terms': [{'base': 'g'}],
+            },
+        },
         'J': {
             'mks': {
                 'scale': 1e0,
