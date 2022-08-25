@@ -1100,7 +1100,7 @@ class NamedUnit(iterables.ReprStrMixin):
                 for quantity in quantities
             ]
             parsed = [self.parse(unit) for unit in units]
-            return [
+            self._decomposed = [
                 algebraic.Term(
                     coefficient=part[0].factor*self.scale,
                     base=part[1].symbol,
