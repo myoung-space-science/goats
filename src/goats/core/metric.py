@@ -961,6 +961,13 @@ class BaseUnit(typing.NamedTuple):
     system: str=None
 
 
+class Decomposition(typing.NamedTuple):
+    """The numeric scale and base units of a named unit."""
+
+    scale: float
+    terms: typing.List[algebraic.Term]
+
+
 Instance = typing.TypeVar('Instance', bound='NamedUnit')
 
 
@@ -1009,7 +1016,7 @@ class NamedUnit(iterables.ReprStrMixin):
     """The physical quantity of this unit."""
     dimension: str=None
     """The physical dimension of this unit."""
-    _decomposed=None
+    _decompositions=None
 
     def __new__(cls, arg):
         """Concrete implementation."""
@@ -1030,7 +1037,7 @@ class NamedUnit(iterables.ReprStrMixin):
         dimensions = cls._dimensions[self.quantity]
         system = self.base.system or 'mks'
         self.dimension = dimensions[system]
-        self._decomposed = None
+        self._decompositions = dict.fromkeys(('mks', 'cgs'))
         cls._instances[key] = self
         return self
 
@@ -1086,28 +1093,45 @@ class NamedUnit(iterables.ReprStrMixin):
         """
         return unit in named_units
 
-    @property
-    def decomposed(self):
-        """The representation of this unit in base-quantity units."""
-        if self._decomposed is None:
-            terms = algebraic.Expression(self.dimension)
-            quantities = [
-                _BASE_QUANTITIES.find(term.base)[0]['name']
-                for term in terms
-            ]
-            units = [
-                _QUANTITIES[quantity]['units'][self.base.system]
-                for quantity in quantities
-            ]
-            parsed = [self.parse(unit) for unit in units]
-            self._decomposed = [
-                algebraic.Term(
-                    coefficient=part[0].factor*self.scale,
-                    base=part[1].symbol,
-                    exponent=term.exponent,
-                ) for part, term in zip(parsed, terms)
-            ]
-        return self._decomposed
+    def decompose(self, system: str):
+        """Represent this unit in base units of `system`, if possible."""
+        if self._decompositions[system]:
+            return self._decompositions[system]
+        result = self._decompose(system)
+        self._decompositions[system] = result
+        return result
+
+    def _decompose(self, system: str):
+        """Internal logic for `~NamedUnit.decompose`."""
+        # TODO: If there is no decomposition for one of the metric systems, the
+        # user should not have to specify `system`.
+        expression = algebraic.Expression(self.dimension)
+        if len(expression) == 1:
+            # If this unit's dimension is irreducible, there's no point in going
+            # through all the decomposition logic.
+            canonical = CANONICAL['units'][system][self.quantity]
+            if self.symbol == canonical:
+                # If this is the canonical unit for its quantity in `system`,
+                # return it with a scale of unity.
+                return Decomposition(1.0, [algebraic.Term(self.symbol)])
+            # If not, return the canonical unit with the appropriate scale
+            # factor.
+            return Decomposition(canonical // self, [algebraic.Term(canonical)])
+        if self.base.system != system:
+            return
+        quantities = [
+            _BASE_QUANTITIES.find(term.base)[0]['name']
+            for term in expression
+        ]
+        units = [
+            _QUANTITIES[quantity]['units'][system]
+            for quantity in quantities
+        ]
+        terms = [
+            algebraic.Term(base=unit, exponent=term.exponent)
+            for unit, term in zip(units, expression)
+        ]
+        return Decomposition(self.scale, terms)
 
     def __eq__(self, other) -> bool:
         """True if two representations have equal magnitude and base unit."""

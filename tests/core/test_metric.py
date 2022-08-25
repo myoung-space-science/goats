@@ -2,6 +2,7 @@ import operator
 
 import pytest
 
+from goats.core import algebraic
 from goats.core import metric
 
 
@@ -220,24 +221,106 @@ def test_named_unit_floordiv():
 
 
 def test_named_unit_decompose():
-    """Test the decomposed property of NamedUnit."""
-    cases = [
-        ('m', [(1e0, 'm', 1)]),
-        ('cm', [(1e-2, 'm', 1)]),
-        ('km', [(1e3, 'm', 1)]),
-        ('J', [(1e3, 'g', 1), (1e0, 'm', 2), (1e0, 's', -2)]),
-        ('mJ', [(1e0, 'g', 1), (1e-3, 'm', 2), (1e-3, 's', -2)]),
-        ('erg', [(1e0, 'g', 1), (1e-2, 'm', 2), (1e0, 's', -2)]),
-        ('merg', [(1e-3, 'g', 1), (1e-5, 'm', 2), (1e-3, 's', -2)]),
-        ('N', [(1e3, 'g', 1), (1e0, 'm', 1), (1e0, 's', -2)]),
-    ]
-    for (unit, expected) in cases:
-        decomposed = metric.NamedUnit(unit).decomposed
-        result = [
-            (float(term.coefficient), term.base, int(term.exponent))
-            for term in decomposed
-        ]
-        assert result == expected
+    """Test the NamedUnit.decompose method."""
+    cases = {
+        'm': {
+            'mks': {
+                'scale': 1e0,
+                'terms': [{'base': 'm'}],
+            },
+            'cgs': {
+                'scale': 1e2,
+                'terms': [{'base': 'cm'}],
+            },
+        },
+        'cm': {
+            'mks': {
+                'scale': 1e-2,
+                'terms': [{'base': 'm'}],
+            },
+            'cgs': {
+                'scale': 1e0,
+                'terms': [{'base': 'cm'}],
+            },
+        },
+        'km': {
+            'mks': {
+                'scale': 1e3,
+                'terms': [{'base': 'm'}],
+            },
+            'cgs': {
+                'scale': 1e5,
+                'terms': [{'base': 'cm'}],
+            },
+        },
+        'J': {
+            'mks': {
+                'scale': 1e0,
+                'terms': [
+                    {'base': 'kg', 'exponent': 1},
+                    {'base': 'm', 'exponent': 2},
+                    {'base': 's', 'exponent': -2},
+                ],
+            },
+            'cgs': None,
+        },
+        'mJ': {
+            'mks': {
+                'scale': 1e-3,
+                'terms': [
+                    {'base': 'kg', 'exponent': 1},
+                    {'base': 'm', 'exponent': 2},
+                    {'base': 's', 'exponent': -2},
+                ],
+            },
+            'cgs': None,
+        },
+        'erg': {
+            'mks': None,
+            'cgs': {
+                'scale': 1e0,
+                'terms': [
+                    {'base': 'g', 'exponent': 1},
+                    {'base': 'cm', 'exponent': 2},
+                    {'base': 's', 'exponent': -2},
+                ],
+            },
+        },
+        'merg': {
+            'mks': None,
+            'cgs': {
+                'scale': 1e-3,
+                'terms': [
+                    {'base': 'g', 'exponent': 1},
+                    {'base': 'cm', 'exponent': 2},
+                    {'base': 's', 'exponent': -2},
+                ],
+            },
+        },
+        'N': {
+            'mks': {
+                'scale': 1e0,
+                'terms': [
+                    {'base': 'kg', 'exponent': 1},
+                    {'base': 'm', 'exponent': 1},
+                    {'base': 's', 'exponent': -2},
+                ],
+            },
+            'cgs': None,
+        },
+    }
+    for unit, systems in cases.items():
+        named = metric.NamedUnit(unit)
+        for system, expected in systems.items():
+            result = named.decompose(system)
+            if expected is None:
+                assert result is None
+            else:
+                assert result.scale == expected['scale']
+                terms = [algebraic.Term(**term) for term in expected['terms']]
+                assert result.terms == terms
+
+
 
 
 def test_named_unit_parse():
