@@ -890,6 +890,13 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
         return self.key
 
 
+CANONICAL = {
+    k: {
+        system: Property(k).system(system) for system in ('mks', 'cgs')
+    } for k in ('dimensions', 'units')
+}
+
+
 class Attributes(typing.NamedTuple):
     """Canonical values of a quantity within a metric system."""
 
@@ -1799,8 +1806,8 @@ class System(collections.abc.Mapping, iterables.ReprStrMixin):
             return instance
         self = super().__new__(cls)
         self.name = name
-        self.dimensions = Property('dimensions').system(name)
-        self.units = Property('units').system(name)
+        self.dimensions = CANONICAL['dimensions'][name]
+        self.units = CANONICAL['units'][name]
         cls._instances[name] = self
         return self
 
