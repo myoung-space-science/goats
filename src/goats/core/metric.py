@@ -1123,71 +1123,102 @@ class NamedUnit(iterables.ReprStrMixin):
     def __floordiv__(self, other):
         """The magnitude of self relative to other.
 
-        Examples
+        This operation computes the numerical factor necessary to convert a
+        quantity in the unit of `self` to a quantity in the unit of `other`,
+        provided `self` and `other` represent units with the same base unit. It
+        is not intended for unit conversion.
+
+        Notes
         --------
-        The following are all equivalent to the statement that there are 100
-        centimeters per meter:
+        The result of this operation is the inverse of the result of
+        `~metric.ratio`:
 
-            >>> NamedUnit('centimeter') // NamedUnit('meter')
-            100.0
-            >>> NamedUnit('cm') // NamedUnit('m')
-            100.0
-            >>> NamedUnit('meter') // NamedUnit('centimeter')
+            >>> metric.ratio('cm', 'm')
             0.01
-
-        Only one of the operands need be an instance of this type:
-
-            >>> NamedUnit('m') // 'cm'
-            100.0
-            >>> 'm' // NamedUnit('cm')
+            >>> metric.NamedUnit('cm') // 'm'
             100.0
 
-        Attempting this operation between two units with different bases
-        will raise an exception:
-
-            >>> NamedUnit('m') // NamedUnit('au')
-            <raises ValueError>
-            >>> NamedUnit('m') // NamedUnit('s')
-            <raises ValueError>
-
-        Therefore, this operation is not intended for unit conversion.
+        This is so that the resultant numerical value correctly scales a
+        quantity in `self` to a quantity in `other`. Using the units in the
+        above example, a numerical value of a quantity in centimeters is 100.0
+        times the numerical value of the same quantity in meters.
         """
-        return self._floordiv(other)
+        return ratio(other, self)
 
     def __rfloordiv__(self, other):
-        """The magnitude of other relative to self."""
-        return self._floordiv(other, reverse=True)
-
-    def _floordiv(self, other, reverse: bool=False):
-        """Compute the relative magnitude of two named units.
+        """The magnitude of other relative to self.
         
         Notes
         -----
-        Prior to this method, this class defined floor division with reflected
-        operands as::
+        This method used to return the inverse of the forward operation:
 
             def __rfloordiv__(self, other):
                 return 1.0 / (self // other)
 
-        However, that approach resulted in degraded precision. This method
-        directly computes either ``self // other`` or ``other // self``, as
-        appropriate.
+        However, that approach resulted in degraded precision. It now simply
+        calls `~metric.ratio` with operands reversed relative to the forward
+        operation.
         """
-        if not isinstance(other, (str, NamedUnit)):
-            return NotImplemented
-        that = type(self)(other)
-        if that == self:
-            return 1.0
-        if that.base != self.base:
-            raise ValueError(
-                f"Can't compute magnitude of {self!r} relative to {other!r}"
-            ) from None
-        return self.scale / that.scale if reverse else that.scale / self.scale
+        return ratio(self, other)
 
     def __str__(self) -> str:
         """A printable representation of this unit."""
         return f"'{self.name} | {self.symbol}'"
 
+
+def ratio(
+    this: typing.Union[str, NamedUnit],
+    that: typing.Union[str, NamedUnit],
+) -> float:
+    """Compute the magnitude of `this` relative to `that`.
+
+    Parameters
+    ----------
+    this : string or `~metric.NamedUnit`
+        The reference unit.
+
+    that : string or `~metric.NamedUnit`
+        The unit to compare to `this`. Must have the same base unit as `this`.
+
+    Examples
+    --------
+    The following are all equivalent to the fact that a meter represents
+    100 centimeters:
+
+        >>> ratio('meter', 'centimeter')
+        100.0
+        >>> ratio('centimeter', 'meter')
+        0.01
+        >>> ratio('m', 'cm')
+        100.0
+        >>> ratio('cm', 'm')
+        0.01
+
+    Attempting this operation between two units with different base units will
+    raise an exception,
+
+        >>> ratio('m', 's')
+        <raises ValueError>
+
+    even if they represent the same quantity.
+
+        >>> ratio('m', 'au')
+        <raises ValueError>
+
+    Therefore, this function is not intended for unit conversion.
+    """
+    u = [NamedUnit(i) if isinstance(i, str) else i for i in (this, that)]
+    if not all(isinstance(i, NamedUnit) for i in u):
+        raise TypeError(
+            f"Each unit must be an instance of {str!r} or {NamedUnit!r}"
+        ) from None
+    u0, u1 = u
+    if u1 == u0:
+        return 1.0
+    if u1.base != u0.base:
+        units = ' to '.join(f"{i.symbol!r} ({i.name})" for i in u)
+        raise ValueError(f"Can't compare {units}") from None
+    return u0.scale / u1.scale
 
 
 Instance = typing.TypeVar('Instance', bound='Conversion')

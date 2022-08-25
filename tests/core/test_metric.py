@@ -140,6 +140,21 @@ def build_singleton(obj, arg):
     return obj(*arg) if isinstance(arg, tuple) else obj(arg)
 
 
+def test_ratio():
+    """Test the method that computes the ratio of two units."""
+    cases = {
+        ('cm', 'm'): 1e-2,
+        ('m', 'cm'): 1e2,
+        ('cm', 'cm'): 1.0,
+        ('km', 'm'): 1e3,
+        ('m', 'km'): 1e-3,
+    }
+    for (u0, u1), result in cases.items():
+        assert metric.ratio(u0, u1) == result
+    with pytest.raises(ValueError):
+        metric.ratio('cm', 'J')
+
+
 def test_named_unit_knows_about():
     """Test the convenience method for testing possible instances."""
     for unit in metric.named_units:
