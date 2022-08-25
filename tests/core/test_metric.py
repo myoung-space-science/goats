@@ -220,9 +220,10 @@ def test_named_unit_floordiv():
         u0 // u1 # not defined for different base units
 
 
-def test_named_unit_decompose():
-    """Test the NamedUnit.decompose method."""
-    cases = {
+@pytest.fixture
+def decompositions():
+    """Test cases for named-unit decompositions."""
+    return {
         'm': {
             'mks': {
                 'scale': 1e0,
@@ -329,7 +330,11 @@ def test_named_unit_decompose():
             'cgs': None,
         },
     }
-    for unit, systems in cases.items():
+
+
+def test_named_unit_decompose(decompositions: dict):
+    """Test the NamedUnit.decompose method."""
+    for unit, systems in decompositions.items():
         named = metric.NamedUnit(unit)
         for system, expected in systems.items():
             result = named.decompose(system)
