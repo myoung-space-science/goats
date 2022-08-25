@@ -346,6 +346,20 @@ def test_named_unit_decompose(decompositions: dict):
                 assert result.terms == terms
 
 
+def test_named_unit_decompose_system(decompositions: dict):
+    """Test decompositions with the default metric system."""
+    these = {
+        'J': 'mks', # only defined in mks
+        'erg': 'cgs', # only defined in cgs
+        'cm': 'mks', # base unit is fundamental in mks
+        'kg': 'cgs', # base unit is fundamental in cgs
+    }
+    for unit, default in these.items():
+        case = decompositions[unit][default]
+        result = metric.NamedUnit(unit).decompose()
+        terms = [algebraic.Term(**term) for term in case['terms']]
+        assert result.scale == case['scale']
+        assert result.terms == terms
 
 
 def test_named_unit_parse():

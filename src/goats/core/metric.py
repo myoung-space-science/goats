@@ -1093,8 +1093,9 @@ class NamedUnit(iterables.ReprStrMixin):
         """
         return unit in named_units
 
-    def decompose(self, system: str) -> Decomposition:
+    def decompose(self, system: str=None) -> typing.Optional[Decomposition]:
         """Represent this unit in base units of `system`, if possible."""
+        system = system or self.base.system
         if self._decompositions[system]:
             return self._decompositions[system]
         result = self._decompose(system)
@@ -1103,8 +1104,6 @@ class NamedUnit(iterables.ReprStrMixin):
 
     def _decompose(self, system: str):
         """Internal logic for `~NamedUnit.decompose`."""
-        # TODO: If there is no decomposition for one of the metric systems, the
-        # user should not have to specify `system`.
         expression = algebraic.Expression(self.dimension)
         if len(expression) == 1:
             # If this unit's dimension is irreducible, there's no point in going
