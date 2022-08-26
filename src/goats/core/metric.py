@@ -34,7 +34,7 @@ _prefixes = [
     {'symbol': 'y', 'name': 'yocto', 'factor': 1e-24},
 ]
 
-_PREFIXES = iterables.Table(_prefixes)
+_PREFIXES_TABLE = iterables.Table(_prefixes)
 
 
 UNITY = {'#', '1'}
@@ -306,7 +306,7 @@ _units = [
     },
 ]
 
-_UNITS = iterables.Table(_units)
+_UNITS_TABLE = iterables.Table(_units)
 
 
 # A note about angles: Kalinin (2019) "On the status of plane and solid in the
@@ -918,7 +918,7 @@ def build_unit_aliases(prefix, unit):
 named_units = aliased.Mapping(
     {
         build_unit_aliases(prefix, unit): {'base': unit, 'prefix': prefix}
-        for prefix in _PREFIXES for unit in _UNITS
+        for prefix in _PREFIXES_TABLE for unit in _UNITS_TABLE
     }
 )
 
