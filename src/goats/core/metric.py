@@ -897,6 +897,12 @@ CANONICAL = {
 }
 
 
+# NOTE: Defining mappings from unit or dimension to quantity is a bad idea
+# because some quantities have the same unit or dimension in a given system.
+# This makes the mapping ill-defined. Python dictionaries simply use the latest
+# entry for a repeated key, which means some quantities would overwrite others.
+
+
 class Attributes(typing.NamedTuple):
     """Canonical values of a quantity within a metric system."""
 
