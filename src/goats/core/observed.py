@@ -67,7 +67,7 @@ class Quantity(iterables.ReprStrMixin):
                 return self._indices[__x]
             if __x in self._assumptions:
                 return self._assumptions[__x]
-        return super().__getitem__(__x)
+        return self._quantity[__x]
 
     def __eq__(self, other) -> bool:
         """True if two instances have equivalent attributes."""
