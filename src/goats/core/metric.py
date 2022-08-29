@@ -41,6 +41,10 @@ UNITY = {'#', '1'}
 """Strings that represent dimensionless units."""
 
 
+SYSTEMS = {'mks', 'cgs'}
+"""The metric systems known to this module."""
+
+
 _units = [
     {
         'symbol': 'm',
@@ -888,6 +892,14 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
     def __str__(self) -> str:
         """A simplified representation of this object."""
         return self.key
+
+
+DIMENSIONS = Property('dimensions')
+"""All defined metric dimensions."""
+
+
+UNITS = Property('units')
+"""All defined metric units."""
 
 
 CANONICAL = {
