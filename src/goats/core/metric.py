@@ -894,6 +894,14 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
         return self.key
 
 
+# NOTE: Defining mappings from unit or dimension to quantity is a bad idea
+# because some quantities have the same unit or dimension in a given system.
+# This makes the mapping ill-defined. Python dictionaries simply use the latest
+# entry for a repeated key, which means some quantities would overwrite others.
+# The following objects rely on mappings from quantity to unit or dimension,
+# which are always well defined.
+
+
 DIMENSIONS = Property('dimensions')
 """All defined metric dimensions."""
 
