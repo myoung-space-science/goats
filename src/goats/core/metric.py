@@ -907,6 +907,7 @@ CANONICAL = {
         system: Property(k).system(system) for system in ('mks', 'cgs')
     } for k in ('dimensions', 'units')
 }
+"""Canonical metric properties in each known metric system."""
 
 
 # NOTE: Defining mappings from unit or dimension to quantity is a bad idea
