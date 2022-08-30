@@ -2020,21 +2020,31 @@ class Dimension(algebraic.Expression):
     compute the dimension of a `~metric.Unit` instance or equivalent object.
     """
 
-    def __new__(
-        cls: typing.Type[Instance],
+    def __init__(
+        self,
         arg: typing.Union[Unit, Attributes, str, iterables.whole],
-    ) -> Instance:
+        system: typing.Literal['mks', 'cgs'],
+    ) -> None:
         if isinstance(arg, Unit):
-            terms = [
-                algebraic.Term(
-                    base=NamedUnit(term.base).dimension,
-                    exponent=term.exponent,
-                ) for term in algebraic.Expression(arg)
-            ]
-            return super().__new__(cls, terms)
+            expression = algebraic.Expression('1')
+            systems = set()
+            for term in arg:
+                named = NamedUnit(term.base)
+                allowed = named.systems['allowed']
+                dimension = (
+                    named.dimensions[system] if len(allowed) > 1
+                    else named.dimensions[allowed[0]]
+                )
+                expression *= algebraic.Expression(dimension) ** term.exponent
+                systems.update(allowed)
+            if system in systems:
+                return super().__init__(expression)
+            raise ValueError(
+                f"Can't define dimension of {arg!r} in {system!r}"
+            ) from None
         if isinstance(arg, Attributes):
-            return super().__new__(cls, arg.dimension)
-        return super().__new__(cls, arg)
+            return super().__init__(arg.dimension)
+        return super().__init__(arg)
 
 
 class SearchError(KeyError):
