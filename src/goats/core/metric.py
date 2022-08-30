@@ -1828,8 +1828,7 @@ class Unit(algebraic.Expression):
 
     _instances = aliased.MutableMapping()
 
-    _dimension=None
-    _quantity=None
+    _dimensions=None
 
     def __new__(
         cls: typing.Type[Instance],
@@ -1842,8 +1841,6 @@ class Unit(algebraic.Expression):
         if isinstance(arg, str) and arg in cls._instances:
             return cls._instances[arg]
         self = super().__new__(cls, arg, **kwargs)
-        self._dimension = None
-        self._quantity = None
         try:
             this = NamedUnit(arg)
             cls._instances[(this.name, this.symbol)] = self
@@ -1852,11 +1849,29 @@ class Unit(algebraic.Expression):
         return self
 
     @property
-    def dimension(self):
-        """The physical dimension of this unit."""
-        if self._dimension is None:
-            self._dimension = Dimension(self)
-        return self._dimension
+    def dimensions(self):
+        """The physical dimension of this unit in each metric system."""
+        if self._dimensions is None:
+            self._dimensions = {
+                system: self._compute_dimension(system)
+                for system in SYSTEMS
+            }
+        return self._dimensions
+
+    def _compute_dimension(self, system: typing.Literal['mks', 'cgs']):
+        """Compute this unit's dimension in `system`, if possible."""
+        this = []
+        for term in self:
+            dimension = NamedUnit(term.base).dimensions[system]
+            if dimension:
+                this.append(
+                    algebraic.Term(
+                        base=dimension,
+                        exponent=term.exponent,
+                    )
+                )
+        if this:
+            return str(algebraic.Expression(this))
 
     def __floordiv__(self, other):
         """Compute the magnitude of this unit relative to another.
