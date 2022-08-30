@@ -1046,6 +1046,7 @@ class NamedUnit(iterables.ReprStrMixin):
     """The metric scale factor of this unit."""
     quantity: str=None
     """The physical quantity of this unit."""
+    _systems: typing.Tuple[str, ...]=None
     _dimensions: typing.Dict[str, str]=None
     _decompositions=None
 
@@ -1121,6 +1122,22 @@ class NamedUnit(iterables.ReprStrMixin):
         """
         return unit in named_units
 
+    @property
+    def systems(self):
+        """The metric systems that use this unit.
+        
+        This property uses the criteria described in
+        `~metric.NamedUnit.is_allowed_in` to build the collection of metric
+        systems, most notably that named units not defined in any metric system
+        are allowed in all metric systems.
+        """
+        if self._systems is None:
+            self._systems = tuple(
+                system for system in SYSTEMS
+                if self.is_allowed_in(system)
+            )
+        return self._systems
+
     def decompose(self, system: str=None) -> typing.Optional[Decomposition]:
         """Represent this unit in base units of `system`, if possible."""
         s = self._resolve_system(system)
@@ -1137,7 +1154,7 @@ class NamedUnit(iterables.ReprStrMixin):
             return system.lower()
         for this in SYSTEMS:
             # default to canonical system if applicable
-            if self.is_canonical_in(this):
+            if self.is_fundamental_in(this):
                 return this
         if self.dimensions['mks'] == self.dimensions['cgs']:
             # system-independent: use mks by default
@@ -1207,9 +1224,30 @@ class NamedUnit(iterables.ReprStrMixin):
             return base
         raise SystemAmbiguityError
 
+    def is_allowed_in(self, system: typing.Literal['mks', 'cgs']):
+        """True if this named unit inter-operates with units in `system`.
+        
+        A named unit is allowed in some or all metric systems, but never none.
+        The reason for this is that a named unit that is not defined in any
+        metric system is effectively independent of all metric systems, so
+        attempting to restrict its use to a subset of metric systems is
+        fruitless.
+
+        See Also
+        --------
+        `~is_defined_in`
+            True if the given metric system formally contains this named unit.
+
+        `~is_fundamental_in`
+            True if this named unit is the fundamental unit for its dimension in
+            the given metric system.
+        """
+        systems = {s for s in SYSTEMS if self.is_defined_in(s)} or SYSTEMS
+        return system in systems
+
     def is_defined_in(self, system: typing.Literal['mks', 'cgs']):
         """True if this named unit is defined in `system`."""
-        if self.is_canonical_in(system):
+        if self.is_fundamental_in(system):
             return True
         canonical = CANONICAL['units'][system][self.quantity]
         with contextlib.suppress(UnitParsingError):
@@ -1218,7 +1256,7 @@ class NamedUnit(iterables.ReprStrMixin):
                 return True
         return False
 
-    def is_canonical_in(self, system: typing.Literal['mks', 'cgs']):
+    def is_fundamental_in(self, system: typing.Literal['mks', 'cgs']):
         """True if this named unit is the canonical unit in `system`."""
         canonical = CANONICAL['units'][system][self.quantity]
         keys = (self.symbol, self.name)
