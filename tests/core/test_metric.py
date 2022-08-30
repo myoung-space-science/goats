@@ -166,26 +166,23 @@ def test_named_unit_knows_about():
 
 def test_build_named_unit():
     cases = {
-        'm': { # A simple case
+        'm': {
             'name': 'meter',
             'symbol': 'm',
             'scale': 1.0,
             'quantity': 'length',
-            'dimension': 'L',
         },
-        'cm': { # A non-unity metric scale
+        'cm': {
             'name': 'centimeter',
             'symbol': 'cm',
             'scale': 1e-2,
             'quantity': 'length',
-            'dimension': 'L',
         },
-        'J': { # A compound dimension
+        'J': {
             'name': 'joule',
             'symbol': 'J',
             'scale': 1.0,
             'quantity': 'energy',
-            'dimension': '(M * L^2) / T^2',
         },
     }
     for name, attrs in cases.items():
@@ -194,6 +191,21 @@ def test_build_named_unit():
             assert getattr(unit, key) == value
     with pytest.raises(metric.UnitParsingError):
         metric.NamedUnit('cat')
+
+
+def test_named_unit_dimensions():
+    """Test the dimensions attribute of a NamedUnit."""
+    cases = {
+        'm': {'mks': 'L', 'cgs': 'L'},
+        'cm': {'mks': 'L', 'cgs': 'L'},
+        'J': {'mks': '(M * L^2) / T^2', 'cgs': None},
+        'erg': {'cgs': '(M * L^2) / T^2', 'mks': None},
+        'ohm': {'mks': 'M L^2 T^-3 I^-1', 'cgs': None},
+        'au': {'mks': 'L', 'cgs': 'L'},
+        'MeV': {'mks': '(M * L^2) / T^2', 'cgs': '(M * L^2) / T^2'},
+    }
+    for unit, dimensions in cases.items():
+        assert metric.NamedUnit(unit).dimensions == dimensions
 
 
 def test_named_unit_floordiv():
@@ -339,6 +351,10 @@ def decompositions():
             },
             'cgs': None,
         },
+        'au': {
+            'mks': None,
+            'cgs': None,
+        },
     }
 
 
@@ -361,15 +377,20 @@ def test_named_unit_decompose_system(decompositions: dict):
     these = {
         'J': 'mks', # only defined in mks
         'erg': 'cgs', # only defined in cgs
-        'cm': 'mks', # base unit is fundamental in mks
-        'kg': 'cgs', # base unit is fundamental in cgs
+        'cm': 'cgs', # fundamental in cgs
+        'kg': 'mks', # fundamental in mks
+        's': 'mks', # fundamental in both
+        'au': 'mks', # fundamental in neither
     }
     for unit, default in these.items():
         case = decompositions[unit][default]
         result = metric.NamedUnit(unit).decompose()
-        terms = [algebraic.Term(**term) for term in case['terms']]
-        assert result.scale == case['scale']
-        assert result.terms == terms
+        if case is None:
+            assert result is None
+        else:
+            terms = [algebraic.Term(**term) for term in case['terms']]
+            assert result.scale == case['scale']
+            assert result.terms == terms
 
 
 def test_named_unit_parse():
@@ -431,6 +452,20 @@ def test_named_unit_parse():
     assert unit.symbol == 'statA'
     assert unit.name == 'statampere'
     assert unit.quantity == 'current'
+
+
+def test_named_unit_systems():
+    """Determine which metric systems define a named unit."""
+    cases = {
+        'm': {'mks', 'cgs'},
+        'cm': {'mks', 'cgs'},
+        'J': {'mks'},
+        'erg': {'cgs'},
+        'au': {'mks', 'cgs'},
+        's': {'mks', 'cgs'},
+    }
+    for unit, systems in cases.items():
+        assert set(metric.NamedUnit(unit).systems) == systems
 
 
 def test_named_unit_idempotence():
