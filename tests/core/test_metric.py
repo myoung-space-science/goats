@@ -494,8 +494,12 @@ def test_named_unit_systems():
         },
     }
     for unit, cases in test.items():
-        for mode, systems in cases.items():
-            assert set(metric.NamedUnit(unit).systems[mode]) == systems
+        for mode, expected in cases.items():
+            named = metric.NamedUnit(unit)
+            assert set(named.systems[mode]) == expected
+            named.systems.pop('allowed')
+            named.systems['foo'] = 'bar'
+            assert set(named.systems[mode]) == expected
 
 
 def test_named_unit_idempotence():

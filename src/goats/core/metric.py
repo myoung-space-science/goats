@@ -1144,7 +1144,7 @@ class NamedUnit(iterables.ReprStrMixin):
                 if self.is_allowed_in(system):
                     modes['allowed'].append(system)
             self._systems = {k: tuple(v) for k, v in modes.items()}
-        return self._systems
+        return self._systems.copy()
 
     def decompose(self, system: str=None) -> typing.Optional[Decomposition]:
         """Represent this unit in base units of `system`, if possible."""
