@@ -205,7 +205,12 @@ def test_named_unit_dimensions():
         'MeV': {'mks': '(M * L^2) / T^2', 'cgs': '(M * L^2) / T^2'},
     }
     for unit, dimensions in cases.items():
-        assert metric.NamedUnit(unit).dimensions == dimensions
+        named = metric.NamedUnit(unit)
+        assert named.dimensions == dimensions
+        named.dimensions.pop('mks')
+        named.dimensions.pop('cgs')
+        named.dimensions['foo'] = 'bar'
+        assert named.dimensions == dimensions
 
 
 def test_named_unit_floordiv():

@@ -1211,11 +1211,19 @@ class NamedUnit(iterables.ReprStrMixin):
 
     @property
     def dimensions(self) -> typing.Dict[str, typing.Optional[str]]:
-        """The physical dimension of this unit in each metric system."""
+        """The physical dimension of this unit in each metric system.
+        
+        Notes
+        -----
+        This property returns a copy of an internal `dict` in order to prevent
+        accidentally changing the instance dimensions through an otherwise valid
+        `dict` operation. Such changes are irreversible since each
+        `~metric.NamedUnit` instance is a singleton.
+        """
         if self._dimensions is None:
             systems = {system for system in self.systems['defined']}
             self._dimensions = self._get_dimensions(systems)
-        return self._dimensions
+        return self._dimensions.copy()
 
     def _get_dimensions(self, systems: typing.Set[str]):
         """Helper for computing dimensions of this named unit."""
