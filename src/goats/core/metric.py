@@ -1912,15 +1912,18 @@ class Unit(algebraic.Expression):
     def _compute_dimension(self, system: typing.Literal['mks', 'cgs']):
         """Compute this unit's dimension in `system`, if possible."""
         expression = algebraic.Expression('1')
+        systems = set()
         for term in self:
             named = NamedUnit(term.base)
-            systems = named.systems['allowed']
+            allowed = named.systems['allowed']
             dimension = (
-                named.dimensions[system] if len(systems) > 1
-                else named.dimensions[systems[0]]
+                named.dimensions[system] if len(allowed) > 1
+                else named.dimensions[allowed[0]]
             )
             expression *= algebraic.Expression(dimension) ** term.exponent
-        return expression
+            systems.update(allowed)
+        if system in systems:
+            return expression
 
     def __floordiv__(self, other):
         """Compute the magnitude of this unit relative to another.

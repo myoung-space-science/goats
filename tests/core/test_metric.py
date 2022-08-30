@@ -595,6 +595,68 @@ def test_unit_idempotence():
     assert repr(new) == repr(old)
 
 
+def test_unit_dimensions():
+    """A Unit should know its dimension in all applicable metric systems."""
+    test = {
+        'm': { # 'm' is defined in both systems
+            'mks': 'L',
+            'cgs': 'L',
+        },
+        'm / s': { # 'm' and 's' are defined in both systems
+            'mks': 'L T^-1',
+            'cgs': 'L T^-1',
+        },
+        'J': { # 'J' is defined only in mks
+            'mks': 'M L^2 T^-2',
+            'cgs': None,
+        },
+        'erg': { # 'erg' is defined only in cgs
+            'mks': None,
+            'cgs': 'M L^2 T^-2',
+        },
+        'au': { # 'au' is system-independent
+            'mks': 'L',
+            'cgs': 'L',
+        },
+        '# / (cm^2 s sr J)': { # mix of both ('cm') and mks ('J')
+            'mks': 'T M^-1 L^-4',
+            'cgs': 'T M^-1 L^-4',
+        },
+        '# / (m^2 s sr erg)': { # mix of both ('m') and cgs ('erg')
+            'mks': 'T M^-1 L^-4',
+            'cgs': 'T M^-1 L^-4',
+        },
+        '# / (cm^2 s sr MeV)': { # mix of cgs ('cm') and none ('MeV')
+            'mks': 'T M^-1 L^-4',
+            'cgs': 'T M^-1 L^-4',
+        },
+        'au / m': { # dimensionless mix of none ('au') and both ('m')
+            'mks': '1',
+            'cgs': '1',
+        },
+        'au / cm': { # dimensionless mix of none ('au') and both ('cm')
+            'mks': '1',
+            'cgs': '1',
+        },
+        'J / erg': { # dimensionless mix of mks ('J') and cgs ('erg')
+            'mks': '1',
+            'cgs': '1',
+        },
+        'J / eV': { # dimensionless mix of mks ('J') and none ('eV')
+            'mks': '1',
+            'cgs': '1',
+        },
+        'erg / eV': { # dimensionless mix of cgs ('erg') and none ('eV')
+            'mks': '1',
+            'cgs': '1',
+        },
+    }
+    for string, cases in test.items():
+        unit = metric.Unit(string)
+        for system, expected in cases.items():
+            assert unit.dimensions[system] == expected
+
+
 def test_unit_algebra():
     """Test algebraic operations on the Unit class."""
     u0 = metric.Unit('m')
