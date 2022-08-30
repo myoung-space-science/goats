@@ -1132,10 +1132,18 @@ class NamedUnit(iterables.ReprStrMixin):
         are allowed in all metric systems.
         """
         if self._systems is None:
-            self._systems = tuple(
-                system for system in SYSTEMS
-                if self.is_allowed_in(system)
-            )
+            modes = {
+                k: []
+                for k in {'allowed', 'defined', 'fundamental'}
+            }
+            for system in SYSTEMS:
+                if self.is_fundamental_in(system):
+                    modes['fundamental'].append(system)
+                if self.is_defined_in(system):
+                    modes['defined'].append(system)
+                if self.is_allowed_in(system):
+                    modes['allowed'].append(system)
+            self._systems = {k: tuple(v) for k, v in modes.items()}
         return self._systems
 
     def decompose(self, system: str=None) -> typing.Optional[Decomposition]:

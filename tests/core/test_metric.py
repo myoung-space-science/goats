@@ -455,17 +455,42 @@ def test_named_unit_parse():
 
 
 def test_named_unit_systems():
-    """Determine which metric systems define a named unit."""
-    cases = {
-        'm': {'mks', 'cgs'},
-        'cm': {'mks', 'cgs'},
-        'J': {'mks'},
-        'erg': {'cgs'},
-        'au': {'mks', 'cgs'},
-        's': {'mks', 'cgs'},
+    """Determine which metric systems include a named unit."""
+    test = {
+        'm': {
+            'allowed': {'mks', 'cgs'},
+            'defined': {'mks', 'cgs'},
+            'fundamental': {'mks'},
+        },
+        'cm': {
+            'allowed': {'mks', 'cgs'},
+            'defined': {'mks', 'cgs'},
+            'fundamental': {'cgs'},
+        },
+        'J': {
+            'allowed': {'mks'},
+            'defined': {'mks'},
+            'fundamental': {'mks'},
+        },
+        'erg': {
+            'allowed': {'cgs'},
+            'defined': {'cgs'},
+            'fundamental': {'cgs'},
+        },
+        'au': {
+            'allowed': {'mks', 'cgs'},
+            'defined': set(),
+            'fundamental': set(),
+        },
+        's': {
+            'allowed': {'mks', 'cgs'},
+            'defined': {'mks', 'cgs'},
+            'fundamental': {'mks', 'cgs'},
+        },
     }
-    for unit, systems in cases.items():
-        assert set(metric.NamedUnit(unit).systems) == systems
+    for unit, cases in test.items():
+        for mode, systems in cases.items():
+            assert set(metric.NamedUnit(unit).systems[mode]) == systems
 
 
 def test_named_unit_idempotence():
