@@ -1213,10 +1213,7 @@ class NamedUnit(iterables.ReprStrMixin):
     def dimensions(self) -> typing.Dict[str, typing.Optional[str]]:
         """The physical dimension of this unit in each metric system."""
         if self._dimensions is None:
-            systems = {
-                system for system in SYSTEMS
-                if self.is_defined_in(system)
-            }
+            systems = {system for system in self.systems['defined']}
             self._dimensions = self._get_dimensions(systems)
         return self._dimensions
 
