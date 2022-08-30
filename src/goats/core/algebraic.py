@@ -1521,14 +1521,19 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         return self._new(reduce(terms))
 
     @classmethod
-    def _new(cls, arg: typing.Union[str, iterables.whole]):
+    def _new(
+        cls: typing.Type[Instance],
+        expression: typing.Union[str, iterables.whole],
+        *args,
+        **kwargs
+    ) -> Instance:
         """Internal helper method for creating a new instance.
 
         This method is separated out for the sake of modularity, in case of a
         need to add any other functionality when creating a new instance from
         the current one (perhaps in a subclass).
         """
-        return cls(arg)
+        return cls(expression, *args, **kwargs)
 
     def apply(self: Instance, update: typing.Callable) -> Instance:
         """Create a new expression by applying the given callable object.
