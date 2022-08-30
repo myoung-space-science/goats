@@ -57,6 +57,10 @@ def test_conversion_class():
         ('km/s', 'm/s'): 1e3,
         ('km/h', 'km/s'): 1/3600, # non-system time unit
         ('m/h', 'cm/s'): 1/36, # variation on above
+        # Decompositions of equivalent units
+        ('N', 'kg m s^-2'): 1.0,
+        ('J', 'kg m^2 s^-2'): 1.0,
+        ('V / m', 'T m s^-1'): 1.0,
         # Common or pathological conversions
         ('G', 'nT'): 1e5, # `B` units: cgs -> sim
         ('nT', 'G'): 1e-5, # `B` units: cgs -> sim
