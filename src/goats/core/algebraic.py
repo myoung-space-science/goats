@@ -221,7 +221,15 @@ class Operand(Part):
 
 
 class Term(Operand):
-    """An algebraic operand with an irreducible base."""
+    """An algebraic operand with an irreducible base.
+    
+    In the single-argument form, the user provides only the base quantity by
+    positional-only argument. In the triple-argument form, the user provides
+    the coefficient, base, and exponent by positional or keyword
+    argument(s), with the caveat that if one argument is positional, they
+    must all be positional. This restriction prevents ambiguity among the
+    possible double-argument combinations.
+    """
 
     # NOTE: currently same as `OperandFactory.base`
     rational = r""" # Modeled after `fractions._RATIONAL_FORMAT`
@@ -242,7 +250,14 @@ class Term(Operand):
     _base_re = re.compile(fr'({rational}|{base})', re.VERBOSE)
 
     @typing.overload
-    def __init__(self, base: str, /) -> None: ...
+    def __init__(self, base: str, /) -> None:
+        """Create an algebraic term from a base quantity.
+        
+        Parameters
+        ----------
+        base : string
+            The base quantity of this algebraic term.
+        """
 
     @typing.overload
     def __init__(
@@ -250,17 +265,57 @@ class Term(Operand):
         coefficient: numbers.Real=1,
         base: str='1',
         exponent: numbers.Real=1,
-    ) -> None: ...
+    ) -> None:
+        """Create an algebraic term from coefficient, base, and exponent.
+        
+        Parameters
+        ----------
+        coefficient : real number, default=1
+            The numerical coefficient to associate with the base quantity.
+
+        base : string, default='1'
+            The base quantity of this algebraic term.
+
+        exponent : real number, default=1
+            The exponent of the base quantity.
+        """
 
     def __init__(self, *args, **kwargs) -> None:
-        if not kwargs and len(args) == 1:
-            arg = args[0]
-            if self._base_re.fullmatch(str(arg)):
-                return super().__init__(base=arg)
+        if not kwargs:
+            # positional argument(s) only
+            if not args:
+                # use all default values
+                return super().__init__()
+            if len(args) == 1:
+                # single-argument form (positional base only)
+                base = args[0]
+                self._validate_base(base)
+                return super().__init__(base=base)
+            if len(args) == 3:
+                # triple-argument form
+                base = args[1]
+                self._validate_base(base)
+                return super().__init__(*args)
+        if not args:
+            # keyword arguments only
+            if 'base' in kwargs:
+                # NOTE: We don't use `base = kwargs.get('base')` because we
+                # don't want to mistakenly treat `None` as the base when
+                # comparing to the base RE pattern. We'll let `Operand`
+                # determine the default value.
+                base = kwargs['base']
+                self._validate_base(base)
+            return super().__init__(**kwargs)
+        raise TypeError(
+            f"Can't instantiate {self.__class__} with {args} and {kwargs}."
+        ) from None
+
+    def _validate_base(self, base):
+        """Raise an exception if `base` does not match the definition."""
+        if not self._base_re.fullmatch(str(base)):
             raise ValueError(
-                f"Can't create term with base {arg!r}"
+                f"Can't create algebraic term with base {base!r}"
             ) from None
-        super().__init__(*args, **kwargs)
 
     def __call__(self, value: numbers.Real):
         """Evaluate a variable term at this value.
