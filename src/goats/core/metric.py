@@ -971,6 +971,14 @@ class UnitConversionError(Exception):
         return f"Can't convert {self._from!r} to {self._to!r}"
 
 
+class SystemAmbiguityError(Exception):
+    """The metric system is ambiguous."""
+
+
+class UnitSystemError(Exception):
+    """The metric system does not contain this unit."""
+
+
 class Prefix(typing.NamedTuple):
     """Metadata for a metric order-of-magnitude prefix."""
 
