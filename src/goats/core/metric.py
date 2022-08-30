@@ -838,7 +838,7 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
         """Iterate over names of defined quantities. Called for iter(self)."""
         return iter(_QUANTITIES)
 
-    def __getitem__(self, quantity: str):
+    def __getitem__(self, quantity: str) -> typing.Dict[str, str]:
         """Create or retrieve a named property."""
         if quantity in self._cache:
             return self._cache[quantity]
@@ -847,15 +847,16 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
             return new
         raise KeyError(f"Unknown quantity {quantity}") from None
 
-    def _get_property(self, quantity: str):
-        """Get a named property of a defined quantity.
+    def _get_property(self, quantity: str) -> typing.Dict[str, str]:
+        """Get this property for a defined quantity.
         
         This method will search for `quantity` in the module-level collection of
         defined quantities. If it doesn't find an entry, it will attempt to
         parse `quantity` into known quantities. If it finds a `dict` entry, it
         will attempt to extract the values corresponding to this property's
-        `key`. If it finds a `str` entry, it will attempt to create the
-        equivalent `dict` by algebraically evaluating the terms in the entry.
+        ``key`` attribute (i.e., 'units' or 'dimensions'). If it finds a `str`
+        entry, it will attempt to create the equivalent `dict` by algebraically
+        evaluating the terms in the entry.
         """
         if quantity not in _QUANTITIES:
             return self._parse(quantity)
@@ -881,6 +882,10 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
             for k, v in merged.items()
         }
 
+    # TODO: 
+    # - Define a function in `algebraic` that is equivalent to calling
+    #   `algebraic.OperandFactory().create(...)`.
+    # - Refactor this method.
     _operand = algebraic.OperandFactory()
     def _expand(self, term: algebraic.Term):
         """Create a `dict` of operands from this term."""
