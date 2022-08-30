@@ -590,7 +590,7 @@ class Unit(metric.Unit, Attribute):
             return self
         if isinstance(other, Unit):
             errmsg = "The units '{}' and '{}' have different {}"
-            if self.dimension == other.dimension:
+            if self.dimensions == other.dimensions:
                 raise ScaleMismatch(
                     errmsg.format(self, other, 'scale factors')
                 ) from None
