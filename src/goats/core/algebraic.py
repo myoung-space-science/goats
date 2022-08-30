@@ -1322,13 +1322,11 @@ Instance = typing.TypeVar('Instance', bound='Expression')
 class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
     """An object representing an algebraic expression."""
 
-    terms: typing.List[Term]=None
-
-    def __new__(
-        cls: typing.Type[Instance],
+    def __init__(
+        self,
         expression: typing.Union['Expression', str, iterables.whole],
         **kwargs
-    ) -> Instance:
+    ) -> None:
         """Create a new expression from user input.
 
         If `expression` is an instance of this class, this method will simply
@@ -1346,14 +1344,12 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         **kwargs
             Keywords to pass to `~algebra.Parser`.
         """
-        if isinstance(expression, cls):
+        if isinstance(expression, type(self)):
             return expression
-        new = super().__new__(cls)
         string = standard(expression, joiner=' * ')
         terms = Parser(**kwargs).parse(string)
-        new.terms = reduce(terms)
+        self.terms = reduce(terms)
         """The algebraic terms in this expression."""
-        return new
 
     def __iter__(self) -> typing.Iterator[Term]:
         return iter(self.terms)
