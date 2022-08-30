@@ -1671,8 +1671,6 @@ class _Converter(iterables.ReprStrMixin):
 
     _instances = {}
 
-    _units = Property('units')
-
     unit: str=None
     quantity: str=None
     _substitutions: typing.Dict[str, str]=None
@@ -1688,27 +1686,11 @@ class _Converter(iterables.ReprStrMixin):
         unit, quantity = key
         self = super().__new__(cls)
         self.quantity = quantity
-        self._substitutions = self._units[self.quantity]
+        self._substitutions = UNITS[self.quantity]
         self.unit = self._substitutions.get(unit) or unit
         self._defined = None
         cls._instances[key] = self
         return self
-
-    @property
-    def defined(self):
-        """An expanded mapping of defined conversions."""
-        if self._defined is None:
-            conversions = {}
-            for (u0, u1), factor in _CONVERSIONS.items():
-                forward = (u0, u1, factor)
-                reverse = (u1, u0, 1 / factor)
-                for ux, uy, s in (forward, reverse):
-                    if ux not in conversions:
-                        conversions[ux] = {}
-                    if uy not in conversions[ux]:
-                        conversions[ux][uy] = s
-            self._defined = conversions
-        return self._defined
 
     def to(self, target: str):
         """Compute the conversion from `self.unit` to `target`.
@@ -1804,7 +1786,11 @@ class Quantity(iterables.ReprStrMixin):
                 f"No metric available for system '{system}'"
             ) from err
         else:
-            return Attributes(dimension=dimension, unit=unit)
+            return Attributes(
+                system,
+                dimension=dimension,
+                unit=unit,
+            )
 
     # NOTE: This is here because unit conversions are only defined within their
     # respective quantities, even though two quantities may have identical
