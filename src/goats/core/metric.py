@@ -927,7 +927,8 @@ class Attributes(typing.NamedTuple):
     """Canonical values of a quantity within a metric system."""
 
     # NOTE: These types are not `Unit` and `Dimension` because we need
-    # `Quantity` and `Attributes` to define `Unit`.
+    # `Attributes` to define `Unit` and `Dimension`.
+    system: str
     unit: str=None
     dimension: str=None
 
