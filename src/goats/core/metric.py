@@ -993,7 +993,6 @@ class BaseUnit(typing.NamedTuple):
     symbol: str
     name: str
     quantity: str
-    system: str=None
 
 
 class Decomposition(typing.NamedTuple):
@@ -1035,8 +1034,6 @@ class NamedUnit(iterables.ReprStrMixin):
             An existing instance of this class.
         """
 
-    _dimensions = Property('dimensions')
-
     _instances = {}
 
     prefix: Prefix=None
@@ -1049,8 +1046,7 @@ class NamedUnit(iterables.ReprStrMixin):
     """The metric scale factor of this unit."""
     quantity: str=None
     """The physical quantity of this unit."""
-    dimension: str=None
-    """The physical dimension of this unit."""
+    _dimensions: typing.Dict[str, str]=None
     _decompositions=None
 
     def __new__(cls, arg):
@@ -1069,10 +1065,7 @@ class NamedUnit(iterables.ReprStrMixin):
         self.symbol = f"{magnitude.symbol}{reference.symbol}"
         self.scale = magnitude.factor
         self.quantity = reference.quantity
-        dimensions = cls._dimensions[self.quantity]
-        system = self.base.system or 'mks'
-        self.dimension = dimensions[system]
-        self._decompositions = dict.fromkeys(('mks', 'cgs'))
+        self._decompositions = dict.fromkeys(SYSTEMS)
         cls._instances[key] = self
         return self
 
@@ -1130,16 +1123,42 @@ class NamedUnit(iterables.ReprStrMixin):
 
     def decompose(self, system: str=None) -> typing.Optional[Decomposition]:
         """Represent this unit in base units of `system`, if possible."""
-        system = system or self.base.system
-        if self._decompositions[system]:
-            return self._decompositions[system]
-        result = self._decompose(system)
-        self._decompositions[system] = result
+        s = self._resolve_system(system)
+        if self._decompositions[s]:
+            return self._decompositions[s]
+        result = self._decompose(s)
+        self._decompositions[s] = result
         return result
 
-    def _decompose(self, system: str):
+    def _resolve_system(self, system: typing.Optional[str]):
+        """Determine the appropriate metric system to use, if possible."""
+        if isinstance(system, str) and system.lower() in SYSTEMS:
+            # trivial case
+            return system.lower()
+        for this in SYSTEMS:
+            # default to canonical system if applicable
+            if self.is_canonical_in(this):
+                return this
+        if self.dimensions['mks'] == self.dimensions['cgs']:
+            # system-independent: use mks by default
+            return 'mks'
+        if self.dimensions['mks'] is None:
+            # only defined in cgs
+            return 'cgs'
+        if self.dimensions['cgs'] is None:
+            # only defined in mks
+            return 'mks'
+        # system-dependent but we don't know the system
+        raise SystemAmbiguityError(str(self))
+
+    def _decompose(self, system: typing.Literal['mks', 'cgs']):
         """Internal logic for `~NamedUnit.decompose`."""
-        expression = algebraic.Expression(self.dimension)
+        if not self.is_defined_in(system):
+            # If this unit is not defined in this metric system, we can't
+            # decompose it.
+            return
+        dimension = self.dimensions[system]
+        expression = algebraic.Expression(dimension)
         if len(expression) == 1:
             # If this unit's dimension is irreducible, there's no point in going
             # through all the decomposition logic.
@@ -1151,8 +1170,6 @@ class NamedUnit(iterables.ReprStrMixin):
             # If not, return the canonical unit with the appropriate scale
             # factor.
             return Decomposition(canonical // self, [algebraic.Term(canonical)])
-        if self.base.system != system:
-            return
         quantities = [
             _BASE_QUANTITIES.find(term.base)[0]['name']
             for term in expression
@@ -1166,6 +1183,49 @@ class NamedUnit(iterables.ReprStrMixin):
             for unit, term in zip(units, expression)
         ]
         return Decomposition(self.scale, terms)
+
+    @property
+    def dimensions(self) -> typing.Dict[str, typing.Optional[str]]:
+        """The physical dimension of this unit in each metric system."""
+        if self._dimensions is None:
+            systems = {
+                system for system in SYSTEMS
+                if self.is_defined_in(system)
+            }
+            self._dimensions = self._get_dimensions(systems)
+        return self._dimensions
+
+    def _get_dimensions(self, systems: typing.Set[str]):
+        """Helper for computing dimensions of this named unit."""
+        dimensions = DIMENSIONS[self.quantity]
+        if not systems or (systems == SYSTEMS):
+            return dimensions.copy()
+        base = dict.fromkeys(SYSTEMS)
+        if len(systems) == 1:
+            system = systems.pop()
+            base[system] = dimensions[system]
+            return base
+        raise SystemAmbiguityError
+
+    def is_defined_in(self, system: typing.Literal['mks', 'cgs']):
+        """True if this named unit is defined in `system`."""
+        if self.is_canonical_in(system):
+            return True
+        canonical = CANONICAL['units'][system][self.quantity]
+        with contextlib.suppress(UnitParsingError):
+            reference = type(self)(canonical)
+            if self.base == reference.base:
+                return True
+        return False
+
+    def is_canonical_in(self, system: typing.Literal['mks', 'cgs']):
+        """True if this named unit is the canonical unit in `system`."""
+        canonical = CANONICAL['units'][system][self.quantity]
+        keys = (self.symbol, self.name)
+        for key in keys:
+            if key == canonical:
+                return True
+        return False
 
     def __eq__(self, other) -> bool:
         """True if two representations have equal magnitude and base unit."""
