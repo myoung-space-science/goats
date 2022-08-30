@@ -164,15 +164,15 @@ class Operand(Part):
 
     def __init__(
         self,
-        coefficient: numbers.Real=1,
-        base: str='1',
-        exponent: numbers.Real=1,
+        coefficient: numbers.Real=None,
+        base: str=None,
+        exponent: numbers.Real=None,
     ) -> None:
-        self.coefficient = fractions.Fraction(coefficient)
+        self.coefficient = fractions.Fraction(coefficient or 1)
         """The numerical coefficient."""
-        self.base = base
+        self.base = base or '1'
         """The base term or complex."""
-        self.exponent = fractions.Fraction(exponent)
+        self.exponent = fractions.Fraction(exponent or 1)
         """The numerical exponent."""
 
     @property
