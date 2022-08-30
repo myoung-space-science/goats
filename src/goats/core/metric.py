@@ -1393,8 +1393,8 @@ class Conversion(iterables.ReprStrMixin):
         self.u0 = u0
         self.u1 = u1
         methods = (
-            self._convert_strings,
-            self._convert_expressions,
+            self._convert_as_strings,
+            self._convert_as_expressions,
         )
         self.factor = self._compute(methods)
         cls._instances[key] = self
@@ -1416,7 +1416,7 @@ class Conversion(iterables.ReprStrMixin):
                 return conversion
         raise UnitConversionError(self.u0, self.u1)
 
-    def _convert_strings(self, u0: str, u1: str, scale: float=1.0):
+    def _convert_as_strings(self, u0: str, u1: str, scale: float=1.0):
         """Attempt to convert `u0` to `u1` as strings.
         
         This method will attempt to look up or compute the appropriate numerical
@@ -1501,7 +1501,7 @@ class Conversion(iterables.ReprStrMixin):
         * the inverse of the above process applied to the conversion from `u1`
           to `u0`;
         * a multi-step conversion recursively built by calling back to
-          `~Conversions._convert_strings`
+          `~Conversions._convert_as_strings`
 
         If it does not succeed, it will return ``None`` in order to allow other
         methods an opportunity to convert `u0` to `u1`.
@@ -1523,7 +1523,7 @@ class Conversion(iterables.ReprStrMixin):
         conversions = CONVERSIONS.get_adjacencies(u0).items()
         for unit, weight in conversions:
             if unit not in self._checked:
-                if value := self._convert_strings(unit, u1, scale=scale):
+                if value := self._convert_as_strings(unit, u1, scale=scale):
                     return weight * value
 
     @classmethod
@@ -1546,31 +1546,38 @@ class Conversion(iterables.ReprStrMixin):
                     if found := cls._search(ux, u1):
                         return (nx // n0) * found
 
-    def _convert_expressions(self, u0: str, u1: str):
+    def _convert_as_expressions(self, u0: str, u1: str):
         """Convert complex unit expressions term-by-term."""
         e0, e1 = (algebraic.Expression(unit) for unit in (u0, u1))
         if e0 == e1:
             return 1.0
-        identities = {'#', '1'}
-        ratio = [term for term in e0 / e1 if term.base not in identities]
-        factor = 1.0
-        matched = []
-        unmatched = ratio.copy()
-        for target in ratio:
-            if target not in matched:
-                if match := self._match_terms(target, unmatched):
-                    value, term = match
-                    if term != target:
-                        for this in (target, term):
-                            matched.append(this)
-                            unmatched.remove(this)
-                    else:
-                        matched.append(target)
-                        unmatched.remove(target)
-                    factor *= value
-        if not unmatched:
+        terms = [term for term in e0 / e1 if term.base not in UNITY]
+        if factor := self._resolve_terms(terms):
+            return factor
+        if factor := self._convert_by_dimensions(terms):
             return factor
         raise UnitConversionError(self.u0, self.u1)
+
+    def _convert_by_dimensions(self, terms: typing.List[algebraic.Term]):
+        """Attempt to compute a conversion via unit dimensions."""
+        decomposed = []
+        for term in terms:
+            decomposition = NamedUnit(term.base).decompose()
+            decomposed.extend(
+                [
+                    algebraic.Term(
+                        coefficient=decomposition.scale**term.exponent,
+                        base=this.base,
+                        exponent=term.exponent*this.exponent,
+                    )
+                    for this in decomposition.terms
+                ]
+            )
+        # TODO: Should we try this in other `_convert_by_expressions` or
+        # `_resolve_terms`?
+        if algebraic.Expression(decomposed) == '1':
+            return 1.0
+        return self._resolve_terms(decomposed)
 
     def _match_terms(
         self,
@@ -1586,10 +1593,31 @@ class Conversion(iterables.ReprStrMixin):
         ]
         for term in like_terms:
             u1 = term.base
-            if conversion := self._convert_strings(u0, u1):
+            if conversion := self._convert_as_strings(u0, u1):
                 return conversion ** exponent, term
-        if self.available(u0) and NamedUnit(u0).dimension == '1':
+        dimensions = NamedUnit(u0).dimensions.values()
+        if self.available(u0) and all(d == '1' for d in dimensions):
             return 1.0, target
+
+    def _resolve_terms(self, terms: typing.List[algebraic.Term]):
+        """Compute ratios of matching terms, if possible."""
+        factor = 1.0
+        matched = []
+        unmatched = terms.copy()
+        for target in terms:
+            if target not in matched:
+                if match := self._match_terms(target, unmatched):
+                    value, term = match
+                    if term != target:
+                        for this in (target, term):
+                            matched.append(this)
+                            unmatched.remove(this)
+                    else:
+                        matched.append(target)
+                        unmatched.remove(target)
+                    factor *= value
+        if not unmatched:
+            return factor
 
     def __bool__(self):
         """True if this conversion exists."""
