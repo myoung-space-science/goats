@@ -1520,9 +1520,8 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         terms = [pow(term, exp) for term in self]
         return self._new(reduce(terms))
 
-    @classmethod
     def _new(
-        cls: typing.Type[Instance],
+        self: Instance,
         expression: typing.Union[str, iterables.whole],
         *args,
         **kwargs
@@ -1533,7 +1532,7 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         need to add any other functionality when creating a new instance from
         the current one (perhaps in a subclass).
         """
-        return cls(expression, *args, **kwargs)
+        return type(self)(expression, *args, **kwargs)
 
     def apply(self: Instance, update: typing.Callable) -> Instance:
         """Create a new expression by applying the given callable object.
