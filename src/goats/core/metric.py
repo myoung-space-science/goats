@@ -2046,6 +2046,9 @@ class Dimension(algebraic.Expression):
             return super().__init__(arg.dimension)
         return super().__init__(arg)
 
+    def _new(self, arg: typing.Union[str, iterables.whole]):
+        return super()._new(arg, self.system)
+
 
 class SearchError(KeyError):
     """Error while searching for a requested metric."""
