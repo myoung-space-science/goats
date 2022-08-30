@@ -1874,30 +1874,44 @@ class Quantity(iterables.ReprStrMixin):
 Instance = typing.TypeVar('Instance', bound='Unit')
 
 
-class Unit(algebraic.Expression):
-    """An algebraic expression representing a physical unit."""
+class _UnitMeta(abc.ABCMeta):
+    """Internal metaclass for `~metric.Unit`.
+    
+    This class exists to create singleton instances of `~metric.Unit` without
+    needing to overload `__new__` on that class or its base class(es).
+    """
 
     _instances = aliased.MutableMapping()
 
-    _dimensions=None
-
-    def __new__(
-        cls: typing.Type[Instance],
-        arg: typing.Union['Unit', str, iterables.whole],
+    def __call__(
+        cls,
+        arg: typing.Union[Instance, str, iterables.whole],
         **kwargs
     ) -> Instance:
-        """Create a new unit from `arg`."""
+        """Create a new instance or return an existing one."""
         if isinstance(arg, cls):
             return arg
         if isinstance(arg, str) and arg in cls._instances:
             return cls._instances[arg]
-        self = super().__new__(cls, arg, **kwargs)
+        instance = super().__call__(arg, **kwargs)
         try:
             this = NamedUnit(arg)
-            cls._instances[(this.name, this.symbol)] = self
+            cls._instances[(this.name, this.symbol)] = instance
         except UnitParsingError:
-            cls._instances[str(self)] = self
-        return self
+            cls._instances[str(instance)] = instance
+        return instance
+
+
+class Unit(algebraic.Expression, metaclass=_UnitMeta):
+    """An algebraic expression representing a physical unit."""
+
+    def __init__(
+        self: Instance,
+        expression: typing.Union[Instance, str, iterables.whole],
+        **kwargs
+    ) -> None:
+        super().__init__(expression, **kwargs)
+        self._dimensions = None
 
     @property
     def dimensions(self):
