@@ -443,7 +443,7 @@ def test_parser_separators():
     assert equal_terms(expression, expected)
 
 
-@pytest.mark.skip(reason="Requires significant refactoring")
+@pytest.mark.xfail
 @pytest.mark.expression
 def test_nonstandard_chars():
     """Test the ability to include non-standard characters in terms."""
