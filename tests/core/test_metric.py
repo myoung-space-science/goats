@@ -514,41 +514,6 @@ def test_named_unit_idempotence():
     assert new is old
 
 
-def test_dimension_init():
-    """Test the Dimension class."""
-    cases = [
-        {
-            'unit': 'm',
-            'quantity': 'length',
-            'forms': ['L'],
-        },
-        {
-            'unit': 'm / s',
-            'quantity': 'velocity',
-            'forms': ['L T^-1', 'T^-1 L'],
-        },
-        {
-            'unit': 'km / s',
-            'quantity': 'velocity',
-            'forms': ['L T^-1', 'T^-1 L'],
-        },
-        {
-            'unit': 'J',
-            'quantity': 'energy',
-            'forms': ['M L^2 T^-2', 'M T^-2 L^2', 'L^2 M T^-2'],
-        },
-    ]
-    for current in cases:
-        unit = metric.Unit(current['unit'])
-        quantity = metric.Quantity(current['quantity'])
-        forms = current['forms']
-        for target in (unit, quantity['mks']):
-            dimension = metric.Dimension(target, system='mks')
-            assert isinstance(dimension, metric.Dimension)
-            for form in forms:
-                assert dimension == form
-
-
 def test_unit_init():
     """Initialize the Unit object with various strings."""
     strings = {
@@ -747,6 +712,41 @@ def test_unit_identity():
     ]
     for (u0, u1) in cases:
         assert metric.Unit(u0) is metric.Unit(u1)
+
+
+def test_dimension_init():
+    """Test the Dimension class."""
+    cases = [
+        {
+            'unit': 'm',
+            'quantity': 'length',
+            'forms': ['L'],
+        },
+        {
+            'unit': 'm / s',
+            'quantity': 'velocity',
+            'forms': ['L T^-1', 'T^-1 L'],
+        },
+        {
+            'unit': 'km / s',
+            'quantity': 'velocity',
+            'forms': ['L T^-1', 'T^-1 L'],
+        },
+        {
+            'unit': 'J',
+            'quantity': 'energy',
+            'forms': ['M L^2 T^-2', 'M T^-2 L^2', 'L^2 M T^-2'],
+        },
+    ]
+    for current in cases:
+        unit = metric.Unit(current['unit'])
+        quantity = metric.Quantity(current['quantity'])
+        forms = current['forms']
+        for target in (unit, quantity['mks']):
+            dimension = metric.Dimension(target, system='mks')
+            assert isinstance(dimension, metric.Dimension)
+            for form in forms:
+                assert dimension == form
 
 
 def test_system():
