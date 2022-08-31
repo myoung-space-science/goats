@@ -1895,7 +1895,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
                 system: self._compute_dimension(system)
                 for system in SYSTEMS
             }
-        return self._dimensions
+        return self._dimensions.copy()
 
     def _compute_dimension(self, system: typing.Literal['mks', 'cgs']):
         """Compute this unit's dimension in `system`, if possible."""

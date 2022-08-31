@@ -620,6 +620,11 @@ def test_unit_dimensions():
         unit = metric.Unit(string)
         for system, expected in cases.items():
             assert unit.dimensions[system] == expected
+    # User should not be able to alter dimensions on an instance.
+    meter = metric.Unit('m')
+    meter.dimensions.pop('mks')
+    meter.dimensions['mks'] = 'Oops!'
+    assert meter.dimensions['mks'] == 'L'
 
 
 def test_unit_algebra():
