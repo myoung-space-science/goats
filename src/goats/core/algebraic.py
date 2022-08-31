@@ -1286,7 +1286,7 @@ class OperandError(TypeError):
 
 
 def standard(this, missing: str='1', joiner: str='*') -> str:
-    """Convert a string to a standard format.
+    """Convert `this` to a standard format.
     
     Parameters
     ----------
@@ -1311,9 +1311,12 @@ def standard(this, missing: str='1', joiner: str='*') -> str:
         return missing
     if isinstance(this, str):
         return this
-    if not isinstance(this, typing.Iterable):
+    try:
+        iter(this)
+    except TypeError:
         return str(this)
-    return joiner.join(f"({part})" for part in this)
+    else:
+        return joiner.join(f"({part})" for part in this)
 
 
 Instance = typing.TypeVar('Instance', bound='Expression')
