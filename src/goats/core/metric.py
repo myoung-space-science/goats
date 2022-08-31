@@ -2016,6 +2016,7 @@ class Dimension(algebraic.Expression):
         arg: typing.Union[Unit, Attributes, str, iterables.whole],
         system: typing.Literal['mks', 'cgs'],
     ) -> None:
+        self.system = system
         if isinstance(arg, Unit):
             expression = algebraic.Expression('1')
             systems = set()
