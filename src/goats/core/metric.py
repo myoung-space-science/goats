@@ -2176,7 +2176,9 @@ class System(collections.abc.Mapping, iterables.ReprStrMixin):
         unit = Unit(target)
         if str(target) == '1' or unit in self.units.values():
             return unit
-        return self._unit_from_dimension(unit.dimension)
+        for dimension in unit.dimensions.values():
+            if found := self._unit_from_dimension(dimension):
+                return found
 
     def _unit_from_dimension(
         self,
