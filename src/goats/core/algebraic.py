@@ -1320,32 +1320,104 @@ Instance = typing.TypeVar('Instance', bound='Expression')
 
 
 class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
-    """An object representing an algebraic expression."""
+    """An object representing an algebraic expression.
 
-    def __init__(
-        self,
-        expression: typing.Union['Expression', str, iterables.whole],
-        **kwargs
-    ) -> None:
-        """Create a new expression from user input.
+    If this class is instantiated with an existing instance, the result will be
+    the same instance. Otherwise, it will create a new instance of this class
+    from the given string or iterable after replacing operators and separators
+    with their standard versions, if necessary.
+    """
 
-        If `expression` is an instance of this class, this method will simply
-        return it. Otherwise, it will create a new instance of this class from
-        the given string or collection of parts after replacing operators and
-        separators with their standard versions, if necessary.
+    def __new__(cls, arg, **kwargs):
+        if isinstance(arg, cls):
+            if kwargs:
+                raise TypeError(
+                    "Can't change parsing options"
+                    " on an existing expression"
+                ) from None
+            return arg
+        return super().__new__(cls)
 
+    @typing.overload
+    def __init__(self, expression: str, /, **kwargs) -> None:
+        """Create an expression from a single string.
+        
         Parameters
         ----------
-        expression : string or collection
-            A single string or collection of any type to initialize the new
-            instance. If this is a collection, all members must support
-            conversion to a string.
+        expression : string
+            A single string to convert into an expression.
 
         **kwargs
             Keywords to pass to `~algebra.Parser`.
+
+        Examples
+        --------
+        Create an algebraic expression from a string that represents the result
+        of multiplying `a^3/2` by `b`, dividing by `c^1/2`, and squaring the
+        ratio:
+
+        >>> algebraic.Expression('(a^3/2 * b / c^1/2)^2')
+        core.algebraic.Expression(a^3 b^2 c^-1)
         """
-        if isinstance(expression, type(self)):
-            return expression
+
+    @typing.overload
+    def __init__(self, expression: typing.Iterable, /, **kwargs) -> None:
+        """Create an expression from an iterable of any type.
+        
+        Parameters
+        ----------
+        expression : iterable
+            An iterable of any type to initialize the new instance. All members
+            must support conversion to a string.
+
+        **kwargs
+            Keywords to pass to `~algebra.Parser`.
+
+        Examples
+        --------
+        Create an algebraic expression from a list of the individual string
+        terms in the result of multiplying `a^3/2` by `b`, dividing by `c^1/2`,
+        and squaring the ratio:
+
+        >>> algebraic.Expression(['a^3', 'b', 'c^-1'])
+        core.algebraic.Expression(a^3 b c^-1)
+        """
+
+    @typing.overload
+    def __init__(self: Instance, expression: Instance, /) -> None:
+        """Create an expression from an expression.
+
+        This mode exists to support algorithms that don't know the type of
+        argument until runtime. If the type is known, it is simpler to use the
+        existing instance.
+
+        Parameters
+        ----------
+        expression : `~algebraic.Expression`
+            An existing instance of this class.
+
+        Examples
+        --------
+        Create an instance from a string:
+
+        >>> this = algebraic.Expression('a * b / c')
+
+        Pass the first instance to this class:
+
+        >>> that = algebraic.Expression(this)
+
+        Both `this` and `that` represent the same expression...
+        >>> this
+        core.algebraic.Expression(a b c^-1)
+        >>> that
+        core.algebraic.Expression(a b c^-1)
+
+        ...because they are the same object.
+        >>> that is this
+        True
+        """
+
+    def __init__(self, expression, **kwargs) -> None:
         string = standard(expression, joiner=' * ')
         terms = Parser(**kwargs).parse(string)
         self.terms = reduce(terms)
