@@ -222,6 +222,18 @@ def test_strip_separators():
         assert operand.strip_separators(string) == stripped
 
 
+def test_standard():
+    """Test the standardizing function for expressions."""
+    assert algebraic.standard('a') == 'a'
+    assert algebraic.standard('ab') == 'ab'
+    assert algebraic.standard(['a', 'b']) == '(a)*(b)'
+    assert algebraic.standard(['a', 'b'], joiner=' # ') == '(a) # (b)'
+    assert algebraic.standard([]) == '1'
+    assert algebraic.standard([], missing='?') == '?'
+    assert algebraic.standard(12) == '12'
+    assert algebraic.standard([1, 2]) == '(1)*(2)'
+
+
 @pytest.mark.expression
 def test_expression_parser():
     """Test the algebraic-expression parser."""
