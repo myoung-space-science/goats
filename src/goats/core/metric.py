@@ -1891,18 +1891,8 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
     def dimensions(self):
         """The physical dimension of this unit in each metric system."""
         if self._dimensions is None:
-            self._dimensions = {
-                system: self._compute_dimension(system)
-                for system in SYSTEMS
-            }
-        return self._dimensions.copy()
-
-    def _compute_dimension(self, system: typing.Literal['mks', 'cgs']):
-        """Compute this unit's dimension in `system`, if possible."""
-        try:
-            return Dimension(self, system)
-        except ValueError:
-            return None
+            self._dimensions = Dimensions(self)
+        return self._dimensions
 
     def __floordiv__(self, other):
         """Compute the magnitude of this unit relative to another.
@@ -2014,6 +2004,103 @@ class Dimension(algebraic.Expression):
 
     def _new(self, arg: typing.Union[str, iterables.whole]):
         return super()._new(arg, self.system)
+
+
+class Dimensions(typing.Mapping, iterables.ReprStrMixin):
+    """A collection of algebraic expressions of metric dimensions."""
+
+    @typing.overload
+    def __init__(self, unit: Unit, /) -> None:
+        """Initialize from an instance of `~metric.Unit`."""
+
+    @typing.overload
+    def __init__(
+        self,
+        *attributes: Attributes,
+        **pairs: algebraic.Expressable
+    ) -> None:
+        """Initialize from attributes or expressable quantities.
+        
+        Parameters
+        ----------
+        *attributes
+            Zero or more instances of `~metric.Attributes`. This class will
+            attempt to create instances of `~metric.Dimension` from the `system`
+            and `dimension` attributes of each argument.
+
+        **pairs
+            Zero or more key-value pairs in which the key is the name of a known
+            metric system and the value is an object that can instantiate the
+            `~algebraic.Expression` class.
+
+        Notes
+        -----
+        This class attempts to build dimensions first from `attributes`, then
+        from `pairs`. If a key in `pairs` matches the metric system of a given
+        instance of `~metric.Attributes`, it will overwrite the dimension
+        corresponding to that system.
+        """
+
+    def __init__(self, *args, **kwargs) -> None:
+        self._objects = self._init_from(*args, **kwargs)
+
+    def _init_from(
+        self,
+        *args,
+        **kwargs
+    ) -> typing.Dict[str, typing.Optional[Dimension]]:
+        """Create dimension objects from arguments."""
+        if not kwargs and len(args) == 1:
+            arg = args[0]
+            if isinstance(arg, Unit):
+                return {
+                    system: self._from_unit(arg, system)
+                    for system in SYSTEMS
+                }
+        created = dict.fromkeys(SYSTEMS)
+        from_args = {
+            arg.system: Dimension(arg, arg.system)
+            for arg in args if isinstance(arg, Attributes)
+        }
+        created.update(from_args)
+        from_kwargs = {
+            system: Dimension(expressable, system)
+            for system, expressable in kwargs.items()
+        }
+        created.update(from_kwargs)
+        if any(created.values()):
+            return created
+        raise TypeError(
+            f"Can't instantiate {self.__class__!r}"
+            f" from {args!r} and {kwargs!r}"
+        ) from None
+
+    # TODO: Refactor or move? This doesn't need to be an instance method or even
+    # a class method.
+    def _from_unit(self, unit: Unit, system: typing.Literal['mks', 'cgs']):
+        """Compute this unit's dimension in `system`, if possible."""
+        try:
+            return Dimension(unit, system)
+        except ValueError:
+            return None
+
+    def __len__(self) -> int:
+        return len(self._objects)
+
+    def __iter__(self) -> typing.Iterator:
+        return iter(self._objects)
+
+    def __getitem__(self, __k: str):
+        key = __k.lower()
+        if key in self._objects:
+            return self._objects[key]
+        raise KeyError(f"No dimension for {__k!r}") from None
+
+    def __str__(self) -> str:
+        return ', '.join(
+            f"{k!r}: {str(v) if v else v!r}"
+            for k, v in self._objects.items()
+        )
 
 
 class SearchError(KeyError):

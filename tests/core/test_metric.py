@@ -622,8 +622,10 @@ def test_unit_dimensions():
             assert unit.dimensions[system] == expected
     # User should not be able to alter dimensions on an instance.
     meter = metric.Unit('m')
-    meter.dimensions.pop('mks')
-    meter.dimensions['mks'] = 'Oops!'
+    with pytest.raises(AttributeError):
+        meter.dimensions.pop('mks')
+    with pytest.raises(TypeError):
+        meter.dimensions['mks'] = 'Oops!'
     assert meter.dimensions['mks'] == 'L'
 
 
