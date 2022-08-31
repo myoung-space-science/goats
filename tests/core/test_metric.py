@@ -543,7 +543,7 @@ def test_dimension_init():
         quantity = metric.Quantity(current['quantity'])
         forms = current['forms']
         for target in (unit, quantity['mks']):
-            dimension = metric.Dimension(target)
+            dimension = metric.Dimension(target, system='mks')
             assert isinstance(dimension, metric.Dimension)
             for form in forms:
                 assert dimension == form
