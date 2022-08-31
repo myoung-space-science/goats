@@ -1331,14 +1331,15 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
     with their standard versions, if necessary.
     """
 
-    def __new__(cls, arg, **kwargs):
-        if isinstance(arg, cls):
-            if kwargs:
+    def __new__(cls, *args, **kwargs):
+        if len(args) == 1:
+            arg = args[0]
+            if isinstance(arg, cls):
+                if not kwargs:
+                    return arg
                 raise TypeError(
-                    "Can't change parsing options"
-                    " on an existing expression"
+                    "Can't change parsing options on an existing expression"
                 ) from None
-            return arg
         return super().__new__(cls)
 
     @typing.overload
