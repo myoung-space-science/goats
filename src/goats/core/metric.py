@@ -1980,7 +1980,13 @@ class Dimension(algebraic.Expression):
         arg: typing.Union[Unit, Attributes, str, iterables.whole],
         system: typing.Literal['mks', 'cgs'],
     ) -> None:
-        self.system = system
+        self.system = system.lower()
+        super().__init__(self._parse(arg))
+
+    def _parse(self, arg):
+        """Get the appropriate object with which to create this instance."""
+        if isinstance(arg, Attributes):
+            return arg.dimension
         if isinstance(arg, Unit):
             expression = algebraic.Expression('1')
             systems = set()
@@ -1988,19 +1994,17 @@ class Dimension(algebraic.Expression):
                 named = NamedUnit(term.base)
                 allowed = named.systems['allowed']
                 dimension = (
-                    named.dimensions[system] if len(allowed) > 1
+                    named.dimensions[self.system] if len(allowed) > 1
                     else named.dimensions[allowed[0]]
                 )
                 expression *= algebraic.Expression(dimension) ** term.exponent
                 systems.update(allowed)
-            if system in systems:
-                return super().__init__(expression)
+            if self.system in systems:
+                return expression
             raise ValueError(
-                f"Can't define dimension of {arg!r} in {system!r}"
+                f"Can't define dimension of {arg!r} in {self.system!r}"
             ) from None
-        if isinstance(arg, Attributes):
-            return super().__init__(arg.dimension)
-        return super().__init__(arg)
+        return arg
 
     def _new(self, arg: typing.Union[str, iterables.whole]):
         return super()._new(arg, self.system)
