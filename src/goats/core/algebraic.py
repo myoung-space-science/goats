@@ -1630,6 +1630,15 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         return result
 
 
+Expressable = typing.TypeVar(
+    'Expressable',
+    str,
+    typing.Iterable,
+    Expression,
+)
+Expressable = typing.Union[str, typing.Iterable, Expression]
+
+
 def reduce(*groups: typing.Iterable[Term]):
     """Algebraically reduce terms with equal bases.
 
