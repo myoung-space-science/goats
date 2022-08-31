@@ -1296,7 +1296,11 @@ class SeparableTypeError(TypeError):
         return f"{self.arg!r} is not separable"
 
 
-class whole(collections.abc.Collection, metaclass=NonStrIterable):
+class whole(
+    collections.abc.Collection,
+    typing.Generic[T],
+    ReprStrMixin,
+    metaclass=NonStrIterable):
     """A collection of independent members.
 
     This class represents iterable collections with members that have meaning
@@ -1357,10 +1361,6 @@ class whole(collections.abc.Collection, metaclass=NonStrIterable):
     def __str__(self) -> str:
         """A simplified representation of this object."""
         return str(self.arg)
-
-    def __repr__(self) -> str:
-        """An unambiguous representation of this object."""
-        return f"{self.__class__.__qualname__}({self})"
 
 
 def distribute(a, b):
