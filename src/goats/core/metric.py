@@ -1895,14 +1895,15 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         return self._dimensions
 
     def __floordiv__(self, other):
-        """Compute the magnitude of this unit relative to another.
+        """Compute the magnitude of this unit relative to `other`.
 
         This method essentially computes the amount of `self` per `other`. The
         result is the numerical factor, N, necessary to convert a quantity with
-        unit `other` to the equivalent quantity with unit `self`. In algebraic
-        terms, suppose you have an amount q0 of some physical quantity when
-        expressed in unit u0. The equivalent amount when expressed in unit u1 is
-        q1 = (u1 // u0) * q0.
+        unit `other` to the equivalent quantity with unit `self`.
+        
+        In algebraic terms, suppose you have an amount q0 of some physical
+        quantity when expressed in unit u0. The equivalent amount when expressed
+        in unit u1 is q1 = (u1 // u0) * q0.
 
         Examples
         --------
@@ -1929,16 +1930,34 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
             1.3395919067215364e-13
             >>> Unit('kg * m^2 / s^2') // Unit('g * au^2 / day^2')
             2997942777.7207007
+
+        Notes
+        -----
+        The result of this operation is the inverse of the result of
+        `~metric.conversion`. The justification is equivalent to that described
+        in `~metric.NamedUnit.__floordiv__` regarding its relationship to
+        `~metric.ratio`.
         """
         return (
-            Conversion(str(other), str(self)).factor
+            conversion(other, self)
             if isinstance(other, (str, Unit))
             else NotImplemented
         )
 
     def __rfloordiv__(self, other):
-        """Compute the inverse of self // other."""
-        return 1.0 / self.__floordiv__(other)
+        """Compute the magnitude of `other` relative to this unit.
+        
+        Notes
+        -----
+        This method does not compute the inverse of the result of
+        ``__floordiv__``. The justification is similar to that described in
+        `~metric.NamedUnit.__rfloordiv__`.
+        """
+        return (
+            conversion(self, other)
+            if isinstance(other, (str, Unit))
+            else NotImplemented
+        )
 
     def __or__(self, other) -> bool:
         """Called for self | other to test equivalence.
