@@ -83,6 +83,13 @@ def test_conversion_class(conversions: dict):
         assert conversion.factor == pytest.approx(factor)
 
 
+def test_conversion_function(conversions: dict):
+    """Test the function that wraps the unit-conversion class."""
+    for (u0, u1), factor in conversions.items():
+        conversion = metric.conversion(u0, u1)
+        assert conversion == pytest.approx(factor)
+
+
 def test_create_quantity():
     """Test the ability to represent arbitrary metric quantities."""
     q = metric.Quantity('length / magnetic field')

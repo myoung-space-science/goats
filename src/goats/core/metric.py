@@ -2029,6 +2029,66 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         return all(str(term) in UNITY for term in difference)
 
 
+def conversion(u0: typing.Union[str, Unit], u1: typing.Union[str, Unit]):
+    """Compute a numerical unit-conversion factor.
+
+    This function exists as a convenient shortcut for computing conversion
+    factors via the `~metric.Conversion` class.
+
+    Parameters
+    ----------
+    u0 : string or ~metric.Unit
+        The unit from which to convert
+
+    u1 : string or ~metric.Unit
+        The unit to which to convert
+
+    Returns
+    -------
+    float
+        The numerical factor required to convert the representation of a
+        quantity in unit `u0` to its representation in unit `u1`.
+
+    Examples
+    --------
+    As a trivial first example, suppose you have something that is 2 meters long
+    and you want to convert its length to centimeters:
+
+    >>> 2 * metric.conversion('m', 'cm')
+    200.0
+
+    Note that because meter and centimeter have the same base unit, this is
+    equivalent to computing their ratio:
+
+    >>> 2 * metric.ratio('m', 'cm')
+    200.0
+
+    Next, in order to convert an amount of energy flux from 'J / au^2' to 'eV /
+    km^2', you must multiply by
+
+    >>> metric.conversion('J / au^2', 'eV / km^2')
+    278.8896829059863
+
+    which is equivalent to multiplying by the factor to convert from 'J' to
+    'eV', then dividing by the square of the factor to convert from 'au' to
+    'km':
+
+    >>> c0 = metric.conversion('J', 'eV')
+    >>> c1 = metric.conversion('au', 'km')
+    >>> c0
+    6.241418050181001e+18
+    >>> c1
+    149597870.70000002
+    >>> c0 / c1**2
+    278.8896829059863
+
+    See Also
+    --------
+    metric.Conversion
+    """
+    return Conversion(str(u0), str(u1)).factor
+
+
 Instance = typing.TypeVar('Instance', bound='Dimension')
 
 
