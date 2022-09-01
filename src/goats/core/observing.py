@@ -197,7 +197,7 @@ class Interface(collections.abc.Collection):
     # TODO: Refactor `get_unit` and `get_axes` to reduce overlap.
 
     def get_unit(self, key: str):
-        """Internal helper for `~Interface.get_unit`."""
+        """Determine the unit corresponding to `key`."""
         if key in self.variables:
             return self.variables[key].unit
         if key in self.functions:
