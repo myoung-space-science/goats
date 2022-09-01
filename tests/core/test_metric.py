@@ -81,6 +81,8 @@ def test_conversion_class(conversions: dict):
     for (u0, u1), factor in conversions.items():
         conversion = metric.Conversion(u0, u1)
         assert float(conversion) == pytest.approx(factor)
+    with pytest.raises(metric.UnitConversionError):
+        metric.Conversion('m', 'J')
 
 
 def test_conversion_function(conversions: dict):
