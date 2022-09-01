@@ -90,6 +90,9 @@ def test_conversion_function(conversions: dict):
     for (u0, u1), factor in conversions.items():
         conversion = metric.conversion(u0, u1)
         assert conversion == pytest.approx(factor)
+    assert metric.conversion('m', 'J') is None
+    with pytest.raises(metric.UnitConversionError):
+        metric.conversion('m', 'J', strict=True)
 
 
 def test_create_quantity():

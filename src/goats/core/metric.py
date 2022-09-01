@@ -1945,7 +1945,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         `~metric.ratio`.
         """
         return (
-            conversion(other, self)
+            conversion(other, self, strict=True)
             if isinstance(other, (str, Unit))
             else NotImplemented
         )
@@ -1960,7 +1960,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         `~metric.NamedUnit.__rfloordiv__`.
         """
         return (
-            conversion(self, other)
+            conversion(self, other, strict=True)
             if isinstance(other, (str, Unit))
             else NotImplemented
         )
@@ -2054,11 +2054,16 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         return all(str(term) in UNITY for term in difference)
 
 
-def conversion(u0: typing.Union[str, Unit], u1: typing.Union[str, Unit]):
+def conversion(
+    u0: typing.Union[str, Unit],
+    u1: typing.Union[str, Unit],
+    strict: bool=False,
+) -> typing.Optional[float]:
     """Compute a numerical unit-conversion factor.
 
-    This function exists as a convenient shortcut for computing conversion
-    factors via the `~metric.Conversion` class.
+    This function provides a convenient shortcut for computing conversion
+    factors via the `~metric.Conversion` class. It also silently returns rather
+    than raising an exception when the conversion is not possible.
 
     Parameters
     ----------
@@ -2068,11 +2073,18 @@ def conversion(u0: typing.Union[str, Unit], u1: typing.Union[str, Unit]):
     u1 : string or ~metric.Unit
         The unit to which to convert
 
+    strict : bool, default=False
+        If true, allow undefined conversions to raise
+        `~metric.UnitConversionError`. The default behavior is to return
+        ``None``.
+
     Returns
     -------
-    float
+    float or None
         The numerical factor required to convert the representation of a
-        quantity in unit `u0` to its representation in unit `u1`.
+        quantity in unit `u0` to its representation in unit `u1`, if the
+        conversion succeeds. The value of `strict` determines the behavior if
+        the conversion fails.
 
     Examples
     --------
@@ -2111,7 +2123,11 @@ def conversion(u0: typing.Union[str, Unit], u1: typing.Union[str, Unit]):
     --------
     metric.Conversion
     """
-    return float(Conversion(str(u0), str(u1)))
+    try:
+        return float(Conversion(str(u0), str(u1)))
+    except UnitConversionError as err:
+        if strict:
+            raise err
 
 
 Instance = typing.TypeVar('Instance', bound='Dimension')
