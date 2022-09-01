@@ -15,9 +15,10 @@ def test_defined_conversions():
         assert metric.CONVERSIONS.get_weight(u1, u0) == 1 / wt
 
 
-def test_conversion_class():
-    """Test the unit-conversion class"""
-    cases = {
+@pytest.fixture
+def conversions():
+    """Test cases for unit conversions."""
+    return {
         # Length (common and simple)
         ('m', 'm'): 1.0, # trivial conversion
         ('m', 'cm'): 1e2, # defined metric-system conversion
@@ -73,7 +74,11 @@ def test_conversion_class():
             'cm^-2 sr^-1 s^-1 (MeV/nuc)^-1',
         ): 1.6022e-17 # `flux`: includes 'nuc' (dimensionless)
     }
-    for (u0, u1), factor in cases.items():
+
+
+def test_conversion_class(conversions: dict):
+    """Test the unit-conversion class"""
+    for (u0, u1), factor in conversions.items():
         conversion = metric.Conversion(u0, u1)
         assert conversion.factor == pytest.approx(factor)
 
