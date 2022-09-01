@@ -2262,8 +2262,8 @@ class Dimensions(typing.Mapping, iterables.ReprStrMixin):
     def __iter__(self) -> typing.Iterator:
         return iter(self._objects)
 
-    def __getitem__(self, __k: str):
-        key = __k.lower()
+    def __getitem__(self, __k):
+        key = str(__k).lower()
         if key in self._objects:
             return self._objects[key]
         raise KeyError(f"No dimension for {__k!r}") from None
