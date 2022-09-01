@@ -759,10 +759,10 @@ _CONVERSIONS = {
 CONVERSIONS = iterables.Connections(_CONVERSIONS)
 
 
-Instance = typing.TypeVar('Instance', bound='Property')
+Instance = typing.TypeVar('Instance', bound='_Property')
 
 
-class Property(collections.abc.Mapping, iterables.ReprStrMixin):
+class _Property(collections.abc.Mapping, iterables.ReprStrMixin):
     """All definitions of a single metric property."""
 
     _instances = {}
@@ -881,17 +881,17 @@ class Property(collections.abc.Mapping, iterables.ReprStrMixin):
 # which are always well defined.
 
 
-DIMENSIONS = Property('dimensions')
+DIMENSIONS = _Property('dimensions')
 """All defined metric dimensions."""
 
 
-UNITS = Property('units')
+UNITS = _Property('units')
 """All defined metric units."""
 
 
 CANONICAL = {
     k: {
-        system: Property(k).system(system) for system in ('mks', 'cgs')
+        system: _Property(k).system(system) for system in ('mks', 'cgs')
     } for k in ('dimensions', 'units')
 }
 """Canonical metric properties in each known metric system."""
@@ -1411,6 +1411,8 @@ class Conversion(iterables.ReprStrMixin):
         if len(args) == 1 and isinstance(args[0], cls):
             return args[0]
         key = tuple(args)
+        # TODO: Can we use the existence of a particular conversion to more
+        # efficiently create its inverse?
         if available := cls._instances.get(key):
             return available
         u0, u1 = key
@@ -1770,8 +1772,6 @@ Instance = typing.TypeVar('Instance', bound='Quantity')
 class Quantity(iterables.ReprStrMixin):
     """A single metric quantity."""
 
-    _properties = {k: Property(k) for k in ('units', 'dimensions')}
-
     _instances = {}
 
     Attr = typing.TypeVar('Attr', bound=dict)
@@ -1801,8 +1801,8 @@ class Quantity(iterables.ReprStrMixin):
         self = super().__new__(cls)
         self.name = name
         """The name of this physical quantity."""
-        self.units = cls._properties['units'][self.name]
-        self.dimensions = cls._properties['dimensions'][self.name]
+        self.units = UNITS[self.name]
+        self.dimensions = DIMENSIONS[self.name]
         cls._instances[name] = self
         return self
 

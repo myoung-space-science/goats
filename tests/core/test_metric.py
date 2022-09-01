@@ -139,7 +139,7 @@ def test_quantity_convert():
 def test_singletons():
     """Make sure certain objects have a single reference."""
     cases = {
-        metric.Property: ['units'],
+        metric._Property: ['units'],
         metric.NamedUnit: ['m', 'meter'],
         metric.Conversion: [('G', 'T')],
         metric._Converter: [('m', 'length')],
