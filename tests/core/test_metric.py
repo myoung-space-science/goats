@@ -74,11 +74,8 @@ def test_conversion_class():
         ): 1.6022e-17 # `flux`: includes 'nuc' (dimensionless)
     }
     for (u0, u1), factor in cases.items():
-        check_conversion(u0, u1, factor)
-
-def check_conversion(u0: str, u1: str, factor: float):
-    conversion = metric.Conversion(u0, u1)
-    assert conversion.factor == pytest.approx(factor)
+        conversion = metric.Conversion(u0, u1)
+        assert conversion.factor == pytest.approx(factor)
 
 
 def test_create_quantity():
