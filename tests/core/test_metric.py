@@ -390,6 +390,7 @@ def test_named_unit_decompose(decompositions: dict):
             if expected is None:
                 assert result is None
             else:
+                assert result.system == system
                 assert result.scale == expected['scale']
                 terms = [algebraic.Term(**term) for term in expected['terms']]
                 assert result.terms == terms
@@ -411,6 +412,7 @@ def test_named_unit_decompose_system(decompositions: dict):
         if case is None:
             assert result is None
         else:
+            assert result.system == default
             terms = [algebraic.Term(**term) for term in case['terms']]
             assert result.scale == case['scale']
             assert result.terms == terms

@@ -972,6 +972,7 @@ class BaseUnit(typing.NamedTuple):
 class Decomposition(typing.NamedTuple):
     """The numeric scale and base units of a named unit."""
 
+    system: str
     scale: float
     terms: typing.List[algebraic.Term]
 
@@ -1165,10 +1166,18 @@ class NamedUnit(iterables.ReprStrMixin):
             if self.symbol == canonical:
                 # If this is the canonical unit for its quantity in `system`,
                 # return it with a scale of unity.
-                return Decomposition(1.0, [algebraic.Term(self.symbol)])
+                return Decomposition(
+                    system,
+                    1.0,
+                    [algebraic.Term(self.symbol)],
+                )
             # If not, return the canonical unit with the appropriate scale
             # factor.
-            return Decomposition(canonical // self, [algebraic.Term(canonical)])
+            return Decomposition(
+                system,
+                canonical // self,
+                [algebraic.Term(canonical)],
+            )
         quantities = [
             _BASE_QUANTITIES.find(term.base)[0]['name']
             for term in expression
@@ -1181,7 +1190,7 @@ class NamedUnit(iterables.ReprStrMixin):
             algebraic.Term(base=unit, exponent=term.exponent)
             for unit, term in zip(units, expression)
         ]
-        return Decomposition(self.scale, terms)
+        return Decomposition(system, self.scale, terms)
 
     @property
     def dimensions(self) -> typing.Dict[str, typing.Optional[str]]:
