@@ -443,3 +443,14 @@ def test_hastype():
         assert iterables.hastype(index, types, tuple)
     assert not iterables.hastype('hello', types)
 
+
+def test_guard():
+    """Test the class that guards callable objects."""
+    def func(v):
+        return 1 / v
+    guard = iterables.Guard(func)
+    guard.catch(TypeError)
+    guard.catch(ZeroDivisionError, 'Bad!')
+    assert guard.call(2) == 0.5
+    assert guard.call(0) == 'Bad!'
+

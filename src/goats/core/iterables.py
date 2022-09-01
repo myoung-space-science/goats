@@ -1561,3 +1561,46 @@ def hastype(
         if isinstance(__obj, wrapper):
             return all(isinstance(i, __types) for i in __obj)
     return False
+
+
+G = typing.TypeVar('G')
+
+
+class Guard:
+    """Substitute default values for exceptions.
+
+    This class wraps a callable object in `try/except` logic that substitutes a
+    default value when calling that object raises a known exception. The default
+    behavior is to substitute ``None``, but users may specify a specific
+    substitution value when registering a known exception (see `~Guard.catch`).
+    
+    Notes
+    -----
+    This class was inspired by https://stackoverflow.com/a/8915613/4739101.
+    """
+
+    def __init__(self, __callable: typing.Callable[..., T]) -> None:
+        self._call = __callable
+        self._substitutions = {}
+
+    def catch(self, exception: Exception, /, value: G=None):
+        """Register a known exception and optional substitution value.
+        
+        Parameters
+        ----------
+        exception
+            An exception class to catch when calling the guarded object.
+
+        value, optional
+            The value to return from `~Guard.call` when calling the guarded
+            object raises `exception`.
+        """
+        self._substitutions[exception] = value
+
+    def call(self, *args, **kwargs) -> typing.Union[T, G]:
+        """Call the guarded object with the given arguments."""
+        try:
+            result = self._call(*args, **kwargs)
+        except tuple(self._substitutions) as err:
+            result = self._substitutions[type(err)]
+        return result
