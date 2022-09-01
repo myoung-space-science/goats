@@ -80,7 +80,7 @@ def test_conversion_class(conversions: dict):
     """Test the unit-conversion class"""
     for (u0, u1), factor in conversions.items():
         conversion = metric.Conversion(u0, u1)
-        assert conversion.factor == pytest.approx(factor)
+        assert float(conversion) == pytest.approx(factor)
 
 
 def test_conversion_function(conversions: dict):

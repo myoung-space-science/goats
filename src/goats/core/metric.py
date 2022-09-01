@@ -1404,7 +1404,7 @@ class Conversion(iterables.ReprStrMixin):
 
     u0: str=None
     u1: str=None
-    factor: float=None
+    _factor: float=None
 
     def __new__(cls, *args):
         """Concrete implementation."""
@@ -1421,7 +1421,7 @@ class Conversion(iterables.ReprStrMixin):
             self._convert_as_strings,
             self._convert_as_expressions,
         )
-        self.factor = self._compute(methods)
+        self._factor = self._compute(methods)
         cls._instances[key] = self
         return self
 
@@ -1644,18 +1644,24 @@ class Conversion(iterables.ReprStrMixin):
         if not unmatched:
             return factor
 
+    def __float__(self) -> float:
+        """Reduce this instance to its numerical factor via float(self)."""
+        if bool(self):
+            return self._factor
+        raise TypeError("Conversion is undefined") from None
+
     def __bool__(self):
         """True if this conversion exists."""
         # NOTE: This may be expensive.
         try:
-            factor = self.factor
+            factor = self._factor
         except:
             return False
         return bool(factor)
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        return f"({self.u0!r} -> {self.u1!r}): {self.factor!r}"
+        return f"({self.u0!r} -> {self.u1!r}): {float(self)!r}"
 
 
 Instance = typing.TypeVar('Instance', bound='_Converter')
@@ -1749,7 +1755,7 @@ class _Converter(iterables.ReprStrMixin):
         if self.unit == unit:
             return 1.0
         if conversion := Conversion(self.unit, unit):
-            return conversion.factor
+            return float(conversion)
         raise ValueError(
             f"Unknown conversion from {self.unit!r} to {unit!r}."
         ) from None
@@ -2105,7 +2111,7 @@ def conversion(u0: typing.Union[str, Unit], u1: typing.Union[str, Unit]):
     --------
     metric.Conversion
     """
-    return Conversion(str(u0), str(u1)).factor
+    return float(Conversion(str(u0), str(u1)))
 
 
 Instance = typing.TypeVar('Instance', bound='Dimension')
