@@ -2056,9 +2056,11 @@ class Dimensions(typing.Mapping, iterables.ReprStrMixin):
         """Create dimension objects from arguments."""
         if not kwargs and len(args) == 1:
             arg = args[0]
+            guard = iterables.Guard(Dimension)
+            guard.catch(ValueError)
             if isinstance(arg, Unit):
                 return {
-                    system: self._from_unit(arg, system)
+                    system: guard.call(arg, system)
                     for system in SYSTEMS
                 }
         created = dict.fromkeys(SYSTEMS)
@@ -2078,15 +2080,6 @@ class Dimensions(typing.Mapping, iterables.ReprStrMixin):
             f"Can't instantiate {self.__class__!r}"
             f" from {args!r} and {kwargs!r}"
         ) from None
-
-    # TODO: Refactor or move? This doesn't need to be an instance method or even
-    # a class method.
-    def _from_unit(self, unit: Unit, system: typing.Literal['mks', 'cgs']):
-        """Compute this unit's dimension in `system`, if possible."""
-        try:
-            return Dimension(unit, system)
-        except ValueError:
-            return None
 
     def __len__(self) -> int:
         return len(self._objects)
