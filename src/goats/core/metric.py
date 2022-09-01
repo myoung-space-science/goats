@@ -1940,6 +1940,67 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         """Compute the inverse of self // other."""
         return 1.0 / self.__floordiv__(other)
 
+    def __or__(self, other) -> bool:
+        """Called for self | other to test equivalence.
+        
+        Two units are equivalent if their conversion factor is unity.
+
+        Examples
+        --------
+        Identity implies equivalence.
+
+        >>> metric.Unit('m / s') is metric.Unit('m s^-1')
+        True
+        >>> metric.Unit('m / s') | metric.Unit('m s^-1')
+        True
+
+        Equality implies equivalence.
+
+        >>> metric.Unit('# / (m^2 s sr J)') == metric.Unit('1 / (m^2 s sr J)')
+        True
+        >>> metric.Unit('# / (m^2 s sr J)') | metric.Unit('1 / (m^2 s sr J)')
+        True
+
+        Unequal units may be equivalent.
+        
+        >>> metric.Unit('N') == metric.Unit('kg m s^-2')
+        False
+        >>> metric.Unit('N') | metric.Unit('kg m s^-2')
+        True
+        >>> metric.Unit('dyn') == metric.Unit('g cm s^-2')
+        False
+        >>> metric.Unit('dyn') | metric.Unit('g cm s^-2')
+        True
+
+        Units that represent the same physical quantity are not necessarily
+        equivalent.
+        
+        >>> metric.Unit('N') | metric.Unit('dyn')
+        False
+        >>> metric.Unit('N') | metric.Unit('g cm s^-2')
+        False
+        >>> metric.Unit('N') | metric.Unit('kg m^2 s^-2')
+        False
+
+        One of the operands may be a string.
+
+        >>> metric.Unit('N') | 'kg m s^-2'
+        True
+        >>> 'N' | metric.Unit('kg m s^-2')
+        True
+        """
+        try:
+            return self == other or (self // type(self)(other)) == 1.0
+        except UnitConversionError:
+            return False
+
+    def __ror__(self, other) -> bool:
+        """Called for self | other to test equivalence.
+        
+        See ``~__or__`` for further documentation.
+        """
+        return self | other
+
     def __eq__(self, other) -> bool:
         """Called for self == other.
         
@@ -1948,6 +2009,10 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         Otherwise, they are unequal. This method does not attempt to determine
         if two unit expressions are equivalent (e.g., 'N' and 'kg m / s') by
         comparing their ratio to unity.
+
+        See Also
+        --------
+        `~Unit.__or__`: Called to define unit equivalence via the `|` operator.
         """
         equal = super().__eq__(other)
         if equal:

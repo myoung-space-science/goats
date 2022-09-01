@@ -692,6 +692,29 @@ def test_unit_raise():
         assert result == metric.Unit(expected)
 
 
+def test_unit_equivalence():
+    """Test the definition of equivalence between units."""
+    # Identity implies equivalence
+    assert metric.Unit('m / s') is metric.Unit('m s^-1')
+    assert metric.Unit('m / s') | metric.Unit('m s^-1')
+    # Equality implies equivalence
+    assert metric.Unit('# / (m^2 s sr J)') == metric.Unit('1 / (m^2 s sr J)')
+    assert metric.Unit('# / (m^2 s sr J)') | metric.Unit('1 / (m^2 s sr J)')
+    # Unequal units may be equivalent
+    assert metric.Unit('N') != metric.Unit('kg m s^-2')
+    assert metric.Unit('N') | metric.Unit('kg m s^-2')
+    assert metric.Unit('dyn') != metric.Unit('g cm s^-2')
+    assert metric.Unit('dyn') | metric.Unit('g cm s^-2')
+    # 'N' and 'dyn' represent the same quantity but are not equivalent
+    assert not metric.Unit('N') | metric.Unit('dyn')
+    assert not metric.Unit('N') | metric.Unit('g cm s^-2')
+    # Units that can't be inter-converted are not equivalent
+    assert not metric.Unit('N') | metric.Unit('kg m^2 s^-2')
+    # The operation is symmetrically valid with strings
+    assert metric.Unit('N') | 'kg m s^-2'
+    assert 'N' | metric.Unit('kg m s^-2')
+
+
 def test_unit_equality():
     """Test the definition of strict equality between units."""
     cases = [
