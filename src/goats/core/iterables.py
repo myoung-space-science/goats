@@ -1593,14 +1593,61 @@ class Guard:
 
         value, optional
             The value to return from `~Guard.call` when calling the guarded
-            object raises `exception`.
+            object raises `exception`. The default value is ``None``. There is
+            one special case: Registering `exception` with ``value = ...``
+            (i.e., the built-in ``Ellipsis`` object), will cause `~Guard.call` to return
+            the given argument(s). See `~Guard.call` for more information about
+            the form of the return value in this case.
         """
         self._substitutions[exception] = value
 
     def call(self, *args, **kwargs) -> typing.Union[T, G]:
-        """Call the guarded object with the given arguments."""
+        """Call the guarded object with the given arguments.
+        
+        Parameters
+        ----------
+        *args
+            Positional arguments to pass to the guarded object.
+
+        **kwargs
+            Keyword arguments to pass to the guarded object.
+
+        Returns
+        -------
+        The result of calling the guarded object, or an associated default
+        value, or the given arguments.
+        
+        If no exceptions arose when calling the guarded object, this method will
+        return the result of that call.
+
+        If calling the guarded object raises a known exception and the value
+        associated with that exception is not ``...`` (the built-in ``Ellipsis``
+        object), this method will return the associated value.
+        
+        If calling the guarded object raises a known exception and the value
+        associated with that exception is ``...``, this method will return the
+        given arguments. The return type in this case depends on the given
+        arguments. If the user passes only a single positional argument, this
+        method will return that argument. If the user passes only positional
+        arguments, this method will return the equivalent ``tuple``. If the user
+        passes only keyword arguments, this method will return the equivalent
+        ``dict``. If the user passes positional and keyword arguments, this
+        method will return a ``tuple`` containing the corresponding equivalent
+        ``tuple`` and ``dict``.
+        
+        If calling the guarded object raises an exception that is unknown to
+        this instance, that exception will propagate up to the caller as usual.
+        """
         try:
-            result = self._call(*args, **kwargs)
+            return self._call(*args, **kwargs)
         except tuple(self._substitutions) as err:
-            result = self._substitutions[type(err)]
-        return result
+            value = self._substitutions[type(err)]
+            if value != Ellipsis:
+                return value
+            if not kwargs:
+                if len(args) == 1:
+                    return args[0]
+                return args
+            if not args:
+                return kwargs
+            return args, kwargs

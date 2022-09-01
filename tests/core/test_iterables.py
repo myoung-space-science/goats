@@ -446,11 +446,41 @@ def test_hastype():
 
 def test_guard():
     """Test the class that guards callable objects."""
-    def func(v):
+    def invert(v):
+        if v == -1:
+            raise ValueError
         return 1 / v
-    guard = iterables.Guard(func)
+    guard = iterables.Guard(invert)
     guard.catch(TypeError)
     guard.catch(ZeroDivisionError, 'Bad!')
+    # valid call
     assert guard.call(2) == 0.5
+    # catch TypeError
+    assert guard.call('2') is None
+    # catch ZeroDivisionError
     assert guard.call(0) == 'Bad!'
+    with pytest.raises(ValueError):
+        guard.call(-1)
+
+    def check(*args, **kwargs):
+        if (args and args[0] < 0) or len(kwargs) > 2:
+            raise ValueError
+        return True
+    guard = iterables.Guard(check)
+    guard.catch(ValueError, ...)
+    # valid call
+    assert guard.call(4, 5)
+    # valid call
+    assert guard.call(a=5, b=5)
+    # catch ValueError due to illegal value; return single positional argument
+    assert guard.call(-1) == -1
+    # catch ValueError due to illegal value; return a tuple containing all
+    # positional arguments
+    assert guard.call(-1, 5, 6) == (-1, 5, 6)
+    # catch ValueError due to the presence of extra keyword arguments; return a
+    # dict containing all keyword arguments
+    assert guard.call(a=4, b=5, c=6) == {'a': 4, 'b':5, 'c': 6}
+    # catch ValueError due to illegal value; return a tuple containing a tuple
+    # of positional arguments and a dict of keyword arguments.
+    assert guard.call(-1, 5, 6, this=7) == ((-1, 5, 6), {'this': 7})
 
