@@ -1135,10 +1135,10 @@ class NamedUnit(iterables.ReprStrMixin):
         if isinstance(system, str) and system.lower() in SYSTEMS:
             # trivial case
             return system.lower()
-        for this in SYSTEMS:
-            # default to canonical system if applicable
-            if self.is_fundamental_in(this):
-                return this
+        systems = [s for s in SYSTEMS if self.is_fundamental_in(s)]
+        if len(systems) == 1:
+            # use canonical system if possible
+            return systems[0]
         if self.dimensions['mks'] == self.dimensions['cgs']:
             # system-independent: use mks by default
             return 'mks'
