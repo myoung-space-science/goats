@@ -679,6 +679,20 @@ def test_expression_diff():
         assert e0.difference(e1, split=True) == expected['split']
 
 
+def test_product():
+    """Test the module function that computes an algebraic product."""
+    cases = {
+        ('a', 'b'): 'a * b',
+        ('a', 'a^-1'): '1',
+        ('a', 'a'): 'a^2',
+        ('a / b', 'c / d'): 'a * c / (b * d)',
+        ('a / b', 'c / b'): 'a * c / b^2',
+        ('a / b', 'b / c'): 'a / c',
+    }
+    for (n, d), expected in cases.items():
+        assert algebraic.product(n, d) == expected
+
+
 def test_ratio():
     """Test the module function that computes an algebraic ratio."""
     cases = {
