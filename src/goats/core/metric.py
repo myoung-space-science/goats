@@ -711,6 +711,7 @@ _QUANTITIES = {
     },
     'volume': 'length^3',
     'vorticity': 'frequency',
+    'wavenumber': '1 / length',
     'work': 'energy',
 }
 
