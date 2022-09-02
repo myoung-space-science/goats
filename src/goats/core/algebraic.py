@@ -1680,13 +1680,13 @@ def reduce(*groups: typing.Iterable[Term]):
     return variables + constant
 
 
-def product(a, b):
+def product(a, b) -> Expression:
     """Symbolically compute a * b."""
     x, y = (Expression(i) for i in (a, b))
     return x * y
 
 
-def ratio(a, b):
+def ratio(a, b) -> Expression:
     """Symbolically compute a / b."""
     x, y = (Expression(i) for i in (a, b))
     return x / y
