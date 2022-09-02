@@ -2195,6 +2195,11 @@ class Properties(iterables.ReprStrMixin):
         return f"{properties} [{self._system!r}]"
 
 
+class QuantityError(Exception):
+    """An error occurred in `~metric.Quantity`."""
+    pass
+
+
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
@@ -2241,7 +2246,7 @@ class Quantity(iterables.ReprStrMixin):
             unit = self.units[system.lower()]
             return Properties(system, unit)
         except KeyError as err:
-            raise KeyError(
+            raise QuantityError(
                 f"No properties available for {self.name!r} in {system!r}"
             ) from err
 
