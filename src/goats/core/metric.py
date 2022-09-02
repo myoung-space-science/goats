@@ -319,6 +319,7 @@ _BASE_QUANTITIES = iterables.Table(
 )
 
 _QUANTITIES = {
+    'acceleration': 'velocity / time',
     'amount': {
         'dimensions': {
             'mks': 'N',
