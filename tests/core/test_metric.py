@@ -836,7 +836,7 @@ def test_system():
     # - length: same dimension; same unit.
     # - momentum: same dimension; different unit.
     # - magnetic induction: different dimension; different unit.
-    systems = {
+    cases = {
         'mks': {
             'length': {'dimension': 'L', 'unit': 'm'},
             'momentum': {'dimension': '(M * L) / T', 'unit': 'kg * m / s'},
@@ -851,13 +851,15 @@ def test_system():
             },
         },
     }
-    for name, cases in systems.items():
-        lower = name.lower()
-        upper = name.upper()
+    for string, quantities in cases.items():
+        lower = string.lower()
+        upper = string.upper()
         assert metric.System(lower) == metric.System(upper)
         system = metric.System(lower)
-        for key, definition in cases.items():
-            assert system[key] == metric.Attributes(lower, **definition)
+        for name, canonical in quantities.items():
+            quantity = system[name]
+            assert quantity.unit == canonical['unit']
+            assert quantity.dimension == canonical['dimension']
 
 
 def test_system_unit_lookup():

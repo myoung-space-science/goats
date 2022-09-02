@@ -2167,12 +2167,32 @@ class Dimensions(typing.Mapping, iterables.ReprStrMixin):
         )
 
 
-class Properties(typing.NamedTuple):
+class Properties(iterables.ReprStrMixin):
     """Canonical properties of a quantity within a metric system."""
 
-    system: str
-    unit: Unit=None
-    dimension: Dimension=None
+    def __init__(self, system: str, unit: typing.Union[str, Unit]) -> None:
+        self._system = system.lower()
+        self._unit = Unit(unit)
+        self._dimension = None
+
+    @property
+    def unit(self):
+        """The canonical unit of this quantity in this metric system."""
+        return self._unit
+
+    @property
+    def dimension(self):
+        """The dimension of this quantity in this metric system."""
+        if self._dimension is None:
+            self._dimension = self.unit.dimensions[self._system]
+        return self._dimension
+
+    def __str__(self) -> str:
+        properties = ', '.join(
+            f"{p}={str(getattr(self, p, None))!r}"
+            for p in ['unit', 'dimension']
+        )
+        return f"{properties} [{self._system!r}]"
 
 
 Instance = typing.TypeVar('Instance', bound='Quantity')
@@ -2218,19 +2238,12 @@ class Quantity(iterables.ReprStrMixin):
     def __getitem__(self, system: str):
         """Get this quantity's representation in the named metric system."""
         try:
-            name = system.lower()
-            dimension = self.dimensions[name]
-            unit = self.units[name]
+            unit = self.units[system.lower()]
+            return Properties(system, unit)
         except KeyError as err:
             raise KeyError(
-                f"No metric available for system '{system}'"
+                f"No properties available for {self.name!r} in {system!r}"
             ) from err
-        else:
-            return Properties(
-                system,
-                dimension=dimension,
-                unit=unit,
-            )
 
     # NOTE: This is here because unit conversions are only defined within their
     # respective quantities, even though two quantities may have identical
