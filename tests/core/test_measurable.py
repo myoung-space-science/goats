@@ -189,6 +189,15 @@ def test_quantity_unit():
 
 
 @pytest.mark.quantity
+def test_quantity_basetype():
+    """Constrain a measurable quantity with a base type."""
+    q = measurable.Quantity(2, unit='J', basetype='energy')
+    assert q.basetype == 'energy'
+    with pytest.raises(ValueError):
+        q['cm']
+
+
+@pytest.mark.quantity
 def test_initialize_quantity():
     """Test the initialization behavior of Quantity."""
     unit = 'm'

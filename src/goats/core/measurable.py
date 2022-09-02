@@ -1,5 +1,6 @@
 import abc
 import collections.abc
+import contextlib
 import math
 import numbers
 import operator as standard
@@ -11,6 +12,7 @@ import numpy.typing
 from goats.core import algebraic
 from goats.core import iterables
 from goats.core import metadata
+from goats.core import metric
 
 
 Self = typing.TypeVar('Self', bound='SupportsNeg')
@@ -348,6 +350,7 @@ class Quantity(Quantified, AlgebraicOperators):
         self: Instance,
         __data: Real,
         *,
+        basetype: str=None,
         unit: metadata.UnitLike=None,
     ) -> None: ...
 
@@ -357,9 +360,9 @@ class Quantity(Quantified, AlgebraicOperators):
         instance: Instance,
     ) -> None: ...
 
-    def __init__(self, __a, **meta) -> None:
+    def __init__(self, __d, **meta) -> None:
         """Initialize this instance from arguments or an existing instance."""
-        super().__init__(__a.data if isinstance(__a, Quantified) else __a)
+        super().__init__(__d.data if isinstance(__d, Quantified) else __d)
         self.meta['true divide'].suppress(Real, Quantifiable)
         self.meta['power'].suppress(Quantifiable, Quantifiable)
         self.meta['power'].suppress(Real, Quantifiable)
@@ -368,25 +371,31 @@ class Quantity(Quantified, AlgebraicOperators):
             typing.Iterable,
             symmetric=True
         )
-        parsed = self.parse_attrs(__a, meta, unit='1')
-        self._unit = parsed['unit']
-        """This quantity's metric unit."""
+        parsed = self.parse_attrs(__d, meta, basetype=None, unit='1')
+        self._basetype = parsed['basetype']
+        self._unit = self._validate_unit(parsed['unit'])
         self.meta.register('unit')
         self.display.register('data', 'unit')
         self.display['__str__'] = "{data} [{unit}]"
         self.display['__repr__'] = "{data}, unit='{unit}'"
         self.display['__repr__'].separator = ', '
 
-    @property
-    def unit(self):
-        """This quantity's metric unit."""
-        return metadata.Unit(self._unit)
-
     def parse_attrs(self, this, meta: dict, **targets):
         """Get instance attributes from initialization arguments."""
         if isinstance(this, Quantified):
             return {k: getattr(this, k) for k in targets}
         return {k: meta.get(k, v) for k, v in targets.items()}
+
+    @property
+    def unit(self):
+        """This quantity's metric unit."""
+        return metadata.Unit(self._unit)
+
+    @property
+    def basetype(self):
+        """The metric type of this measurable quantity."""
+        if self._basetype:
+            return metric.Quantity(self._basetype)
 
     def __getitem__(self, unit: metadata.UnitLike):
         """Set the unit of this object's values.
@@ -398,10 +407,33 @@ class Quantity(Quantified, AlgebraicOperators):
         relatively intuitive syntax but is arguably an abuse of notation.
         """
         if unit != self._unit:
-            new = metadata.Unit(unit)
+            new = self._validate_unit(metadata.Unit(unit))
             self.apply_unit(new)
             self._unit = new
         return self
+
+    def _validate_unit(self, unit: metadata.UnitLike):
+        """Raise an exception if `unit` is inconsistent with this quantity.
+        
+        The given unit is consistent if we can convert it into the canonical
+        unit for the associated quantity in either metric system. If there is no
+        metric quantity associated with this measurable quantity, this method
+        will immediately return `unit` because there's no point in trying to
+        validate it.
+        """
+        if not self.basetype:
+            return unit
+        for system in metric.SYSTEMS:
+            canonical = self.basetype[system].unit
+            if canonical | unit:
+                return unit
+            with contextlib.suppress(metric.UnitConversionError):
+                if canonical // unit:
+                    return unit
+        raise ValueError(
+            f"The unit {str(unit)!r} is inconsistent"
+            f" with {str(self.basetype)!r}"
+        ) from None
 
     def apply_unit(self, new: metadata.Unit):
         """Update data values based on the new unit.
@@ -428,6 +460,7 @@ class Scalar(Quantity, ScalarOperators):
         self: Instance,
         __data: numbers.Real,
         *,
+        basetype: str=None,
         unit: metadata.UnitLike=None,
     ) -> None: ...
 

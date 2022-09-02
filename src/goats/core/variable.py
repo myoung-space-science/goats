@@ -26,6 +26,7 @@ class Quantity(physical.Array, metadata.AxesMixin):
         __data: numpy.typing.ArrayLike,
         *,
         axes: typing.Iterable[str],
+        basetype: str=None,
         unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None:
@@ -37,6 +38,7 @@ class Quantity(physical.Array, metadata.AxesMixin):
         __data: physical.Array,
         *,
         axes: typing.Iterable[str],
+        basetype: str=None,
     ) -> None:
         """Create a new variable from an array."""
 
@@ -67,7 +69,8 @@ class Quantity(physical.Array, metadata.AxesMixin):
 
     def parse_attrs(self, this, meta: dict, **targets):
         if isinstance(this, physical.Array) and not isinstance(this, Quantity):
-            meta.update({k: getattr(this, k) for k in ('unit', 'name')})
+            attrs = {'basetype', 'unit', 'name'}
+            meta.update({k: getattr(this, k) for k in attrs})
             this = this.data
         return super().parse_attrs(this, meta, **targets)
 

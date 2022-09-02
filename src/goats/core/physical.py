@@ -21,6 +21,7 @@ class Quantity(measurable.Quantity, metadata.NameMixin):
         self: Instance,
         __data: measurable.Real,
         *,
+        basetype: str=None,
         unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None: ...
@@ -51,6 +52,7 @@ class Scalar(Quantity, measurable.ScalarOperators):
         self: Instance,
         __data: numbers.Real,
         *,
+        basetype: str=None,
         unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None: ...
@@ -94,6 +96,7 @@ class Vector(Quantity):
         self: Instance,
         __data: typing.Union[measurable.Real, numpy.typing.ArrayLike],
         *,
+        basetype: str=None,
         unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None: ...
@@ -102,6 +105,9 @@ class Vector(Quantity):
     def __init__(
         self: Instance,
         __data: measurable.Measurement,
+        *,
+        basetype: str=None,
+        name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None: ...
 
     @typing.overload
