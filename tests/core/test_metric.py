@@ -841,8 +841,8 @@ def test_dimension_quantities():
             'cgs': {'capacitance', 'length'},
         },
         'L / T': {
-            'mks': {'velocity'},
-            'cgs': {'conductance', 'velocity'},
+            'mks': {'velocity', 'speed'},
+            'cgs': {'conductance', 'velocity', 'speed'},
         },
         'M * L / T^2': {
             'mks': {'force'},
