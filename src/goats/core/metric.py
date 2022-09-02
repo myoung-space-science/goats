@@ -885,11 +885,17 @@ class _Property(collections.abc.Mapping, iterables.ReprStrMixin):
 
 
 DIMENSIONS = _Property('dimensions')
-"""All defined metric dimensions."""
+"""All defined metric dimensions.
+
+This mapping is keyed by physical quantity followed by metric system.
+"""
 
 
 UNITS = _Property('units')
-"""All defined metric units."""
+"""All defined metric units.
+
+This mapping is keyed by physical quantity followed by metric system.
+"""
 
 
 CANONICAL = {
