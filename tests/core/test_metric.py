@@ -101,6 +101,33 @@ def test_create_quantity():
     assert q['mks'].unit == 'm T^-1'
 
 
+def test_quantity_equality():
+    """Test the definition of equality for a quantity."""
+    names = [
+        'length',
+        'energy',
+        'length / velocity',
+    ]
+    for name in names:
+        q0 = metric.Quantity(name)
+        # It should be equal to its string name.
+        assert q0 == name
+        # Idempotence -> identical => equal.
+        assert q0 == metric.Quantity(name)
+
+
+def test_quantity_equivalence():
+    """Test the definition of equivalence between quantities."""
+    pairs = [
+        ('energy', 'work'),
+    ]
+    for (s0, s1) in pairs:
+        q0 = metric.Quantity(s0)
+        q1 = metric.Quantity(s1)
+        assert q0 != q1
+        assert q0 | q1
+
+
 def test_quantity_convert():
     """Test conversions with substitution within a quantity."""
     cases = {

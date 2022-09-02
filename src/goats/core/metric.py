@@ -2271,17 +2271,33 @@ class Quantity(iterables.ReprStrMixin):
     _attrs = ('dimensions', 'units')
 
     def __eq__(self, other) -> bool:
-        """True if two quantities have equal attributes."""
+        """Called to test equality via self == other.
+        
+        Two instances of this class are either identical, in which case they are
+        triviall equal, or they represent distinct quantities, in which they are
+        not equal. In addition, an instance of this class will compare equal to
+        its case-insensitive name.
+        """
+        if isinstance(other, str):
+            return other.lower() == self.name
+        return other is self
+
+    def __or__(self, other) -> bool:
+        """Called to test equivalence via self | other.
+        
+        Two metric quantities are equivalent if their metric properties are
+        equal. This operation provides a way to compare distinct quantities to
+        determine if they are have a physical correspondence. For example,
+        energy and work are distinct physical quantities, but they have
+        identical dimensions and are linked through the work-energy theorem.
+
+        This operation is only defined between two instances of this class.
+        """
         if isinstance(other, Quantity):
-            try:
-                equal = [
-                    getattr(self, attr) == getattr(other, attr)
-                    for attr in self._attrs
-                ]
-            except AttributeError:
-                return False
-            else:
-                return all(equal)
+            for system in SYSTEMS:
+                if self[system] != other[system]:
+                    return False
+            return True
         return NotImplemented
 
     def __str__(self) -> str:
