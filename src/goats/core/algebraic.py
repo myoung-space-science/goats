@@ -1682,14 +1682,14 @@ def reduce(*groups: typing.Iterable[Term]):
 
 def product(a, b):
     """Symbolically compute a * b."""
-    n, d = (Expression(i) for i in (a, b))
-    return n * d
+    x, y = (Expression(i) for i in (a, b))
+    return x * y
 
 
 def ratio(a, b):
     """Symbolically compute a / b."""
-    n, d = (Expression(i) for i in (a, b))
-    return n / d
+    x, y = (Expression(i) for i in (a, b))
+    return x / y
 
 
 @typing.runtime_checkable

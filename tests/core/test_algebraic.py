@@ -689,8 +689,8 @@ def test_product():
         ('a / b', 'c / b'): 'a * c / b^2',
         ('a / b', 'b / c'): 'a / c',
     }
-    for (n, d), expected in cases.items():
-        assert algebraic.product(n, d) == expected
+    for (a, b), expected in cases.items():
+        assert algebraic.product(a, b) == expected
 
 
 def test_ratio():
@@ -703,5 +703,5 @@ def test_ratio():
         ('a / b', 'c / b'): 'a / c',
         ('a / b', 'b / c'): 'a * c / b^2',
     }
-    for (n, d), expected in cases.items():
-        assert algebraic.ratio(n, d) == expected
+    for (a, b), expected in cases.items():
+        assert algebraic.ratio(a, b) == expected
