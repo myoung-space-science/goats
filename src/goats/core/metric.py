@@ -910,16 +910,6 @@ finally by physical quantity.
 """
 
 
-class Attributes(typing.NamedTuple):
-    """Canonical values of a quantity within a metric system."""
-
-    # NOTE: These types are not `Unit` and `Dimension` because we need
-    # `Attributes` to define `Unit` and `Dimension`.
-    system: str
-    unit: str=None
-    dimension: str=None
-
-
 def build_unit_aliases(prefix, unit):
     """Define all aliases for the given metric prefix and base unit."""
     key = [f"{prefix[k]}{unit[k]}" for k in ['name', 'symbol']]
@@ -2177,6 +2167,14 @@ class Dimensions(typing.Mapping, iterables.ReprStrMixin):
         )
 
 
+class Properties(typing.NamedTuple):
+    """Canonical properties of a quantity within a metric system."""
+
+    system: str
+    unit: Unit=None
+    dimension: Dimension=None
+
+
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
@@ -2228,7 +2226,7 @@ class Quantity(iterables.ReprStrMixin):
                 f"No metric available for system '{system}'"
             ) from err
         else:
-            return Attributes(
+            return Properties(
                 system,
                 dimension=dimension,
                 unit=unit,
@@ -2429,10 +2427,10 @@ class System(collections.abc.Mapping, iterables.ReprStrMixin):
     def keys(self) -> typing.KeysView[str]:
         return super().keys()
 
-    def values(self) -> typing.ValuesView[Attributes]:
+    def values(self) -> typing.ValuesView[Properties]:
         return super().values()
 
-    def items(self) -> typing.ItemsView[str, Attributes]:
+    def items(self) -> typing.ItemsView[str, Properties]:
         return super().items()
 
     def __str__(self) -> str:
