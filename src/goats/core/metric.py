@@ -2187,6 +2187,17 @@ class Properties(iterables.ReprStrMixin):
             self._dimension = self.unit.dimensions[self._system]
         return self._dimension
 
+    def __eq__(self, __o) -> bool:
+        """True if two instances have equal units and dimensions."""
+        try:
+            equal = [
+                getattr(self, attr) == getattr(__o, attr)
+                for attr in ('unit', 'dimension')
+            ]
+            return all(equal)
+        except AttributeError:
+            return False
+
     def __str__(self) -> str:
         properties = ', '.join(
             f"{p}={str(getattr(self, p, None))!r}"
