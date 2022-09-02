@@ -3,17 +3,6 @@ import pytest
 from goats.core import fundamental
 
 
-def test_constants():
-    """Test the object that represents physical constants."""
-    for key, data in fundamental.CONSTANTS.items(aliased=True):
-        for system in ('mks', 'cgs'):
-            d = data[system]
-            mapping = fundamental.Constants(system)
-            c = mapping[key]
-            assert float(c) == d['value']
-            assert c.unit == d['unit']
-
-
 def test_elements():
     """Test the function that translates mass and charge to element symbol."""
     # TODO: This needn't test every possible charge state, and testing every

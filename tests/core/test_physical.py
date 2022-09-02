@@ -5,6 +5,7 @@ import typing
 
 import pytest
 
+from goats.core import fundamental
 from goats.core import physical
 from goats.core import measurable
 from goats.core import metadata
@@ -216,6 +217,17 @@ def test_scalar_display():
     scalar['cm']
     assert str(scalar) == "123.4 [cm]"
     assert repr(scalar).endswith("Scalar(123.4, unit='cm')")
+
+
+def test_constants():
+    """Test the object that represents physical constants."""
+    for key, data in fundamental.CONSTANTS.items(aliased=True):
+        for system in ('mks', 'cgs'):
+            d = data[system]
+            mapping = physical.Constants(system)
+            c = mapping[key]
+            assert float(c) == d['value']
+            assert c.unit == d['unit']
 
 
 @pytest.mark.vector

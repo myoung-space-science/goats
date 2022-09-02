@@ -1,3 +1,4 @@
+import collections.abc
 import contextlib
 import numbers
 import typing
@@ -5,6 +6,7 @@ import typing
 import numpy
 import numpy.typing
 
+from goats.core import fundamental
 from goats.core import iterables
 from goats.core import measurable
 from goats.core import metadata
@@ -77,6 +79,41 @@ class Scalar(Quantity, measurable.ScalarOperators):
         `__iter__` as not implemented circumvents that problem.
         """
         raise TypeError(f"Can't iterate over {type(self)!r}") from None
+
+
+class Constants(collections.abc.Mapping):
+    """Fundamental physical constants in a given metric system."""
+    def __init__(self, system: str) -> None:
+        self.system = system.lower()
+        self._mapping = fundamental.CONSTANTS.copy()
+
+    def __len__(self) -> int:
+        """The number of defined constants."""
+        return len(self._mapping)
+
+    def __iter__(self) -> typing.Iterator:
+        """Iterate over defined constants."""
+        return iter(self._mapping)
+
+    def __getitem__(self, name: str):
+        """Create the named constant or raise an error."""
+        if name in self._mapping:
+            found = self._get_attributes(name)
+            return Scalar(found['value'], unit=found['unit'])
+        raise KeyError(name)
+
+    def _get_attributes(self, name: str) -> dict:
+        """Get the value and unit for a named constant, if possible."""
+        definition = self._mapping[name]
+        if 'all' in definition:
+            return {'value': definition['all'], 'unit': None}
+        if this := definition.get(self.system):
+            return this
+        raise ValueError(f"Unknown constant: {name!r}")
+
+    def __repr__(self) -> str:
+        """An unambiguous representation of this object."""
+        return f"{self.__class__.__qualname__}({self.system})"
 
 
 class Vector(Quantity):

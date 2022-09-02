@@ -1,11 +1,9 @@
 import argparse
-import collections.abc
 import typing
 
 import numpy
 
 from goats.core import aliased
-from goats.core import physical
 from goats.core import iterables
 
 
@@ -137,45 +135,6 @@ def _normalize(defined: typing.Dict[str, dict]):
         norm[key] = definition
     return norm
 CONSTANTS = aliased.Mapping(_normalize(_constants))
-
-
-class Constants(collections.abc.Mapping):
-    """Definitions of fundamental constants in a given metric system."""
-    def __init__(self, system: str) -> None:
-        self.system = system.lower()
-        self._mapping = CONSTANTS.copy()
-
-    def __len__(self) -> int:
-        """The number of defined constants."""
-        return len(self._mapping)
-
-    def __iter__(self) -> typing.Iterator:
-        """Iterate over defined constants."""
-        return iter(self._mapping)
-
-    def __getitem__(self, name: str):
-        """Create the named constant or raise an error."""
-        if name in self._mapping:
-            found = self._get_attributes(name)
-            return physical.Scalar(found['value'], unit=found['unit'])
-        raise KeyError(name)
-
-    def _get_attributes(self, name: str) -> dict:
-        """Get the value and unit for a named constant, if possible."""
-        definition = self._mapping[name]
-        if 'all' in definition:
-            return {'value': definition['all'], 'unit': None}
-        if this := definition.get(self.system):
-            return this
-        raise ValueError(f"Unknown constant: {name!r}")
-
-    def __repr__(self) -> str:
-        """An unambiguous representation of this object."""
-        return f"{self.__class__.__qualname__}({self.system})"
-
-
-cgs = Constants('cgs')
-mks = Constants('mks')
 
 
 _elements = [
