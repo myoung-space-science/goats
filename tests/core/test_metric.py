@@ -120,6 +120,8 @@ def test_quantity_equivalence():
     """Test the definition of equivalence between quantities."""
     pairs = [
         ('energy', 'work'),
+        ('force * area / mass^2', 'volume / (time^2 * mass)'),
+        ('frequency', 'vorticity'),
     ]
     for (s0, s1) in pairs:
         q0 = metric.Quantity(s0)
