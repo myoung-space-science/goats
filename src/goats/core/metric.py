@@ -1788,91 +1788,6 @@ class _Converter(iterables.ReprStrMixin):
         return f"{self.unit!r} [{self.quantity!r}]"
 
 
-Instance = typing.TypeVar('Instance', bound='Quantity')
-
-
-class Quantity(iterables.ReprStrMixin):
-    """A single metric quantity."""
-
-    _instances = {}
-
-    Attr = typing.TypeVar('Attr', bound=dict)
-    Attr = typing.Mapping[str, typing.Dict[str, str]]
-
-    name: str=None
-    units: Attr=None
-    dimensions: Attr=None
-
-    def __new__(
-        cls: typing.Type[Instance],
-        arg: typing.Union[str, Instance],
-    ) -> Instance:
-        """Create a new instance or return an existing one.
-        
-        Parameters
-        ----------
-        arg : string or instance
-            A string representing the physical quantity to create, or an
-            existing instance of this class.
-        """
-        if isinstance(arg, cls):
-            return arg
-        name = str(arg).lower()
-        if available := cls._instances.get(name):
-            return available
-        self = super().__new__(cls)
-        self.name = name
-        """The name of this physical quantity."""
-        self.units = UNITS[self.name]
-        self.dimensions = DIMENSIONS[self.name]
-        cls._instances[name] = self
-        return self
-
-    def __getitem__(self, system: str):
-        """Get this quantity's representation in the named metric system."""
-        try:
-            name = system.lower()
-            dimension = self.dimensions[name]
-            unit = self.units[name]
-        except KeyError as err:
-            raise KeyError(
-                f"No metric available for system '{system}'"
-            ) from err
-        else:
-            return Attributes(
-                system,
-                dimension=dimension,
-                unit=unit,
-            )
-
-    # NOTE: This is here because unit conversions are only defined within their
-    # respective quantities, even though two quantities may have identical
-    # conversions (e.g., frequency and vorticity).
-    def convert(self, unit: str) -> _Converter:
-        """Create a conversion object for `unit`."""
-        return _Converter(unit, self.name)
-
-    _attrs = ('dimensions', 'units')
-
-    def __eq__(self, other) -> bool:
-        """True if two quantities have equal attributes."""
-        if isinstance(other, Quantity):
-            try:
-                equal = [
-                    getattr(self, attr) == getattr(other, attr)
-                    for attr in self._attrs
-                ]
-            except AttributeError:
-                return False
-            else:
-                return all(equal)
-        return NotImplemented
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        return self.name
-
-
 Instance = typing.TypeVar('Instance', bound='Unit')
 
 
@@ -2286,6 +2201,91 @@ class Dimensions(typing.Mapping, iterables.ReprStrMixin):
             f"{k!r}: {str(v) if v else v!r}"
             for k, v in self._objects.items()
         )
+
+
+Instance = typing.TypeVar('Instance', bound='Quantity')
+
+
+class Quantity(iterables.ReprStrMixin):
+    """A single metric quantity."""
+
+    _instances = {}
+
+    Attr = typing.TypeVar('Attr', bound=dict)
+    Attr = typing.Mapping[str, typing.Dict[str, str]]
+
+    name: str=None
+    units: Attr=None
+    dimensions: Attr=None
+
+    def __new__(
+        cls: typing.Type[Instance],
+        arg: typing.Union[str, Instance],
+    ) -> Instance:
+        """Create a new instance or return an existing one.
+        
+        Parameters
+        ----------
+        arg : string or instance
+            A string representing the physical quantity to create, or an
+            existing instance of this class.
+        """
+        if isinstance(arg, cls):
+            return arg
+        name = str(arg).lower()
+        if available := cls._instances.get(name):
+            return available
+        self = super().__new__(cls)
+        self.name = name
+        """The name of this physical quantity."""
+        self.units = UNITS[self.name]
+        self.dimensions = DIMENSIONS[self.name]
+        cls._instances[name] = self
+        return self
+
+    def __getitem__(self, system: str):
+        """Get this quantity's representation in the named metric system."""
+        try:
+            name = system.lower()
+            dimension = self.dimensions[name]
+            unit = self.units[name]
+        except KeyError as err:
+            raise KeyError(
+                f"No metric available for system '{system}'"
+            ) from err
+        else:
+            return Attributes(
+                system,
+                dimension=dimension,
+                unit=unit,
+            )
+
+    # NOTE: This is here because unit conversions are only defined within their
+    # respective quantities, even though two quantities may have identical
+    # conversions (e.g., frequency and vorticity).
+    def convert(self, unit: str) -> _Converter:
+        """Create a conversion object for `unit`."""
+        return _Converter(unit, self.name)
+
+    _attrs = ('dimensions', 'units')
+
+    def __eq__(self, other) -> bool:
+        """True if two quantities have equal attributes."""
+        if isinstance(other, Quantity):
+            try:
+                equal = [
+                    getattr(self, attr) == getattr(other, attr)
+                    for attr in self._attrs
+                ]
+            except AttributeError:
+                return False
+            else:
+                return all(equal)
+        return NotImplemented
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return self.name
 
 
 class SearchError(KeyError):
