@@ -903,7 +903,11 @@ CANONICAL = {
         system: _Property(k).system(system) for system in ('mks', 'cgs')
     } for k in ('dimensions', 'units')
 }
-"""Canonical metric properties in each known metric system."""
+"""Canonical metric properties in each known metric system.
+
+This mapping is keyed by {'dimensions', 'units'}, followed by metric system, and
+finally by physical quantity.
+"""
 
 
 class Attributes(typing.NamedTuple):
