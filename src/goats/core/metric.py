@@ -687,6 +687,7 @@ _QUANTITIES = {
             'cgs': 'sr',
         },
     },
+    'speed': 'velocity',
     'vector potential': {
         'dimensions': {
             'mks': '(M * L) / (T^2 * I)',
