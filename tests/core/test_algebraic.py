@@ -705,3 +705,15 @@ def test_ratio():
     }
     for (a, b), expected in cases.items():
         assert algebraic.ratio(a, b) == expected
+
+
+def test_power():
+    """Test the module function that computes an algebraic power."""
+    cases = {
+        ('a * b', 2): 'a^2 * b^2',
+        ('a / b', 2): 'a^2 / b^2',
+        ('(a * b)^1/2', 2): 'a * b',
+    }
+    for (a, n), expected in cases.items():
+        assert algebraic.power(a, n) == expected
+

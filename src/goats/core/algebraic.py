@@ -1692,6 +1692,11 @@ def ratio(a, b) -> Expression:
     return x / y
 
 
+def power(a, n) -> Expression:
+    """Symbolically compute a ** n."""
+    return Expression(a) ** n
+
+
 @typing.runtime_checkable
 class Orderable(typing.Protocol):
     """Protocol for objects that support ordering.
