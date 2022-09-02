@@ -1,6 +1,7 @@
 import abc
 import collections.abc
 import contextlib
+import numbers
 import typing
 
 import numpy
@@ -1830,6 +1831,35 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
             self._dimensions = Dimensions.fromunit(self)
         return self._dimensions
 
+    def __mul__(self, other):
+        """Called for self * other."""
+        return self._apply(algebraic.product, other)
+
+    def __truediv__(self, other):
+        """Called for self / other."""
+        return self._apply(algebraic.ratio, other)
+
+    def __pow__(self, exp: numbers.Real):
+        """Called for self ** exp."""
+        return self._apply(algebraic.power, exp)
+
+    def _apply(self, operation, other=None):
+        """Apply `operation` to this unit.
+        
+        This method will attempt to decompose each operand into base units
+        before computing the result, in order to reduce the result as much as
+        possible
+        """
+        try:
+            this = NamedUnit(self).decompose().terms
+        except (UnitParsingError, SystemAmbiguityError):
+            this = self.terms # force Expression to prevent recursion
+        try:
+            that = NamedUnit(other).decompose().terms
+        except (UnitParsingError, SystemAmbiguityError):
+            that = other
+        return type(self)(operation(this, that))
+
     def __floordiv__(self, other):
         """Compute the magnitude of this unit relative to `other`.
 
@@ -1945,6 +1975,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         True
         """
         try:
+            # TODO: Could we simplify this by comparing dimensions?
             return self == other or (self // type(self)(other)) == 1.0
         except UnitConversionError:
             return False

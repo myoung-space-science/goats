@@ -679,10 +679,14 @@ def test_unit_algebra():
     u0 = metric.Unit('m')
     u1 = metric.Unit('J')
     assert u0**2 is not u0
-    assert u0 * u1 == metric.Unit('m * J')
-    assert u0 / u1 == metric.Unit('m / J')
-    assert u0**2 / u1**3 == metric.Unit('m^2 / J^3')
-    assert (u0 / u1)**2 == metric.Unit('m^2 / J^2')
+    assert u0 * u1 | metric.Unit('m * J')
+    assert u0 / u1 | metric.Unit('m / J')
+    assert u0**2 / u1**3 | metric.Unit('m^2 / J^3')
+    assert (u0 / u1)**2 | metric.Unit('m^2 / J^2')
+    assert u0 * u1 == metric.Unit('m * (kg * m^2 / s^2)')
+    assert u0 / u1 == metric.Unit('m / (kg * m^2 / s^2)')
+    assert u0**2 / u1**3 == metric.Unit('m^2 / (kg * m^2 / s^2)^3')
+    assert (u0 / u1)**2 == metric.Unit('m^2 / (kg * m^2 / s^2)^2')
 
 
 def test_unit_multiply():
@@ -691,6 +695,7 @@ def test_unit_multiply():
         ('m', 's'): 'm*s',
         ('m/s', 'km/m'): 'km/s',
         ('m', 'm^-1'): '1',
+        ('N', 's^2/(kg*m)'): '1'
     }
     apply_multiplicative(operator.mul, cases)
 
@@ -701,6 +706,7 @@ def test_unit_divide():
         ('m', 's'): 'm/s',
         ('m/s', 'm/km'): 'km/s',
         ('m', 'm'): '1',
+        ('N', 'kg*m/s^2'): '1'
     }
     apply_multiplicative(operator.truediv, cases)
 
