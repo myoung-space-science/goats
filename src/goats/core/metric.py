@@ -581,7 +581,7 @@ _QUANTITIES = {
             'cgs': '1',
         },
     },
-    'permitivity': {
+    'permittivity': {
         'dimensions': {
             'mks': 'T^4 * I / (M * L^3)',
             'cgs': '1',
