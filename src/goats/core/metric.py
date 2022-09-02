@@ -1834,7 +1834,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
     def dimensions(self):
         """The physical dimension of this unit in each metric system."""
         if self._dimensions is None:
-            self._dimensions = Dimensions(self)
+            self._dimensions = Dimensions.fromunit(self)
         return self._dimensions
 
     def __floordiv__(self, other):
@@ -2071,117 +2071,91 @@ Instance = typing.TypeVar('Instance', bound='Dimension')
 
 
 class Dimension(algebraic.Expression):
-    """An algebraic expression representing a physical dimension.
-    
-    This class exists to support the `dimension` property of `~metric.Unit`.
-    It is essentially a thin wrapper around `~algebra.Expression` with logic to
-    compute the dimension of a `~metric.Unit` instance or equivalent object.
-    """
+    """An algebraic expression representing a physical dimension."""
 
-    def __init__(
-        self,
-        arg: typing.Union[Unit, Attributes, str, iterables.whole],
-        system: typing.Literal['mks', 'cgs'],
-    ) -> None:
-        self.system = system.lower()
-        super().__init__(self._parse(arg))
+    @classmethod
+    def fromunit(cls, unit: Unit, system: typing.Literal['mks', 'cgs']):
+        """Create an instance from `unit` and `system`."""
+        expression = algebraic.Expression('1')
+        systems = set()
+        for term in unit:
+            named = NamedUnit(term.base)
+            allowed = named.systems['allowed']
+            dimension = (
+                named.dimensions[system] if len(allowed) > 1
+                else named.dimensions[allowed[0]]
+            )
+            expression *= algebraic.Expression(dimension) ** term.exponent
+            systems.update(allowed)
+        if system in systems:
+            return cls(expression)
+        raise ValueError(
+            f"Can't define dimension of {unit!r} in {system!r}"
+        ) from None
 
-    def _parse(self, arg):
-        """Get the appropriate object with which to create this instance."""
-        if isinstance(arg, Attributes):
-            return arg.dimension
-        if isinstance(arg, Unit):
-            expression = algebraic.Expression('1')
-            systems = set()
-            for term in arg:
-                named = NamedUnit(term.base)
-                allowed = named.systems['allowed']
-                dimension = (
-                    named.dimensions[self.system] if len(allowed) > 1
-                    else named.dimensions[allowed[0]]
-                )
-                expression *= algebraic.Expression(dimension) ** term.exponent
-                systems.update(allowed)
-            if self.system in systems:
-                return expression
-            raise ValueError(
-                f"Can't define dimension of {arg!r} in {self.system!r}"
-            ) from None
-        return arg
+    def __init__(self, arg: algebraic.Expressable) -> None:
+        super().__init__(arg)
+        self._quantities = {}
 
-    def _new(self, arg: typing.Union[str, iterables.whole]):
-        return super()._new(arg, self.system)
+    def quantities(self, system: str) -> typing.Set[str]:
+        """The quantities with this dimension in `system`."""
+        if system in self._quantities:
+            return self._quantities[system]
+        canonical = CANONICAL['dimensions'][system]
+        found = {k for k, v in canonical.items() if v == self}
+        self._quantities[system] = found
+        return found
 
 
 class Dimensions(typing.Mapping, iterables.ReprStrMixin):
     """A collection of algebraic expressions of metric dimensions."""
 
-    @typing.overload
-    def __init__(self, unit: Unit, /) -> None:
-        """Initialize from an instance of `~metric.Unit`."""
+    @classmethod
+    def fromunit(cls, unit: Unit):
+        """Compute dimensions based on an instance of `~metric.Unit`."""
+        guard = iterables.Guard(Dimension.fromunit)
+        guard.catch(ValueError)
+        init = {system: guard.call(unit, system) for system in SYSTEMS}
+        return cls(**init)
 
-    @typing.overload
     def __init__(
         self,
-        *attributes: Attributes,
-        **pairs: algebraic.Expressable
+        common: algebraic.Expressable=None,
+        **systems: algebraic.Expressable
     ) -> None:
-        """Initialize from attributes or expressable quantities.
+        """Initialize from expressable quantities.
         
         Parameters
         ----------
-        *attributes
-            Zero or more instances of `~metric.Attributes`. This class will
-            attempt to create instances of `~metric.Dimension` from the `system`
-            and `dimension` attributes of each argument.
+        common : string or iterable or `~algebraic.Expression`
+            The dimension to associate with all metric systems.
 
-        **pairs
+        **systems
             Zero or more key-value pairs in which the key is the name of a known
             metric system and the value is an object that can instantiate the
-            `~algebraic.Expression` class.
-
-        Notes
-        -----
-        This class attempts to build dimensions first from `attributes`, then
-        from `pairs`. If a key in `pairs` matches the metric system of a given
-        instance of `~metric.Attributes`, it will overwrite the dimension
-        corresponding to that system.
+            `~algebraic.Expression` class. If present, each value will override
+            `common` for the corresponding metric system.
         """
-
-    def __init__(self, *args, **kwargs) -> None:
-        self._objects = self._init_from(*args, **kwargs)
+        self._objects = self._init_from(common, **systems)
 
     def _init_from(
         self,
-        *args,
-        **kwargs
+        common,
+        **systems
     ) -> typing.Dict[str, typing.Optional[Dimension]]:
         """Create dimension objects from arguments."""
-        if not kwargs and len(args) == 1:
-            arg = args[0]
-            guard = iterables.Guard(Dimension)
-            guard.catch(ValueError)
-            if isinstance(arg, Unit):
-                return {
-                    system: guard.call(arg, system)
-                    for system in SYSTEMS
-                }
         created = dict.fromkeys(SYSTEMS)
-        from_args = {
-            arg.system: Dimension(arg, arg.system)
-            for arg in args if isinstance(arg, Attributes)
+        default = Dimension(common) if common else None
+        updates = {
+            system: Dimension(expressable) if expressable else default
+            for system, expressable in systems.items()
         }
-        created.update(from_args)
-        from_kwargs = {
-            system: Dimension(expressable, system)
-            for system, expressable in kwargs.items()
-        }
-        created.update(from_kwargs)
+        created.update(updates)
         if any(created.values()):
             return created
         raise TypeError(
             f"Can't instantiate {self.__class__!r}"
-            f" from {args!r} and {kwargs!r}"
+            f" from {common!r} and {systems!r}"
         ) from None
 
     def __len__(self) -> int:
