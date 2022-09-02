@@ -99,16 +99,20 @@ class Constants(collections.abc.Mapping):
         """Create the named constant or raise an error."""
         if name in self._mapping:
             found = self._get_attributes(name)
-            return Scalar(found['value'], unit=found['unit'])
+            return Scalar(
+                found['value'],
+                basetype=found['basetype'],
+                unit=found['unit'],
+            )
         raise KeyError(name)
 
     def _get_attributes(self, name: str) -> dict:
         """Get the value and unit for a named constant, if possible."""
         definition = self._mapping[name]
         if 'all' in definition:
-            return {'value': definition['all'], 'unit': None}
+            return {'value': definition['all'], 'unit': None, 'basetype': definition['quantity']}
         if this := definition.get(self.system):
-            return this
+            return {**this, 'basetype': definition.get('quantity')}
         raise ValueError(f"Unknown constant: {name!r}")
 
     def __repr__(self) -> str:

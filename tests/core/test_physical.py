@@ -228,6 +228,7 @@ def test_constants():
             c = mapping[key]
             assert float(c) == d['value']
             assert c.unit == d['unit']
+            assert c.basetype == data['quantity']
 
 
 @pytest.mark.vector
