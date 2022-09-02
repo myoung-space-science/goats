@@ -2285,17 +2285,17 @@ class Quantity(iterables.ReprStrMixin):
     def __or__(self, other) -> bool:
         """Called to test equivalence via self | other.
         
-        Two metric quantities are equivalent if their metric properties are
-        equal. This operation provides a way to compare distinct quantities to
-        determine if they are have a physical correspondence. For example,
-        energy and work are distinct physical quantities, but they have
-        identical dimensions and are linked through the work-energy theorem.
+        Two metric quantities are equivalent if their dimensions are equal. This
+        operation thus provides a way to compare unequal quantities to determine
+        if they are have a physical correspondence. For example, energy and work
+        are distinct quantities, but they have identical dimensions and are
+        linked through the work-energy theorem.
 
         This operation is only defined between two instances of this class.
         """
         if isinstance(other, Quantity):
             for system in SYSTEMS:
-                if self[system] != other[system]:
+                if self[system].dimension != other[system].dimension:
                     return False
             return True
         return NotImplemented
