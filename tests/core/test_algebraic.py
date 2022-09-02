@@ -678,3 +678,16 @@ def test_expression_diff():
         assert e0.difference(e1, symmetric=True) == expected['symmetric']
         assert e0.difference(e1, split=True) == expected['split']
 
+
+def test_ratio():
+    """Test the module function that computes an algebraic ratio."""
+    cases = {
+        ('a', 'b'): 'a / b',
+        ('a', 'a^-1'): 'a^2',
+        ('a', 'a'): '1',
+        ('a / b', 'c / d'): 'a * d / (c * b)',
+        ('a / b', 'c / b'): 'a / c',
+        ('a / b', 'b / c'): 'a * c / b^2',
+    }
+    for (n, d), expected in cases.items():
+        assert algebraic.ratio(n, d) == expected
