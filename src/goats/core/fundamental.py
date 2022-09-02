@@ -11,106 +11,127 @@ _constants = {
     'pi': {
         'info': "The ratio of a circle's circumference to its diameter.",
         'all': numpy.pi,
+        'quantity': 'number',
     },
     'k': {
         'info': "Boltzmann's constant.",
         'mks': {'unit': 'J / K', 'value': 1.3807e-23},
         'cgs': {'unit': 'erg / K', 'value': 1.3807e-16},
+        'quantity': 'energy / temperature'
     },
     'e': {
         'info': "Elementary charge.",
         'mks': {'unit': 'C', 'value': 1.6022e-19},
         'cgs': {'unit': 'statC', 'value': 4.8032e-10},
+        'quantity': 'charge',
     },
     'me': {
         'info': "Electron mass.",
         'mks': {'unit': 'kg', 'value': 9.1094e-31},
         'cgs': {'unit': 'g', 'value': 9.1094e-28},
+        'quantity': 'mass',
     },
     'mp': {
         'info': "Proton mass.",
         'mks': {'unit': 'kg', 'value': 1.6726e-27},
         'cgs': {'unit': 'g', 'value': 1.6726e-24},
+        'quantity': 'mass',
     },
     'G': {
         'info': "Gravitational constant.",
         'mks': {'unit': 'm^3 / (s^2 * kg)', 'value': 6.6726e-11},
         'cgs': {'unit': 'dyn * cm^2 / g^2', 'value': 6.6726e-8},
+        'quantity': 'force * area / mass^2',
     },
     'g': {
         'info': "Gravitational acceleration.",
         'mks': {'unit': 'm / s^2', 'value': 9.8067},
         'cgs': {'unit': 'cm / s^2', 'value': 9.8067e2},
+        'quantity': 'acceleration',
     },
     'h': {
         'info': "Planck's constant.",
         'mks': {'unit': 'J * s', 'value': 6.6261e-34},
         'cgs': {'unit': 'erg * s', 'value': 6.6261e-27},
+        'quantity': 'energy * time',
     },
     'c': {
         'info': "Speed of light in a vacuum.",
         'mks': {'unit': 'm / s', 'value': 2.9979e8},
         'cgs': {'unit': 'cm / s', 'value': 2.9979e10},
+        'quantity': 'speed',
     },
     'epsilon0': {
         'info': "Permittivity of free space.",
         'mks': {'unit': 'F / m', 'value': 8.8542e-12},
         'cgs': {'unit': '1', 'value': 1.0},
+        'quantity': 'permittivity',
     },
     'mu0': {
         'info': "Permeability of free space.",
         'mks': {'unit': 'H / m', 'value': 4*numpy.pi * 1e-7},
         'cgs': {'unit': '1', 'value': 1.0},
+        'quantity': 'permeability',
     },
     'Rinfinity': {
         'info': "Rydberg constant.",
         'mks': {'unit': '1 / m', 'value': 1.0974e7},
         'cgs': {'unit': '1 / cm', 'value': 1.0974e5},
+        'quantity': '1 / length',
     },
     'a0': {
         'info': "Bohr radius.",
         'mks': {'unit': 'm', 'value': 5.2918e-11},
         'cgs': {'unit': 'cm', 'value': 5.2918e-9},
+        'quantity': 'length',
     },
     're': {
         'info': "Classical electron radius.",
         'mks': {'unit': 'm', 'value': 2.8179e-15},
         'cgs': {'unit': 'cm', 'value': 2.8179e-13},
+        'quantity': 'length',
     },
     'alpha': {
         'info': "Fine structure constant.",
         'mks': {'unit': '1', 'value': 7.2974e-3},
         'cgs': {'unit': '1', 'value': 7.2974e-3},
+        'quantity': 'number',
     },
     'c1': {
         'info': "First radiation constant.",
         'mks': {'unit': 'W * m^2', 'value': 3.7418e-16},
         'cgs': {'unit': 'erg * cm^2 / s', 'value': 3.7418e-16},
+        'quantity': 'power * area',
     },
     'c2': {
         'info': "Second radiation constant.",
         'mks': {'unit': 'm * K', 'value': 1.4388e-2},
         'cgs': {'unit': 'cm * K', 'value': 1.4388},
+        'quantity': 'length * temperature',
     },
     'sigma': {
         'info': "Stefan-Boltzmann constant.",
         'mks': {'unit': 'W / (m^2 * K^4)', 'value': 5.6705e-8},
         'cgs': {'unit': '(erg / s) / (cm^2 * K^4)', 'value': 5.6705e-5},
+        'quantity': 'power / (area * temperature^4)',
     },
     'eV': {
         'info': "Energy associated with 1 eV.",
         'mks': {'unit': 'J', 'value': 1.6022e-19},
         'cgs': {'unit': 'erg', 'value': 1.6022e-12},
+        'quantity': 'energy',
     },
     'amu': {
         'info': "Atomic mass unit.",
         'mks': {'unit': 'kg', 'value': 1.6605e-27},
         'cgs': {'unit': 'g', 'value': 1.6605e-24},
+        'quantity': 'mass',
     },
     'au': {
         'info': "Astronomical unit.",
         'mks': {'unit': 'm', 'value': 1.495978707e11},
         'cgs': {'unit': 'cm', 'value': 1.495978707e13},
+        'quantity': 'length',
     },
 }
 _constants['H+'] = {
@@ -121,7 +142,8 @@ _constants['H+'] = {
             'value': 13.6 * _constants['eV'][k]['value'],
         }
         for k in ('mks', 'cgs')
-    }
+    },
+    'quantity': 'energy',
 }
 def _normalize(defined: typing.Dict[str, dict]):
     """Normalize constant definitions."""
