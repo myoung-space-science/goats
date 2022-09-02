@@ -407,6 +407,8 @@ _QUANTITIES = {
         },
     },
     'energy density': 'energy / volume',
+    'fluence': 'number / (area * solid_angle * energy / mass_number)',
+    'flux': 'number / (area * solid_angle * time * energy / mass_number)',
     'force': {
         'dimensions': {
             'mks': '(M * L) / T^2',
@@ -468,6 +470,7 @@ _QUANTITIES = {
         },
     },
     'induction': 'magnetic induction',
+    'integral flux': 'number / (area * solid_angle * time)',
     'length': {
         'dimensions': {
             'mks': 'L',
