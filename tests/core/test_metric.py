@@ -410,6 +410,34 @@ def decompositions():
     }
 
 
+def test_decomposition_class():
+    """Test the algebraic expression of a unit decomposition."""
+    this = metric.Decomposition(['m^2'], scale=2, system='mks')
+    assert this.units == ['m^2']
+    assert this.scale == 2.0
+    assert this.system == 'mks'
+    new = 3 * this
+    assert new.units == ['m^2']
+    assert new.scale == 6.0
+    assert new.system == 'mks'
+    new = this * 2
+    assert new.units == ['m^2']
+    assert new.scale == 4.0
+    assert new.system == 'mks'
+    new = this / 4
+    assert new.units == ['m^2']
+    assert new.scale == 0.5
+    assert new.system == 'mks'
+    with pytest.raises(TypeError):
+        5 / this
+    new = this ** 2
+    assert new.units == ['m^4']
+    assert new.scale == 4.0
+    assert new.system == 'mks'
+    with pytest.raises(TypeError):
+        3 ** this
+
+
 def test_named_unit_decompose(decompositions: dict):
     """Test the NamedUnit.decompose method."""
     for unit, systems in decompositions.items():
@@ -422,7 +450,7 @@ def test_named_unit_decompose(decompositions: dict):
                 assert result.system == system
                 assert result.scale == expected['scale']
                 terms = [algebraic.Term(**term) for term in expected['terms']]
-                assert result.terms == terms
+                assert result.units == terms
 
 
 def test_named_unit_decompose_system(decompositions: dict):
@@ -444,7 +472,7 @@ def test_named_unit_decompose_system(decompositions: dict):
             assert result.system == default
             terms = [algebraic.Term(**term) for term in case['terms']]
             assert result.scale == case['scale']
-            assert result.terms == terms
+            assert result.units == terms
 
 
 def test_named_unit_parse():

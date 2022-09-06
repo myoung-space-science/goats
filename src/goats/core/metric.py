@@ -976,12 +976,59 @@ class BaseUnit(typing.NamedTuple):
     quantity: str
 
 
-class Decomposition(typing.NamedTuple):
-    """The numeric scale and base units of a named unit."""
+class Decomposition(iterables.ReprStrMixin):
+    """The components of a unit decomposition."""
 
-    system: str
-    scale: float
-    terms: typing.List[algebraic.Term]
+    def __init__(
+        self,
+        terms: algebraic.Expressable,
+        scale: float=1.0,
+        system: str=None,
+    ) -> None:
+        self._expression = scale * algebraic.Expression(terms)
+        self.system = system
+        self.scale = scale
+        self._units = None
+
+    @property
+    def units(self):
+        """The unit terms in this decomposition."""
+        if self._units is None:
+            self._units = [
+                unit for unit in self._expression
+                if unit.base != '1'
+            ]
+        return self._units
+
+    def __mul__(self, other):
+        """Called for self * other."""
+        if not isinstance(other, numbers.Real):
+            return NotImplemented
+        scale = self.scale * other
+        terms = list(scale * self._expression)
+        return type(self)(terms, scale=scale, system=self.system)
+
+    __rmul__ = __mul__
+    """Called for other * self."""
+
+    def __truediv__(self, other):
+        """Called for self / other."""
+        if not isinstance(other, numbers.Real):
+            return NotImplemented
+        scale = self.scale / other
+        terms = list(scale * self._expression)
+        return type(self)(terms, scale=scale, system=self.system)
+
+    def __pow__(self, other):
+        """Called for self ** other."""
+        if not isinstance(other, numbers.Real):
+            return NotImplemented
+        scale = self.scale ** other
+        terms = list(scale * self._expression**other)
+        return type(self)(terms, scale=scale, system=self.system)
+
+    def __str__(self) -> str:
+        return f"{self._expression} [{self.system!r}]"
 
 
 Instance = typing.TypeVar('Instance', bound='NamedUnit')
@@ -1174,16 +1221,15 @@ class NamedUnit(iterables.ReprStrMixin):
                 # If this is the canonical unit for its quantity in `system`,
                 # return it with a scale of unity.
                 return Decomposition(
-                    system,
-                    1.0,
                     [algebraic.Term(self.symbol)],
+                    system=system,
                 )
             # If not, return the canonical unit with the appropriate scale
             # factor.
             return Decomposition(
-                system,
-                canonical // self,
                 [algebraic.Term(canonical)],
+                scale=(canonical // self),
+                system=system,
             )
         quantities = [
             _BASE_QUANTITIES.find(term.base)[0]['name']
@@ -1197,7 +1243,7 @@ class NamedUnit(iterables.ReprStrMixin):
             algebraic.Term(base=unit, exponent=term.exponent)
             for unit, term in zip(units, expression)
         ]
-        return Decomposition(system, self.scale, terms)
+        return Decomposition(terms, scale=self.scale, system=system)
 
     @property
     def dimensions(self) -> typing.Dict[str, typing.Optional[str]]:
