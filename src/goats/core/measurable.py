@@ -425,11 +425,8 @@ class Quantity(Quantified, AlgebraicOperators):
             return unit
         for system in metric.SYSTEMS:
             canonical = self.basetype[system].unit
-            if canonical | unit:
+            if canonical == unit:
                 return unit
-            with contextlib.suppress(metric.UnitConversionError):
-                if canonical // unit:
-                    return unit
         raise ValueError(
             f"The unit {str(unit)!r} is inconsistent"
             f" with {str(self.basetype)!r}"
