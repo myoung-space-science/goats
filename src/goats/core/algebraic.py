@@ -1517,7 +1517,7 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         True
         """
         if not isinstance(other, Expression):
-            other = self._new(other)
+            other = type(self)(other)
         s0 = set(self.terms)
         s1 = set(other.terms)
         if split:
@@ -1537,11 +1537,11 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         finally by coefficient) and compare the sorted lists. Two expressions
         are equal if and only if their sorted lists of terms are equal.
 
-        If `other` is a string, this method will first attempt to convert it to
-        an expression.
+        If `other` is not an instance of this class, this method will first
+        attempt to convert it.
         """
         if not isinstance(other, Expression):
-            other = self._new(other)
+            other = type(self)(other)
         if len(self) != len(other):
             return False
         key = attrgetter('base', 'exponent', 'coefficient')
@@ -1555,15 +1555,15 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         string, it will first attempt to convert it to an `Expression`.
         """
         if not isinstance(other, Expression):
-            other = self._new(other)
+            other = type(self)(other)
         if not other:
             return NotImplemented
         reduced = reduce(self, other)
-        return self._new(reduced)
+        return type(self)(reduced)
 
     def __rmul__(self, other: typing.Any):
         """Called for other * self."""
-        return self._new(other).__mul__(self)
+        return type(self)(other).__mul__(self)
 
     def __truediv__(self, other):
         """Called for self / other.
@@ -1574,14 +1574,14 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         to an `Expression`.
         """
         if not isinstance(other, Expression):
-            other = self._new(other)
+            other = type(self)(other)
         if not other:
             return NotImplemented
-        return self._new(reduce(self, [term ** -1 for term in other]))
+        return type(self)(reduce(self, [term ** -1 for term in other]))
 
     def __rtruediv__(self, other: typing.Any):
         """Called for other / self."""
-        return self._new(other).__truediv__(self)
+        return type(self)(other).__truediv__(self)
 
     def __pow__(self, exp: numbers.Real):
         """Called for self ** exp.
@@ -1594,21 +1594,7 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
         if not exp:
             return NotImplemented
         terms = [pow(term, exp) for term in self]
-        return self._new(reduce(terms))
-
-    def _new(
-        self: Instance,
-        expression: typing.Union[str, iterables.whole],
-        *args,
-        **kwargs
-    ) -> Instance:
-        """Internal helper method for creating a new instance.
-
-        This method is separated out for the sake of modularity, in case of a
-        need to add any other functionality when creating a new instance from
-        the current one (perhaps in a subclass).
-        """
-        return type(self)(expression, *args, **kwargs)
+        return type(self)(reduce(terms))
 
     def apply(self: Instance, update: typing.Callable) -> Instance:
         """Create a new expression by applying the given callable object.
