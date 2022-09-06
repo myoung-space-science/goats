@@ -1663,7 +1663,7 @@ def reduce(*groups: typing.Iterable[Term]):
         return constant
     if c == 1:
         return variables
-    return variables + constant
+    return constant + variables
 
 
 def product(a, b) -> Expression:
