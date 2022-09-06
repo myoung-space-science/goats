@@ -708,7 +708,7 @@ class MutableMapping(Mapping, collections.abc.MutableMapping):
         }
 
     def alias(self, key: str, *aliases: str, include=False):
-        """Get the alias for an existing key.
+        """Get or set the alias(es) for an existing key.
         
         Parameters
         ----------
