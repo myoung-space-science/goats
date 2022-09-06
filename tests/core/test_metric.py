@@ -679,10 +679,6 @@ def test_unit_algebra():
     u0 = metric.Unit('m')
     u1 = metric.Unit('J')
     assert u0**2 is not u0
-    assert u0 * u1 | metric.Unit('m * J')
-    assert u0 / u1 | metric.Unit('m / J')
-    assert u0**2 / u1**3 | metric.Unit('m^2 / J^3')
-    assert (u0 / u1)**2 | metric.Unit('m^2 / J^2')
     assert u0 * u1 == metric.Unit('m * (kg * m^2 / s^2)')
     assert u0 / u1 == metric.Unit('m / (kg * m^2 / s^2)')
     assert u0**2 / u1**3 == metric.Unit('m^2 / (kg * m^2 / s^2)^3')
@@ -743,39 +739,29 @@ def test_unit_raise():
         assert result == metric.Unit(expected)
 
 
-def test_unit_equivalence():
-    """Test the definition of equivalence between units."""
-    # Identity implies equivalence
-    assert metric.Unit('m / s') is metric.Unit('m s^-1')
-    assert metric.Unit('m / s') | metric.Unit('m s^-1')
-    # Equality implies equivalence
-    assert metric.Unit('# / (m^2 s sr J)') == metric.Unit('1 / (m^2 s sr J)')
-    assert metric.Unit('# / (m^2 s sr J)') | metric.Unit('1 / (m^2 s sr J)')
-    # Unequal units may be equivalent
-    assert metric.Unit('N') != metric.Unit('kg m s^-2')
-    assert metric.Unit('N') | metric.Unit('kg m s^-2')
-    assert metric.Unit('dyn') != metric.Unit('g cm s^-2')
-    assert metric.Unit('dyn') | metric.Unit('g cm s^-2')
-    # 'N' and 'dyn' represent the same quantity but are not equivalent
-    assert not metric.Unit('N') | metric.Unit('dyn')
-    assert not metric.Unit('N') | metric.Unit('g cm s^-2')
-    # Units that can't be inter-converted are not equivalent
-    assert not metric.Unit('N') | metric.Unit('kg m^2 s^-2')
-    # The operation is symmetrically valid with strings
-    assert metric.Unit('N') | 'kg m s^-2'
-    assert 'N' | metric.Unit('kg m s^-2')
-
-
 def test_unit_equality():
     """Test the definition of strict equality between units."""
-    cases = [
-        ('m/s', 'm/s'),
-        ('m/s', 'm s^-1'),
-        ('# / (m^2 s sr J)', 'm^-2 s^-1 sr^-1 J^-1'),
-        ('# / (m^2 s sr J)', '1 / (m^2 s sr J)'),
-    ]
-    for (u0, u1) in cases:
-        assert metric.Unit(u0) == metric.Unit(u1)
+    cases = {
+        # identity implies equality
+        ('m / s', 'm / s'): True,
+        # units with equivalent string expressions are equal
+        ('m / s', 'm s^-1'): True,
+        # units that differ only by dimensionless terms are equal
+        ('# / (m^2 s sr J)', 'm^-2 s^-1 sr^-1 J^-1'): True,
+        ('# / (m^2 s sr J)', '1 / (m^2 s sr J)'): True,
+        # physically equivalent units are equal
+        ('N', 'kg m s^-2'): True,
+        ('dyn', 'g cm s^-2'): True,
+        # units of the same quantity are not necessarily equal
+        ('N', 'dyn'): False,
+        ('N', 'g cm s^-2'): False,
+        # units that are not interchangeable are not equal
+        ('N', 'kg m^2 s^-2'): False,
+    }
+    for (u0, u1), truth in cases.items():
+        assert (metric.Unit(u0) == metric.Unit(u1)) == truth
+        assert (u0 == metric.Unit(u1)) == truth
+        assert (metric.Unit(u0) == u1) == truth
 
 
 def test_unit_identity():
@@ -897,6 +883,7 @@ def test_system():
             assert quantity.dimension == canonical['dimension']
 
 
+@pytest.mark.xfail
 def test_system_unit_lookup():
     """Test the ability to retrieve the appropriate unit."""
     systems = {

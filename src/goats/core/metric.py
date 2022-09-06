@@ -1606,16 +1606,17 @@ class Conversion(iterables.ReprStrMixin):
         decomposed = []
         for term in terms:
             decomposition = NamedUnit(term.base).decompose()
-            decomposed.extend(
-                [
-                    algebraic.Term(
-                        coefficient=decomposition.scale**term.exponent,
-                        base=this.base,
-                        exponent=term.exponent*this.exponent,
-                    )
-                    for this in decomposition.terms
-                ]
-            )
+            if decomposition:
+                decomposed.extend(
+                    [
+                        algebraic.Term(
+                            coefficient=decomposition.scale**term.exponent,
+                            base=this.base,
+                            exponent=term.exponent*this.exponent,
+                        )
+                        for this in decomposition.terms
+                    ]
+                )
         # TODO: Should we try this in other `_convert_by_expressions` or
         # `_resolve_terms`?
         if algebraic.Expression(decomposed) == '1':
@@ -1925,94 +1926,46 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
             else NotImplemented
         )
 
-    def __or__(self, other) -> bool:
-        """Called for self | other to test equivalence.
-        
-        Two units are equivalent if their conversion factor is unity.
-
-        Examples
-        --------
-        Identity implies equivalence.
-
-        >>> metric.Unit('m / s') is metric.Unit('m s^-1')
-        True
-        >>> metric.Unit('m / s') | metric.Unit('m s^-1')
-        True
-
-        Equality implies equivalence.
-
-        >>> metric.Unit('# / (m^2 s sr J)') == metric.Unit('1 / (m^2 s sr J)')
-        True
-        >>> metric.Unit('# / (m^2 s sr J)') | metric.Unit('1 / (m^2 s sr J)')
-        True
-
-        Unequal units may be equivalent.
-        
-        >>> metric.Unit('N') == metric.Unit('kg m s^-2')
-        False
-        >>> metric.Unit('N') | metric.Unit('kg m s^-2')
-        True
-        >>> metric.Unit('dyn') == metric.Unit('g cm s^-2')
-        False
-        >>> metric.Unit('dyn') | metric.Unit('g cm s^-2')
-        True
-
-        Units that represent the same physical quantity are not necessarily
-        equivalent.
-        
-        >>> metric.Unit('N') | metric.Unit('dyn')
-        False
-        >>> metric.Unit('N') | metric.Unit('g cm s^-2')
-        False
-        >>> metric.Unit('N') | metric.Unit('kg m^2 s^-2')
-        False
-
-        One of the operands may be a string.
-
-        >>> metric.Unit('N') | 'kg m s^-2'
-        True
-        >>> 'N' | metric.Unit('kg m s^-2')
-        True
-        """
-        try:
-            # TODO: Could we simplify this by comparing dimensions?
-            return self == other or (self // type(self)(other)) == 1.0
-        except UnitConversionError:
-            return False
-
-    def __ror__(self, other) -> bool:
-        """Called for self | other to test equivalence.
-        
-        See ``~__or__`` for further documentation.
-        """
-        return self | other
-
     def __eq__(self, other) -> bool:
         """Called for self == other.
         
-        Two unit expressions are equal if they are algebraically equal (cf.
-        `~algebraic.Expression`) or they differ only by dimensionless terms.
-        Otherwise, they are unequal. This method does not attempt to determine
-        if two unit expressions are equivalent (e.g., 'N' and 'kg m / s') by
-        comparing their ratio to unity.
+        Two unit expressions are equal if they satisfy one of the following
+        conditions, in order of restrictiveness:
 
-        See Also
-        --------
-        `~Unit.__or__`: Called to define unit equivalence via the `|` operator.
+        * are identical (e.g., 'N' == 'N')
+        * have algebraically equal strings (e.g., 'm / s' == 'm / s')
+        * have algebraically equivalent strings (e.g., 'm / s' == 'm s^-1')
+        * differ only by dimensionless terms (e.g., '1 / s' == '# / s')
+        * have a ratio of unity (e.g., 'N' == 'kg * m / s^2')
+
+        The final two conditions arguably amount to equivalence, rather than
+        strict equality, between unit expressions. This class includes
+        equivalence in the definition of equality because the physical meaning
+        of a unit should not depend on its precise lexical representation.
+        Equivalence therefore allows otherwise equal quantities with physically
+        equivalent units to compare equal.
         """
+        if other is self:
+            return True
         equal = super().__eq__(other)
         if equal:
             # If the expressions are equal, the units are equal.
             return True
         this = type(self)(other)
         if len(this) == len(self):
-            # If the expressions are not equal and their lengths are the same,
-            # we can declare them not equal without additional tests.
+            # If the expressions are not equal and they contain the same number
+            # of terms, we can declare them not equal without additional tests.
+            # TODO: Look for counter-examples to this.
             return False
-        difference = self.difference(other)
-        # If the only terms that differ between the units are dimensionless
-        # terms, we can declare them equal. Otherwise, they're unequal.
-        return all(str(term) in UNITY for term in difference)
+        if all(str(term) in UNITY for term in self.difference(other)):
+            # If the only terms that differ between the units are dimensionless
+            # terms, we can declare them equal by inspection.
+            return True
+        try:
+            # If their ratio is unit, they are equivalent and therefore equal.
+            return self // this == 1.0
+        except UnitConversionError:
+            return False
 
 
 def conversion(
