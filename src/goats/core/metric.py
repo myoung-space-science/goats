@@ -1836,11 +1836,14 @@ class _UnitMeta(abc.ABCMeta):
         if isinstance(arg, str) and arg in cls._instances:
             return cls._instances[arg]
         instance = super().__call__(arg, **kwargs)
+        key = str(instance)
+        if key in cls._instances:
+            return cls._instances[key]
         try:
             this = NamedUnit(arg)
             cls._instances[(this.name, this.symbol)] = instance
         except UnitParsingError:
-            cls._instances[str(instance)] = instance
+            cls._instances[key] = instance
         return instance
 
 
