@@ -1748,16 +1748,9 @@ class _Converter(iterables.ReprStrMixin):
         
         1. Substitute a known unit for `target`, if necessary.
         1. Return 1.0 if the target unit and the current unit are the same.
-        1. Search for the forward or reverse conversion and, if found, return
-           the corresponding numerical factor.
-        1. Return the ratio of metric scale factors between the target unit and
-           the current unit if they have the same base unit (e.g., 'm' for 'cm'
-           and 'km'). This happens later in the process because it requires two
-           conversions to `~metric.NamedUnit` and an arithmetic operation,
-           whereas previous cases only require a mapping look-up.
-        1. Search for the forward or reverse conversion between base units and,
-           if found, return the corresponding numerical factor after rescaling
-           by the metric ratio.
+        1. Attempt the explicit conversion via an instance of
+           `~metric.Conversion` and, if successful, return the corresponding
+           numerical factor.
         1. Raise an exception to alert the caller that the conversion is
            undefined.
         """
