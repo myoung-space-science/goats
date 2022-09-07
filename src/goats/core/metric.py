@@ -1920,11 +1920,11 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         possible
         """
         try:
-            this = NamedUnit(self).decompose().terms
+            this = NamedUnit(self).decompose().units
         except (UnitParsingError, SystemAmbiguityError):
             this = self.terms # force Expression to prevent recursion
         try:
-            that = NamedUnit(other).decompose().terms
+            that = NamedUnit(other).decompose().units
         except (UnitParsingError, SystemAmbiguityError):
             that = other
         return type(self)(operation(this, that))
