@@ -1838,23 +1838,47 @@ class _UnitMeta(abc.ABCMeta):
 
     def __call__(
         cls,
-        arg: typing.Union[Instance, str, iterables.whole],
+        arg: typing.Union[Instance, algebraic.Expressable],
         **kwargs
     ) -> Instance:
-        """Create a new instance or return an existing one."""
+        """Create a new instance or return an existing one.
+        
+        The goals of this method (and, effectively, of this class) are:
+
+        - Return the same instance for all possible representations of a unit
+          expression. For example: 'm / s', 'm s^-1', and 's^-1 m' should all
+          map to the unit that represents "meters per second".
+        - Parse a given string representation exactly once.
+        """
         if isinstance(arg, cls):
+            # If the argument is already an instance, return it.
             return arg
         if isinstance(arg, str) and arg in cls._instances:
+            # If the argument maps to an existing unit, return that unit.
             return cls._instances[arg]
+        # First time through:
         instance = super().__call__(arg, **kwargs)
-        key = str(instance)
-        if key in cls._instances:
-            return cls._instances[key]
+        # The canonical string representation is the expression string.
+        name = str(instance)
+        if name in cls._instances:
+            # It turns out that the argument corresponds to an existing unit.
+            unit = cls._instances[name]
+            if isinstance(arg, str):
+                # If the argument is a string, register the argument as an alias
+                # for that unit so we can just retrieve it next time.
+                cls._instances.alias(name, arg)
+            return unit
         try:
             this = NamedUnit(arg)
-            cls._instances[(this.name, this.symbol)] = instance
+            # This will register both the name and symbol (e.g., 'centimeter'
+            # and 'cm') as the initial aliases.
+            key = (this.name, this.symbol)
         except UnitParsingError:
-            cls._instances[key] = instance
+            # This will register the canonical string and, if applicable, the
+            #  string argument as the initial aliases.
+            key = (name, arg) if isinstance(arg, str) else name
+        # Store and return the new instance.
+        cls._instances[key] = instance
         return instance
 
 

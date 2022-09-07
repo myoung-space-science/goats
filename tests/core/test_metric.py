@@ -173,7 +173,15 @@ def test_singletons():
         metric.Conversion: [('G', 'T')],
         metric._Converter: [('m', 'length')],
         metric.Quantity: ['energy', 'Energy'],
-        metric.Unit: ['m s^-1', 'm / s'],
+        metric.Unit: [
+            'kg m^2 / s^2',
+            'kg m^2 s^-2',
+            'kg s^-2 m^2',
+            'm^2 s^-2 kg',
+            'm^2 kg s^-2',
+            's^-2 kg m^2',
+            's^-2 m^2 kg',
+        ],
         metric.System: ['mks', 'MKS'],
     }
     for obj, args in cases.items():
