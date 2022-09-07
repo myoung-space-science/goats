@@ -1526,6 +1526,10 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
             return s0 ^ s1
         return s0 - s1
 
+    def __hash__(self):
+        """Compute hash(self)."""
+        return hash(tuple(self.terms))
+
     def __eq__(self, other) -> bool:
         """True if two expressions have the same algebraic terms.
 

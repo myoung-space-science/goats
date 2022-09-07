@@ -513,6 +513,22 @@ def test_formatted_expression():
 
 
 @pytest.mark.expression
+def test_expression_hash():
+    """Expressions are hashable because their terms are uniquely sorted."""
+    reference = algebraic.Expression('a * b^2 / c^3')
+    variations = [
+        'a b^2 c^-3',
+        'b^2 c^-3 a',
+        'c^-3 a b^2',
+        'a c^-3 b^2',
+        'b^2 a c^-3',
+        'c^-3 b^2 a',
+    ]
+    for variation in variations:
+        assert hash(reference) == hash(algebraic.Expression(variation))
+
+
+@pytest.mark.expression
 def test_expression_equality():
     """Test the definition of equality between two expressions."""
     cases = {
