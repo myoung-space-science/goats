@@ -642,16 +642,16 @@ def test_reduced_order():
         'a': ['a'],
         'a^2': ['a^2'],
         'a^-2': ['a^-2'],
-        'a^2 b c^-2': ['c^-2', 'b', 'a^2'],
-        'b a^2 c^-2': ['c^-2', 'b', 'a^2'],
-        'c^-2 b a^2': ['c^-2', 'b', 'a^2'],
-        'a^2 c^-2 b': ['c^-2', 'b', 'a^2'],
-        'b c^-2 a^2': ['c^-2', 'b', 'a^2'],
-        'c^-2 a^2 b': ['c^-2', 'b', 'a^2'],
+        'a^2 b c^-2': ['a^2', 'b', 'c^-2'],
+        'b a^2 c^-2': ['a^2', 'b', 'c^-2'],
+        'c^-2 b a^2': ['a^2', 'b', 'c^-2'],
+        'a^2 c^-2 b': ['a^2', 'b', 'c^-2'],
+        'b c^-2 a^2': ['a^2', 'b', 'c^-2'],
+        'c^-2 a^2 b': ['a^2', 'b', 'c^-2'],
         'a^2 a a^-2': ['a'],
-        'a0^3 a1^2 a2^-2 a3^-3': ['a3^-3', 'a2^-2', 'a1^2', 'a0^3'],
-        'a0^-3 a1^-2 a2^2 a3^3': ['a0^-3', 'a1^-2', 'a2^2', 'a3^3'],
-        'a^2 b^2 c^-2 d^-2': ['c^-2', 'd^-2', 'a^2', 'b^2'],
+        'a0^3 a1^2 a2^-2 a3^-3': ['a0^3', 'a1^2', 'a2^-2', 'a3^-3'],
+        'a0^-3 a1^-2 a2^2 a3^3': ['a3^3', 'a2^2', 'a1^-2', 'a0^-3'],
+        'a^2 b^2 c^-2 d^-2': ['a^2', 'b^2', 'c^-2', 'd^-2'],
     }
     for this, expected in cases.items():
         terms = algebraic.Expression(this).terms
@@ -673,9 +673,9 @@ def test_expression_index():
     """Users should be able to access terms via index notation."""
     expression = algebraic.Expression('a * b^-2 * c^-1')
     terms = [
-        algebraic.Term(1, 'b', -2),
-        algebraic.Term(1, 'c', -1),
         algebraic.Term(1, 'a', 1),
+        algebraic.Term(1, 'c', -1),
+        algebraic.Term(1, 'b', -2),
     ]
     assert expression[0] == terms[0]
     assert expression[:] == terms[:]

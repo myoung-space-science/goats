@@ -1666,7 +1666,12 @@ def reduce(*groups: typing.Iterable[Term]):
         for k, v in reduced.items()
         if k != '1' and v['exponent'] != 0
     ]
-    variables = sorted(tmp, key=attrgetter('exponent', 'base'))
+    # Sort: high to low in exponent, followed by alphabetic in base.
+    variables = sorted(
+        sorted(tmp, key=attrgetter('base')),
+        key=attrgetter('exponent'),
+        reverse=True,
+    )
     c = functools.reduce(lambda x, y: x*y, fracs)
     constant = [Term(coefficient=c)]
     if not variables:
