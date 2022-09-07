@@ -1911,10 +1911,14 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
 
     def __mul__(self, other):
         """Called for self * other."""
+        if self is other or super().__eq__(other):
+            return super().__pow__(2)
         return self._apply(algebraic.product, other)
 
     def __truediv__(self, other):
         """Called for self / other."""
+        if self is other or super().__eq__(other):
+            return type(self)(1)
         return self._apply(algebraic.ratio, other)
 
     def __pow__(self, exp: numbers.Real):

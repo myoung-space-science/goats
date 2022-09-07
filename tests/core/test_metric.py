@@ -724,10 +724,12 @@ def test_unit_algebra():
 def test_unit_multiply():
     """Test the ability to create a new compound unit with '*'."""
     cases = {
-        ('m', 's'): 'm*s',
-        ('m/s', 'km/m'): 'km/s',
+        ('m', 's'): 'm * s',
+        ('m / s', 'km / m'): 'km / s',
+        ('m', 'm'): 'm^2',
         ('m', 'm^-1'): '1',
-        ('N', 's^2/(kg*m)'): '1'
+        ('N', '(kg * m / s^2)^-1'): '1',
+        ('N', 'kg * m / s^2'): 'kg^2 * m^2 / s^4',
     }
     apply_multiplicative(operator.mul, cases)
 
@@ -735,10 +737,12 @@ def test_unit_multiply():
 def test_unit_divide():
     """Test the ability to create a new compound unit with '/'."""
     cases = {
-        ('m', 's'): 'm/s',
-        ('m/s', 'm/km'): 'km/s',
+        ('m', 's'): 'm / s',
+        ('m / s', 'm / km'): 'km / s',
         ('m', 'm'): '1',
-        ('N', 'kg*m/s^2'): '1'
+        ('m', 'm^-1'): 'm^2',
+        ('N', '(kg * m / s^2)^-1'): 'kg^2 * m^2 / s^4',
+        ('N', 'kg * m / s^2'): '1',
     }
     apply_multiplicative(operator.truediv, cases)
 
@@ -748,7 +752,8 @@ def apply_multiplicative(opr, cases: dict):
     for (this, that), expected in cases.items():
         result = opr(metric.Unit(this), that)
         assert isinstance(result, metric.Unit)
-        assert result == metric.Unit(expected)
+        assert result == expected
+        assert result is metric.Unit(expected)
 
 
 def test_unit_floordiv():
