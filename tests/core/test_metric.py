@@ -458,7 +458,7 @@ def test_named_unit_decompose(decompositions: dict):
                 assert result.system == system
                 assert result.scale == expected['scale']
                 terms = [algebraic.Term(**term) for term in expected['terms']]
-                assert result.units == terms
+                assert set(result.units) == set(terms)
 
 
 def test_named_unit_decompose_system(decompositions: dict):
@@ -480,7 +480,7 @@ def test_named_unit_decompose_system(decompositions: dict):
             assert result.system == default
             terms = [algebraic.Term(**term) for term in case['terms']]
             assert result.scale == case['scale']
-            assert result.units == terms
+            assert set(result.units) == set(terms)
 
 
 def test_named_unit_parse():
