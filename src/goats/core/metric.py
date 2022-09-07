@@ -1258,11 +1258,22 @@ class NamedUnit(iterables.ReprStrMixin):
         """
         if self._dimensions is None:
             systems = {system for system in self.systems['defined']}
-            self._dimensions = self._get_dimensions(systems)
+            self._dimensions = {
+                k: algebraic.Expression(v)
+                for k, v in self._get_dimensions(systems).items()
+            }
         return self._dimensions.copy()
 
     def _get_dimensions(self, systems: typing.Set[str]):
-        """Helper for computing dimensions of this named unit."""
+        """Helper for computing dimensions of this named unit.
+        
+        Notes
+        -----
+        This method requires the full set of applicable metric systems (rather
+        than one system at a time) because it will return all available
+        dimensions if either 1) there are no applicable systems, or 2) the set
+        of applicable systems is equal to the set of all known systems.
+        """
         dimensions = DIMENSIONS[self.quantity]
         if not systems or (systems == SYSTEMS):
             return dimensions.copy()
