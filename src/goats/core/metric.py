@@ -991,7 +991,7 @@ class Decomposition(iterables.ReprStrMixin):
         self._units = None
 
     @property
-    def units(self):
+    def units(self) -> typing.List[algebraic.Term]:
         """The unit terms in this decomposition."""
         if self._units is None:
             self._units = [
