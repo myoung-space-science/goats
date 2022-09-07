@@ -1660,11 +1660,20 @@ class Conversion(iterables.ReprStrMixin):
 
     def _convert_by_dimensions(self, terms: typing.List[algebraic.Term]):
         """Attempt to compute a conversion via unit dimensions."""
-        decomposed = [
-            this
-            for term in terms
-            for this in decomposition(term)
-        ]
+        decomposed = []
+        for term in terms:
+            decomposition = NamedUnit(term.base).decompose()
+            if decomposition:
+                decomposed.extend(
+                    [
+                        algebraic.Term(
+                            coefficient=decomposition.scale**term.exponent,
+                            base=this.base,
+                            exponent=term.exponent*this.exponent,
+                        )
+                        for this in decomposition.units
+                    ]
+                )
         # TODO: Should we try this in other `_convert_by_expressions` or
         # `_resolve_terms`?
         if algebraic.Expression(decomposed) == '1':
