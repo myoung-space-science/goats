@@ -2551,25 +2551,27 @@ class System(collections.abc.Mapping, iterables.ReprStrMixin):
         return str(self.name)
 
 
-def decomposition(term: algebraic.Term):
-    """Decompose the given term, if possible."""
-    # NOTE: This is somewhat experimental.
-    # - It only applies if `term` has the form of a named unit with an optional
-    #   exponent.
-    # - It doesn't support passing `term` as a string.
-    # - We may want to add some checks on `term` before attempting to convert it
-    #   to a `NamedUnit`.
-    # - We may want to add a `system` keyword to make this more generally
-    #   applicable.
-    decomposition = NamedUnit(term.base).decompose()
-    if not decomposition:
-        return []
-    return [
-        algebraic.Term(
-            coefficient=decomposition.scale**term.exponent,
-            base=this.base,
-            exponent=term.exponent*this.exponent,
-        )
-        for this in decomposition.terms
-    ]
+def decomposition(unit: algebraic.Expressable, system: str=None):
+    """Decompose the given term, if possible.
+    
+    Notes
+    -----
+    This function is still experimental.
+    """
+    expression = algebraic.Expression(unit)
+    decomposed = []
+    for term in expression:
+        try:
+            # NOTE: `NamedUnit.decompose` can return `None`
+            current = NamedUnit(term.base).decompose(system=system)
+        except (UnitParsingError, SystemAmbiguityError):
+            current = None
+        if current:
+            decomposed.append(current**term.exponent)
+    if not decomposed:
+        return
+    result = decomposed[0]
+    for other in decomposed[1:]:
+        result *= other.scale
+    return result
 

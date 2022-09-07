@@ -958,3 +958,36 @@ def test_system_singleton():
         old = metric.System(system)
         new = metric.System(old)
         assert new is old
+
+
+@pytest.mark.xfail
+def test_decomposition():
+    """Test the module-level unit-decomposing function."""
+    cases = {
+        'm': {
+            'mks': (1.0, ['m']),
+            'cgs': (1e2, ['cm']),
+        },
+        'cm': {
+            'mks': (1e-2, ['m']),
+            'cgs': (1.0, ['cm']),
+        },
+        'J': {
+            'mks': (1.0, ['kg m^2 s^-2']),
+            'cgs': (1e1, ['g cm^2 s^-2']),
+        },
+        'erg': {
+            'mks': None,
+            'cgs': (1.0, ['g cm^2 s^-2']),
+        },
+    }
+    for unit, systems in cases.items():
+        for name, expected in systems.items():
+            result = metric.decomposition(unit, system=name)
+            if expected is None:
+                assert result is None
+            else:
+                (scale, expression) = expected
+                assert algebraic.Expression(result.units) == expression
+                assert result.scale == scale
+                assert result.system == name
