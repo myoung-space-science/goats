@@ -497,7 +497,7 @@ def test_ignore_operator_order():
     for string, terms in cases.items():
         expression = algebraic.Expression(string, operator_order='ignore')
         expected = algebraic.asterms(terms)
-        assert expression.terms == expected
+        assert set(expression.terms) == set(expected)
 
 @pytest.mark.expression
 def test_formatted_expression():
@@ -620,6 +620,28 @@ def test_reduced_expression():
     assert expression == reduced
 
 
+def test_reduced_order():
+    """The result of `reduce` should be sorted."""
+    cases = {
+        'a': ['a'],
+        'a^2': ['a^2'],
+        'a^-2': ['a^-2'],
+        'a^2 b c^-2': ['c^-2', 'b', 'a^2'],
+        'b a^2 c^-2': ['c^-2', 'b', 'a^2'],
+        'c^-2 b a^2': ['c^-2', 'b', 'a^2'],
+        'a^2 c^-2 b': ['c^-2', 'b', 'a^2'],
+        'b c^-2 a^2': ['c^-2', 'b', 'a^2'],
+        'c^-2 a^2 b': ['c^-2', 'b', 'a^2'],
+        'a^2 a a^-2': ['a'],
+        'a0^3 a1^2 a2^-2 a3^-3': ['a3^-3', 'a2^-2', 'a1^2', 'a0^3'],
+        'a0^-3 a1^-2 a2^2 a3^3': ['a0^-3', 'a1^-2', 'a2^2', 'a3^3'],
+        'a^2 b^2 c^-2 d^-2': ['c^-2', 'd^-2', 'a^2', 'b^2'],
+    }
+    for this, expected in cases.items():
+        terms = algebraic.Expression(this).terms
+        assert algebraic.reduce(terms) == expected
+
+
 def equal_terms(
     expression: algebraic.Expression,
     terms: typing.Iterable[algebraic.Term],
@@ -635,9 +657,9 @@ def test_expression_index():
     """Users should be able to access terms via index notation."""
     expression = algebraic.Expression('a * b^-2 * c^-1')
     terms = [
-        algebraic.Term(1, 'a', 1),
         algebraic.Term(1, 'b', -2),
         algebraic.Term(1, 'c', -1),
+        algebraic.Term(1, 'a', 1),
     ]
     assert expression[0] == terms[0]
     assert expression[:] == terms[:]

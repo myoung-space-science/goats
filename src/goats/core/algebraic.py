@@ -1635,6 +1635,11 @@ def reduce(*groups: typing.Iterable[Term]):
         One or more iterables of `~algebra.Term` instances. If there are
         multiple groups, this method will combine all terms it finds in the full
         collection of groups.
+
+    Notes
+    -----
+    This function will sort terms in order of ascending exponent, and
+    alphabetically for equal exponents.
     """
     terms = [term for group in groups for term in group]
     reduced = {}
@@ -1652,11 +1657,12 @@ def reduce(*groups: typing.Iterable[Term]):
         fractions.Fraction(v['coefficient'])
         for v in reduced.values()
     ]
-    variables = [
+    tmp = [
         Term(base=k, exponent=v['exponent'])
         for k, v in reduced.items()
         if k != '1' and v['exponent'] != 0
     ]
+    variables = sorted(tmp, key=attrgetter('exponent', 'base'))
     c = functools.reduce(lambda x, y: x*y, fracs)
     constant = [Term(coefficient=c)]
     if not variables:
