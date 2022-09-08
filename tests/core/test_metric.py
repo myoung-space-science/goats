@@ -293,6 +293,64 @@ def test_named_unit_floordiv():
 
 
 @pytest.fixture
+def decompositions():
+    """Test cases for named-unit decompositions."""
+    return {
+        # fundamental in mks and cgs
+        's': [{'base': 's'}],
+        # fundamental in mks
+        'm': [{'base': 'm'}],
+        'kg': [{'base': 'kg'}],
+        'N': [
+            {'base': 'kg', 'exponent': 1},
+            {'base': 'm', 'exponent': 1},
+            {'base': 's', 'exponent': -2},
+        ],
+        'J': [
+            {'base': 'kg', 'exponent': 1},
+            {'base': 'm', 'exponent': 2},
+            {'base': 's', 'exponent': -2},
+        ],
+        'ohm': [
+            {'base': 'kg', 'exponent': 1},
+            {'base': 'm', 'exponent': 2},
+            {'base': 's', 'exponent': -3},
+            {'base': 'A', 'exponent': -1},
+        ],
+        # fundamental in cgs
+        'cm': [{'base': 'cm'}],
+        'g': [{'base': 'g'}],
+        'dyn': [
+            {'base': 'g', 'exponent': 1},
+            {'base': 'cm', 'exponent': 1},
+            {'base': 's', 'exponent': -2},
+        ],
+        'erg': [
+            {'base': 'g', 'exponent': 1},
+            {'base': 'cm', 'exponent': 2},
+            {'base': 's', 'exponent': -2},
+        ],
+        # not fundamental in any metric system
+        'mJ': None,
+        'merg': None,
+        'km': None,
+        'au': None,
+    }
+
+
+def test_named_unit_decompose(decompositions: dict):
+    """Test the NamedUnit.decompose method."""
+    for unit, expected in decompositions.items():
+        named = metric.NamedUnit(unit)
+        result = named.decomposition
+        if expected is None:
+            assert result is None
+        else:
+            terms = [algebraic.Term(**term) for term in expected]
+            assert set(result) == set(terms)
+
+
+@pytest.fixture
 def reductions():
     """Test cases for named-unit reductions."""
     return {

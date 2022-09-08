@@ -1176,8 +1176,45 @@ class NamedUnit(iterables.ReprStrMixin):
             self._systems = {k: tuple(v) for k, v in modes.items()}
         return self._systems.copy()
 
+    @property
+    def decomposition(self):
+        """The representation of this unit in base units, if possible."""
+        if self._decomposition is None:
+            with contextlib.suppress(StopIteration):
+                system = next(
+                    system for system in SYSTEMS
+                    if self.is_fundamental_in(system)
+                )
+                self._decomposition = self._decompose(system)
+        return self._decomposition
+
+    def _decompose(self, system: typing.Literal['mks', 'cgs']):
+        """Internal logic for `NamedUnit.decomposition`."""
+        if not self.is_defined_in(system):
+            # If this unit is not defined in this metric system, we can't
+            # decompose it.
+            return
+        dimension = self.dimensions[system]
+        expression = algebraic.Expression(dimension)
+        if len(dimension) == 1:
+            # If this unit's dimension is irreducible, there's no point in going
+            # through all the decomposition logic.
+            return [algebraic.Term(self.symbol)]
+        quantities = [
+            _BASE_QUANTITIES.find(term.base)[0]['name']
+            for term in expression
+        ]
+        units = [
+            _QUANTITIES[quantity]['units'][system]
+            for quantity in quantities
+        ]
+        return [
+            algebraic.Term(base=unit, exponent=term.exponent)
+            for unit, term in zip(units, expression)
+        ]
+
     def reduce(self, system: str=None) -> typing.Optional[Reduction]:
-        """Represent this unit in base units of `system`, if possible."""
+        """Convert this unit to base units of `system`, if possible."""
         s = self._resolve_system(system)
         if self._reductions[s]:
             return self._reductions[s]
