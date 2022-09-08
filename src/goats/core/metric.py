@@ -976,8 +976,8 @@ class BaseUnit(typing.NamedTuple):
     quantity: str
 
 
-class Decomposition(iterables.ReprStrMixin):
-    """The components of a unit decomposition."""
+class Reduction(iterables.ReprStrMixin):
+    """The components of a reduced unit expression."""
 
     def __init__(
         self,
@@ -992,7 +992,7 @@ class Decomposition(iterables.ReprStrMixin):
 
     @property
     def units(self) -> typing.List[algebraic.Term]:
-        """The unit terms in this decomposition."""
+        """The unit terms in this reduction."""
         if self._units is None:
             self._units = [
                 unit for unit in self._expression
@@ -1077,7 +1077,8 @@ class NamedUnit(iterables.ReprStrMixin):
     """The physical quantity of this unit."""
     _systems: typing.Tuple[str, ...]=None
     _dimensions: typing.Dict[str, str]=None
-    _decompositions=None
+    _reductions=None
+    _decomposition=None
 
     def __new__(cls, arg):
         """Concrete implementation."""
@@ -1095,7 +1096,7 @@ class NamedUnit(iterables.ReprStrMixin):
         self.symbol = f"{magnitude.symbol}{reference.symbol}"
         self.scale = magnitude.factor
         self.quantity = reference.quantity
-        self._decompositions = dict.fromkeys(SYSTEMS)
+        self._reductions = dict.fromkeys(SYSTEMS)
         cls._instances[key] = self
         return self
 
@@ -1175,13 +1176,13 @@ class NamedUnit(iterables.ReprStrMixin):
             self._systems = {k: tuple(v) for k, v in modes.items()}
         return self._systems.copy()
 
-    def decompose(self, system: str=None) -> typing.Optional[Decomposition]:
+    def reduce(self, system: str=None) -> typing.Optional[Reduction]:
         """Represent this unit in base units of `system`, if possible."""
         s = self._resolve_system(system)
-        if self._decompositions[s]:
-            return self._decompositions[s]
-        result = self._decompose(s)
-        self._decompositions[s] = result
+        if self._reductions[s]:
+            return self._reductions[s]
+        result = self._reduce(s)
+        self._reductions[s] = result
         return result
 
     def _resolve_system(self, system: typing.Optional[str]):
@@ -1205,28 +1206,28 @@ class NamedUnit(iterables.ReprStrMixin):
         # system-dependent but we don't know the system
         raise SystemAmbiguityError(str(self))
 
-    def _decompose(self, system: typing.Literal['mks', 'cgs']):
-        """Internal logic for `~NamedUnit.decompose`."""
+    def _reduce(self, system: typing.Literal['mks', 'cgs']):
+        """Internal logic for `~NamedUnit.reduce`."""
         if not self.is_defined_in(system):
             # If this unit is not defined in this metric system, we can't
-            # decompose it.
+            # reduce it.
             return
         dimension = self.dimensions[system]
         expression = algebraic.Expression(dimension)
         if len(expression) == 1:
             # If this unit's dimension is irreducible, there's no point in going
-            # through all the decomposition logic.
+            # through all the reduction logic.
             canonical = CANONICAL['units'][system][self.quantity]
             if self.symbol == canonical:
                 # If this is the canonical unit for its quantity in `system`,
                 # return it with a scale of unity.
-                return Decomposition(
+                return Reduction(
                     [algebraic.Term(self.symbol)],
                     system=system,
                 )
             # If not, return the canonical unit with the appropriate scale
             # factor.
-            return Decomposition(
+            return Reduction(
                 [algebraic.Term(canonical)],
                 scale=(canonical // self),
                 system=system,
@@ -1243,7 +1244,7 @@ class NamedUnit(iterables.ReprStrMixin):
             algebraic.Term(base=unit, exponent=term.exponent)
             for unit, term in zip(units, expression)
         ]
-        return Decomposition(terms, scale=self.scale, system=system)
+        return Reduction(terms, scale=self.scale, system=system)
 
     @property
     def dimensions(self) -> typing.Dict[str, typing.Optional[str]]:
@@ -1662,16 +1663,16 @@ class Conversion(iterables.ReprStrMixin):
         """Attempt to compute a conversion via unit dimensions."""
         decomposed = []
         for term in terms:
-            decomposition = NamedUnit(term.base).decompose()
-            if decomposition:
+            reduction = NamedUnit(term.base).reduce()
+            if reduction:
                 decomposed.extend(
                     [
                         algebraic.Term(
-                            coefficient=decomposition.scale**term.exponent,
+                            coefficient=reduction.scale**term.exponent,
                             base=this.base,
                             exponent=term.exponent*this.exponent,
                         )
-                        for this in decomposition.units
+                        for this in reduction.units
                     ]
                 )
         # TODO: Should we try this in other `_convert_by_expressions` or
@@ -1928,16 +1929,16 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
     def _apply(self, operation, other=None):
         """Apply `operation` to this unit.
         
-        This method will attempt to decompose each operand into base units
+        This method will attempt to reduce each operand into base units
         before computing the result, in order to reduce the result as much as
         possible
         """
         try:
-            this = NamedUnit(self).decompose().units
+            this = NamedUnit(self).reduce().units
         except (UnitParsingError, SystemAmbiguityError):
             this = self.terms # force Expression to prevent recursion
         try:
-            that = NamedUnit(other).decompose().units
+            that = NamedUnit(other).reduce().units
         except (UnitParsingError, SystemAmbiguityError):
             that = other
         return type(self)(operation(this, that))
@@ -2551,8 +2552,8 @@ class System(collections.abc.Mapping, iterables.ReprStrMixin):
         return str(self.name)
 
 
-def decomposition(unit: algebraic.Expressable, system: str=None):
-    """Decompose the given term, if possible.
+def reduction(unit: algebraic.Expressable, system: str=None):
+    """Reduce the given unit expression, if possible.
     
     Notes
     -----
@@ -2562,8 +2563,8 @@ def decomposition(unit: algebraic.Expressable, system: str=None):
     decomposed = []
     for term in expression:
         try:
-            # NOTE: `NamedUnit.decompose` can return `None`
-            current = NamedUnit(term.base).decompose(system=system)
+            # NOTE: `NamedUnit.reduce` can return `None`
+            current = NamedUnit(term.base).reduce(system=system)
         except (UnitParsingError, SystemAmbiguityError):
             current = None
         if current:

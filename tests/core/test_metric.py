@@ -293,8 +293,8 @@ def test_named_unit_floordiv():
 
 
 @pytest.fixture
-def decompositions():
-    """Test cases for named-unit decompositions."""
+def reductions():
+    """Test cases for named-unit reductions."""
     return {
         's': {
             'mks': {
@@ -418,9 +418,9 @@ def decompositions():
     }
 
 
-def test_decomposition_class():
-    """Test the algebraic expression of a unit decomposition."""
-    this = metric.Decomposition(['m^2'], scale=2, system='mks')
+def test_reduction_class():
+    """Test the algebraic expression of a unit reduction."""
+    this = metric.Reduction(['m^2'], scale=2, system='mks')
     assert this.units == ['m^2']
     assert this.scale == 2.0
     assert this.system == 'mks'
@@ -446,12 +446,12 @@ def test_decomposition_class():
         3 ** this
 
 
-def test_named_unit_decompose(decompositions: dict):
-    """Test the NamedUnit.decompose method."""
-    for unit, systems in decompositions.items():
+def test_named_unit_reduce(reductions: dict):
+    """Test the NamedUnit.reduce method."""
+    for unit, systems in reductions.items():
         named = metric.NamedUnit(unit)
         for system, expected in systems.items():
-            result = named.decompose(system)
+            result = named.reduce(system)
             if expected is None:
                 assert result is None
             else:
@@ -461,8 +461,8 @@ def test_named_unit_decompose(decompositions: dict):
                 assert set(result.units) == set(terms)
 
 
-def test_named_unit_decompose_system(decompositions: dict):
-    """Test decompositions with the default metric system."""
+def test_named_unit_reduce_system(reductions: dict):
+    """Test reductions with the default metric system."""
     these = {
         'J': 'mks', # only defined in mks
         'erg': 'cgs', # only defined in cgs
@@ -472,8 +472,8 @@ def test_named_unit_decompose_system(decompositions: dict):
         'au': 'mks', # fundamental in neither
     }
     for unit, default in these.items():
-        case = decompositions[unit][default]
-        result = metric.NamedUnit(unit).decompose()
+        case = reductions[unit][default]
+        result = metric.NamedUnit(unit).reduce()
         if case is None:
             assert result is None
         else:
