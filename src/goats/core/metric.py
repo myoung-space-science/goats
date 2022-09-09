@@ -1951,6 +1951,17 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         super().__init__(expression, **kwargs)
         self._dimensions = None
         self._decomposed = None
+        self._dimensionless = None
+
+    @property
+    def dimensionless(self):
+        """True if this unit's dimension is '1' in all metric systems."""
+        if self._dimensionless is None:
+            self._dimensionless = all(
+                dimension == '1'
+                for dimension in self.dimensions.values()
+            )
+        return self._dimensionless
 
     @property
     def dimensions(self):

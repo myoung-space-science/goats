@@ -916,6 +916,21 @@ def test_unit_identity():
         assert metric.Unit(u0) is metric.Unit(u1)
 
 
+def test_unit_dimensionless():
+    """Test the boolean `dimensionless` property."""
+    cases = {
+        '1': True,
+        '#': True,
+        'm': False,
+        'cm': False,
+        'J': False,
+        'erg': False,
+        'N / N': True,
+    }
+    for unit, truth in cases.items():
+        assert metric.Unit(unit).dimensionless == truth
+
+
 def test_dimension_fromunit():
     """Test the ability to instantiate a Dimension from a Unit."""
     cases = [
