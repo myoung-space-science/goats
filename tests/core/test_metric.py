@@ -890,8 +890,9 @@ def test_unit_equality():
         ('N', 'g cm s^-2'): False,
         # units that are not interchangeable are not equal
         ('N', 'kg m^2 s^-2'): False,
-        # a dimensioned unit is not equal to the dimensionless unit
+        # dimensioned units is not equal to the dimensionless unit
         ('m', '1'): False,
+        ('day', '1'): False,
     }
     for (u0, u1), truth in cases.items():
         assert (metric.Unit(u0) == metric.Unit(u1)) == truth

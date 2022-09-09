@@ -2126,11 +2126,17 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         if other is self:
             # If they are identical, they are equal.
             return True
+        unitless = [s == '1' for s in (str(self), str(other))]
+        if any(unitless) and not all(unitless):
+            return False
         equal = super().__eq__(other)
         if equal:
             # If the algebraic expressions are equal, the units are equal.
             return True
         this = type(self)(other)
+        if self.dimensionless != this.dimensionless:
+            # One, and only one, of the units is dimensionless
+            return False
         if set(self.decomposed) == set(this.decomposed):
             # If their terms are equal, the units are equal.
             return True
