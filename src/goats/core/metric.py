@@ -1900,10 +1900,18 @@ class _UnitMeta(abc.ABCMeta):
         if isinstance(arg, cls):
             # If the argument is already an instance, return it.
             return arg
-        if isinstance(arg, str) and arg in cls._instances:
+        # Attempt to extract a string representing a single unit.
+        if isinstance(arg, str):
+            string = arg
+        else:
+            try:
+                string = str(arg[0]) if len(arg) == 1 else None
+            except TypeError:
+                string = None
+        if string in cls._instances:
             # If the argument maps to an existing unit, return that unit.
-            return cls._instances[arg]
-        # First time through:
+            return cls._instances[string]
+        # First time through: create an algebraic expression from `arg`.
         instance = super().__call__(arg, **kwargs)
         # The canonical string representation is the expression string.
         name = str(instance)
@@ -1915,15 +1923,16 @@ class _UnitMeta(abc.ABCMeta):
                 # for that unit so we can just retrieve it next time.
                 cls._instances.alias(name, arg)
             return unit
+        # Create the initial mapping aliases for this unit.
         try:
-            this = NamedUnit(arg)
-            # This will register both the name and symbol (e.g., 'centimeter'
-            # and 'cm') as the initial aliases.
+            # If `name` corresponds to a named unit register both the name and
+            # symbol (e.g., 'centimeter' and 'cm').
+            this = NamedUnit(name)
             key = (this.name, this.symbol)
         except UnitParsingError:
-            # This will register the canonical string and, if applicable, the
-            # string argument as the initial aliases.
-            key = (name, arg) if isinstance(arg, str) else name
+            # If attempting to parse a named unit from `name` failed, register
+            # the canonical string and, if applicable, the string argument.
+            key = (name, string) if string else name
         # Store and return the new instance.
         cls._instances[key] = instance
         return instance
