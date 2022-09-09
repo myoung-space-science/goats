@@ -838,10 +838,11 @@ def test_unit_divide():
 def apply_multiplicative(opr, cases: dict):
     """Apply a multiplicative operator between units."""
     for (this, that), expected in cases.items():
-        result = opr(metric.Unit(this), that)
-        assert isinstance(result, metric.Unit)
-        assert result == expected
-        assert result is metric.Unit(expected)
+        for other in (that, metric.Unit(that)):
+            result = opr(metric.Unit(this), other)
+            assert isinstance(result, metric.Unit)
+            assert result == expected
+            assert result is metric.Unit(expected)
 
 
 def test_unit_floordiv():
