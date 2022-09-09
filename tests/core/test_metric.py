@@ -653,7 +653,7 @@ def test_named_unit_idempotence():
     assert new is old
 
 
-def test_unit_init():
+def test_create_unit():
     """Initialize the Unit object with various strings."""
     strings = {
         'm': {
