@@ -1980,7 +1980,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         before computing the result, in order to reduce the result as much as
         possible
         """
-        this = self.decomposed.terms # to prevent recursion
+        this = self.decomposed
         if isinstance(other, numbers.Number):
             return type(self)(operation(this, other))
         return type(self)(operation(this, self.decompose(other)))
@@ -2000,7 +2000,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
             for term in algebraic.Expression(unit)
             for part in cls._decompose(term)
         ]
-        return cls(decomposed)
+        return decomposed
 
     @classmethod
     def _decompose(cls, term: algebraic.Term):

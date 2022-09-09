@@ -787,7 +787,8 @@ def test_decompose_unit():
     }
     for unit, expected in cases.items():
         decomposed = metric.Unit.decompose(unit)
-        assert decomposed == expected
+        expression = algebraic.Expression(expected)
+        assert decomposed == expression
         assert metric.Unit(unit).decomposed == decomposed
 
 
