@@ -768,6 +768,29 @@ def test_unit_dimensions():
     assert meter.dimensions['mks'] == 'L'
 
 
+def test_decompose_unit():
+    """Test the ability to decompose a unit expression."""
+    cases = {
+        'm': 'm',
+        'cm': 'cm',
+        'km': 'km',
+        'au': 'au',
+        'm / cm': 'm / cm',
+        'm / au': 'm / au',
+        'N * s': 'kg m s^-1',
+        'N / s': 'kg m s^-3',
+        'N / m': 'kg s^-2',
+        'N * s^2': 'kg m',
+        'N / cm': 'kg m s^-2 cm^-1',
+        'J / erg': 'kg m^2 g^-1 cm^-2',
+        'J * (kg / s) / N^2': 's',
+    }
+    for unit, expected in cases.items():
+        decomposed = metric.Unit.decompose(unit)
+        assert decomposed == expected
+        assert metric.Unit(unit).decomposed == decomposed
+
+
 def test_unit_algebra():
     """Test algebraic operations on the Unit class."""
     u0 = metric.Unit('m')

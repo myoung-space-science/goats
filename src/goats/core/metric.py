@@ -1939,6 +1939,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
     ) -> None:
         super().__init__(expression, **kwargs)
         self._dimensions = None
+        self._decomposed = None
 
     @property
     def dimensions(self):
@@ -1963,7 +1964,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         """Called for self ** exp."""
         return self._apply(algebraic.power, exp)
 
-    def _apply(self, operation, other=None):
+    def _apply(self, operation, other):
         """Apply `operation` to this unit.
         
         This method will attempt to reduce each operand into base units
@@ -1985,6 +1986,47 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
             except (UnitParsingError, SystemAmbiguityError):
                 that.append(unit)
         return type(self)(operation(this, that))
+
+    @property
+    def decomposed(self):
+        """This unit's decomposition into base units, where possible."""
+        if self._decomposed is None:
+            self._decomposed = self.decompose(self)
+        return self._decomposed
+
+    @classmethod
+    def decompose(cls, unit: algebraic.Expressable):
+        """This unit's decomposition into base units, where possible."""
+        decomposed = [
+            part
+            for term in algebraic.Expression(unit)
+            for part in cls._decompose(term)
+        ]
+        return cls(decomposed)
+
+    @classmethod
+    def _decompose(cls, term: algebraic.Term):
+        """Internal logic for `~metric.Unit.decompose`."""
+        try:
+            # Possible outcomes
+            # - success: returns list of terms
+            # - decomposition failed: returns `None`
+            # - parsing failed: raises UnitParsingError
+            # - metric system is ambiguous: raises SystemAmbiguityError
+            current = NamedUnit(term.base).decomposed
+        except (UnitParsingError, SystemAmbiguityError):
+            # This effectively reduces the three failure modes listed above into
+            # one result.
+            current = None
+        if current is None:
+            # If the attempt to decompose this unit term failed or
+            # raised an exception, our only option is to append the
+            # existing term to the running list.
+            return [term]
+        # If the attempt to decompose this unit term succeeded,
+        # we need to distribute the term's exponent over the new
+        # terms and append each to the running list.
+        return [base**term.exponent for base in current]
 
     def __floordiv__(self, other):
         """Compute the magnitude of this unit relative to `other`.
