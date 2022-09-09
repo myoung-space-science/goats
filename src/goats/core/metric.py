@@ -1690,12 +1690,10 @@ class Conversion(iterables.ReprStrMixin):
         if e0 == e1:
             return 1.0
         terms = [term for term in e0 / e1 if term.base not in UNITY]
-        if len(terms) > 1:
-            # We need at least two terms to compute a conversion factor.
-            if factor := self._resolve_terms(terms):
-                return factor
-            if factor := self._convert_by_dimensions(terms):
-                return factor
+        if factor := self._resolve_terms(terms):
+            return factor
+        if factor := self._convert_by_dimensions(terms):
+            return factor
         raise UnitConversionError(self.u0, self.u1)
 
     def _convert_by_dimensions(self, terms: typing.List[algebraic.Term]):
@@ -1742,6 +1740,9 @@ class Conversion(iterables.ReprStrMixin):
 
     def _resolve_terms(self, terms: typing.List[algebraic.Term]):
         """Compute ratios of matching terms, if possible."""
+        if len(terms) <= 1:
+            # We require at least two terms for a ratio.
+            return
         factor = 1.0
         matched = []
         unmatched = terms.copy()
