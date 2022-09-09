@@ -342,7 +342,7 @@ def test_named_unit_decompose(decompositions: dict):
     """Test the NamedUnit.decompose method."""
     for unit, expected in decompositions.items():
         named = metric.NamedUnit(unit)
-        result = named.decomposition
+        result = named.decomposed
         if expected is None:
             assert result is None
         else:

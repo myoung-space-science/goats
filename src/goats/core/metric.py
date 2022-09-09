@@ -1078,7 +1078,7 @@ class NamedUnit(iterables.ReprStrMixin):
     _systems: typing.Tuple[str, ...]=None
     _dimensions: typing.Dict[str, str]=None
     _reductions=None
-    _decomposition=None
+    _decomposed=None
 
     def __new__(cls, arg):
         """Concrete implementation."""
@@ -1177,19 +1177,19 @@ class NamedUnit(iterables.ReprStrMixin):
         return self._systems.copy()
 
     @property
-    def decomposition(self):
+    def decomposed(self):
         """The representation of this unit in base units, if possible."""
-        if self._decomposition is None:
+        if self._decomposed is None:
             with contextlib.suppress(StopIteration):
                 system = next(
                     system for system in SYSTEMS
                     if self.is_fundamental_in(system)
                 )
-                self._decomposition = self._decompose(system)
-        return self._decomposition
+                self._decomposed = self._decompose(system)
+        return self._decomposed
 
     def _decompose(self, system: typing.Literal['mks', 'cgs']):
-        """Internal logic for `NamedUnit.decomposition`."""
+        """Internal logic for `NamedUnit.decomposed`."""
         if not self.is_defined_in(system):
             # If this unit is not defined in this metric system, we can't
             # decompose it.
@@ -1970,14 +1970,20 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         before computing the result, in order to reduce the result as much as
         possible
         """
-        try:
-            this = NamedUnit(self).reduce().units
-        except (UnitParsingError, SystemAmbiguityError):
-            this = self.terms # force Expression to prevent recursion
-        try:
-            that = NamedUnit(other).reduce().units
-        except (UnitParsingError, SystemAmbiguityError):
-            that = other
+        this = []
+        for unit in self:
+            try:
+                this.extend(NamedUnit(unit).decomposition)
+            except (UnitParsingError, SystemAmbiguityError):
+                this.append(unit)
+        if isinstance(other, numbers.Number):
+            return type(self)(operation(this, other))
+        that = []
+        for unit in Unit(other):
+            try:
+                that.extend(NamedUnit(unit).decomposition)
+            except (UnitParsingError, SystemAmbiguityError):
+                that.append(unit)
         return type(self)(operation(this, that))
 
     def __floordiv__(self, other):
