@@ -2111,25 +2111,35 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         equivalent units to compare equal.
         """
         if other is self:
+            # If they are identical, they are equal.
             return True
         equal = super().__eq__(other)
         if equal:
-            # If the expressions are equal, the units are equal.
+            # If the algebraic expressions are equal, the units are equal.
             return True
         this = type(self)(other)
-        if len(this) == len(self):
-            # If the expressions are not equal and they contain the same number
-            # of terms, we can declare them not equal without additional tests.
-            # TODO: Look for counter-examples to this.
-            return False
-        if all(str(term) in UNITY for term in self.difference(other)):
+        if set(self.decomposed) == set(this.decomposed):
+            # If their terms are equal, the units are equal.
+            return True
+        if algebraic.equality(self.decomposed, this.decomposed):
+            # If their terms produce equal expressions, the units are equal.
+            return True
+        unity = (
+            str(term) in UNITY
+            for term in self.difference(other, symmetric=True)
+        )
+        if all(unity):
             # If the only terms that differ between the units are dimensionless
-            # terms, we can declare them equal by inspection.
+            # terms, we can declare them equal by inspection (i.e., without
+            # computing their conversion factor).
             return True
         try:
-            # If their ratio is unit, they are equivalent and therefore equal.
+            # If their numerical conversion factor is unity, they are
+            # equivalent; for the purposes of this method (see the justification
+            # given in the docstring), they are therefore equal.
             return self // this == 1.0
         except UnitConversionError:
+            # Everything has failed, so we declare them unequal.
             return False
 
 

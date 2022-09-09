@@ -884,11 +884,14 @@ def test_unit_equality():
         # physically equivalent units are equal
         ('N', 'kg m s^-2'): True,
         ('dyn', 'g cm s^-2'): True,
+        ('m^3 / (s^2 * kg)', 'm^2 N kg^-2'): True,
         # units of the same quantity are not necessarily equal
         ('N', 'dyn'): False,
         ('N', 'g cm s^-2'): False,
         # units that are not interchangeable are not equal
         ('N', 'kg m^2 s^-2'): False,
+        # a dimensioned unit is not equal to the dimensionless unit
+        ('m', '1'): False,
     }
     for (u0, u1), truth in cases.items():
         assert (metric.Unit(u0) == metric.Unit(u1)) == truth
