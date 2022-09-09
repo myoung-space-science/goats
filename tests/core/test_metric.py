@@ -893,6 +893,8 @@ def test_unit_equality():
         # dimensioned units is not equal to the dimensionless unit
         ('m', '1'): False,
         ('day', '1'): False,
+        # miscellaneous pathological cases
+        ('au', 'cd * sr'): False,
     }
     for (u0, u1), truth in cases.items():
         assert (metric.Unit(u0) == metric.Unit(u1)) == truth
