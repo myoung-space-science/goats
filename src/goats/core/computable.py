@@ -9,7 +9,6 @@ from scipy import integrate
 
 from goats.core import aliased
 from goats.core import axis
-from goats.core import fundamental
 from goats.core import iterables
 from goats.core import metadata
 from goats.core import numerical
@@ -21,7 +20,7 @@ from goats.core import variable
 registry = iterables.ObjectRegistry(object_key='method')
 
 
-MKS = fundamental.Constants('mks')
+MKS = physical.Constants('mks')
 
 
 @registry.register
