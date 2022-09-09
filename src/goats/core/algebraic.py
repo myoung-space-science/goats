@@ -1681,6 +1681,12 @@ def reduce(*groups: typing.Iterable[Term]):
     return constant + variables
 
 
+def equality(a, b) -> Expression:
+    """Symbolically compute a == b."""
+    x, y = (Expression(i) for i in (a, b))
+    return x == y
+
+
 def product(a, b) -> Expression:
     """Symbolically compute a * b."""
     x, y = (Expression(i) for i in (a, b))
