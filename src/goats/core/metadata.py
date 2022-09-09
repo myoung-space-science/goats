@@ -549,30 +549,26 @@ class Unit(metric.Unit, Attribute):
         """Implement the square-root function for a unit."""
         return arg**0.5
 
-    def _mul(self, other):
-        """Called for all multiplication operations."""
+    def __mul__(self, other):
+        """Called for self * other."""
         if isinstance(other, UnitLike):
             return super().__mul__(other)
         return self
 
-    def _truediv(self, other):
-        """Called for all true division operations."""
+    __rmul__ = __mul__
+    """Called for other * self."""
+
+    def __truediv__(self, other):
+        """Called for self / other."""
         if isinstance(other, UnitLike):
             return super().__truediv__(other)
         return self
 
-    __mul__ = _mul
-    """Called for self * other."""
-    __rmul__ = _mul
-    """Called for other * self."""
-    __imul__ = _mul
-    """Called for self *= other."""
-    __truediv__ = _truediv
-    """Called for self / other."""
-    __rtruediv__ = _truediv
-    """Called for other / self."""
-    __itruediv__ = _truediv
-    """Called for self /= other."""
+    def __rtruediv__(self, other):
+        """Called for other / self."""
+        if isinstance(other, UnitLike):
+            return super().__rtruediv__(other)
+        return self
 
     def __add__(self, other):
         """Called for self + other; either a no-op or an error."""
