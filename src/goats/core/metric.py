@@ -1922,7 +1922,7 @@ class _UnitMeta(abc.ABCMeta):
             key = (this.name, this.symbol)
         except UnitParsingError:
             # This will register the canonical string and, if applicable, the
-            #  string argument as the initial aliases.
+            # string argument as the initial aliases.
             key = (name, arg) if isinstance(arg, str) else name
         # Store and return the new instance.
         cls._instances[key] = instance
