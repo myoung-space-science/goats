@@ -1980,21 +1980,10 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         before computing the result, in order to reduce the result as much as
         possible
         """
-        this = []
-        for unit in self:
-            try:
-                this.extend(NamedUnit(unit).decomposition)
-            except (UnitParsingError, SystemAmbiguityError):
-                this.append(unit)
+        this = self.decomposed.terms # to prevent recursion
         if isinstance(other, numbers.Number):
             return type(self)(operation(this, other))
-        that = []
-        for unit in Unit(other):
-            try:
-                that.extend(NamedUnit(unit).decomposition)
-            except (UnitParsingError, SystemAmbiguityError):
-                that.append(unit)
-        return type(self)(operation(this, that))
+        return type(self)(operation(this, self.decompose(other)))
 
     @property
     def decomposed(self):

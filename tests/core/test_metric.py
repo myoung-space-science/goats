@@ -811,6 +811,9 @@ def test_unit_multiply():
         ('m', 'm^-1'): '1',
         ('N', '(kg * m / s^2)^-1'): '1',
         ('N', 'kg * m / s^2'): 'kg^2 * m^2 / s^4',
+        ('J * cm', 'erg * m'): 'kg m^3 g cm^3 s^-4',
+        ('N / erg', 'J / dyn'): 'kg^2 m^3 g^-2 cm^-3',
+        ('N / cm^3', 'erg * s / kg'): 'm * g / (s^3 * cm)',
     }
     apply_multiplicative(operator.mul, cases)
 
@@ -824,6 +827,9 @@ def test_unit_divide():
         ('m', 'm^-1'): 'm^2',
         ('N', '(kg * m / s^2)^-1'): 'kg^2 * m^2 / s^4',
         ('N', 'kg * m / s^2'): '1',
+        ('J * cm', 'erg * m'): 'kg m g^-1 cm^-1',
+        ('N / erg', 'J / dyn'): 'cm^-1 m^-1',
+        ('N / cm^3', 'erg * s / kg'): 'kg^2 * m / (g * cm^5 * s)',
     }
     apply_multiplicative(operator.truediv, cases)
 
@@ -1046,25 +1052,33 @@ def test_decomposition():
     """Test the module-level unit-decomposing function."""
     cases = {
         'm': {
-            'mks': (1.0, ['m']),
-            'cgs': (1e2, ['cm']),
+            'mks': (1.0, 'm'),
+            'cgs': (1e2, 'cm'),
         },
         'cm': {
-            'mks': (1e-2, ['m']),
-            'cgs': (1.0, ['cm']),
+            'mks': (1e-2, 'm'),
+            'cgs': (1.0, 'cm'),
         },
         'J': {
-            'mks': (1.0, ['kg m^2 s^-2']),
-            'cgs': (1e1, ['g cm^2 s^-2']),
+            'mks': (1.0, 'kg m^2 s^-2'),
+            'cgs': (1e1, 'g cm^2 s^-2'),
         },
         'erg': {
-            'mks': None,
-            'cgs': (1.0, ['g cm^2 s^-2']),
+            'mks': (1e-1, 'kg m^2 s^-2'),
+            'cgs': (1.0, 'g cm^2 s^-2'),
+        },
+        'N / cm^2': { # kg m s^-1 cm^-2
+            'mks': (1e-4, 'kg s^-1 m^-1'), # kg m s^-1 (1e-2m)^-2
+            'cgs': (1e-1, 'g s^-1 cm^-1'), # 1e-3g (1e2cm) s^-1 cm^-2
+        },
+        'erg * s / kg': {
+            'mks': (),
+            'cgs': (),
         },
     }
     for unit, systems in cases.items():
         for name, expected in systems.items():
-            result = metric.decomposition(unit, system=name)
+            result = metric.reduction(unit, system=name)
             if expected is None:
                 assert result is None
             else:
