@@ -813,6 +813,7 @@ def test_unit_multiply():
         ('N', '(kg * m / s^2)^-1'): '1',
         ('N', 'kg * m / s^2'): 'kg^2 * m^2 / s^4',
         ('J * cm', 'erg * m'): 'kg m^3 g cm^3 s^-4',
+        ('J', 'm'): 'kg m^3 s^-2',
         ('N / erg', 'J / dyn'): 'kg^2 m^3 g^-2 cm^-3',
         ('N / cm^3', 'erg * s / kg'): 'm * g / (s^3 * cm)',
     }
@@ -829,6 +830,7 @@ def test_unit_divide():
         ('N', '(kg * m / s^2)^-1'): 'kg^2 * m^2 / s^4',
         ('N', 'kg * m / s^2'): '1',
         ('J * cm', 'erg * m'): 'kg m g^-1 cm^-1',
+        ('J', 'm'): 'kg m s^-2',
         ('N / erg', 'J / dyn'): 'cm^-1 m^-1',
         ('N / cm^3', 'erg * s / kg'): 'kg^2 * m / (g * cm^5 * s)',
     }
