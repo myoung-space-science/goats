@@ -2000,7 +2000,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
             for term in algebraic.Expression(unit)
             for part in cls._decompose(term)
         ]
-        return decomposed
+        return algebraic.reduce(decomposed)
 
     @classmethod
     def _decompose(cls, term: algebraic.Term):
