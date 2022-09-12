@@ -2709,11 +2709,7 @@ class System(collections.abc.Mapping, iterables.ReprStrMixin):
     ) -> Unit:
         """Get the canonical unit corresponding to the given unit."""
         unit = Unit(target)
-        if str(target) == '1' or unit in self.units.values():
-            return unit
-        for dimension in unit.dimensions.values():
-            if found := self._unit_from_dimension(dimension):
-                return found
+        return unit.normalized[self.name]
 
     def _unit_from_dimension(
         self,

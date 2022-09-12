@@ -1076,7 +1076,6 @@ def test_system():
             assert quantity.dimension == canonical['dimension']
 
 
-@pytest.mark.xfail
 def test_system_unit_lookup():
     """Test the ability to retrieve the appropriate unit."""
     systems = {
