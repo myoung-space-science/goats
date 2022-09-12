@@ -2014,6 +2014,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         self._dimensions = None
         self._decomposed = None
         self._dimensionless = None
+        self._quantity = None
         self._normalized = None
 
     @property
@@ -2026,20 +2027,27 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         in order to prevent modifying singleton instances.
         """
         if self._normalized is None:
-            quantities = {
-                term.base: NamedUnit(term.base).quantity
-                for term in self
-            }
             self._normalized = {}
             for system in SYSTEMS:
                 converted = [
-                    algebraic.Term(
-                        UNITS[quantities[term.base]][system]
-                    ) ** term.exponent
-                    for term in self
+                    algebraic.power(UNITS[term.base][system], term.exponent)
+                    for term in self.quantity
                 ]
                 self._normalized[system] = type(self)(converted)
         return self._normalized.copy()
+
+    @property
+    def quantity(self):
+        """This unit's quantity, derived from its unit terms."""
+        if self._quantity is None:
+            terms = [
+                algebraic.Term(
+                    NamedUnit(term.base).quantity.replace(' ', '_')
+                ) ** term.exponent
+                for term in self
+            ]
+            self._quantity = algebraic.Expression(terms)
+        return self._quantity
 
     @property
     def dimensionless(self):
