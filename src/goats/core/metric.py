@@ -1067,12 +1067,55 @@ def identify(string: str):
 Instance = typing.TypeVar('Instance', bound='NamedUnit')
 
 
-class NamedUnit(iterables.ReprStrMixin):
+class _NamedUnitMeta(abc.ABCMeta):
+    """Internal metaclass for `~metric.NamedUnit`.
+    
+    This class exists to create singleton instances of `~metric.NamedUnit`
+    without needing to overload `__new__` on that class or its base class(es).
+    """
+
+    _instances = aliased.MutableMapping()
+    _attributes = {}
+
+    def __call__(
+        cls,
+        arg: typing.Union[Instance, algebraic.Expressable],
+    ) -> Instance:
+        """Create a new instance or return an existing one."""
+        if isinstance(arg, cls):
+            # If the argument is already an instance, return it.
+            return arg
+        string = str(arg)
+        if available := cls._instances.get(string):
+            # If the argument maps to an existing unit, return that unit.
+            return available
+        # First time through: identify the base unit and prefix.
+        magnitude, reference = identify(string)
+        # Store the information to initialize a new instance.
+        name = f"{magnitude.name}{reference.name}"
+        symbol = f"{magnitude.symbol}{reference.symbol}"
+        cls._attributes[string] = {
+            'prefix': magnitude,
+            'base': reference,
+            'name': name,
+            'symbol': symbol,
+            'scale': magnitude.factor,
+            'quantity': reference.quantity,
+        }
+        # Create the new instance. This will ultimately pass control to
+        # `NamedUnit.__init__`, which will initialize the newly instantiated
+        # instance with the stored attributes corresponding to `str(arg)`.
+        instance = super().__call__(arg)
+        cls._instances[(name, symbol)] = instance
+        return instance
+
+
+class NamedUnit(iterables.ReprStrMixin, metaclass=_NamedUnitMeta):
     """A single named unit and corresponding metadata."""
 
     @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
+    def __init__(
+        self: Instance,
         unit: str,
     ) -> Instance:
         """Create a new instance or return an existing one.
@@ -1084,8 +1127,8 @@ class NamedUnit(iterables.ReprStrMixin):
         """
 
     @typing.overload
-    def __new__(
-        cls: typing.Type[Instance],
+    def __init__(
+        self: Instance,
         instance: Instance,
     ) -> Instance:
         """Create a new instance or return an existing one.
@@ -1096,75 +1139,60 @@ class NamedUnit(iterables.ReprStrMixin):
             An existing instance of this class.
         """
 
-    _instances = {}
-
-    prefix: Prefix=None
-    base: BaseUnit=None
-    name: str=None
-    """The full name of this unit."""
-    symbol: str=None
-    """The abbreviated symbol for this unit."""
-    scale: float=None
-    """The metric scale factor of this unit."""
-    quantity: str=None
-    """The physical quantity of this unit."""
-    _systems: typing.Tuple[str, ...]=None
-    _dimensions: typing.Dict[str, str]=None
-    _reductions=None
-    _decomposed=None
-
-    def __new__(cls, arg):
-        """Concrete implementation."""
-        if isinstance(arg, cls):
-            return arg
-        string = str(arg)
-        magnitude, reference = cls.parse(string)
-        key = (magnitude, reference)
-        if available := cls._instances.get(key):
-            return available
-        self = super().__new__(cls)
-        self.prefix = magnitude
-        self.base = reference
-        self.name = f"{magnitude.name}{reference.name}"
-        self.symbol = f"{magnitude.symbol}{reference.symbol}"
-        self.scale = magnitude.factor
-        self.quantity = reference.quantity
+    def __init__(self, arg) -> None:
+        self._parsed = self.__class__._attributes[str(arg)]
+        self._prefix = None
+        self._base = None
+        self._name = None
+        self._symbol = None
+        self._scale = None
+        self._quantity = None
+        self._systems = None
+        self._dimensions = None
+        self._decomposed = None
         self._reductions = dict.fromkeys(SYSTEMS)
-        cls._instances[key] = self
-        return self
 
-    @classmethod
-    def parse(cls, string: str):
-        """Determine the magnitude and reference of a unit.
-        
-        Parameters
-        ----------
-        string : str
-            A string representing a metric unit.
+    @property
+    def prefix(self):
+        """The order of magnitide of this unit's metric prefix."""
+        if self._prefix is None:
+            self._prefix = self._parsed["prefix"]
+        return self._prefix
 
-        Returns
-        -------
-        tuple
-            A 2-tuple in which the first element is a `~metric.Prefix`
-            representing the order-of-magnitude of the given unit and the second
-            element is a `~metric.BaseUnit` representing the unscaled (i.e.,
-            order-unity) metric unit.
+    @property
+    def base(self):
+        """The reference unit without metric prefix."""
+        if self._base is None:
+            self._base = self._parsed["base"]
+        return self._base
 
-        Examples
-        --------
-        >>> mag, ref = NamedUnit.parse('km')
-        >>> mag
-        Prefix(symbol='k', name='kilo', factor=1000.0)
-        >>> ref
-        BaseUnit(symbol='m', name='meter', quantity='length', system='mks')
-        """
-        try:
-            unit = named_units[string]
-        except KeyError as err:
-            raise UnitParsingError(string) from err
-        magnitude = Prefix(**unit['prefix'])
-        reference = BaseUnit(**unit['base'])
-        return magnitude, reference
+    @property
+    def name(self):
+        """The full name of this unit."""
+        if self._name is None:
+            self._name = self._parsed["name"]
+        return self._name
+
+    @property
+    def symbol(self):
+        """The abbreviated symbol for this unit."""
+        if self._symbol is None:
+            self._symbol = self._parsed["symbol"]
+        return self._symbol
+
+    @property
+    def scale(self):
+        """The metric scale factor of this unit."""
+        if self._scale is None:
+            self._scale = self._parsed["scale"]
+        return self._scale
+
+    @property
+    def quantity(self):
+        """The physical quantity of this unit."""
+        if self._quantity is None:
+            self._quantity = self._parsed["quantity"]
+        return self._quantity
 
     @classmethod
     def knows_about(cls, unit: str):
