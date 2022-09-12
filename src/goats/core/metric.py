@@ -1153,42 +1153,42 @@ class NamedUnit(iterables.ReprStrMixin, metaclass=_NamedUnitMeta):
         self._reductions = dict.fromkeys(SYSTEMS)
 
     @property
-    def prefix(self):
+    def prefix(self) -> Prefix:
         """The order of magnitide of this unit's metric prefix."""
         if self._prefix is None:
             self._prefix = self._parsed["prefix"]
         return self._prefix
 
     @property
-    def base(self):
+    def base(self) -> BaseUnit:
         """The reference unit without metric prefix."""
         if self._base is None:
             self._base = self._parsed["base"]
         return self._base
 
     @property
-    def name(self):
+    def name(self) -> str:
         """The full name of this unit."""
         if self._name is None:
             self._name = self._parsed["name"]
         return self._name
 
     @property
-    def symbol(self):
+    def symbol(self) -> str:
         """The abbreviated symbol for this unit."""
         if self._symbol is None:
             self._symbol = self._parsed["symbol"]
         return self._symbol
 
     @property
-    def scale(self):
+    def scale(self) -> float:
         """The metric scale factor of this unit."""
         if self._scale is None:
             self._scale = self._parsed["scale"]
         return self._scale
 
     @property
-    def quantity(self):
+    def quantity(self) -> str:
         """The physical quantity of this unit."""
         if self._quantity is None:
             self._quantity = self._parsed["quantity"]
