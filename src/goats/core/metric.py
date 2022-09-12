@@ -2027,13 +2027,12 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         in order to prevent modifying singleton instances.
         """
         if self._normalized is None:
-            self._normalized = {}
-            for system in SYSTEMS:
-                converted = [
+            self._normalized = {
+                system: type(self)(
                     algebraic.power(UNITS[term.base][system], term.exponent)
                     for term in self.quantity
-                ]
-                self._normalized[system] = type(self)(converted)
+                ) for system in SYSTEMS
+            }
         return self._normalized.copy()
 
     @property
