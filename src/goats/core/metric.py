@@ -2225,16 +2225,6 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         if equal:
             # If the algebraic expressions are equal, the units are equal.
             return True
-        this = type(self)(other)
-        if self.dimensionless != this.dimensionless:
-            # One, and only one, of the units is dimensionless
-            return False
-        if set(self.decomposed) == set(this.decomposed):
-            # If their terms are equal, the units are equal.
-            return True
-        if algebraic.equality(self.decomposed, this.decomposed):
-            # If their terms produce equal expressions, the units are equal.
-            return True
         unity = (
             str(term) in UNITY
             for term in self.difference(other, symmetric=True)
@@ -2244,6 +2234,17 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
             # terms, we can declare them equal by inspection (i.e., without
             # computing their conversion factor).
             return True
+        this = type(self)(other)
+        if set(self.decomposed) == set(this.decomposed):
+            # If their terms are equal, the units are equal.
+            return True
+        if algebraic.equality(self.decomposed, this.decomposed):
+            # If their terms produce equal expressions, the units are equal.
+            return True
+        if self.dimensionless != this.dimensionless:
+            # If one, and only one, of the units is dimensionless, they can't
+            # possibly be equal
+            return False
         try:
             # If their numerical conversion factor is unity, they are
             # equivalent; for the purposes of this method (see the justification
