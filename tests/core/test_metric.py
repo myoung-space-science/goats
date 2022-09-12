@@ -698,6 +698,45 @@ def test_unit_idempotence():
     assert repr(new) == repr(old)
 
 
+def test_unit_normalize():
+    """User must be able to normalize a given unit to a metric system."""
+    cases = {
+        # high-priority examples from EPREM
+        'day': {
+            'mks': 's',
+            'cgs': 's',
+        },
+        'au': {
+            'mks': 'm',
+            'cgs': 'cm',
+        },
+        'km / s': {
+            'mks': 'm / s',
+            'cgs': 'cm / s',
+        },
+        'MeV': {
+            'mks': 'J',
+            'cgs': 'erg',
+        },
+        'nT': {
+            'mks': 'T',
+            'cgs': 'G',
+        },
+        'cm^-3': {
+            'mks': 'm^-3',
+            'cgs': 'cm^-3',
+        },
+        's^3 / km^6': {
+            'mks': 's^3 / m^6',
+            'cgs': 's^3 / cm^6',
+        },
+    }
+    for name, systems in cases.items():
+        unit = metric.Unit(name)
+        for system, expected in systems.items():
+            assert unit.normalized[system] == expected
+
+
 def test_unit_dimensions():
     """A Unit should know its dimension in all applicable metric systems."""
     test = {

@@ -2014,6 +2014,32 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         self._dimensions = None
         self._decomposed = None
         self._dimensionless = None
+        self._normalized = None
+
+    @property
+    def normalized(self):
+        """The equivalent unit, in base units of `system`.
+        
+        Notes
+        -----
+        This property returns a copy of the original `dict` of normalized units
+        in order to prevent modifying singleton instances.
+        """
+        if self._normalized is None:
+            quantities = {
+                term.base: NamedUnit(term.base).quantity
+                for term in self
+            }
+            self._normalized = {}
+            for system in SYSTEMS:
+                converted = [
+                    algebraic.Term(
+                        UNITS[quantities[term.base]][system]
+                    ) ** term.exponent
+                    for term in self
+                ]
+                self._normalized[system] = type(self)(converted)
+        return self._normalized.copy()
 
     @property
     def dimensionless(self):
