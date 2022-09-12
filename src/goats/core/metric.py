@@ -1031,6 +1031,39 @@ class Reduction(iterables.ReprStrMixin):
         return f"{self._expression} [{self.system!r}]"
 
 
+def identify(string: str):
+    """Determine the magnitude and reference unit, if possible.
+    
+    Parameters
+    ----------
+    string : str
+        A string representing a metric unit.
+
+    Returns
+    -------
+    tuple
+        A 2-tuple in which the first element is a `~metric.Prefix`
+        representing the order-of-magnitude of the given unit and the second
+        element is a `~metric.BaseUnit` representing the unscaled (i.e.,
+        order-unity) metric unit.
+
+    Examples
+    --------
+    >>> mag, ref = identify('km')
+    >>> mag
+    Prefix(symbol='k', name='kilo', factor=1000.0)
+    >>> ref
+    BaseUnit(symbol='m', name='meter', quantity='length', system='mks')
+    """
+    try:
+        unit = named_units[string]
+    except KeyError as err:
+        raise UnitParsingError(string) from err
+    magnitude = Prefix(**unit['prefix'])
+    reference = BaseUnit(**unit['base'])
+    return magnitude, reference
+
+
 Instance = typing.TypeVar('Instance', bound='NamedUnit')
 
 

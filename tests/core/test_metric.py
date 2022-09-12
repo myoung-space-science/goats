@@ -541,59 +541,58 @@ def test_named_unit_reduce_system(reductions: dict):
             assert set(result.units) == set(terms)
 
 
-def test_named_unit_parse():
-    """Test the ability to handle arbitrary named units.
+def test_identify_unit():
+    """Test the ability to identify arbitrary named units.
 
-    Note that the class that manages single units is primarily an assistant to
-    the Unit class, so full coverage is not necessary as long as Unit is
-    well tested.
+    Note that the primary role of this function is in support of the Unit class,
+    so full coverage is not necessary as long as Unit is well tested.
     """
-    order, unit = metric.NamedUnit.parse('m')
+    order, unit = metric.identify('m')
     assert order.symbol == ''
     assert order.name == ''
     assert order.factor == 1.0
     assert unit.symbol == 'm'
     assert unit.name == 'meter'
     assert unit.quantity == 'length'
-    order, unit = metric.NamedUnit.parse('mm')
+    order, unit = metric.identify('mm')
     assert order.symbol == 'm'
     assert order.name == 'milli'
     assert order.factor == 1e-3
     assert unit.symbol == 'm'
     assert unit.name == 'meter'
     assert unit.quantity == 'length'
-    symbolic = metric.NamedUnit.parse('mm')
-    named = metric.NamedUnit.parse('millimeter')
+    symbolic = metric.identify('mm')
+    named = metric.identify('millimeter')
     assert symbolic == named
-    order, unit = metric.NamedUnit.parse('lm')
+    order, unit = metric.identify('lm')
     assert order.symbol == ''
     assert order.name == ''
     assert order.factor == 1.0
     assert unit.symbol == 'lm'
     assert unit.name == 'lumen'
     assert unit.quantity == 'luminous flux'
-    order, unit = metric.NamedUnit.parse('MeV')
+    order, unit = metric.identify('MeV')
     assert order.symbol == 'M'
     assert order.name == 'mega'
     assert order.factor == 1e6
     assert unit.symbol == 'eV'
     assert unit.name == 'electronvolt'
     assert unit.quantity == 'energy'
-    order, unit = metric.NamedUnit.parse('μeV')
+    order, unit = metric.identify('μeV')
     assert order.symbol == 'μ'
     assert order.name == 'micro'
     assert order.factor == 1e-6
     assert unit.symbol == 'eV'
     assert unit.name == 'electronvolt'
     assert unit.quantity == 'energy'
-    order, unit = metric.NamedUnit.parse('uerg')
+    order, unit = metric.identify('uerg')
     assert order.symbol == 'μ'
     assert order.name == 'micro'
     assert order.factor == 1e-6
     assert unit.symbol == 'erg'
     assert unit.name == 'erg'
     assert unit.quantity == 'energy'
-    order, unit = metric.NamedUnit.parse('statA')
+    order, unit = metric.identify('statA')
     assert order.symbol == ''
     assert order.name == ''
     assert order.factor == 1.0
