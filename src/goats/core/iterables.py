@@ -1045,8 +1045,8 @@ class Table(MappingBase):
         unique entry with all the key-value pairs. Both searches will raise a
         `TableLookupError` if they fail to find a unique entry, or a
         `TableKeyError` if one of the given keys does not exist in all table
-        entries. The iterative search will raise an `AmbiguousRequestError` if the
-        given key-value pairs are insufficient to determine a unique entry.
+        entries. The iterative search will raise an `AmbiguousRequestError` if
+        the given key-value pairs are insufficient to determine a unique entry.
 
         Parameters
         ----------
@@ -1054,7 +1054,8 @@ class Table(MappingBase):
             Fail if any of the given key-value pairs is not in the collection.
 
         **request : mapping
-            Key-value pairs that define the search criteria. Each key must appear in all table entries.
+            Key-value pairs that define the search criteria. Each key must
+            appear in all table entries.
 
             Key-value pairs in which each requested key is a key in every entry
             of the collection. Each requested value may correspond to its
