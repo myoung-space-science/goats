@@ -885,12 +885,14 @@ def test_unit_equality():
         ('N', 'kg m s^-2'): True,
         ('dyn', 'g cm s^-2'): True,
         ('m^3 / (s^2 * kg)', 'm^2 N kg^-2'): True,
+        # a ratio of equal units is unitless
+        ('J / J', '1'): True,
         # units of the same quantity are not necessarily equal
         ('N', 'dyn'): False,
         ('N', 'g cm s^-2'): False,
         # units that are not interchangeable are not equal
         ('N', 'kg m^2 s^-2'): False,
-        # dimensioned units is not equal to the dimensionless unit
+        # A dimensioned unit is not equal to the dimensionless unit
         ('m', '1'): False,
         ('day', '1'): False,
         # miscellaneous pathological cases
