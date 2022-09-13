@@ -23,7 +23,6 @@ class Quantity(measurable.Quantity, metadata.NameMixin):
         self: Instance,
         __data: measurable.Real,
         *,
-        basetype: str=None,
         unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None: ...
@@ -54,7 +53,6 @@ class Scalar(Quantity, measurable.ScalarOperators):
         self: Instance,
         __data: numbers.Real,
         *,
-        basetype: str=None,
         unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None: ...
@@ -99,20 +97,16 @@ class Constants(collections.abc.Mapping):
         """Create the named constant or raise an error."""
         if name in self._mapping:
             found = self._get_attributes(name)
-            return Scalar(
-                found['value'],
-                basetype=found['basetype'],
-                unit=found['unit'],
-            )
+            return Scalar(found['value'], unit=found['unit'])
         raise KeyError(name)
 
     def _get_attributes(self, name: str) -> dict:
         """Get the value and unit for a named constant, if possible."""
         definition = self._mapping[name]
         if 'all' in definition:
-            return {'value': definition['all'], 'unit': None, 'basetype': definition['quantity']}
+            return {'value': definition['all'], 'unit': None}
         if this := definition.get(self.system):
-            return {**this, 'basetype': definition.get('quantity')}
+            return this
         raise ValueError(f"Unknown constant: {name!r}")
 
     def __repr__(self) -> str:
@@ -137,7 +131,6 @@ class Vector(Quantity):
         self: Instance,
         __data: typing.Union[measurable.Real, numpy.typing.ArrayLike],
         *,
-        basetype: str=None,
         unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None: ...
@@ -147,7 +140,6 @@ class Vector(Quantity):
         self: Instance,
         __data: measurable.Measurement,
         *,
-        basetype: str=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None: ...
 
