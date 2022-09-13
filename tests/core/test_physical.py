@@ -3,6 +3,7 @@ import math
 import numbers
 import typing
 
+import numpy
 import pytest
 
 from goats.core import fundamental
@@ -308,3 +309,28 @@ def test_scalar():
     for case in error:
         with pytest.raises(ValueError):
             physical.scalar(case)
+
+
+def test_array_init():
+    """Test various ways to initialize `physical.Array`."""
+    data = numpy.arange(2 * 3 * 4).reshape(2, 3, 4)
+    unit = 'm / s'
+    name = 'A'
+    array = physical.Array(data, unit=unit, name=name)
+    assert array.unit == unit
+    assert array.name == name
+    assert array.shape == data.shape
+    assert array.ndim == data.ndim
+    value = data[0, 0, 0]
+    singular = physical.Array([value], unit=unit, name=name)
+    assert singular.unit == unit
+    assert singular.name == name
+    assert singular.shape == (1,)
+    assert singular.ndim == 1
+    scalar = physical.Array(value, unit=unit, name=name)
+    assert scalar.unit == unit
+    assert scalar.name == name
+    assert isinstance(scalar, physical.Scalar)
+    assert not hasattr(scalar, 'shape')
+    assert not hasattr(scalar, 'ndim')
+

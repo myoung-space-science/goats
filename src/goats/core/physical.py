@@ -218,7 +218,16 @@ Instance = typing.TypeVar('Instance', bound='Array')
 class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
     """Base class for array-like objects."""
 
+    def __new__(cls, *args, **kwargs):
+        """Create an instance of the appropriate object."""
+        if len(args) == 1:
+            data = args[0]
+            if isinstance(data, numbers.Number):
+                return Scalar(data, **kwargs)
+        return super().__new__(cls)
+
     def __init__(self, *args, **kwargs) -> None:
+        """Initialize an array from arguments."""
         super().__init__(*args, **kwargs)
         self._scale = 1.0
         self._full_array = None
