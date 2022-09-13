@@ -297,8 +297,9 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         for this in ['data', '_array']:
             attr = getattr(self, this)
             with contextlib.suppress(AttributeError):
-                if value := getattr(attr, name):
-                    return value
+                if hasattr(attr, name):
+                    # avoid false negative when value == 0
+                    return getattr(attr, name)
         raise AttributeError(f"Could not find an attribute named {name!r}")
 
     _builtin = (int, slice, type(...))
