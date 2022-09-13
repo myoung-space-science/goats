@@ -2291,6 +2291,8 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
             given = that.dimensions.values()
             if defined and any(d == defined for d in given):
                 return True
+        if self.quantity == that.quantity:
+            return True
         return False
 
     __ror__ = __or__
