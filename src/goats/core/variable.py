@@ -194,11 +194,7 @@ class Interface(aliased.Mapping):
 
     def _convert(self, variable: Quantity):
         """Convert the unit of `variable` to the current metric system."""
-        if this := reference.METADATA.get(list(variable.name)[0]):
-            unit = self.system.get_unit(quantity=this['quantity'])
-            return variable[unit]
-        unit = self.system.get_unit(unit=variable.unit)
-        return variable[unit]
+        return variable[str(self.system)]
 
 
 substitutions = {
