@@ -4,6 +4,7 @@ import typing
 from goats.core import algebraic
 from goats.core import iterables
 from goats.core import metadata
+from goats.core import metric
 from goats.core import observing
 from goats.core import reference
 
@@ -44,8 +45,12 @@ class Quantity(iterables.ReprStrMixin):
 
     def __getitem__(self, __x: metadata.UnitLike):
         """Set the unit of this quantity."""
-        if __x != self._unit:
-            self._unit = metadata.Unit(__x)
+        unit = (
+            self.unit.norm[__x]
+            if str(__x).lower() in metric.SYSTEMS else __x
+        )
+        if unit != self._unit:
+            self._unit = metadata.Unit(unit)
         return self
 
     @property
