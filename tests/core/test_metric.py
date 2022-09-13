@@ -504,6 +504,48 @@ def test_reduction_class():
         3 ** this
 
 
+def test_named_unit_norm():
+    """A named unit should know its canonical equivalents."""
+    cases = {
+        'm': {
+            'mks': 'm',
+            'cgs': 'cm',
+        },
+        'cm': {
+            'mks': 'm',
+            'cgs': 'cm',
+        },
+        'J': {
+            'mks': 'J',
+            'cgs': 'erg',
+        },
+        'mJ': {
+            'mks': 'J',
+            'cgs': 'erg',
+        },
+        'erg': {
+            'mks': 'J',
+            'cgs': 'erg',
+        },
+        'kerg': {
+            'mks': 'J',
+            'cgs': 'erg',
+        },
+        'eV': {
+            'mks': 'J',
+            'cgs': 'erg',
+        },
+        'MeV': {
+            'mks': 'J',
+            'cgs': 'erg',
+        },
+    }
+    for unit, systems in cases.items():
+        named = metric.NamedUnit(unit)
+        for system, expected in systems.items():
+            assert named.norm[system] == expected
+
+
 def test_named_unit_reduce(reductions: dict):
     """Test the NamedUnit.reduce method."""
     for unit, systems in reductions.items():

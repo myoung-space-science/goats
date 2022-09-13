@@ -1150,7 +1150,24 @@ class NamedUnit(iterables.ReprStrMixin, metaclass=_NamedUnitMeta):
         self._systems = None
         self._dimensions = None
         self._decomposed = None
+        self._norm = None
         self._reductions = dict.fromkeys(SYSTEMS)
+
+    @property
+    def norm(self):
+        """The equivalent unit, represented in base units of `system`.
+        
+        Notes
+        -----
+        This property returns a copy of the original `dict` of normalized units
+        in order to prevent modifying singleton instances.
+        """
+        if self._norm is None:
+            self._norm = {
+                system: type(self)(UNITS[self.quantity][system])
+                for system in SYSTEMS
+            }
+        return self._norm.copy()
 
     @property
     def prefix(self) -> Prefix:
