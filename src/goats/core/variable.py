@@ -190,9 +190,17 @@ class Interface(aliased.Mapping):
             axes=datavar.axes,
             name=reference.ALIASES.get(key, key),
         )
-        result = variable[str(self.system)]
-        self._cache[key] = result
-        return result
+        converted = (
+            # HACK: This special case comes from the fact that EPREM outputs
+            # mass in 'nucleon', which is really a mass number. The `eprem`
+            # subpackage should ultimately handle this logic (and maybe the
+            # other special cases in `substitutions`)
+            variable[self.system['mass'].unit]
+            if key == 'mass'
+            else variable[str(self.system)]
+        )
+        self._cache[key] = converted
+        return converted
 
 
 substitutions = {
