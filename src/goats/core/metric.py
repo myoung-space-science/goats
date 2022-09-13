@@ -2019,11 +2019,11 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
 
     @property
     def norm(self):
-        """The equivalent unit, in base units of `system`.
+        """The equivalent unit, represented in base units of `system`.
         
         Notes
         -----
-        This property returns a copy of the original `dict` of norm units
+        This property returns a copy of the original `dict` of normalized units
         in order to prevent modifying singleton instances.
         """
         if self._norm is None:
@@ -2050,7 +2050,15 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
 
     @property
     def dimensionless(self):
-        """True if this unit's dimension is '1' in all metric systems."""
+        """True if this unit's dimension is '1' in all metric systems.
+        
+        Notes
+        -----
+        This property exists as a convenient shortcut for comparing this unit's
+        dimension in each metric system to '1'. If you want to check whether
+        this unit is dimensionless in a specific metric system, simply check
+        the ``dimensions`` property for that system.
+        """
         if self._dimensionless is None:
             self._dimensionless = all(
                 dimension == '1'
@@ -2102,7 +2110,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
 
     @classmethod
     def decompose(cls, unit: algebraic.Expressable):
-        """This unit's decomposition into base units, where possible."""
+        """Decompose this unit into base units where possible."""
         decomposed = [
             part
             for term in algebraic.Expression(unit)
