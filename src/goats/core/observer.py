@@ -39,7 +39,7 @@ class Interface(abc.ABC):
         self._system = metric.System(system)
         self._source = None
         self._context = None
-        self._observables = None
+        self._interface = None
         self._spellcheck = None
 
     def system(self, new: str=None):
@@ -53,7 +53,7 @@ class Interface(abc.ABC):
         """Update this observer's data source."""
         self._source = source
         self._context = None
-        self._observables = None
+        self._interface = None
         return self
 
     @property
@@ -62,15 +62,15 @@ class Interface(abc.ABC):
         return self._source
 
     @property
-    def observables(self):
+    def interface(self):
         """An interface to formally observable quantities."""
-        if self._observables is None:
-            self._observables = observable.Interface(
+        if self._interface is None:
+            self._interface = observable.Interface(
                 self.data,
-                *self.names,
+                *self.observables,
                 context=self.context,
             )
-        return self._observables
+        return self._interface
 
     @property
     def context(self):
@@ -85,8 +85,18 @@ class Interface(abc.ABC):
         return self.data.assumptions
 
     @property
-    def names(self):
-        """The names of formally observable quantities."""
+    def observables(self):
+        """The names of formally observable quantities.
+        
+        This property contains the names of all primary and derived observable
+        quantities. A primary derived observable quantity is one that comes
+        directly from this observer's dataset; a derived observable quantity is
+        one that is the result of a defined function.
+
+        Note that it is also possible to algebraically compose new observable
+        quantities from those listed here. Therefore, this collection represents
+        the minimal set of quantities that this observer can observe.
+        """
         fromdata = list(self.data.variables) + list(self.data.functions)
         available = set(fromdata) - set(self._unobservable)
         return tuple(available)
@@ -102,12 +112,19 @@ class Interface(abc.ABC):
 
     def __getitem__(self, key: str):
         """Access an observable quantity by keyword, if possible."""
-        if key in self.observables:
-            return self.observables[key]
-        if key in self.assumptions:
-            return self.assumptions[key]
+        if q := self._get_quantity(key):
+            return q[str(self.system())]
         self._check_spelling(key) # -> None if `key` is spelled correctly
         raise KeyError(f"No observable for {key!r}") from None
+
+    def _get_quantity(self, key: str):
+        """Retrieve the named quantity from an interface, if possible."""
+        if key in self.interface:
+            return self.interface[key]
+        if key in self.data.variables:
+            return self.data.variables[key]
+        if key in self.assumptions:
+            return self.assumptions[key]
 
     def _check_spelling(self, key: str):
         """Catch misspelled names of observable quantities, if possible."""
@@ -149,7 +166,7 @@ class Interface(abc.ABC):
             An object representing the resultant observation.
         """
         target = (
-            self.observables[quantity] if isinstance(quantity, str)
+            self.interface[quantity] if isinstance(quantity, str)
             else quantity
         )
         self.context.apply(**constraints)
