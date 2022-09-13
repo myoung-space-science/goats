@@ -334,3 +334,19 @@ def test_array_init():
     assert not hasattr(scalar, 'shape')
     assert not hasattr(scalar, 'ndim')
 
+
+def test_array_like_ndarray():
+    """Test the `numpy.ndarray` properties of a `physical.Array`."""
+    cases = {
+        1.1: {'ndim': 0, 'shape': ()},
+        (1.1,): {'ndim': 1, 'shape': (1,)},
+        (1.1, 2.3): {'ndim': 1, 'shape': (2,)},
+        ((1.1, 2.3),): {'ndim': 2, 'shape': (1, 2)},
+        ((1.1,), (2.3,)): {'ndim': 2, 'shape': (2, 1)},
+        ((1.1, 2.3), (5.8, 13.21)): {'ndim': 2, 'shape': (2, 2)},
+    }
+    for data, expected in cases.items():
+        array = numpy.array(data)
+        assert physical.Array(array).ndim == expected['ndim']
+        assert physical.Array(array).shape == expected['shape']
+
