@@ -95,76 +95,6 @@ def test_conversion_function(conversions: dict):
         metric.conversion('m', 'J', strict=True)
 
 
-def test_create_quantity():
-    """Test the ability to represent arbitrary metric quantities."""
-    q = metric.Quantity('length / magnetic field')
-    assert q['mks'].unit == 'm T^-1'
-
-
-def test_quantity_equality():
-    """Test the definition of equality for a quantity."""
-    names = [
-        'length',
-        'energy',
-        'length / velocity',
-    ]
-    for name in names:
-        q0 = metric.Quantity(name)
-        # It should be equal to its string name.
-        assert q0 == name
-        # Idempotence -> identical => equal.
-        assert q0 == metric.Quantity(name)
-
-
-def test_quantity_equivalence():
-    """Test the definition of equivalence between quantities."""
-    pairs = [
-        ('energy', 'work'),
-        ('force * area / mass^2', 'volume / (time^2 * mass)'),
-        ('frequency', 'vorticity'),
-    ]
-    for (s0, s1) in pairs:
-        q0 = metric.Quantity(s0)
-        q1 = metric.Quantity(s1)
-        assert q0 != q1
-        assert q0 | q1
-
-
-def test_quantity_convert():
-    """Test conversions with substitution within a quantity."""
-    cases = {
-        'length': {
-            ('cm', 'mks'): 1e-2,
-            ('m', 'cgs'): 1e2,
-            ('mks', 'cm'): 1e2,
-            ('cgs', 'm'): 1e-2,
-            ('mks', 'cgs'): 1e2,
-            ('cgs', 'mks'): 1e-2,
-        },
-        'momentum': {
-            ('mks', 'cgs'): 1e5,
-            ('cgs', 'mks'): 1e-5,
-        },
-        'energy': {
-            ('mks', 'cgs'): 1e7,
-            ('cgs', 'mks'): 1e-7,
-            ('eV', 'mks'): 1.6022e-19,
-            ('mks', 'eV'): 1 / 1.6022e-19,
-            ('eV', 'cgs'): 1.6022e-12,
-            ('cgs', 'eV'): 1 / 1.6022e-12,
-        },
-        'energy density': {
-            ('mks', 'cgs'): 1e1,
-            ('cgs', 'mks'): 1e-1,
-        },
-    }
-    for name, conversion in cases.items():
-        for (u0, u1), expected in conversion.items():
-            quantity = metric.Quantity(name)
-            result = quantity.convert(u0).to(u1)
-            assert result == pytest.approx(expected)
-
-
 def test_singletons():
     """Make sure certain objects have a single reference."""
     cases = {
@@ -1214,3 +1144,75 @@ def test_decomposition():
                 assert algebraic.Expression(result.units) == expression
                 assert result.scale == scale
                 assert result.system == name
+
+
+def test_create_quantity():
+    """Test the ability to represent arbitrary metric quantities."""
+    q = metric.Quantity('length / magnetic field')
+    assert q['mks'].unit == 'm T^-1'
+
+
+def test_quantity_equality():
+    """Test the definition of equality for a quantity."""
+    names = [
+        'length',
+        'energy',
+        'length / velocity',
+    ]
+    for name in names:
+        q0 = metric.Quantity(name)
+        # It should be equal to its string name.
+        assert q0 == name
+        # Idempotence -> identical => equal.
+        assert q0 == metric.Quantity(name)
+
+
+def test_quantity_equivalence():
+    """Test the definition of equivalence between quantities."""
+    pairs = [
+        ('energy', 'work'),
+        ('force * area / mass^2', 'volume / (time^2 * mass)'),
+        ('frequency', 'vorticity'),
+    ]
+    for (s0, s1) in pairs:
+        q0 = metric.Quantity(s0)
+        q1 = metric.Quantity(s1)
+        assert q0 != q1
+        assert q0 | q1
+
+
+def test_quantity_convert():
+    """Test conversions with substitution within a quantity."""
+    cases = {
+        'length': {
+            ('cm', 'mks'): 1e-2,
+            ('m', 'cgs'): 1e2,
+            ('mks', 'cm'): 1e2,
+            ('cgs', 'm'): 1e-2,
+            ('mks', 'cgs'): 1e2,
+            ('cgs', 'mks'): 1e-2,
+        },
+        'momentum': {
+            ('mks', 'cgs'): 1e5,
+            ('cgs', 'mks'): 1e-5,
+        },
+        'energy': {
+            ('mks', 'cgs'): 1e7,
+            ('cgs', 'mks'): 1e-7,
+            ('eV', 'mks'): 1.6022e-19,
+            ('mks', 'eV'): 1 / 1.6022e-19,
+            ('eV', 'cgs'): 1.6022e-12,
+            ('cgs', 'eV'): 1 / 1.6022e-12,
+        },
+        'energy density': {
+            ('mks', 'cgs'): 1e1,
+            ('cgs', 'mks'): 1e-1,
+        },
+    }
+    for name, conversion in cases.items():
+        for (u0, u1), expected in conversion.items():
+            quantity = metric.Quantity(name)
+            result = quantity.convert(u0).to(u1)
+            assert result == pytest.approx(expected)
+
+
