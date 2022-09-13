@@ -371,9 +371,8 @@ class Quantity(Quantified, AlgebraicOperators):
             typing.Iterable,
             symmetric=True
         )
-        parsed = self.parse_attrs(__d, meta, basetype=None, unit='1')
-        self._basetype = parsed['basetype']
-        self._unit = self._validate_unit(parsed['unit'])
+        parsed = self.parse_attrs(__d, meta, unit='1')
+        self._unit = parsed['unit']
         self.meta.register('unit')
         self.display.register('data', 'unit')
         self.display['__str__'] = "{data} [{unit}]"
@@ -390,12 +389,6 @@ class Quantity(Quantified, AlgebraicOperators):
     def unit(self):
         """This quantity's metric unit."""
         return metadata.Unit(self._unit)
-
-    @property
-    def basetype(self):
-        """The metric type of this measurable quantity."""
-        if self._basetype:
-            return metric.Quantity(self._basetype)
 
     def __getitem__(self, arg: metadata.UnitLike):
         """Set the unit of this object's values.
@@ -416,31 +409,13 @@ class Quantity(Quantified, AlgebraicOperators):
     def _validate_unit(self, unit: metadata.UnitLike):
         """Raise an exception if `unit` is inconsistent with this quantity.
         
-        The given unit is consistent if we can convert it into the canonical
-        unit for the associated quantity in either metric system. If there is no
-        metric quantity associated with this measurable quantity, this method
-        will immediately return `unit` because there's no point in trying to
-        validate it.
+        The given unit is consistent if it has the same dimension in a known
+        metric system as the existing unit.
         """
-        if not self.basetype:
-            # If there's no base type against which to check consistency,
-            # there's nothing for us to do.
+        if self.unit | unit:
             return unit
-        for system in metric.SYSTEMS:
-            canonical = self.basetype[system].unit
-            if canonical == unit:
-                # If the given unit is the canonical unit in the current metric
-                # system, it's consistent.
-                return unit
-            d0 = canonical.dimensions[system]
-            d1 = metric.Unit(unit).dimensions[system]
-            if d0 == d1:
-                # If the given unit has the same dimensions as the canonical
-                # unit, it's consistent.
-                return unit
         raise ValueError(
-            f"The unit {str(unit)!r} is inconsistent"
-            f" with {str(self.basetype)!r}"
+            f"The unit {str(unit)!r} is inconsistent with {str(self.unit)!r}"
         ) from None
 
     def apply_unit(self, new: metadata.Unit):

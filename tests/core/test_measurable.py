@@ -186,17 +186,10 @@ def test_quantity_unit():
     assert q['cm'] == measurable.Quantity(100, unit='cm')
     assert q['mks'] == measurable.Quantity(1, unit='m')
     assert q['cgs'] == measurable.Quantity(100, unit='cm')
-    with pytest.raises(metric.UnitConversionError):
+    with pytest.raises(ValueError):
         q['J']
-
-
-@pytest.mark.quantity
-def test_quantity_basetype():
-    """Constrain a measurable quantity with a base type."""
-    q = measurable.Quantity(2, unit='J', basetype='energy')
-    assert q.basetype == 'energy'
+    q = measurable.Quantity(2, unit='J')
     assert q['eV'].unit == 'eV'
-    assert q.basetype == 'energy'
     with pytest.raises(ValueError):
         q['cm']
 
