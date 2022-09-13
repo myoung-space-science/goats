@@ -698,7 +698,7 @@ def test_unit_idempotence():
     assert repr(new) == repr(old)
 
 
-def test_unit_normalize():
+def test_unit_norm():
     """User must be able to normalize a given unit to a metric system."""
     cases = {
         # high-priority examples from EPREM
@@ -734,7 +734,7 @@ def test_unit_normalize():
     for name, systems in cases.items():
         unit = metric.Unit(name)
         for system, expected in systems.items():
-            assert unit.normalized[system] == expected
+            assert unit.norm[system] == expected
 
 
 def test_unit_dimensions():

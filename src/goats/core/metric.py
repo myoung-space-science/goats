@@ -2015,25 +2015,25 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         self._decomposed = None
         self._dimensionless = None
         self._quantity = None
-        self._normalized = None
+        self._norm = None
 
     @property
-    def normalized(self):
+    def norm(self):
         """The equivalent unit, in base units of `system`.
         
         Notes
         -----
-        This property returns a copy of the original `dict` of normalized units
+        This property returns a copy of the original `dict` of norm units
         in order to prevent modifying singleton instances.
         """
-        if self._normalized is None:
-            self._normalized = {
+        if self._norm is None:
+            self._norm = {
                 system: type(self)(
                     algebraic.power(UNITS[term.base][system], term.exponent)
                     for term in self.quantity
                 ) for system in SYSTEMS
             }
-        return self._normalized.copy()
+        return self._norm.copy()
 
     @property
     def quantity(self):
@@ -2710,7 +2710,7 @@ class System(collections.abc.Mapping, iterables.ReprStrMixin):
     ) -> Unit:
         """Get the canonical unit corresponding to the given unit."""
         unit = Unit(target)
-        return unit.normalized[self.name]
+        return unit.norm[self.name]
 
     def _unit_from_dimension(
         self,
