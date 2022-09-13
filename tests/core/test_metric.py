@@ -899,6 +899,7 @@ def test_unit_consistency():
         ('V', 'statV'): True,
         ('C', 'statC'): True,
         ('T', 'G'): True,
+        ('nuc', 'kg'): True,
     }
     for (u0, u1), truth in cases.items():
         assert (metric.Unit(u0) | metric.Unit(u1)) == truth

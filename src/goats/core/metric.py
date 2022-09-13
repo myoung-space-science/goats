@@ -2284,8 +2284,9 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
     def __or__(self, other):
         """Called for self | other.
         
-        This method tests whether the given unit is dimensionally consistent
-        with this unit.
+        This method tests whether the given unit is metrically consistent with
+        this unit. In order to be metrically consistent, the two units must have
+        the same dimension in at least one metric system or have a defined conversion factor.
         """
         that = type(self)(other)
         for system in SYSTEMS:
@@ -2295,7 +2296,12 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
                 return True
         if self.quantity == that.quantity:
             return True
-        return False
+        try:
+            self // that
+        except UnitConversionError:
+            return False
+        else:
+            return True
 
     __ror__ = __or__
     """Called for other | self.
