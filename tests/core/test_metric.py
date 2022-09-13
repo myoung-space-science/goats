@@ -1166,7 +1166,7 @@ def test_quantity_equality():
         q0 = metric.Quantity(name)
         # It should be equal to its string name.
         assert q0 == name
-        # Idempotence -> identical => equal.
+        # Idempotence -> identity => equality.
         assert q0 == metric.Quantity(name)
 
 
