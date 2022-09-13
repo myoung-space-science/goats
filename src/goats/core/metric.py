@@ -409,8 +409,8 @@ _QUANTITIES = {
         },
     },
     'energy density': 'energy / volume',
-    'fluence': 'number / (area * solid_angle * energy / mass_number)',
-    'flux': 'number / (area * solid_angle * time * energy / mass_number)',
+    'fluence': 'particle fluence',
+    'flux': 'particle flux',
     'force': {
         'dimensions': {
             'mks': '(M * L) / T^2',
@@ -472,7 +472,7 @@ _QUANTITIES = {
         },
     },
     'induction': 'magnetic induction',
-    'integral flux': 'number / (area * solid_angle * time)',
+    'integral flux': 'flux * energy',
     'length': {
         'dimensions': {
             'mks': 'L',
@@ -572,6 +572,8 @@ _QUANTITIES = {
     'number': 'identity',
     'number density': '1 / volume',
     'particle distribution': '1 / (length * velocity)^3',
+    'particle fluence': 'number / (area * solid_angle * energy / mass_number)',
+    'particle flux': 'fluence / time',
     'permeability': {
         'dimensions': {
             'mks': '(M * L) / (I * T)^2',
