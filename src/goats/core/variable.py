@@ -188,13 +188,9 @@ class Interface(aliased.Mapping):
             axes=datavar.axes,
             name=reference.ALIASES.get(key, key),
         )
-        result = self._convert(variable)
+        result = variable[str(self.system)]
         self._cache[key] = result
         return result
-
-    def _convert(self, variable: Quantity):
-        """Convert the unit of `variable` to the current metric system."""
-        return variable[str(self.system)]
 
 
 substitutions = {
