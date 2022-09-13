@@ -50,9 +50,11 @@ class Quantity(physical.Array, metadata.AxesMixin):
     def __init__(self, __data, **meta) -> None:
         super().__init__(__data, **meta)
         parsed = self.parse_attrs(__data, meta, axes=())
-        self._axes = metadata.Axes(parsed['axes'])
-        if not self._axes:
-            raise ValueError("Axes are required")
+        axes = (
+            metadata.Axes(parsed['axes'])
+            or [f'x{i}' for i in range(self.ndim)]
+        )
+        self._axes = tuple(axes)
         self.meta.register('axes')
         self.naxes = len(self.axes)
         """The number of indexable axes in this variable's array."""

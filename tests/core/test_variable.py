@@ -124,18 +124,38 @@ def test_variable():
 @pytest.mark.variable
 def test_variable_init():
     """Test initializing a variable object."""
-    # default name and unit
-    v = variable.Quantity([3.0, 4.5], axes=['x'])
-    assert v.unit == '1'
-    assert v.name == ''
+    data = [[3.0], [4.5]]
+    unit = 'm / s'
+    name = 'V'
+    axes = ('x', 'y')
+    # default metadata
+    v0 = variable.Quantity(data)
+    assert v0.unit == '1'
+    assert v0.name == ''
+    assert v0.axes == ('x0', 'x1')
+    # default unit
+    v0 = variable.Quantity(data, name=name, axes=axes)
+    assert v0.unit == '1'
+    assert v0.name == name
+    assert v0.axes == axes
+    # default name
+    v0 = variable.Quantity(data, unit=unit, axes=axes)
+    assert v0.unit == unit
+    assert v0.name == ''
+    assert v0.axes == axes
+    # default axes
+    v0 = variable.Quantity(data, unit=unit, name=name)
+    assert v0.unit == unit
+    assert v0.name == name
+    assert v0.axes == ('x0', 'x1')
     # number of axes must match number of data dimensions
     with pytest.raises(ValueError):
-        variable.Quantity([3.0, 4.5], axes=['x', 'y'])
-    # axes are required
+        # (too few)
+        variable.Quantity(data, axes=['x'])
     with pytest.raises(ValueError):
-        variable.Quantity([3.0, 4.5])
-    # must be idempotent
-    v0 = variable.Quantity([3.0, 4.5], axes=['x'], unit='m', name='Var')
+        # (too many)
+        variable.Quantity(data, axes=['x', 'y', 'z'])
+    # new from old is equal but not identical
     v1 = variable.Quantity(v0)
     assert v1 is not v0
     assert v1 == v0
