@@ -350,7 +350,6 @@ class Quantity(Quantified, AlgebraicOperators):
         self: Instance,
         __data: Real,
         *,
-        basetype: str=None,
         unit: metadata.UnitLike=None,
     ) -> None: ...
 
@@ -446,7 +445,6 @@ class Scalar(Quantity, ScalarOperators):
         self: Instance,
         __data: numbers.Real,
         *,
-        basetype: str=None,
         unit: metadata.UnitLike=None,
     ) -> None: ...
 
