@@ -1209,6 +1209,16 @@ def test_derived_quantity():
                 'unit': 's^-1 sr^-1 cm^-2',
             },
         },
+        'number density': {
+            'mks': {
+                'dimension': '1 / L^3',
+                'unit': 'm^-3',
+            },
+            'cgs': {
+                'dimension': '1 / L^3',
+                'unit': 'cm^-3',
+            },
+        },
         'speed': {
             'mks': {
                 'dimension': 'L / T',
