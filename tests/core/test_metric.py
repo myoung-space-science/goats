@@ -1228,7 +1228,11 @@ def test_derived_quantity():
 
 
 def test_create_quantity():
-    """Test the ability to represent arbitrary metric quantities."""
+    """Test the ability to represent arbitrary metric quantities.
+    
+    This test exists to test new derived quantities that have been built from
+    those defined in the module.
+    """
     q = metric.Quantity('length / magnetic field')
     assert q['mks'].unit == 'm T^-1'
 
