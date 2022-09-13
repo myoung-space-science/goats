@@ -397,7 +397,7 @@ class Quantity(Quantified, AlgebraicOperators):
         if self._basetype:
             return metric.Quantity(self._basetype)
 
-    def __getitem__(self, unit: metadata.UnitLike):
+    def __getitem__(self, arg: metadata.UnitLike):
         """Set the unit of this object's values.
         
         Notes
@@ -406,6 +406,7 @@ class Quantity(Quantified, AlgebraicOperators):
         like an in-place version of ``__setitem__``. It supports a simple and
         relatively intuitive syntax but is arguably an abuse of notation.
         """
+        unit = self.unit.norm[arg] if arg in metric.SYSTEMS else arg
         if unit != self._unit:
             new = self._validate_unit(metadata.Unit(unit))
             self.apply_unit(new)
