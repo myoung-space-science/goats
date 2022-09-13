@@ -399,7 +399,10 @@ class Quantity(Quantified, AlgebraicOperators):
         like an in-place version of ``__setitem__``. It supports a simple and
         relatively intuitive syntax but is arguably an abuse of notation.
         """
-        unit = self.unit.norm[arg] if arg in metric.SYSTEMS else arg
+        unit = (
+            self.unit.norm[arg]
+            if str(arg).lower() in metric.SYSTEMS else arg
+        )
         if unit != self._unit:
             new = self._validate_unit(metadata.Unit(unit))
             self.apply_unit(new)
