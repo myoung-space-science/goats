@@ -1149,6 +1149,84 @@ def test_decomposition():
                 assert result.system == name
 
 
+def test_derived_quantity():
+    """Make sure derived quantities have the correct attributes.
+    
+    A derived quantity (at least for the purposes of this test) is a
+    symbolically defined metric quantity. For example, 'speed = length / time'
+    is a derived quantity. Note that the definition of a derived quantity may
+    contain derived quantities.
+    """
+    # TODO: Extend to all derived quantities.
+    cases = {
+        'area': {
+            'mks': {
+                'dimension': 'L^2',
+                'unit': 'm^2',
+            },
+            'cgs': {
+                'dimension': 'L^2',
+                'unit': 'cm^2',
+            },
+        },
+        'electric field': {
+            'mks': {
+                'dimension': '(M * L) / (T^3 * I)',
+                'unit': 'V / m',
+            },
+            'cgs': {
+                'dimension': 'M^1/2 / (T * L^1/2)',
+                'unit': 'statV / cm',
+            },
+        },
+        'fluence': {
+            'mks': {
+                'dimension': 'T^2 M^-1 L^-4',
+                'unit': 'J^-1 sr^-1 m^-2',
+            },
+            'cgs': {
+                'dimension': 'T^2 M^-1 L^-4',
+                'unit': 'erg^-1 sr^-1 cm^-2',
+            },
+        },
+        'flux': {
+            'mks': {
+                'dimension': 'T M^-1 L^-4',
+                'unit': 'J^-1 s^-1 sr^-1 m^-2',
+            },
+            'cgs': {
+                'dimension': 'T M^-1 L^-4',
+                'unit': 'erg^-1 s^-1 sr^-1 cm^-2',
+            },
+        },
+        'integral flux': {
+            'mks': {
+                'dimension': 'T^-1 L^-2',
+                'unit': 's^-1 sr^-1 m^-2',
+            },
+            'cgs': {
+                'dimension': 'T^-1 L^-2',
+                'unit': 's^-1 sr^-1 cm^-2',
+            },
+        },
+        'speed': {
+            'mks': {
+                'dimension': 'L / T',
+                'unit': 'm / s',
+            },
+            'cgs': {
+                'dimension': 'L / T',
+                'unit': 'cm / s',
+            },
+        },
+    }
+    for name, systems in cases.items():
+        quantity = metric.Quantity(name)
+        for system, expected in systems.items():
+            assert quantity[system].dimension == expected['dimension']
+            assert quantity[system].unit == expected['unit']
+
+
 def test_create_quantity():
     """Test the ability to represent arbitrary metric quantities."""
     q = metric.Quantity('length / magnetic field')
