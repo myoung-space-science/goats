@@ -909,6 +909,28 @@ def test_unit_raise():
         assert result == metric.Unit(expected)
 
 
+def test_unit_consistency():
+    """Test the ability to check if two units are mutually consistent."""
+    cases = {
+        ('m', 'm'): True,
+        ('m', 'cm'): True,
+        ('m', 'km'): True,
+        ('m', 'au'): True,
+        ('cm', 'km'): True,
+        ('cm', 'au'): True,
+        ('J', 'erg'): True,
+        ('J', 'eV'): True,
+        ('erg', 'eV'): True,
+        ('J', 'N * m'): True,
+        ('J', 'N'): False,
+        ('N', 'm'): False,
+    }
+    for (u0, u1), truth in cases.items():
+        assert (metric.Unit(u0) | metric.Unit(u1)) == truth
+        assert (metric.Unit(u0) | u1) == truth
+        assert (u0 | metric.Unit(u1)) == truth
+
+
 def test_unit_equality():
     """Test the definition of strict equality between units."""
     cases = {

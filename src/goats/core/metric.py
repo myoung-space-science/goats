@@ -2254,6 +2254,31 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
             # Everything has failed, so we declare them unequal.
             return False
 
+    def __or__(self, other):
+        """Called for self | other.
+        
+        This method tests whether the given unit is dimensionally consistent
+        with this unit.
+        """
+        that = type(self)(other)
+        for system in SYSTEMS:
+            defined = self.dimensions[system]
+            given = that.dimensions.values()
+            if defined and any(d == defined for d in given):
+                return True
+        return False
+
+    __ror__ = __or__
+    """Called for other | self.
+    
+    Notes
+    -----
+    This is the reflected version of ``~metric.Unit.__or__``. It exists to
+    support consistency comparisons between instances of ``~metric.Unit`` and
+    objects of other types for which that comparison is meaningful, in cases
+    where the other object is the left operand. The semantics are identical.
+    """
+
 
 def conversion(
     u0: typing.Union[str, Unit],
