@@ -422,10 +422,20 @@ class Quantity(Quantified, AlgebraicOperators):
         validate it.
         """
         if not self.basetype:
+            # If there's no base type against which to check consistency,
+            # there's nothing for us to do.
             return unit
         for system in metric.SYSTEMS:
             canonical = self.basetype[system].unit
             if canonical == unit:
+                # If the given unit is the canonical unit in the current metric
+                # system, it's consistent.
+                return unit
+            d0 = canonical.dimensions[system]
+            d1 = metric.Unit(unit).dimensions[system]
+            if d0 == d1:
+                # If the given unit has the same dimensions as the canonical
+                # unit, it's consistent.
                 return unit
         raise ValueError(
             f"The unit {str(unit)!r} is inconsistent"

@@ -193,6 +193,8 @@ def test_quantity_basetype():
     """Constrain a measurable quantity with a base type."""
     q = measurable.Quantity(2, unit='J', basetype='energy')
     assert q.basetype == 'energy'
+    assert q['eV'].unit == 'eV'
+    assert q.basetype == 'energy'
     with pytest.raises(ValueError):
         q['cm']
 
