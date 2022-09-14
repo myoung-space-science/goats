@@ -1213,25 +1213,6 @@ class NamedUnit(iterables.ReprStrMixin, metaclass=_NamedUnitMeta):
             self._quantity = self._parsed["quantity"]
         return self._quantity
 
-    @classmethod
-    def knows_about(cls, unit: str):
-        """True if `unit` is a known named unit.
-        
-        This class method provides a self-consistent way to check if calling
-        code can expect to create an instance of this class. It may provide an
-        inexpensive alternative to `try...except` blocks.
-
-        Parameters
-        ----------
-        unit : string
-            The string to test as a possible instance.
-
-        Returns
-        -------
-        bool
-        """
-        return unit in named_units
-
     @property
     def systems(self):
         """The metric systems that use this unit.
@@ -1670,9 +1651,6 @@ class Conversion(iterables.ReprStrMixin):
             return
         return scale * ratio
 
-    available = NamedUnit.knows_about
-    """Local copy of `~metric.NamedUnit.knows_about`."""
-
     @classmethod
     def _search(cls, u0: str, u1: str):
         """Search the defined conversions.
@@ -1700,7 +1678,7 @@ class Conversion(iterables.ReprStrMixin):
         exists.
         """
         built = [unit]
-        if cls.available(unit):
+        if unit in named_units:
             known = NamedUnit(unit)
             built.extend([known.symbol, known.name])
         return built
@@ -1754,11 +1732,11 @@ class Conversion(iterables.ReprStrMixin):
         magnitude of `u0` to `ux`. In other words, it attempts to compute ``(u0
         // ux) * (ux -> u1)`` in place of ``(u0 -> u1)``.
         """
-        if not cls.available(u0):
+        if not u0 in named_units:
             return
         n0 = NamedUnit(u0)
         for ux in cls.units:
-            if cls.available(ux):
+            if ux in named_units:
                 nx = NamedUnit(ux)
                 if nx.base == n0.base:
                     if found := cls._search(ux, u1):
@@ -1815,7 +1793,7 @@ class Conversion(iterables.ReprStrMixin):
             if conversion := self._convert_as_strings(u0, u1):
                 return conversion ** exponent, term
         dimensions = NamedUnit(u0).dimensions.values()
-        if self.available(u0) and all(d == '1' for d in dimensions):
+        if u0 in named_units and all(d == '1' for d in dimensions):
             return 1.0, target
 
     def _resolve_terms(self, terms: typing.List[algebraic.Term]):

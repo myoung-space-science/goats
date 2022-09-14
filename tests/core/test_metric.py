@@ -141,14 +141,6 @@ def test_ratio():
         metric.ratio('cm', 'J')
 
 
-def test_named_unit_knows_about():
-    """Test the convenience method for testing possible instances."""
-    for unit in metric.named_units:
-        assert metric.NamedUnit.knows_about(unit)
-    for unit in ['m^2', 'm / s', 'H / m', 'dogs^2 * cats']:
-        assert not metric.NamedUnit.knows_about(unit)
-
-
 def test_build_named_unit():
     cases = {
         'm': {
