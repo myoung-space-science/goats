@@ -2,7 +2,7 @@ import abc
 import typing
 
 from goats.core import algebraic
-from goats.core import computable
+from goats.core import computed
 from goats.core import metadata
 from goats.core import metric
 from goats.core import observable
@@ -196,7 +196,7 @@ class Interface(abc.ABC):
 
     def evaluate(self, q) -> observing.Quantity:
         """Create an observing result based on this quantity."""
-        if isinstance(q, computable.Quantity):
+        if isinstance(q, computed.Quantity):
             parameters = [p for p in q.parameters if p in self.data.constants]
             return observing.Quantity(self.compute(q), parameters=parameters)
         if isinstance(q, variable.Quantity):
@@ -208,7 +208,7 @@ class Interface(abc.ABC):
         """Compute observer-specific updates to a variable quantity."""
         raise NotImplementedError
 
-    def compute(self, q: computable.Quantity):
+    def compute(self, q: computed.Quantity):
         """Determine dependencies and compute the result of this function."""
         dependencies = {p: self.get_dependency(p) for p in q.parameters}
         return q(**dependencies)

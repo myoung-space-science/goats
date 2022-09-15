@@ -1,3 +1,7 @@
+"""
+Globally defined functions and corresponding interface objects.
+"""
+
 import collections.abc
 import inspect
 import typing

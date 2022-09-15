@@ -8,7 +8,7 @@ import typing
 from goats.core import algebraic
 from goats.core import aliased
 from goats.core import axis
-from goats.core import computable
+from goats.core import computed
 from goats.core import constant
 from goats.core import index
 from goats.core import iterables
@@ -185,7 +185,7 @@ class Interface(collections.abc.Collection):
     def functions(self):
         """The computable quantities available to this observer."""
         if self._functions is None:
-            self._functions = computable.Interface(self.axes, self.variables)
+            self._functions = computed.Interface(self.axes, self.variables)
         return self._functions
 
     def get_observable(self, key: str):
