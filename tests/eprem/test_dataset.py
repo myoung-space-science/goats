@@ -4,7 +4,6 @@ import numpy
 from goats.core import aliased
 from goats.core import axis
 from goats.core import datafile
-from goats.core import index
 from goats.core import variable
 from goats import eprem
 
@@ -59,32 +58,32 @@ def test_axes(datapath):
         },
     }
     data = datafile.Interface(datapath)
-    axes = axis.Interface(eprem.Indexers(data), data)
+    axes = eprem.Axes(data)
     for name, expected in cases.items():
         if name != 'energy':
             this = axes[name]
-            full = this.at()
-            assert isinstance(full, index.Quantity)
+            full = this.index()
+            assert isinstance(full, axis.Index)
             assert len(full) == expected['length']
             test = expected['test']
-            user = this.at(*test['user'])
+            user = this.index(*test['user'])
             assert list(user) == test['indices']
             if user.unit is not None:
-                assert numpy.allclose(user.data, test['values'])
-            elif any(i != j for i, j in zip(user.data, user.indices)):
-                assert list(user.data) == test['values']
+                assert numpy.allclose(user.values, test['values'])
+            elif any(i != j for i, j in zip(user, user.values)):
+                assert list(user.values) == test['values']
     name = 'energy'
     expected = cases['energy']
     species = axes['species']
-    for s in species.at():
+    for s in species.index():
         this = axes[name]
-        full = this.at(species=s)
-        assert isinstance(full, index.Quantity)
+        full = this.index(species=s)
+        assert isinstance(full, axis.Index)
         assert len(full) == expected['length']
         test = expected['test']
-        user = this.at(*test['user'])
+        user = this.index(*test['user'])
         assert list(user) == test['indices']
-        assert numpy.allclose(user.data, test['values'])
+        assert numpy.allclose(user.values, test['values'])
 
 
 def test_single_index(datapath):

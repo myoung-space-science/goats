@@ -15,6 +15,7 @@ from ..core import (
     iotools,
     index,
     measurable,
+    metadata,
     numerical,
     observer,
     observing,
@@ -30,6 +31,85 @@ ENV = Environment('eprem')
 
 
 basetypes = BaseTypesH(source=ENV['src'])
+
+
+class Axes(axis.Interface):
+    """Interface to EPREM axis-indexing objects."""
+
+    def __init__(self, data: datafile.Interface) -> None:
+        self.variables = variable.Interface(data)
+        defined = {
+            'time': self.time,
+            'mu': self.mu,
+            'energy': self.energy,
+            'species': self.species,
+        }
+        super().__init__(data, **defined)
+
+    @property
+    def time(self):
+        """Indexer for the EPREM time dimension."""
+        this = self.variables['time']
+        return axis.Indexer(self._build_coordinate(this), len(this))
+
+    @property
+    def mu(self):
+        """Indexer for the EPREM pitch-angle dimension."""
+        this = self.variables['mu']
+        return axis.Indexer(self._build_coordinate(this), len(this))
+
+    @property
+    def energy(self):
+        """Indexer for the EPREM energy dimension."""
+        this = self.variables['energy']
+        def method(
+            targets,
+            species: typing.Union[str, int]=0,
+            unit: metadata.UnitLike=None,
+        ) -> axis.Data:
+            s = self.species.compute([species]).points
+            t = (
+                numpy.squeeze(targets[s, :])
+                if getattr(targets, 'ndim', None) == 2
+                else targets
+            )
+            compute = self._build_coordinate(numpy.squeeze(this[s, :]))
+            return compute(t, unit=unit)
+        return axis.Indexer(method, this.shape[1])
+
+    @property
+    def species(self):
+        """Indexer for the EPREM species dimension."""
+        mass = self.variables['mass']['nuc']
+        charge = self.variables['charge']['e']
+        symbols = fundamental.elements(mass, charge)
+        def method(targets):
+            indices = [
+                symbols.index(target)
+                if isinstance(target, str) else int(target)
+                for target in targets
+            ]
+            return axis.Data(indices, values=symbols)
+        return axis.Indexer(method, len(symbols))
+
+    def _build_coordinate(self, this: variable.Quantity):
+        """Create coordinate-like axis data from the given variable."""
+        def method(targets, unit: metadata.UnitLike=None):
+            if unit:
+                this[unit]
+            if not targets:
+                return axis.Data(range(len(this)))
+            measured = measurable.measure(targets)
+            array = physical.Array(measured.values, unit=measured.unit)
+            if array.unit | this.unit: # Could also use try/except
+                array[this.unit]
+            values = numpy.array(array)
+            indices = [
+                numerical.find_nearest(this, float(value)).index
+                for value in values
+            ]
+            return axis.Data(indices, values=values)
+        return method
 
 
 class Indexers(aliased.Mapping, iterables.ReprStrMixin):

@@ -1,12 +1,108 @@
+import collections
+import numbers
 import typing
 
 from goats.core import aliased
 from goats.core import datafile
-from goats.core import index
 from goats.core import iterables
 from goats.core import metadata
 from goats.core import reference
 from goats.core import variable
+
+
+T = typing.TypeVar('T')
+
+
+class Data(iterables.ReprStrMixin):
+    """Index points and corresponding values."""
+
+    def __new__(cls, points, **kwargs):
+        if not all(isinstance(i, numbers.Integral) for i in points):
+            raise ValueError(
+                "All index points must have integral type"
+            ) from None
+        return super().__new__(cls)
+
+    def __init__(
+        self,
+        points: typing.Iterable[numbers.Integral],
+        values: typing.Iterable[typing.Union[numbers.Real, str]]=None,
+    ) -> None:
+        self.points = tuple(points)
+        """The integral index points."""
+        self.values = self.points if iterables.missing(values) else values
+        """The values associated with index points."""
+
+    def __str__(self) -> str:
+        return ', '.join(str((i, j)) for i, j in zip(self.points, self.values))
+
+
+class Index(iterables.ReprStrMixin, collections.UserList):
+    """A sequence of indices representing axis values."""
+
+    def __init__(
+        self,
+        data: Data,
+        unit: metadata.UnitLike=None,
+        name: typing.Union[str, typing.Iterable[str]]=None,
+    ) -> None:
+        super().__init__(list(data.points))
+        self._values = list(data.values)
+        self._unit = metadata.Unit(unit) if unit is not None else None
+        self._name = name
+
+    @property
+    def values(self):
+        """The axis value at each index."""
+        return self._values
+
+    @property
+    def unit(self):
+        """The metric unit of the corresponding values, if any."""
+        return self._unit
+
+    @property
+    def name(self):
+        """The name of the axis that these indices represent."""
+        return self._name
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        string = f"{str(self.name)!r}, values={self.values}"
+        if self.unit:
+            string += f", unit={str(self.unit)!r}"
+        return string
+
+
+class Indexer(iterables.ReprStrMixin):
+    """An object that computes axis indices from user values."""
+
+    def __init__(
+        self,
+        method: typing.Callable[..., Data],
+        size: int,
+    ) -> None:
+        self._method = method
+        """The method that converts target values into indices."""
+        self.size = size
+        """The maximum number of indices."""
+
+    def compute(self, *args, **kwargs):
+        """Call the index-computing method."""
+        return self._method(*args, **kwargs)
+
+    def normalize(self, *user: T):
+        """Convert user input into suitable target values."""
+        if not user:
+            return range(self.size)
+        if isinstance(user[0], slice):
+            return iterables.slice_to_range(user[0], stop=self.size)
+        if isinstance(user[0], range):
+            return user[0]
+        return user
+
+    def __str__(self) -> str:
+        return f"{self._method.__qualname__}, size={self.size}"
 
 
 Instance = typing.TypeVar('Instance', bound='Quantity')
@@ -18,7 +114,7 @@ class Quantity(metadata.NameMixin, iterables.ReprStrMixin):
     @typing.overload
     def __init__(
         self: Instance,
-        __indexer: index.Factory,
+        __indexer: Indexer,
         *,
         unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
@@ -39,17 +135,13 @@ class Quantity(metadata.NameMixin, iterables.ReprStrMixin):
             self._unit = None
         self._indexer, kwd = self.parse_attrs(__a, meta, name='')
         self._name = metadata.Name(kwd['name'])
-        self.size = self._indexer.size
-        """The full length of this axis."""
-        self.reference = self._indexer.reference
-        """The index reference values."""
 
     def parse_attrs(
         self,
-        this: typing.Union['Quantity', index.Factory],
+        this: typing.Union['Quantity', Indexer],
         meta: dict,
         **targets
-    ) -> typing.Tuple[index.Factory, dict]:
+    ) -> typing.Tuple[Indexer, dict]:
         """Get instance attributes from initialization arguments."""
         if isinstance(this, Quantity):
             return this._indexer, {k: getattr(this, k) for k in targets}
@@ -60,32 +152,22 @@ class Quantity(metadata.NameMixin, iterables.ReprStrMixin):
         if self._unit is not None:
             return metadata.Unit(self._unit)
 
-    def __getitem__(self, unit: metadata.UnitLike):
-        """Set the unit of this object's values.
-        
-        Notes
-        -----
-        See note at `~measurable.Quantity.__getitem__`.
-        """
-        if self._unit is None:
-            raise TypeError("Can't convert null unit") from None
-        if unit != self._unit:
-            self._unit = unit
-        return self
-
-    def at(self, *args, **kwargs):
-        """Convert arguments into an index quantity."""
-        return self._indexer(*args, **kwargs)
-
-    def __len__(self) -> int:
-        """The full length of this axis. Called for len(self)."""
-        return self.size
+    def index(self, *args, **kwargs):
+        """Convert arguments into an index-like quantity."""
+        targets = self._indexer.normalize(*args)
+        if all(isinstance(value, typing.SupportsIndex) for value in targets):
+            return Index(Data(targets), name=self.name)
+        return Index(
+            self._indexer.compute(targets, **kwargs),
+            unit=kwargs.get('unit', self.unit),
+            name=self.name
+        )
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        string = f"'{self.name}': size={self.size}"
+        string = f"{str(self.name)!r}"
         if self.unit:
-            string += f", unit={self.unit}"
+            string += f", unit={str(self.unit)!r}"
         return string
 
 
@@ -94,12 +176,60 @@ class Interface(aliased.Mapping):
 
     def __init__(
         self,
-        indexers: typing.Mapping[str, index.Factory],
         dataset: datafile.Interface,
+        **indexers: typing.Callable[..., typing.List[int]]
     ) -> None:
         self._variables = variable.Interface(dataset)
-        super().__init__(indexers, keymap=reference.ALIASES)
         self.dataset = dataset
+        known = (reference.ALIASES.get(key, key) for key in indexers)
+        keymap = aliased.KeyMap(*known)
+        super().__init__(indexers, keymap=keymap)
+
+    def __getitem__(self, __k: str) -> Quantity:
+        """Get the named axis object, if possible."""
+        unit = self.get_unit(__k)
+        name = self.get_name(__k)
+        try:
+            return Quantity(
+                self._get_indexer(__k),
+                unit=unit,
+                name=name,
+            )
+        except KeyError as err:
+            raise KeyError(
+                f"No known indexing method for {__k}"
+            ) from err
+
+    def _get_indexer(self, key: str):
+        """Get the axis indexer for `key`, or use the default."""
+        if key in self.keys():
+            return super().__getitem__(key)
+        return self._build_default(key)
+
+    def _build_default(self, key: str):
+        """Define the axis-indexer factory methods."""
+        n = self.dataset.axes[key].size
+        def method(*targets):
+            indices = [int(arg) for arg in targets]
+            if all(0 <= idx < n for idx in indices):
+                return Data(indices)
+            raise ValueError(
+                f"One or more index {targets} is outside the interval"
+                " [0, {n-1}]"
+            ) from None
+        return Indexer(method, n)
+
+    def get_unit(self, key: str):
+        """Get the metric unit corresponding to `key`."""
+        try:
+            unit = self._variables[key].unit
+        except KeyError:
+            unit = None
+        return unit
+
+    def get_name(self, key: str):
+        """Get the set of aliases for `key`."""
+        return reference.NAMES.get(key, key)
 
     def resolve(
         self,
@@ -117,27 +247,6 @@ class Interface(aliased.Mapping):
         if mode == 'append':
             return ordered + extra
         raise ValueError(f"Unrecognized mode {mode!r}")
-
-    def __getitem__(self, __k: str) -> Quantity:
-        """Get the named axis object, if possible."""
-        indexer = super().__getitem__(__k)
-        return Quantity(
-            indexer,
-            unit=self.get_unit(__k),
-            name=self.get_name(__k),
-        )
-
-    def get_unit(self, key: str):
-        """Get the metric unit corresponding to `key`."""
-        try:
-            unit = self._variables[key].unit
-        except KeyError:
-            unit = None
-        return unit
-
-    def get_name(self, key: str):
-        """Get the set of aliases for `key`."""
-        return self.alias(key, include=True)
 
 
 
