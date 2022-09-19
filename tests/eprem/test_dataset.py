@@ -118,13 +118,13 @@ def test_single_index(datapath):
         }
     }
     data = datafile.Interface(datapath)
-    axes = axis.Interface(eprem.Indexers(data), data)
+    axes = eprem.Axes(data)
     for name, expected in cases.items():
         this = axes[name]
-        result = this.at(expected['input'])
+        result = this.index(expected['input'])
         assert list(result) == expected['index']
         if 'value' in expected:
-            assert list(result.data) == expected['value']
+            assert list(result.values) == expected['value']
         if 'unit' in expected:
             assert result.unit == expected['unit']
 
@@ -169,7 +169,7 @@ def test_resolve_axes(datapath):
         },
     ]
     data = datafile.Interface(datapath)
-    axes = axis.Interface(eprem.Indexers(data), data)
+    axes = eprem.Axes(data)
     for case in cases:
         names = case['input']
         expected = case['output']
