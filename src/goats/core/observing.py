@@ -144,10 +144,7 @@ class Interface(collections.abc.Collection):
         """The variable quantities available to this observer."""
         self.constants = constants
         """The constant quantities available to this observer."""
-        self._system = (
-            metric.System(system) if isinstance(system, str)
-            else system
-        )
+        self._system = metric.System(system)
         self._names = None
         self._functions = None
         assumptions = {
