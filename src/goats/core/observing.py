@@ -263,14 +263,6 @@ class Interface(collections.abc.Collection):
         return scalar[unit]
 
 
-class Result(typing.NamedTuple):
-    """Container for observing results."""
-
-    quantity: variable.Quantity
-    axes: metadata.Axes
-    parameters: typing.Tuple[str, ...]=()
-
-
 class Context:
     """A general observing context."""
 
