@@ -53,7 +53,7 @@ import re
 import typing
 import json
 
-from goats.core import algebraic
+from goats.core import symbolic
 from goats.core import aliased
 from goats.core import constant
 from goats.core import iotools
@@ -176,7 +176,7 @@ class BaseTypesH(SourceFile):
     def get(self, key: str, default: typing.Any=None, format: str=None):
         if format == 'json':
             value = self.definitions.get(key, default)
-            if isinstance(value, algebraic.Expression):
+            if isinstance(value, symbolic.Expression):
                 return value.format(separator=' * ')
             return value
         return super().get(key, default, format)
@@ -198,7 +198,7 @@ class BaseTypesH(SourceFile):
         if isinstance(target, realtype):
             return target
         if any(c in target for c in {'*', '/', 'sqrt'}):
-            return self._evaluate(algebraic.Expression(target))
+            return self._evaluate(symbolic.Expression(target))
         if realtype:
             return realtype(target)
         raise TypeError(target)
@@ -210,8 +210,8 @@ class BaseTypesH(SourceFile):
             self._types = {k: v['type'] for k, v in _BASETYPES_H.items()}
         return self._types
 
-    def _evaluate(self, expression: algebraic.Expression):
-        """Internal method for evaluating algebraic definitions."""
+    def _evaluate(self, expression: symbolic.Expression):
+        """Internal method for evaluating symbolic definitions."""
         value = 1.0
         for term in expression:
             if term.base in self.definitions:
@@ -657,7 +657,7 @@ class Runtime(iterables.MappingBase):
         if result := self._compute_sum(definition):
             return result
         if any(c in definition for c in {'*', '/'}):
-            expression = algebraic.Expression(definition)
+            expression = symbolic.Expression(definition)
             evaluated = [
                 term.coefficient * self._evaluate(term.base)**term.exponent
                 for term in expression

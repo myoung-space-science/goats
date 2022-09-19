@@ -1,57 +1,12 @@
 import abc
 import collections.abc
-import contextlib
-import math
 import numbers
-import operator as standard
 import typing
-
-import numpy
-import numpy.typing
 
 from goats.core import algebraic
 from goats.core import iterables
 from goats.core import metadata
 from goats.core import metric
-
-
-Self = typing.TypeVar('Self', bound='SupportsNeg')
-
-
-@typing.runtime_checkable
-class SupportsNeg(typing.Protocol):
-    """Protocol for objects that support negation (``-self``)."""
-
-    __slots__ = ()
-
-    @abc.abstractmethod
-    def __neg__(self: Self) -> Self:
-        pass
-
-
-class Real(algebraic.Quantity):
-    """Abstract base class for all real-valued objects.
-    
-    This class is similar to ``numbers.Real``, but it does not presume to
-    represent a single value.
-    
-    Concrete subclasses of this object must implement all the
-    `~algebraic.Quantity` operators except for `__sub__` and `__rsub__` (defined
-    here with respect to `__neg__`). Subclasses may, of course, override these
-    base implementations.
-    """
-
-    def __sub__(self, other: SupportsNeg):
-        """Called for self - other."""
-        return self + -other
-
-    def __rsub__(self, other: SupportsNeg):
-        """Called for other - self."""
-        return -self + other
-
-
-Real.register(numbers.Real)
-Real.register(numpy.ndarray) # close enough for now...
 
 
 class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
@@ -102,160 +57,10 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
         return f"{values} [{self._unit}]"
 
 
-class Quantifiable(abc.ABC):
-    """ABC for measurable quantities.
-    
-    Concrete subclasses must define the built-in `__eq__` method and an
-    `implement` method that computes the result of a given operation on specific
-    operands. Operator mixin classes can leverage this class to programmatically
-    implement operator methods required by other ABCs (e.g.,
-    `~algebraic.Quantity`). Concrete subclasses of this class are always true in
-    a boolean sense.
-    """
-
-    def __bool__(self) -> bool:
-        """Always true for a valid instance."""
-        return True
-
-    def __ne__(self, other) -> bool:
-        """Called for self != other."""
-        return not self == other
-
-    @abc.abstractmethod
-    def implement(self, func: typing.Callable, mode: str, *others, **kwargs):
-        """Implement a standard operator."""
-        pass
-
-
-class AlgebraicOperators(Quantifiable, algebraic.Quantity):
-    """Algebraic operators for measurable quantities.
-    
-    This class extends `~algebraic.Quantity` in order to simplify the creation
-    of measurable quantities.
-    """
-
-    def __abs__(self):
-        """Called for abs(self)."""
-        return self.implement(abs, 'arithmetic')
-
-    def __pos__(self):
-        """Called for +self."""
-        return self.implement(standard.pos, 'arithmetic')
-
-    def __neg__(self):
-        """Called for -self."""
-        return self.implement(standard.neg, 'arithmetic')
-
-    def __lt__(self, other) -> bool:
-        """Called for self < other."""
-        return self.implement(standard.lt, 'comparison', other)
-
-    def __le__(self, other) -> bool:
-        """Called for self <= other."""
-        return self.implement(standard.le, 'comparison', other)
-
-    def __gt__(self, other) -> bool:
-        """Called for self > other."""
-        return self.implement(standard.gt, 'comparison', other)
-
-    def __ge__(self, other) -> bool:
-        """Called for self >= other."""
-        return self.implement(standard.ge, 'comparison', other)
-
-    def __add__(self, other):
-        """Called for self + other."""
-        return self.implement(standard.add, 'forward', other)
-
-    def __radd__(self, other):
-        """Called for other + self."""
-        return self.implement(standard.add, 'reverse', other)
-
-    def __iadd__(self, other):
-        """Called for self += other."""
-        return self.implement(standard.add, 'inplace', other)
-
-    def __sub__(self, other):
-        """Called for self - other."""
-        return self.implement(standard.sub, 'forward', other)
-
-    def __rsub__(self, other):
-        """Called for other - self."""
-        return self.implement(standard.sub, 'reverse', other)
-
-    def __isub__(self, other):
-        """Called for self -= other."""
-        return self.implement(standard.sub, 'inplace', other)
-
-    def __mul__(self, other):
-        """Called for self * other."""
-        return self.implement(standard.mul, 'forward', other)
-
-    def __rmul__(self, other):
-        """Called for other * self."""
-        return self.implement(standard.mul, 'reverse', other)
-
-    def __imul__(self, other):
-        """Called for self *= other."""
-        return self.implement(standard.mul, 'inplace', other)
-
-    def __truediv__(self, other):
-        """Called for self / other."""
-        return self.implement(standard.truediv, 'forward', other)
-
-    def __rtruediv__(self, other):
-        """Called for other / self."""
-        return self.implement(standard.truediv, 'reverse', other)
-
-    def __itruediv__(self, other):
-        """Called for self /= other."""
-        return self.implement(standard.truediv, 'inplace', other)
-
-    def __pow__(self, other):
-        """Called for self ** other."""
-        return self.implement(standard.pow, 'forward', other)
-
-    def __rpow__(self, other):
-        """Called for other ** self."""
-        return self.implement(standard.pow, 'reverse', other)
-
-    def __ipow__(self, other):
-        """Called for self **= other."""
-        return self.implement(standard.pow, 'inplace', other)
-
-
-class ScalarOperators(Quantifiable):
-    """Operators for single-valued measurable quantities."""
-
-    def __int__(self):
-        """Called for int(self)."""
-        return self.implement(int, 'cast')
-
-    def __float__(self):
-        """Called for float(self)."""
-        return self.implement(float, 'cast')
-
-    def __round__(self):
-        """Called for round(self)."""
-        return self.implement(round, 'arithmetic')
-
-    def __floor__(self):
-        """Called for math.floor(self)."""
-        return self.implement(math.floor, 'arithmetic')
-
-    def __ceil__(self):
-        """Called for math.ceil(self)."""
-        return self.implement(math.ceil, 'arithmetic')
-
-    def __trunc__(self):
-        """Called for math.trunc(self)."""
-        return self.implement(math.trunc, 'arithmetic')
-
-
-class Quantified(Quantifiable, iterables.ReprStrMixin):
+class Quantified(algebraic.Quantity, iterables.ReprStrMixin):
     """A concrete realization of a quantifiable object.
 
-    This class implements the `~algebraic.Quantity` operators (via
-    `~measurable.Quantifiable`) with the following rules:
+    This class implements `~algebraic.Quantity` with the following rules:
         - unary `-`, `+`, and `abs` on an instance
         - binary `+` and `-` between two instances with an identical metric
         - binary `*` and `/` between two instances
@@ -276,7 +81,7 @@ class Quantified(Quantifiable, iterables.ReprStrMixin):
           not at all obvious what the unit or dimensions should be.
     """
 
-    def __init__(self, __data: Real) -> None:
+    def __init__(self, __data: algebraic.Real) -> None:
         self._data = __data
         self._meta = None
 
@@ -315,7 +120,7 @@ class Quantified(Quantifiable, iterables.ReprStrMixin):
             return type(self)(data, **meta)
         operands = [self] + list(others)
         args = [
-            i.data if isinstance(i, Quantifiable) else i
+            i.data if isinstance(i, algebraic.Quantity) else i
             for i in operands
         ]
         if mode == 'comparison':
@@ -342,13 +147,13 @@ class Quantified(Quantifiable, iterables.ReprStrMixin):
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
-class Quantity(Quantified, AlgebraicOperators):
+class Quantity(Quantified):
     """A measurable quantity."""
 
     @typing.overload
     def __init__(
         self: Instance,
-        __data: Real,
+        __data: algebraic.Real,
         *,
         unit: metadata.UnitLike=None,
     ) -> None: ...
@@ -362,11 +167,11 @@ class Quantity(Quantified, AlgebraicOperators):
     def __init__(self, __d, **meta) -> None:
         """Initialize this instance from arguments or an existing instance."""
         super().__init__(__d.data if isinstance(__d, Quantified) else __d)
-        self.meta['true divide'].suppress(Real, Quantifiable)
-        self.meta['power'].suppress(Quantifiable, Quantifiable)
-        self.meta['power'].suppress(Real, Quantifiable)
+        self.meta['true divide'].suppress(algebraic.Real, algebraic.Quantity)
+        self.meta['power'].suppress(algebraic.Quantity, algebraic.Quantity)
+        self.meta['power'].suppress(algebraic.Real, algebraic.Quantity)
         self.meta['power'].suppress(
-            Quantifiable,
+            algebraic.Quantity,
             typing.Iterable,
             symmetric=True
         )
@@ -437,7 +242,7 @@ class Quantity(Quantified, AlgebraicOperators):
         return Measurement(value, self.unit)
 
 
-class Scalar(Quantity, ScalarOperators):
+class Scalar(Quantity, algebraic.Scalar):
     """A single-valued measurable quantity"""
 
     @typing.overload

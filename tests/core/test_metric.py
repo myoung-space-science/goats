@@ -2,7 +2,7 @@ import operator
 
 import pytest
 
-from goats.core import algebraic
+from goats.core import symbolic
 from goats.core import metric
 
 
@@ -28,7 +28,7 @@ def conversions():
         ('m', 'au'): 1 / 1.495978707e11, # to non-system unit
         ('au', 'm'): 1.495978707e11, # from non-system unit
         ('au', 'au'): 1.0, # trivial non-system conversion
-        # Momentum (requires algebraic expressions)
+        # Momentum (requires symbolic expressions)
         ('kg * m / s', 'g * cm / s'): 1e5, # defined (forward)
         ('g * cm / s', 'kg * m / s'): 1e-5, # defined (reverse)
         ('g * km / s', 'g * cm / s'): 1e5, # undefined (forward)
@@ -268,7 +268,7 @@ def test_named_unit_decompose(decompositions: dict):
         if expected is None:
             assert result is None
         else:
-            terms = [algebraic.Term(**term) for term in expected]
+            terms = [symbolic.Term(**term) for term in expected]
             assert set(result) == set(terms)
 
 
@@ -399,7 +399,7 @@ def reductions():
 
 
 def test_reduction_class():
-    """Test the algebraic expression of a unit reduction."""
+    """Test the symbolic expression of a unit reduction."""
     this = metric.Reduction(['m^2'], scale=2, system='mks')
     assert this.units == ['m^2']
     assert this.scale == 2.0
@@ -479,7 +479,7 @@ def test_named_unit_reduce(reductions: dict):
             else:
                 assert result.system == system
                 assert result.scale == expected['scale']
-                terms = [algebraic.Term(**term) for term in expected['terms']]
+                terms = [symbolic.Term(**term) for term in expected['terms']]
                 assert set(result.units) == set(terms)
 
 
@@ -500,7 +500,7 @@ def test_named_unit_reduce_system(reductions: dict):
             assert result is None
         else:
             assert result.system == default
-            terms = [algebraic.Term(**term) for term in case['terms']]
+            terms = [symbolic.Term(**term) for term in case['terms']]
             assert result.scale == case['scale']
             assert set(result.units) == set(terms)
 
@@ -789,13 +789,13 @@ def test_decompose_unit():
     }
     for unit, expected in cases.items():
         decomposed = metric.Unit.decompose(unit)
-        expression = algebraic.Expression(expected)
+        expression = symbolic.Expression(expected)
         assert decomposed == expression
         assert metric.Unit(unit).decomposed == decomposed
 
 
 def test_unit_algebra():
-    """Test algebraic operations on the Unit class."""
+    """Test symbolic operations on the Unit class."""
     u0 = metric.Unit('m')
     u1 = metric.Unit('J')
     assert u0**2 is not u0
@@ -1137,7 +1137,7 @@ def test_decomposition():
                 assert result is None
             else:
                 (scale, expression) = expected
-                assert algebraic.Expression(result.units) == expression
+                assert symbolic.Expression(result.units) == expression
                 assert result.scale == scale
                 assert result.system == name
 

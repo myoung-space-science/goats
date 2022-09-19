@@ -6,7 +6,7 @@ import typing
 
 import numpy
 
-from goats.core import algebraic
+from goats.core import symbolic
 from goats.core import aliased
 from goats.core import iterables
 
@@ -838,7 +838,7 @@ class _Property(collections.abc.Mapping, iterables.ReprStrMixin):
         parse `quantity` into known quantities. If it finds a `dict` entry, it
         will attempt to extract the values corresponding to this property's
         ``key`` attribute (i.e., 'units' or 'dimensions'). If it finds a `str`
-        entry, it will attempt to create the equivalent `dict` by algebraically
+        entry, it will attempt to create the equivalent `dict` by symbolically
         evaluating the terms in the entry.
         """
         if quantity not in _QUANTITIES:
@@ -854,23 +854,23 @@ class _Property(collections.abc.Mapping, iterables.ReprStrMixin):
         """Parse a string representing a compound quantity."""
         for k in _QUANTITIES:
             string = string.replace(k, k.replace(' ', '_'))
-        parts = [self._expand(term) for term in algebraic.Expression(string)]
+        parts = [self._expand(term) for term in symbolic.Expression(string)]
         keys = {key for part in parts for key in part.keys()}
         merged = {key: [] for key in keys}
         for part in parts:
             for key, value in part.items():
                 merged[key].append(value)
         return {
-            k: str(algebraic.Expression(v))
+            k: str(symbolic.Expression(v))
             for k, v in merged.items()
         }
 
     # TODO: 
-    # - Define a function in `algebraic` that is equivalent to calling
-    #   `algebraic.OperandFactory().create(...)`.
+    # - Define a function in `symbolic` that is equivalent to calling
+    #   `symbolic.OperandFactory().create(...)`.
     # - Refactor this method.
-    _operand = algebraic.OperandFactory()
-    def _expand(self, term: algebraic.Term):
+    _operand = symbolic.OperandFactory()
+    def _expand(self, term: symbolic.Term):
         """Create a `dict` of operands from this term."""
         return {
             k: self._operand.create(v, term.exponent)
@@ -983,17 +983,17 @@ class Reduction(iterables.ReprStrMixin):
 
     def __init__(
         self,
-        terms: algebraic.Expressable,
+        terms: symbolic.Expressable,
         scale: float=1.0,
         system: str=None,
     ) -> None:
-        self._expression = scale * algebraic.Expression(terms)
+        self._expression = scale * symbolic.Expression(terms)
         self.system = system
         self.scale = scale
         self._units = None
 
     @property
-    def units(self) -> typing.List[algebraic.Term]:
+    def units(self) -> typing.List[symbolic.Term]:
         """The unit terms in this reduction."""
         if self._units is None:
             self._units = [
@@ -1081,7 +1081,7 @@ class _NamedUnitMeta(abc.ABCMeta):
 
     def __call__(
         cls,
-        arg: typing.Union[Instance, algebraic.Expressable],
+        arg: typing.Union[Instance, symbolic.Expressable],
     ) -> Instance:
         """Create a new instance or return an existing one."""
         if isinstance(arg, cls):
@@ -1256,11 +1256,11 @@ class NamedUnit(iterables.ReprStrMixin, metaclass=_NamedUnitMeta):
             # decompose it.
             return
         dimension = self.dimensions[system]
-        expression = algebraic.Expression(dimension)
+        expression = symbolic.Expression(dimension)
         if len(dimension) == 1:
             # If this unit's dimension is irreducible, there's no point in going
             # through all the decomposition logic.
-            return [algebraic.Term(self.symbol)]
+            return [symbolic.Term(self.symbol)]
         quantities = [
             _BASE_QUANTITIES.find(term.base)[0]['name']
             for term in expression
@@ -1270,7 +1270,7 @@ class NamedUnit(iterables.ReprStrMixin, metaclass=_NamedUnitMeta):
             for quantity in quantities
         ]
         return [
-            algebraic.Term(base=unit, exponent=term.exponent)
+            symbolic.Term(base=unit, exponent=term.exponent)
             for unit, term in zip(units, expression)
         ]
 
@@ -1311,7 +1311,7 @@ class NamedUnit(iterables.ReprStrMixin, metaclass=_NamedUnitMeta):
             # reduce it.
             return
         dimension = self.dimensions[system]
-        expression = algebraic.Expression(dimension)
+        expression = symbolic.Expression(dimension)
         if len(expression) == 1:
             # If this unit's dimension is irreducible, there's no point in going
             # through all the reduction logic.
@@ -1320,13 +1320,13 @@ class NamedUnit(iterables.ReprStrMixin, metaclass=_NamedUnitMeta):
                 # If this is the canonical unit for its quantity in `system`,
                 # return it with a scale of unity.
                 return Reduction(
-                    [algebraic.Term(self.symbol)],
+                    [symbolic.Term(self.symbol)],
                     system=system,
                 )
             # If not, return the canonical unit with the appropriate scale
             # factor.
             return Reduction(
-                [algebraic.Term(canonical)],
+                [symbolic.Term(canonical)],
                 scale=(canonical // self),
                 system=system,
             )
@@ -1339,7 +1339,7 @@ class NamedUnit(iterables.ReprStrMixin, metaclass=_NamedUnitMeta):
             for quantity in quantities
         ]
         terms = [
-            algebraic.Term(base=unit, exponent=term.exponent)
+            symbolic.Term(base=unit, exponent=term.exponent)
             for unit, term in zip(units, expression)
         ]
         return Reduction(terms, scale=self.scale, system=system)
@@ -1358,7 +1358,7 @@ class NamedUnit(iterables.ReprStrMixin, metaclass=_NamedUnitMeta):
         if self._dimensions is None:
             systems = {system for system in self.systems['defined']}
             self._dimensions = {
-                k: algebraic.Expression(v)
+                k: symbolic.Expression(v)
                 for k, v in self._get_dimensions(systems).items()
             }
         return self._dimensions.copy()
@@ -1744,7 +1744,7 @@ class Conversion(iterables.ReprStrMixin):
 
     def _convert_as_expressions(self, u0: str, u1: str):
         """Convert complex unit expressions term-by-term."""
-        e0, e1 = (algebraic.Expression(unit) for unit in (u0, u1))
+        e0, e1 = (symbolic.Expression(unit) for unit in (u0, u1))
         if e0 == e1:
             return 1.0
         terms = [term for term in e0 / e1 if term.base not in UNITY]
@@ -1754,7 +1754,7 @@ class Conversion(iterables.ReprStrMixin):
             return factor
         raise UnitConversionError(self.u0, self.u1)
 
-    def _convert_by_dimensions(self, terms: typing.List[algebraic.Term]):
+    def _convert_by_dimensions(self, terms: typing.List[symbolic.Term]):
         """Attempt to compute a conversion via unit dimensions."""
         decomposed = []
         for term in terms:
@@ -1762,7 +1762,7 @@ class Conversion(iterables.ReprStrMixin):
             if reduction:
                 decomposed.extend(
                     [
-                        algebraic.Term(
+                        symbolic.Term(
                             coefficient=reduction.scale**term.exponent,
                             base=this.base,
                             exponent=term.exponent*this.exponent,
@@ -1772,15 +1772,15 @@ class Conversion(iterables.ReprStrMixin):
                 )
         # TODO: Should we try this in other `_convert_by_expressions` or
         # `_resolve_terms`?
-        if algebraic.Expression(decomposed) == '1':
+        if symbolic.Expression(decomposed) == '1':
             return 1.0
         return self._resolve_terms(decomposed)
 
     def _match_terms(
         self,
-        target: algebraic.Term,
-        terms: typing.Iterable[algebraic.Term],
-    ) -> typing.Optional[typing.Union[float, algebraic.Term]]:
+        target: symbolic.Term,
+        terms: typing.Iterable[symbolic.Term],
+    ) -> typing.Optional[typing.Union[float, symbolic.Term]]:
         """Attempt to convert `target` to a term in `terms`."""
         u0 = target.base
         exponent = target.exponent
@@ -1796,7 +1796,7 @@ class Conversion(iterables.ReprStrMixin):
         if u0 in named_units and all(d == '1' for d in dimensions):
             return 1.0, target
 
-    def _resolve_terms(self, terms: typing.List[algebraic.Term]):
+    def _resolve_terms(self, terms: typing.List[symbolic.Term]):
         """Compute ratios of matching terms, if possible."""
         if len(terms) <= 1:
             # We require at least two terms for a ratio.
@@ -1946,7 +1946,7 @@ class _UnitMeta(abc.ABCMeta):
 
     def __call__(
         cls,
-        arg: typing.Union[Instance, algebraic.Expressable],
+        arg: typing.Union[Instance, symbolic.Expressable],
         **kwargs
     ) -> Instance:
         """Create a new instance or return an existing one.
@@ -1972,7 +1972,7 @@ class _UnitMeta(abc.ABCMeta):
         if string in cls._instances:
             # If the argument maps to an existing unit, return that unit.
             return cls._instances[string]
-        # First time through: create an algebraic expression from `arg`.
+        # First time through: create an symbolic expression from `arg`.
         instance = super().__call__(arg, **kwargs)
         # The canonical string representation is the expression string.
         name = str(instance)
@@ -1999,8 +1999,8 @@ class _UnitMeta(abc.ABCMeta):
         return instance
 
 
-class Unit(algebraic.Expression, metaclass=_UnitMeta):
-    """An algebraic expression representing a physical unit."""
+class Unit(symbolic.Expression, metaclass=_UnitMeta):
+    """An symbolic expression representing a physical unit."""
 
     def __init__(
         self: Instance,
@@ -2026,7 +2026,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         if self._norm is None:
             self._norm = {
                 system: type(self)(
-                    algebraic.power(UNITS[term.base][system], term.exponent)
+                    symbolic.power(UNITS[term.base][system], term.exponent)
                     for term in self.quantity
                 ) for system in SYSTEMS
             }
@@ -2037,12 +2037,12 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         """This unit's quantity, derived from its unit terms."""
         if self._quantity is None:
             terms = [
-                algebraic.Term(
+                symbolic.Term(
                     NamedUnit(term.base).quantity.replace(' ', '_')
                 ) ** term.exponent
                 for term in self
             ]
-            self._quantity = algebraic.Expression(terms)
+            self._quantity = symbolic.Expression(terms)
         return self._quantity
 
     @property
@@ -2074,17 +2074,17 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         """Called for self * other."""
         if self is other or super().__eq__(other):
             return super().__pow__(2)
-        return self._apply(algebraic.product, other)
+        return self._apply(symbolic.product, other)
 
     def __truediv__(self, other):
         """Called for self / other."""
         if self is other or super().__eq__(other):
             return type(self)(1)
-        return self._apply(algebraic.ratio, other)
+        return self._apply(symbolic.ratio, other)
 
     def __pow__(self, exp: numbers.Real):
         """Called for self ** exp."""
-        return self._apply(algebraic.power, exp)
+        return self._apply(symbolic.power, exp)
 
     def _apply(self, operation, other):
         """Apply `operation` to this unit.
@@ -2106,17 +2106,17 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         return self._decomposed
 
     @classmethod
-    def decompose(cls, unit: algebraic.Expressable):
+    def decompose(cls, unit: symbolic.Expressable):
         """Decompose this unit into base units where possible."""
         decomposed = [
             part
-            for term in algebraic.Expression(unit)
+            for term in symbolic.Expression(unit)
             for part in cls._decompose(term)
         ]
-        return algebraic.reduce(decomposed)
+        return symbolic.reduce(decomposed)
 
     @classmethod
-    def _decompose(cls, term: algebraic.Term):
+    def _decompose(cls, term: symbolic.Term):
         """Internal logic for `~metric.Unit.decompose`."""
         try:
             # Possible outcomes
@@ -2146,7 +2146,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         result is the numerical factor, N, necessary to convert a quantity with
         unit `other` to the equivalent quantity with unit `self`.
         
-        In algebraic terms, suppose you have an amount q0 of some physical
+        In symbolic terms, suppose you have an amount q0 of some physical
         quantity when expressed in unit u0. The equivalent amount when expressed
         in unit u1 is q1 = (u1 // u0) * q0.
 
@@ -2211,8 +2211,8 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         conditions, in order of restrictiveness:
 
         * are identical (e.g., 'N' == 'N')
-        * have algebraically equal strings (e.g., 'm / s' == 'm / s')
-        * have algebraically equivalent strings (e.g., 'm / s' == 'm s^-1')
+        * have symbolically equal strings (e.g., 'm / s' == 'm / s')
+        * have symbolically equivalent strings (e.g., 'm / s' == 'm s^-1')
         * differ only by dimensionless terms (e.g., '1 / s' == '# / s')
         * have a ratio of unity (e.g., 'N' == 'kg * m / s^2')
 
@@ -2228,7 +2228,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
             return True
         equal = super().__eq__(other)
         if equal:
-            # If the algebraic expressions are equal, the units are equal.
+            # If the symbolic expressions are equal, the units are equal.
             return True
         unity = (
             str(term) in UNITY
@@ -2243,7 +2243,7 @@ class Unit(algebraic.Expression, metaclass=_UnitMeta):
         if set(self.decomposed) == set(this.decomposed):
             # If their terms are equal, the units are equal.
             return True
-        if algebraic.equality(self.decomposed, this.decomposed):
+        if symbolic.equality(self.decomposed, this.decomposed):
             # If their terms produce equal expressions, the units are equal.
             return True
         if self.dimensionless != this.dimensionless:
@@ -2372,13 +2372,13 @@ def conversion(
 Instance = typing.TypeVar('Instance', bound='Dimension')
 
 
-class Dimension(algebraic.Expression):
-    """An algebraic expression representing a physical dimension."""
+class Dimension(symbolic.Expression):
+    """An symbolic expression representing a physical dimension."""
 
     @classmethod
     def fromunit(cls, unit: Unit, system: typing.Literal['mks', 'cgs']):
         """Create an instance from `unit` and `system`."""
-        expression = algebraic.Expression('1')
+        expression = symbolic.Expression('1')
         systems = set()
         for term in unit:
             named = NamedUnit(term.base)
@@ -2387,7 +2387,7 @@ class Dimension(algebraic.Expression):
                 named.dimensions[system] if len(allowed) > 1
                 else named.dimensions[allowed[0]]
             )
-            expression *= algebraic.Expression(dimension) ** term.exponent
+            expression *= symbolic.Expression(dimension) ** term.exponent
             systems.update(allowed)
         if system in systems:
             return cls(expression)
@@ -2395,7 +2395,7 @@ class Dimension(algebraic.Expression):
             f"Can't define dimension of {unit!r} in {system!r}"
         ) from None
 
-    def __init__(self, arg: algebraic.Expressable) -> None:
+    def __init__(self, arg: symbolic.Expressable) -> None:
         super().__init__(arg)
         self._quantities = {}
 
@@ -2410,7 +2410,7 @@ class Dimension(algebraic.Expression):
 
 
 class Dimensions(typing.Mapping, iterables.ReprStrMixin):
-    """A collection of algebraic expressions of metric dimensions."""
+    """A collection of symbolic expressions of metric dimensions."""
 
     @classmethod
     def fromunit(cls, unit: Unit):
@@ -2422,20 +2422,20 @@ class Dimensions(typing.Mapping, iterables.ReprStrMixin):
 
     def __init__(
         self,
-        common: algebraic.Expressable=None,
-        **systems: algebraic.Expressable
+        common: symbolic.Expressable=None,
+        **systems: symbolic.Expressable
     ) -> None:
         """Initialize from expressable quantities.
         
         Parameters
         ----------
-        common : string or iterable or `~algebraic.Expression`
+        common : string or iterable or `~symbolic.Expression`
             The dimension to associate with all metric systems.
 
         **systems
             Zero or more key-value pairs in which the key is the name of a known
             metric system and the value is an object that can instantiate the
-            `~algebraic.Expression` class. If present, each value will override
+            `~symbolic.Expression` class. If present, each value will override
             `common` for the corresponding metric system.
         """
         self._objects = self._init_from(common, **systems)
@@ -2796,14 +2796,14 @@ class System(collections.abc.Mapping, iterables.ReprStrMixin):
         return str(self.name)
 
 
-def reduction(unit: algebraic.Expressable, system: str=None):
+def reduction(unit: symbolic.Expressable, system: str=None):
     """Reduce the given unit expression, if possible.
     
     Notes
     -----
     This function is still experimental.
     """
-    expression = algebraic.Expression(unit)
+    expression = symbolic.Expression(unit)
     decomposed = []
     for term in expression:
         try:

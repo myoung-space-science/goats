@@ -5,7 +5,6 @@ import numbers
 import operator as standard
 import typing
 
-from goats.core import algebraic
 from goats.core import aliased
 from goats.core import axis
 from goats.core import computed
@@ -16,6 +15,7 @@ from goats.core import metadata
 from goats.core import metric
 from goats.core import physical
 from goats.core import reference
+from goats.core import symbolic
 from goats.core import variable
 
 
@@ -200,7 +200,7 @@ class Interface(collections.abc.Collection):
         if key in self.functions:
             return self.functions[key].unit
         s = str(key)
-        expression = algebraic.Expression(reference.NAMES.get(s, s))
+        expression = symbolic.Expression(reference.NAMES.get(s, s))
         term = expression[0]
         this = self.get_unit(term.base) ** term.exponent
         if len(expression) > 1:
@@ -215,7 +215,7 @@ class Interface(collections.abc.Collection):
         if key in self.functions:
             return self.functions[key].axes
         s = str(key)
-        expression = algebraic.Expression(reference.NAMES.get(s, s))
+        expression = symbolic.Expression(reference.NAMES.get(s, s))
         term = expression[0]
         this = self.get_axes(term.base)
         if len(expression) > 1:

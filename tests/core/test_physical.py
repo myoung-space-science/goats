@@ -6,6 +6,7 @@ import typing
 import numpy
 import pytest
 
+from goats.core import algebraic
 from goats.core import fundamental
 from goats.core import physical
 from goats.core import measurable
@@ -268,7 +269,7 @@ Obj = typing.Union[physical.Scalar, physical.Vector]
 
 def check_units(
     obj: typing.Type[Obj],
-    amount: measurable.Real,
+    amount: algebraic.Real,
     reference: str,
     new: str,
 ) -> None:

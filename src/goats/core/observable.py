@@ -1,7 +1,6 @@
-import collections.abc
 import typing
 
-from goats.core import algebraic
+from goats.core import symbolic
 from goats.core import iterables
 from goats.core import metadata
 from goats.core import metric
@@ -10,7 +9,7 @@ from goats.core import reference
 
 
 def iscomposed(this):
-    """True if `this` is an algebraic composition of observable quantities.
+    """True if `this` is an symbolic composition of observable quantities.
     
     Parameters
     ----------
@@ -20,11 +19,11 @@ def iscomposed(this):
     Notes
     -----
     This is more stringent than simply checking whether `this` can instantiate
-    an `~algebraic.Expression` because all names of observable quantities would
+    an `~symbolic.Expression` because all names of observable quantities would
     satisfy that condition.
     """
     return (
-        isinstance(this, algebraic.Expression)
+        isinstance(this, symbolic.Expression)
         or isinstance(this, str) and ('/' in this or '*' in this)
     )
 

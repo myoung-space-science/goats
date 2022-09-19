@@ -6,6 +6,7 @@ import typing
 import numpy
 import numpy.typing
 
+from goats.core import algebraic
 from goats.core import fundamental
 from goats.core import iterables
 from goats.core import measurable
@@ -21,7 +22,7 @@ class Quantity(measurable.Quantity, metadata.NameMixin):
     @typing.overload
     def __init__(
         self: Instance,
-        __data: measurable.Real,
+        __data: algebraic.Real,
         *,
         unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,
@@ -45,7 +46,7 @@ class Quantity(measurable.Quantity, metadata.NameMixin):
             self.display['__repr__'].insert(2, "name='{name}'")
 
 
-class Scalar(Quantity, measurable.ScalarOperators):
+class Scalar(Quantity, algebraic.Scalar):
     """A single-valued named quantity."""
 
     @typing.overload
@@ -129,7 +130,7 @@ class Vector(Quantity):
     @typing.overload
     def __init__(
         self: Instance,
-        __data: typing.Union[measurable.Real, numpy.typing.ArrayLike],
+        __data: typing.Union[algebraic.Real, numpy.typing.ArrayLike],
         *,
         unit: metadata.UnitLike=None,
         name: typing.Union[str, typing.Iterable[str]]=None,

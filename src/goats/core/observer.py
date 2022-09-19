@@ -1,7 +1,6 @@
 import abc
 import typing
 
-from goats.core import algebraic
 from goats.core import computed
 from goats.core import metadata
 from goats.core import metric
@@ -9,8 +8,9 @@ from goats.core import observable
 from goats.core import observed
 from goats.core import observing
 from goats.core import reference
-from goats.core import variable
 from goats.core import spelling
+from goats.core import symbolic
+from goats.core import variable
 
 
 class Interface(abc.ABC):
@@ -93,7 +93,7 @@ class Interface(abc.ABC):
         directly from this observer's dataset; a derived observable quantity is
         one that is the result of a defined function.
 
-        Note that it is also possible to algebraically compose new observable
+        Note that it is also possible to symbolically compose new observable
         quantities from those listed here. Therefore, this collection represents
         the minimal set of quantities that this observer can observe.
         """
@@ -178,7 +178,7 @@ class Interface(abc.ABC):
     def _observe(self, name: metadata.Name) -> observing.Quantity:
         """Internal helper for `~Interface.observe`."""
         s = list(name)[0]
-        expression = algebraic.Expression(reference.NAMES.get(s, s))
+        expression = symbolic.Expression(reference.NAMES.get(s, s))
         term = expression[0]
         result = self.get_observable(term.base)
         if len(expression) == 1:

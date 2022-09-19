@@ -7,6 +7,7 @@ import numpy
 import numpy.typing
 import pytest
 
+from goats.core import algebraic
 from goats.core import datafile
 from goats.core import variable
 from goats.core import physical
@@ -584,10 +585,10 @@ def make_variable(**attrs):
     )
 
 
-OType = typing.TypeVar('OType', variable.Quantity, measurable.Real)
+OType = typing.TypeVar('OType', variable.Quantity, algebraic.Real)
 OType = typing.Union[
     variable.Quantity,
-    measurable.Real,
+    algebraic.Real,
 ]
 RType = typing.TypeVar('RType', bound=type)
 
