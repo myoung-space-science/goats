@@ -231,14 +231,14 @@ class Interface(collections.abc.Collection):
         if key not in self.axes:
             raise ValueError(f"No axis corresponding to {key!r}") from None
         if key not in constraints:
-            return self.axes[key].at()
+            return self.axes[key].index()
         return self._compute_index(key, constraints[key])
 
     def _compute_index(self, key: str, this):
         """Compute a single indexing object from input values."""
         target = (
             this if isinstance(this, index.Quantity)
-            else self.axes[key].at(*iterables.whole(this))
+            else self.axes[key].index(*iterables.whole(this))
         )
         if target.unit is not None:
             unit = self.variables.system.get_unit(unit=target.unit)
