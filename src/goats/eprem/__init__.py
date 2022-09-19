@@ -64,8 +64,8 @@ class Axes(axis.Interface):
         this = self.variables['energy']
         def method(
             targets,
+            unit: metadata.UnitLike,
             species: typing.Union[str, int]=0,
-            unit: metadata.UnitLike=None,
         ) -> axis.Data:
             s = self.species.compute([species]).points
             t = (
@@ -94,13 +94,25 @@ class Axes(axis.Interface):
 
     def _build_coordinate(self, this: variable.Quantity):
         """Create coordinate-like axis data from the given variable."""
-        def method(targets, unit: metadata.UnitLike=None):
-            if unit:
-                this[unit]
+        def method(targets, unit: metadata.UnitLike):
             if not targets:
                 return axis.Data(range(len(this)))
             measured = measurable.measure(targets)
-            array = physical.Array(measured.values, unit=measured.unit)
+            if measured.unit != '1':
+                # If the targets include a dimensioned unit, we want to
+                # initialize the array with that unit.
+                array = physical.Array(measured.values, unit=measured.unit)
+            else:
+                # If the measured unit is dimensionless, it could be because the
+                # targets truly are dimensionless or because the user wants to
+                # use the default unit. Since we have no choice but to assume
+                # that the calling object (probably an instance of
+                # `core.axis.Quantity`) passed an appropriate default unit,
+                # which may be dimensionless, the default unit is the
+                # appropriate unit for both cases.
+                array = physical.Array(measured.values, unit=unit)
+            # Convert the reference variable quantity to the default unit.
+            this[unit]
             if array.unit | this.unit: # Could also use try/except
                 array[this.unit]
             values = numpy.array(array)
