@@ -5,7 +5,6 @@ from goats.core import iterables
 from goats.core import metadata
 from goats.core import metric
 from goats.core import observing
-from goats.core import reference
 
 
 def iscomposed(this):
@@ -28,6 +27,7 @@ def iscomposed(this):
     )
 
 
+# NOTE: Overloaded by experimental version below.
 class Quantity(iterables.ReprStrMixin):
     """A quantity that produces an observation."""
 
@@ -107,77 +107,67 @@ class Quantity(iterables.ReprStrMixin):
         return ', '.join(f"{k}={v}" for k, v in attrs.items())
 
 
-class Interface(collections.abc.Mapping):
-    """ABC for interfaces to observable quantities."""
+class Quantity(iterables.ReprStrMixin):
+    """A quantity that produces an observation."""
 
     def __init__(
         self,
-        available: observing.Interface,
-        *names: str,
-        context: observing.Context=None,
+        name: typing.Union[str, typing.Iterable[str], metadata.Name],
+        implementation: observing.Implementation,
+        context: observing.Context,
     ) -> None:
-        """Initialize this instance.
-        
+        """
+        Initialize this instance.
+
         Parameters
         ----------
-        available : `~observing.Interface`
-            The interface to all observable quantities available to this
-            observer.
+        name : string, iterable of strings, or `~metadata.Name`
+            The name(s) of this observable quantity.
 
-        *names : string
-            Zero or more names of allowed observable quantities. The default
-            behavior (when `names` is empty) is to use all available quantities.
-            This parameter allows observers to limit the allowed observable
-            quantities to a subset of those in `available`.
+        implementation : `~observing.Implementation`
+            The object that will apply default parameter values and
+            user-provided constraints to the target observable quantity.
 
-        context : `~observing.Context`, optional
-            An existing observing context with which to initialize observable
-            quantities.
+        context : `~observing.Context`
+            An existing observing context to provide default parameter values.
         """
-        self.available = available
-        self._names = names
-        self._context = context
+        self._name = metadata.Name(name)
+        self._implementation = implementation
+        self.context = context
+        self._unit = None
+        self._axes = None
+
+    def __getitem__(self, __x: metadata.UnitLike):
+        """Set the unit of this quantity."""
+        unit = (
+            self.unit.norm[__x]
+            if str(__x).lower() in metric.SYSTEMS else __x
+        )
+        if unit != self._unit:
+            self._unit = metadata.Unit(unit)
+        return self
 
     @property
-    def names(self):
-        """The names of all observable quantities."""
-        return self._names or tuple(self.available)
+    def unit(self):
+        """This quantity's metric unit."""
+        if self._unit is None:
+            self._unit = self._implementation.get_unit(self.name)
+        return self._unit
 
     @property
-    def context(self):
-        """The observing context to pass to observable quantities."""
-        if self._context is None:
-            self._context = observing.Context(self.available)
-        return self._context
+    def axes(self):
+        """This quantity's indexable axes."""
+        if self._axes is None:
+            self._axes = self._implementation.get_axes(self.name)
+        return self._axes
 
-    def __len__(self) -> int:
-        return len(self.names)
+    @property
+    def name(self):
+        """This quantity's name."""
+        return self._name
 
-    def __iter__(self) -> typing.Iterator:
-        return iter(self.names)
-
-    def __getitem__(self, __k: str) -> Quantity:
-        """Get the named observable quantity."""
-        if not self.knows(__k):
-            raise KeyError(f"Cannot observe {__k!r}") from None
-        name = __k if iscomposed(__k) else reference.ALIASES[__k]
-        return Quantity(name, self.context)
-
-    def knows(
-        self,
-        name: typing.Union[str, typing.Iterable[str], metadata.Name],
-    ) -> bool:
-        """True if this interface can observe the named quantity."""
-        if isinstance(name, str):
-            return self._knows(name)
-        return next((self._knows(key) for key in name), False)
-
-    def _knows(self, key: str):
-        """Internal helper for `~Interface.knows`."""
-        if key in self.names:
-            return True
-        if iscomposed(key):
-            expression = algebraic.Expression(key)
-            return all(term.base in self.names for term in expression)
-        return False
+    def observe(self, **constraints):
+        """Observe this observable quantity."""
+        self.context.apply(**constraints)
+        return self._implementation.apply(self.context)
 

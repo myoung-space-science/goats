@@ -124,109 +124,101 @@ class Axes(axis.Interface):
         return method
 
 
-class Indexers(aliased.Mapping, iterables.ReprStrMixin):
-    """A factory for EPREM array-indexing objects."""
+class Context(observing.Context):
+    """The EPREM-specific observing context."""
 
-    def __init__(self, data: datafile.Interface) -> None:
-        self.variables = variable.Interface(data)
-        mass = self.variables['mass']['nuc']
-        charge = self.variables['charge']['e']
-        self.symbols = fundamental.elements(mass, charge)
-        # TODO: Consider using reference arrays in methods, with the possible
-        # exception of `_build_shell`.
-        indexers = {
-            'time': {
-                'method': self._build_time,
-                'size': data.axes['time'].size,
-                'reference': self.variables['time'],
-            },
-            'shell': {
-                'method': self._build_shell,
-                'size': data.axes['shell'].size,
-                'reference': numpy.array(self.variables['shell'], dtype=int),
-            },
-            'species': {
-                'method': self._build_species,
-                'size': data.axes['species'].size,
-                'reference': self.symbols,
-            },
-            'energy': {
-                'method': self._build_energy,
-                'size': data.axes['energy'].size,
-                'reference': self.variables['energy'],
-            },
-            'mu': {
-                'method': self._build_mu,
-                'size': data.axes['mu'].size,
-                'reference': self.variables['mu'],
-            },
-        }
-        mapping = {
-            data.axes.alias(name, include=True): indexer
-            for name, indexer in indexers.items()
-        }
-        super().__init__(mapping)
-
-    def __getitem__(self, key: str) -> index.Factory:
-        this = super().__getitem__(key)
-        return index.Factory(this['method'], this['size'], this['reference'])
-
-    def _build_time(self, targets):
-        """Build the time-axis indexer."""
-        return self._build_coordinates(targets, self.variables['time'])
-
-    def _build_shell(self, targets):
-        """Build the shell-axis indexer."""
-        return index.create(targets)
-
-    def _build_species(self, targets):
-        """Build the species-axis indexer."""
-        indices = []
-        symbols = []
-        for target in targets:
-            if isinstance(target, str):
-                indices.append(self.symbols.index(target))
-                symbols.append(target)
-            elif isinstance(target, numbers.Integral):
-                indices.append(target)
-                symbols.append(self.symbols[target])
-        return index.create(indices, values=targets)
-
-    def _build_energy(self, targets, species: typing.Union[str, int]=0):
-        """Build the energy-axis indexer."""
-        s = self._build_species([species])
-        _targets = (
-            numpy.squeeze(targets[s, :]) if getattr(targets, 'ndim', None) == 2
-            else targets
-        )
-        _reference = numpy.squeeze(self.variables['energy'][s, :])
-        return self._build_coordinates(_targets, _reference)
-
-    def _build_mu(self, targets):
-        """Build the mu-axis indexer."""
-        return self._build_coordinates(targets, self.variables['mu'])
-
-    def _build_coordinates(
-        self,
-        targets: numpy.typing.ArrayLike,
-        reference: variable.Quantity,
-    ) -> index.Quantity:
-        """Build an arbitrary coordinate object."""
-        result = measurable.measure(targets)
-        array = physical.Array(result.values, unit=result.unit)
-        values = numpy.array(
-            array[reference.unit]
-            if array.unit.dimension == reference.unit.dimension
-            else array
-        )
-        indices = [
-            numerical.find_nearest(reference, float(value)).index
-            for value in values
+    # TODO:
+    # - generalize interpolation from this subpackage
+    # - implement generalized interpolation in core.observing.Context
+    # - add EPREM-specific interpolation here
+    def process(self, q: variable.Quantity) -> variable.Quantity:
+        """Compute observer-specific updates to a variable quantity."""
+        if any(alias in self.coordinates for alias in q.name):
+            # This is an axis-reference quantity.
+            return self._subscript(q)
+        needed = self._compute_coordinates(q)
+        if not needed:
+            # There are no axes over which to interpolate.
+            return self._subscript(q)
+        new = self._interpolate(q, needed)
+        # We only want to subscript the uninterpolated axes.
+        interpolated = [
+            'shell' if d == 'radius' else d
+            for d in needed
         ]
-        return index.create(indices, values=values, unit=reference.unit)
+        axes = list(set(q.axes) - set(interpolated))
+        return self._subscript(new, *axes)
 
-    def __str__(self) -> str:
-        return ', '.join(str(key) for key in self.keys(aliased=True))
+    def _build_coordinates(self):
+        base = super()._build_coordinates()
+        grid = {
+            (k, *self.interface.variables.alias(k, include=True)):
+            self.interface.variables[k]
+            for k in {'radius', 'theta', 'phi'}
+        }
+        return {**base, **grid}
+
+    def _compute_coordinates(self, q: variable.Quantity):
+        base = super()._compute_coordinates(q)
+        for key in reference.ALIASES['radius']:
+            if values := self.get_value(key):
+                try:
+                    iter(values)
+                except TypeError:
+                    floats = [float(values)]
+                else:
+                    floats = [float(value) for value in values]
+                base['radius'] = {
+                    'targets': numpy.array(floats),
+                    'reference': self.coordinates['radius'],
+                }
+        return base
+
+    def _compute_dimensions(self, q: variable.Quantity):
+        base = super()._compute_dimensions(q)
+        if any(r in self for r in reference.ALIASES['radius']):
+            # See note at `observing.Context.__contains__`.
+            base.append('radius')
+        return base
+
+    def _interpolate(
+        self,
+        q: variable.Quantity,
+        coordinates: dict,
+    ) -> variable.Quantity:
+        """Internal interpolation logic."""
+        array = None
+        for coordinate, current in coordinates.items():
+            array = self._interpolate_coordinate(
+                q,
+                current['targets'],
+                current['reference'],
+                coordinate=coordinate,
+                workspace=array,
+            )
+        meta = {k: getattr(q, k, None) for k in {'unit', 'name', 'axes'}}
+        return variable.Quantity(array, **meta)
+
+    def _interpolate_coordinate(
+        self,
+        q: variable.Quantity,
+        targets: numpy.ndarray,
+        reference: variable.Quantity,
+        coordinate: str=None,
+        workspace: numpy.ndarray=None,
+    ) -> numpy.ndarray:
+        """Interpolate a variable array based on a known coordinate."""
+        array = numpy.array(q) if workspace is None else workspace
+        indices = (q.axes.index(d) for d in reference.axes)
+        dst, src = zip(*enumerate(indices))
+        reordered = numpy.moveaxis(array, src, dst)
+        interpolated = interpolation.apply(
+            reordered,
+            numpy.array(reference),
+            targets,
+            coordinate=coordinate,
+        )
+        return numpy.moveaxis(interpolated, dst, src)
 
 
 Instance = typing.TypeVar('Instance', bound='Observer')
@@ -260,13 +252,18 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         confpath = self._build_confpath(config, directory=datapath.parent)
         # Update the internal data interface.
         dataset = datafile.Interface(datapath)
-        axes = axis.Interface(Indexers(dataset), dataset)
+        axes = Axes(dataset)
         variables = variable.Interface(dataset)
         constants = runtime.Arguments(
             source_path=ENV['src'],
             config_path=confpath,
         )
-        self._data = observing.Interface(axes, variables, constants)
+        self._data = observing.Interface(
+            axes,
+            variables,
+            constants,
+            system=self.system(),
+        )
         # Update other attributes if everything succeeded.
         self._dataset = dataset
         self._confpath = confpath

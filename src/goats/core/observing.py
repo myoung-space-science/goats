@@ -5,14 +5,16 @@ import numbers
 import operator as standard
 import typing
 
+import numpy
+
 from goats.core import aliased
 from goats.core import axis
 from goats.core import computed
 from goats.core import constant
-from goats.core import index
 from goats.core import iterables
 from goats.core import metadata
 from goats.core import metric
+from goats.core import observed
 from goats.core import physical
 from goats.core import reference
 from goats.core import symbolic
@@ -128,6 +130,69 @@ class Quantity(variable.Quantity):
         return Parameters(self._parameters)
 
 
+class Metadata(
+    metadata.NameMixin,
+    metadata.AxesMixin,
+): ...
+
+
+class Quantity(Metadata, iterables.ReprStrMixin):
+    """A callable quantity that produces a variable quantity."""
+
+    def __init__(
+        self,
+        __method: computed.Method,
+        *,
+        axes: typing.Iterable[str]=None,
+        unit: metadata.UnitLike=None,
+        name: typing.Union[str, typing.Iterable[str]]=None,
+        parameters: typing.Iterable[str]=None,
+    ) -> None:
+        self.method = __method
+        self._axes = axes
+        self._unit = unit
+        self._name = name
+        self._parameters = parameters or ()
+
+    @property
+    def unit(self):
+        """This quantity's metric unit."""
+        return metadata.Unit(self._unit)
+
+    @property
+    def parameters(self):
+        """The optional parameters used when observing this quantity."""
+        return Parameters(self._parameters)
+
+    def __getitem__(self, unit: metadata.UnitLike):
+        """Set the unit of the resultant values.
+        
+        Notes
+        -----
+        See note at `~measurable.Quantity.__getitem__`.
+        """
+        if unit != self._unit:
+            self._unit = unit
+        return self
+
+    def __call__(self, **quantities):
+        """Create a variable quantity from input quantities."""
+        return variable.Quantity(
+            self.method.compute(**quantities),
+            axes=self.axes,
+            unit=self.unit,
+            name=self.name,
+        )
+
+    def __str__(self) -> str:
+        attrs = [
+            self.method.name,
+            f"axes={self.axes}",
+            f"unit={str(self.unit)!r}",
+        ]
+        return ', '.join(attrs)
+
+
 class Interface(collections.abc.Collection):
     """An interface to quantities required to make observations."""
 
@@ -223,7 +288,7 @@ class Interface(collections.abc.Collection):
                 this *= self.get_axes(term.base)
         return metadata.Axes(this)
 
-    def compute_index(self, key: str, **constraints) -> index.Quantity:
+    def compute_index(self, key: str, **constraints) -> axis.Index:
         """Compute the axis-indexing object for `key`."""
         if key not in self.axes:
             raise ValueError(f"No axis corresponding to {key!r}") from None
@@ -234,7 +299,7 @@ class Interface(collections.abc.Collection):
     def _compute_index(self, key: str, this):
         """Compute a single indexing object from input values."""
         target = (
-            this if isinstance(this, index.Quantity)
+            this if isinstance(this, axis.Index)
             else self.axes[key].index(*iterables.whole(this))
         )
         if target.unit is not None:
@@ -268,6 +333,7 @@ class Context:
         """The interface to an observer's dataset."""
         self.user = None
         """The current set of user constraints within this context."""
+        self._coordinates = None
         self._cache = {}
 
     def __contains__(self, __k: str):
@@ -275,11 +341,6 @@ class Context:
         # Should this check all dimensions and parameters or only user
         # constraints?
         return __k in self.user
-
-    # TODO: Extract common methods from here and `observable.Quantity`.
-    # - constraints attribute
-    # - apply method
-    # - reset method
 
     def apply(self, **constraints):
         """Update the observing constraints.
@@ -320,7 +381,122 @@ class Context:
                         del subset[key]
         return self
 
-    def get_index(self, key: str) -> index.Quantity:
+    def observe(self, key: str) -> Quantity:
+        """Create an observation within this context."""
+        expression = symbolic.Expression(reference.NAMES.get(key, key))
+        term = expression[0]
+        result = self.get_observable(term.base)
+        if len(expression) == 1:
+            # We don't need to multiply or divide quantities.
+            if term.exponent == 1:
+                # We don't even need to raise this quantity to a power.
+                return result
+            return result ** term.exponent
+        q0 = result ** term.exponent
+        if len(expression) > 1:
+            for term in expression[1:]:
+                result = self.get_observable(term.base)
+                q0 *= result ** term.exponent
+        return q0
+
+    def evaluate(self, q) -> Quantity:
+        """Create an observing quantity based on the given quantity."""
+        if isinstance(q, computed.Quantity):
+            parameters = [
+                parameter for parameter in q.parameters
+                if parameter in self.interface.constants
+            ]
+            return Quantity(self.compute(q), parameters=parameters)
+        if isinstance(q, variable.Quantity):
+            return Quantity(self.process(q))
+        raise ValueError(f"Unknown quantity: {q!r}") from None
+
+    def process(self, q: variable.Quantity) -> variable.Quantity:
+        """Compute observer-specific updates to a variable quantity."""
+        if any(alias in self.coordinates for alias in q.name):
+            # This is an axis-reference quantity.
+            return self._subscript(q)
+        needed = self._compute_coordinates(q)
+        if not needed:
+            # There are no axes over which to interpolate.
+            return self._subscript(q)
+        return self._interpolate(q)
+
+    def compute(self, q: computed.Quantity) -> variable.Quantity:
+        """Determine dependencies and compute the result of this function."""
+        dependencies = {p: self.get_dependency(p) for p in q.parameters}
+        return q(**dependencies)
+
+    def get_dependency(self, key: str):
+        """Get the named constant or variable quantity."""
+        if this := self.get_observable(key):
+            return this
+        return self.get_value(key)
+
+    def get_observable(self, key: str):
+        """Retrieve and evaluate an observable quantity."""
+        if quantity := self.interface.get_observable(key):
+            return self.evaluate(quantity)
+
+    def _subscript(self, q: variable.Quantity, *axes: str):
+        """Extract a subset of this quantity."""
+        if not axes:
+            return q[tuple(self.get_index(a) for a in q.axes)]
+        indices = [
+            self.get_index(a) if a in axes else slice(None)
+            for a in q.axes
+        ]
+        return q[tuple(indices)]
+
+    def _compute_coordinates(self, q: variable.Quantity):
+        """Determine the measurable observing indices."""
+        dimensions = self._compute_dimensions(q)
+        coordinates = {}
+        if not dimensions:
+            return coordinates
+        for a in q.axes:
+            idx = self.get_index(a)
+            if a in dimensions and idx.unit is not None:
+                coordinates[a] = {
+                    'targets': numpy.array(idx.data),
+                    'reference': self.coordinates[a],
+                }
+        return coordinates
+
+    def _compute_dimensions(self, q: variable.Quantity):
+        """Determine over which axes to interpolate, if any."""
+        coordinates = {}
+        references = []
+        for a in q.axes:
+            idx = self.get_index(a)
+            if idx.unit is not None:
+                coordinates[a] = idx.values
+                references.append(self.coordinates[a])
+        return [
+            a for (a, c), r in zip(coordinates.items(), references)
+            if not numpy.all([r.array_contains(target) for target in c])
+        ]
+
+    def _interpolate(self, q: variable.Quantity):
+        """Interpolate the given quantity within this context."""
+        raise NotImplementedError
+
+    @property
+    def coordinates(self):
+        """The reference quantities for dataset coordinate axes."""
+        if self._coordinates is None:
+            coordinates = self._build_coordinates()
+            self._coordinates = aliased.Mapping(coordinates)
+        return self._coordinates
+
+    def _build_coordinates(self):
+        """Helper for `~coordinates` property. Extracted for overloading."""
+        return {
+            k: self.interface.variables[k]
+            for k in self.interface.axes.items(aliased=True)
+        }
+
+    def get_index(self, key: str) -> axis.Index:
         """Get the axis-indexing object for `key`."""
         if 'indices' not in self._cache:
             self._cache['indices'] = {}
@@ -342,9 +518,33 @@ class Context:
             self._cache['values'][key] = val
             return val
 
+
+class Implementation:
+    """The base observing implementation."""
+
+    def __init__(
+        self,
+        name: str,
+        interface: Interface,
+    ) -> None:
+        """
+        Initialize this instance.
+
+        Parameters
+        ----------
+        name : string
+            The name of the quantity to observe.
+
+        interface : `~Interface`
+            The interface to all observing-related quantities.
+        """
+        self.name = name
+        self.interface = interface
+        self._cache = {}
+
     # TODO:
-    # - Refactor `get_unit` and `get_axes` to reduce overlap.
-    # - Redefine `_cache` as an aliased mapping.
+    # - refactor `get_unit` and `get_axes` to reduce overlap.
+    # - redefine `_cache` as an aliased mapping.
 
     def get_unit(
         self,
@@ -373,4 +573,11 @@ class Context:
             return self.interface.get_axes(name)
         axes = (self.interface.get_axes(key) for key in name)
         return next(axes, None)
+
+    def apply(self, context: Context) -> observed.Quantity:
+        """Apply an observing context to the target quantity."""
+        result = context.observe(self.name)
+        indices = {k: context.get_index(k) for k in result.axes}
+        scalars = {k: context.get_value(k) for k in result.parameters}
+        return observed.Quantity(result, indices, **scalars)
 

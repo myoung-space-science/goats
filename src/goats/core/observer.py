@@ -22,6 +22,7 @@ class Interface(abc.ABC):
         self,
         *unobservable: str,
         system: str='mks',
+        context: observing.Context=None,
     ) -> None:
         """Initialize this instance.
         
@@ -34,14 +35,25 @@ class Interface(abc.ABC):
 
         system : string, default='mks'
             The metric system to use for variable and observable quantities.
+
+        context : `~observing.Context`, optional
+            An instance of `~observing.Context` or of a subclass thereof. This
+            attribute will provide default parameter values as well as
+            instructions for evaluating variable quantities during the observing
+            process. If `context` is absent, this class will use an instance of
+            the base class.
         """
         self._unobservable = unobservable
         self._system = metric.System(system)
+        self._context = context
         self._source = None
         self._context = None
         self._interface = None
         self._spellcheck = None
 
+    # TODO: I'm no longer sure it makes sense to allow the user to update an
+    # observer's metric system rather than create a new observer for a new
+    # metric system.
     def system(self, new: str=None):
         """Get or set this observer's metric system."""
         if not new:
@@ -60,17 +72,6 @@ class Interface(abc.ABC):
     def source(self):
         """The source of this observer's data."""
         return self._source
-
-    @property
-    def interface(self):
-        """An interface to formally observable quantities."""
-        if self._interface is None:
-            self._interface = observable.Interface(
-                self.data,
-                *self.observables,
-                context=self.context,
-            )
-        return self._interface
 
     @property
     def context(self):
@@ -119,12 +120,38 @@ class Interface(abc.ABC):
 
     def _get_quantity(self, key: str):
         """Retrieve the named quantity from an interface, if possible."""
-        if key in self.interface:
-            return self.interface[key]
+        if self.knows(key): # Get logic from `observable.Interface`
+            name = metadata.Name(
+                key if observable.iscomposed(key)
+                else reference.ALIASES[key]
+            )
+            return observable.Quantity(
+                name,
+                observing.Implementation(key, self.data),
+                context=self.context,
+            )
         if key in self.data.variables:
             return self.data.variables[key]
         if key in self.assumptions:
             return self.assumptions[key]
+
+    def knows(
+        self,
+        name: typing.Union[str, typing.Iterable[str], metadata.Name],
+    ) -> bool:
+        """True if this interface can observe the named quantity."""
+        if isinstance(name, str):
+            return self._knows(name)
+        return next((self._knows(key) for key in name), False)
+
+    def _knows(self, key: str):
+        """Internal helper for `~Interface.knows`."""
+        if key in self.observables:
+            return True
+        if observable.iscomposed(key):
+            expression = symbolic.Expression(key)
+            return all(term.base in self.observables for term in expression)
+        return False
 
     def _check_spelling(self, key: str):
         """Catch misspelled names of observable quantities, if possible."""
@@ -135,6 +162,15 @@ class Interface(abc.ABC):
             self._spellcheck.words |= keys
         return self._spellcheck.check(key)
 
+    # 2022-09-20: If the current reorganization effort succeeds, the following
+    # methods should be obsolete
+    # - observe
+    # - _observe
+    # - evaluate
+    # - process
+    # - compute
+    # - get_dependency
+    # - get_observable
     def observe(
         self,
         quantity: typing.Union[str, metadata.Name, observable.Quantity],
