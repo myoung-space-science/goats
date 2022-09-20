@@ -37,60 +37,82 @@ class Axes(axis.Interface):
     """Interface to EPREM axis-indexing objects."""
 
     def __init__(self, data: datafile.Interface) -> None:
+        super().__init__(data)
         self.variables = variable.Interface(data)
+        self._time = None
+        self._shell = None
+        self._species = None
+        self._energy = None
+        self._mu = None
         defined = {
             'time': self.time,
-            'mu': self.mu,
-            'energy': self.energy,
+            'shell': self.shell,
             'species': self.species,
+            'energy': self.energy,
+            'mu': self.mu,
         }
-        super().__init__(data, **defined)
+        self.update(defined)
+
+    @property
+    def shell(self):
+        """Indexer for the EPREM shell dimension."""
+        if self._shell is None:
+            self._shell = self.build_default('shell')
+        return self._shell
 
     @property
     def time(self):
         """Indexer for the EPREM time dimension."""
-        this = self.variables['time']
-        return axis.Indexer(self._build_coordinate(this), len(this))
+        if self._time is None:
+            this = self.variables['time']
+            self._time = axis.Indexer(self._build_coordinate(this), len(this))
+        return self._time
 
     @property
     def mu(self):
         """Indexer for the EPREM pitch-angle dimension."""
-        this = self.variables['mu']
-        return axis.Indexer(self._build_coordinate(this), len(this))
+        if self._mu is None:
+            this = self.variables['mu']
+            self._mu = axis.Indexer(self._build_coordinate(this), len(this))
+        return self._mu
 
     @property
     def energy(self):
         """Indexer for the EPREM energy dimension."""
-        this = self.variables['energy']
-        def method(
-            targets,
-            unit: metadata.UnitLike,
-            species: typing.Union[str, int]=0,
-        ) -> axis.Data:
-            s = self.species.compute([species]).points
-            t = (
-                numpy.squeeze(targets[s, :])
-                if getattr(targets, 'ndim', None) == 2
-                else targets
-            )
-            compute = self._build_coordinate(numpy.squeeze(this[s, :]))
-            return compute(t, unit=unit)
-        return axis.Indexer(method, this.shape[1])
+        if self._energy is None:
+            this = self.variables['energy']
+            def method(
+                targets,
+                unit: metadata.UnitLike,
+                species: typing.Union[str, int]=0,
+            ) -> axis.Data:
+                s = self.species.compute([species]).points
+                t = (
+                    numpy.squeeze(targets[s, :])
+                    if getattr(targets, 'ndim', None) == 2
+                    else targets
+                )
+                compute = self._build_coordinate(numpy.squeeze(this[s, :]))
+                return compute(t, unit=unit)
+            self._energy = axis.Indexer(method, this.shape[1])
+        return self._energy
 
     @property
     def species(self):
         """Indexer for the EPREM species dimension."""
-        mass = self.variables['mass']['nuc']
-        charge = self.variables['charge']['e']
-        symbols = fundamental.elements(mass, charge)
-        def method(targets):
-            indices = [
-                symbols.index(target)
-                if isinstance(target, str) else int(target)
-                for target in targets
-            ]
-            return axis.Data(indices, values=symbols)
-        return axis.Indexer(method, len(symbols))
+        if self._species is None:
+            mass = self.variables['mass']['nuc']
+            charge = self.variables['charge']['e']
+            symbols = fundamental.elements(mass, charge)
+            def method(targets):
+                indices = [
+                    symbols.index(target)
+                    if isinstance(target, str) else int(target)
+                    for target in targets
+                ]
+                return axis.Data(indices, values=symbols)
+            self._species = axis.Indexer(method, len(symbols))
+        return self._species
 
     def _build_coordinate(self, this: variable.Quantity):
         """Create coordinate-like axis data from the given variable."""

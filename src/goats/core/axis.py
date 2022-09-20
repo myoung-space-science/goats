@@ -184,19 +184,21 @@ class Quantity(metadata.NameMixin, iterables.ReprStrMixin):
         return string
 
 
-class Interface(aliased.Mapping):
+class IndexTypeError(Exception):
+    """Invalid index argument."""
+
+
+class Interface(aliased.MutableMapping):
     """An interface to the array axes available from a dataset."""
 
-    def __init__(
-        self,
-        dataset: datafile.Interface,
-        **indexers: typing.Callable[..., typing.List[int]]
-    ) -> None:
+    def __init__(self, dataset: datafile.Interface) -> None:
         self._variables = variable.Interface(dataset)
         self.dataset = dataset
-        known = (reference.ALIASES.get(key, key) for key in indexers)
-        keymap = aliased.KeyMap(*known)
-        super().__init__(indexers, keymap=keymap)
+        indexers = {
+            k: self.build_default(k)
+            for k in self.dataset.axes.keys(aliased=True)
+        }
+        super().__init__(indexers)
 
     def __getitem__(self, __k: str) -> Quantity:
         """Get the named axis object, if possible."""
@@ -217,15 +219,20 @@ class Interface(aliased.Mapping):
         """Get the axis indexer for `key`, or use the default."""
         if key in self.keys():
             return super().__getitem__(key)
-        return self._build_default(key)
+        raise KeyError(f"No indexing method for axis {key!r}")
 
-    def _build_default(self, key: str):
-        """Define the axis-indexer factory methods."""
+    def build_default(self, key: str):
+        """Define the axis-indexer factory method."""
         n = self.dataset.axes[key].size
         def method(*targets):
-            indices = [int(arg) for arg in targets]
-            if all(0 <= idx < n for idx in indices):
-                return Data(indices)
+            try:
+                indices = [int(arg) for arg in targets]
+                if all(0 <= idx < n for idx in indices):
+                    return Data(indices)
+            except TypeError as err:
+                raise IndexTypeError(
+                    f"Can't convert {targets!r} to integer indices."
+                ) from err
             raise ValueError(
                 f"One or more index {targets} is outside the interval"
                 " [0, {n-1}]"
