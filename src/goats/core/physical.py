@@ -303,14 +303,14 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
                     return getattr(attr, name)
         raise AttributeError(f"Could not find an attribute named {name!r}")
 
-    _builtin = (int, slice, type(...))
+    _builtin = (int, slice, type(...), type(None))
 
     def __getitem__(self, *args: typing.Union[metadata.UnitLike, IndexLike]):
         """Create a new instance from a subset of data."""
         if len(args) == 1 and isinstance(args[0], metadata.UnitLike):
             return super().__getitem__(args[0])
         unwrapped = iterables.unwrap(args)
-        if iterables.hastype(unwrapped, self._builtin, tuple):
+        if iterables.hastype(unwrapped, self._builtin, tuple, strict=True):
             return self._subscript_standard(unwrapped)
         return self._subscript_custom(unwrapped)
 
