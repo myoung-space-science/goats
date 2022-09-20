@@ -1495,7 +1495,7 @@ def hastype(
     __types: typing.Union[type, typing.Tuple[type, ...]],
     *wrappers: typing.Type[typing.Iterable],
 ) -> bool:
-    """True if an object is a certain type or contains only certain __types.
+    """True if an object is a certain type or contains only certain types.
     
     Parameters
     ----------
@@ -1508,7 +1508,7 @@ def hastype(
     *wrappers : iterable type
         Zero or more iterable types of which the target object may be an
         instance. If the target object is an instance of a given wrapper type,
-        this function will test whether every members of the target object is an
+        this function will test whether every member of the target object is an
         instance of the given types.
 
     Examples
