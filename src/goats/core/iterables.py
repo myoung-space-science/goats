@@ -1494,8 +1494,9 @@ def hastype(
     __obj,
     __types: typing.Union[type, typing.Tuple[type, ...]],
     *wrappers: typing.Type[typing.Iterable],
+    strict: bool=False,
 ) -> bool:
-    """True if an object is a certain type or contains only certain types.
+    """True if an object is a certain type or contains certain types.
     
     Parameters
     ----------
@@ -1511,6 +1512,10 @@ def hastype(
         this function will test whether every member of the target object is an
         instance of the given types.
 
+    strict : bool, default=False
+        If true, return ``True`` if `__obj` contains only `__type`. Otherwise,
+        return ``True`` if `__obj` contains at least one of `__types`.
+
     Examples
     --------
     When called without wrappers, this function is identical to ``isinstance``:
@@ -1523,7 +1528,10 @@ def hastype(
 
     >>> iterables.hastype([1, 2], list)
     True
-    
+
+    Note that in these cases, `strict` is irrelevant because this function
+    checks only the type of `__obj`.
+
     The target object contains the given type but ``list`` is not a declared
     wrapper:
     
@@ -1540,9 +1548,14 @@ def hastype(
     >>> iterables.hastype([1, 2], int, tuple)
     False
 
-    Each member of a declared wrapper type must be one of the target types:
+    By default, only one member of a wrapped object needs to be an instance of one of the target types:
 
     >>> iterables.hastype([1, 2.0], int, list)
+    True
+
+    If ``strict=True``, each member must be one of the target types:
+
+    >>> iterables.hastype([1, 2.0], int, list, strict=True)
     False
 
     Multiple target types must be passed as a ``tuple``, just as when calling
@@ -1553,14 +1566,15 @@ def hastype(
 
     Otherwise, this function will interpret them as wrapper types:
 
-    >>> iterables.hastype([1, 2.0], int, float, list)
+    >>> iterables.hastype([1, 2.0], int, float, list, strict=True)
     False
     """
     if isinstance(__obj, __types):
         return True
     for wrapper in wrappers:
         if isinstance(__obj, wrapper):
-            return all(isinstance(i, __types) for i in __obj)
+            check = all if strict else any
+            return check(isinstance(i, __types) for i in __obj)
     return False
 
 

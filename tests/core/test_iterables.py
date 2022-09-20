@@ -425,9 +425,12 @@ def test_hastype():
     assert iterables.hastype([1, 2], int, list)
     assert not iterables.hastype([1, 2], int)
     assert not iterables.hastype([1, 2], int, tuple)
-    assert not iterables.hastype([1, 2.0], int, list)
+    assert not iterables.hastype([1, 2.0], int, list, strict=True)
+    assert iterables.hastype([1, 2.0], int, list, strict=False)
     assert iterables.hastype([1, 2.0], (int, float), list)
-    assert not iterables.hastype([1, 2.0], int, float, list)
+    assert iterables.hastype([1, '2.0'], int, list, strict=False)
+    assert not iterables.hastype([1, 2.0], int, float, list, strict=True)
+    assert iterables.hastype([1, 2.0], int, float, list)
     # The indices below mirror those tested in
     # test_variable.py::test_variable_getitem.
     indices = [
@@ -440,8 +443,8 @@ def test_hastype():
     ]
     types = (int, slice, type(...))
     for index in indices:
-        assert iterables.hastype(index, types, tuple)
-    assert not iterables.hastype('hello', types)
+        assert iterables.hastype(index, types, tuple, strict=True)
+    assert not iterables.hastype('hello', types, strict=True)
 
 
 def test_guard():
