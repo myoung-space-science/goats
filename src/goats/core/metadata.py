@@ -555,20 +555,31 @@ class Unit(metric.Unit, Attribute):
             return super().__mul__(other)
         return self
 
-    __rmul__ = __mul__
-    """Called for other * self."""
-
     def __truediv__(self, other):
         """Called for self / other."""
         if isinstance(other, UnitLike):
             return super().__truediv__(other)
         return self
 
+    __rmul__ = __mul__
+    """Called for other * self."""
+
     def __rtruediv__(self, other):
         """Called for other / self."""
         if isinstance(other, UnitLike):
             return super().__rtruediv__(other)
         return self
+
+    # NOTE: This class implements in-place multiplication and division with the
+    # following trivial definitions because otherwise, control will pass to
+    # `Attribute.__array_ufunc__`, which will (correctly) fail to find
+    # `_ufunc_multiply` or `_ufunc_divide`, result in an exception.
+
+    __imul__ = __mul__
+    """Called for self *= other."""
+
+    __itruediv__ = __truediv__
+    """Called for self /= other"""
 
     def __add__(self, other):
         """Called for self + other; either a no-op or an error."""
@@ -893,141 +904,148 @@ class AxesMixin:
         return Axes(self._axes)
 
 
-def base(*names: str, result: str=None):
-    """Create a base class for handling metadata attributes."""
+# def base(*names: str, result: str=None):
+#     """Create a base class for handling metadata attributes."""
 
-    known = {
-        'unit': {'type': Unit, 'default': '1', 'mixin': UnitMixin},
-        'name': {'type': Name, 'default': '', 'mixin': NameMixin},
-        'axes': {'type': Axes, 'default': (), 'mixin': AxesMixin},
-    }
-    for name in names:
-        if name not in known:
-            raise ValueError(f"Unknown metadata attribute: {name!r}") from None
+#     known = {
+#         'unit': {'type': Unit, 'default': '1', 'mixin': UnitMixin},
+#         'name': {'type': Name, 'default': '', 'mixin': NameMixin},
+#         'axes': {'type': Axes, 'default': (), 'mixin': AxesMixin},
+#     }
+#     for name in names:
+#         if name not in known:
+#             raise ValueError(f"Unknown metadata attribute: {name!r}") from None
 
-    class Base:
-        """A base class for quantities with metadata attributes."""
+#     class Base:
+#         """A base class for quantities with metadata attributes."""
 
-        def __init__(self, **meta) -> None:
-            self.meta = OperatorFactory(type(self))
-            for name in names:
-                this = known[name]
-                value = this['type'](meta.get(name, this['default']))
-                setattr(self, f"_{name}", value)
-                self.meta.register(name)
+#         def __init__(self, **meta) -> None:
+#             self.meta = OperatorFactory(type(self))
+#             for name in names:
+#                 this = known[name]
+#                 value = this['type'](meta.get(name, this['default']))
+#                 setattr(self, f"_{name}", value)
+#                 self.meta.register(name)
 
-    mixins = [known[name]['mixin'] for name in names if name in known]
-    return type(result or 'Interface', (Base, *mixins), {})
-
-
-Measurable = base('unit', result='Measurable')
-"""An object with a unit."""
+#     mixins = [known[name]['mixin'] for name in names if name in known]
+#     return type(result or 'Interface', (Base, *mixins), {})
 
 
-Identifiable = base('name', result='Identifiable')
-"""An object with a name."""
+# Measurable = base('unit', result='Measurable')
+# """An object with a unit."""
 
 
-Locatable = base('axes', result='Locatable')
-"""An object with axes."""
+# Identifiable = base('name', result='Identifiable')
+# """An object with a name."""
 
 
-Distinguishable = base('unit', 'name', result='Distinguishable')
-"""A measurable and identifiable object."""
+# Locatable = base('axes', result='Locatable')
+# """An object with axes."""
 
 
-Observable = base('unit', 'name', 'axes', result='Observable')
-"""A distinguishable and locatable object."""
+# Distinguishable = base('unit', 'name', result='Distinguishable')
+# """A measurable and identifiable object."""
 
 
-ATTRIBUTES = {
-    'unit': {'type': Unit, 'default': '1', 'mixin': UnitMixin},
-    'name': {'type': Name, 'default': '', 'mixin': NameMixin},
-    'axes': {'type': Axes, 'default': (), 'mixin': AxesMixin},
-}
+# Observable = base('unit', 'name', 'axes', result='Observable')
+# """A distinguishable and locatable object."""
 
 
-Class = typing.TypeVar('Class', bound=type)
+# ATTRIBUTES = {
+#     'unit': {'type': Unit, 'default': '1', 'mixin': UnitMixin},
+#     'name': {'type': Name, 'default': '', 'mixin': NameMixin},
+#     'axes': {'type': Axes, 'default': (), 'mixin': AxesMixin},
+# }
 
 
-class Subtype(typing.Generic[T]):
-    """Generic type to indicate a subclass in type hints."""
+# Class = typing.TypeVar('Class', bound=type)
 
 
-def includes(*names: str):
-    """Decorator for adding metadata attributes to a class."""
-    for name in names:
-        if name not in ATTRIBUTES:
-            raise ValueError(
-                f"Unknown metadata attribute: {name!r}"
-            ) from None
-    mixins = [
-        ATTRIBUTES[name]['mixin']
-        for name in names if name in ATTRIBUTES
-    ]
-    _names = [f"_{name}" for name in names]
-    def decorator(cls: typing.Type[T]):
-        class Interface:
-            """A class with dynamically generated metadata attributes."""
-            def __init__(self) -> None:
-                self.meta = OperatorFactory(type(self))
-                for name, _name in zip(names, _names):
-                    user = getattr(self, _name)
-                    attribute = ATTRIBUTES[name]
-                    value = attribute['type'](user or attribute['default'])
-                    setattr(self, _name, value)
-                    self.meta.register(name)
-        bases = [cls, Interface, *mixins]
-        return type(cls.__name__, tuple(bases), {k: None for k in _names})
-    return decorator
+# class Subtype(typing.Generic[T]):
+#     """Generic type to indicate a subclass in type hints."""
+
+
+# def includes(*names: str):
+#     """Decorator for adding metadata attributes to a class."""
+#     for name in names:
+#         if name not in ATTRIBUTES:
+#             raise ValueError(
+#                 f"Unknown metadata attribute: {name!r}"
+#             ) from None
+#     mixins = [
+#         ATTRIBUTES[name]['mixin']
+#         for name in names if name in ATTRIBUTES
+#     ]
+#     _names = [f"_{name}" for name in names]
+#     def decorator(cls: typing.Type[T]):
+#         class Interface:
+#             """A class with dynamically generated metadata attributes."""
+#             def __init__(self) -> None:
+#                 self.meta = OperatorFactory(type(self))
+#                 for name, _name in zip(names, _names):
+#                     user = getattr(self, _name)
+#                     attribute = ATTRIBUTES[name]
+#                     value = attribute['type'](user or attribute['default'])
+#                     setattr(self, _name, value)
+#                     self.meta.register(name)
+#         bases = [cls, Interface, *mixins]
+#         return type(cls.__name__, tuple(bases), {k: None for k in _names})
+#     return decorator
+
+
+# class Interface:
+#     """"""
+
+#     def __new__(cls: Class, *args, **attributes) -> Class:
+#         names = list(attributes)
+#         mixins = [
+#             ATTRIBUTES[name]['mixin']
+#             for name in names if name in ATTRIBUTES
+#         ]
+#         namespace = {f'_{name}': None for name in names}
+#         return type(cls.__name__, (cls, *mixins), namespace)
+
+#     def __init__(self, **attributes) -> None:
+#         self.meta=OperatorFactory(type(self))
+#         for name, given in attributes.items():
+#             _name = f"_{name}"
+#             attribute = ATTRIBUTES[name]
+#             value = attribute['type'](given or attribute['default'])
+#             setattr(self, _name, value)
+#             self.meta.register(name)
+
+
+# def interface(*names: str):
+#     """"""
+#     for name in names:
+#         if name not in ATTRIBUTES:
+#             raise ValueError(
+#                 f"Unknown metadata attribute: {name!r}"
+#             ) from None
+#     mixins = [
+#         ATTRIBUTES[name]['mixin']
+#         for name in names if name in ATTRIBUTES
+#     ]
+#     _names = [f"_{name}" for name in names]
+#     class Metadata:
+#         """A class with dynamically generated metadata attributes."""
+#         def __init__(self, **attributes) -> None:
+#             self.meta=OperatorFactory(type(self))
+#             for name, given in attributes.items():
+#                 _name = f"_{name}"
+#                 attribute = ATTRIBUTES[name]
+#                 value = attribute['type'](given or attribute['default'])
+#                 setattr(self, _name, value)
+#                 self.meta.register(name)
+#     bases = (Metadata, *mixins)
+#     return type('Metadata', bases, {k: None for k in _names})
 
 
 class Interface:
-    """"""
-
-    def __new__(cls: Class, *args, **attributes) -> Class:
-        names = list(attributes)
-        mixins = [
-            ATTRIBUTES[name]['mixin']
-            for name in names if name in ATTRIBUTES
-        ]
-        namespace = {f'_{name}': None for name in names}
-        return type(cls.__name__, (cls, *mixins), namespace)
+    """Support for metadata attributes."""
 
     def __init__(self, **attributes) -> None:
-        self.meta=OperatorFactory(type(self))
-        for name, given in attributes.items():
-            _name = f"_{name}"
-            attribute = ATTRIBUTES[name]
-            value = attribute['type'](given or attribute['default'])
-            setattr(self, _name, value)
-            self.meta.register(name)
-
-
-def interface(*names: str):
-    """"""
-    for name in names:
-        if name not in ATTRIBUTES:
-            raise ValueError(
-                f"Unknown metadata attribute: {name!r}"
-            ) from None
-    mixins = [
-        ATTRIBUTES[name]['mixin']
-        for name in names if name in ATTRIBUTES
-    ]
-    _names = [f"_{name}" for name in names]
-    class Metadata:
-        """A class with dynamically generated metadata attributes."""
-        def __init__(self, **attributes) -> None:
-            self.meta=OperatorFactory(type(self))
-            for name, given in attributes.items():
-                _name = f"_{name}"
-                attribute = ATTRIBUTES[name]
-                value = attribute['type'](given or attribute['default'])
-                setattr(self, _name, value)
-                self.meta.register(name)
-    bases = (Metadata, *mixins)
-    return type('Metadata', bases, {k: None for k in _names})
+        pass
 
 
 _reference: typing.Dict[str, dict] = {
