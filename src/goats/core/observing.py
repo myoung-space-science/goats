@@ -254,19 +254,19 @@ class Interface(collections.abc.Collection):
         return scalar[unit]
 
 
-class Context:
-    """A general observing context."""
+class Application:
+    """A general observing application."""
 
     def __init__(self, interface: Interface) -> None:
         self.interface = interface
         """The interface to an observer's dataset."""
         self.user = None
-        """The current set of user constraints within this context."""
+        """The current set of user constraints."""
         self._coordinates = None
         self._cache = {}
 
     def __contains__(self, __k: str):
-        """True if this context contains the named constraint."""
+        """True if the named constraint affects this application."""
         # Should this check all dimensions and parameters or only user
         # constraints?
         return __k in self.user
@@ -275,8 +275,8 @@ class Context:
         """Update the observing constraints.
         
         This method will apply the given constraints when computing axis indices
-        and parameter values within this context. It will also clear the
-        corresponding items from the instance cache.
+        and parameter values within the context of this application. It will
+        also clear the corresponding items from the instance cache.
         """
         if self.user is None:
             self.user = {}
@@ -311,7 +311,7 @@ class Context:
         return self
 
     def observe(self, key: str) -> Quantity:
-        """Create an observation within this context."""
+        """Create an observation within the context of this application."""
         expression = symbolic.Expression(reference.NAMES.get(key, key))
         term = expression[0]
         result = self.get_observable(term.base)
