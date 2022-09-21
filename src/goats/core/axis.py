@@ -224,7 +224,7 @@ class Interface(aliased.MutableMapping):
     def build_default(self, key: str):
         """Define the axis-indexer factory method."""
         n = self.dataset.axes[key].size
-        def method(*targets):
+        def method(targets):
             try:
                 indices = [int(arg) for arg in targets]
                 if all(0 <= idx < n for idx in indices):
