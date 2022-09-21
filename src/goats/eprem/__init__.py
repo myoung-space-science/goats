@@ -15,6 +15,7 @@ from ..core import (
     iotools,
     measurable,
     metadata,
+    metric,
     numerical,
     observer,
     observing,
@@ -35,9 +36,12 @@ basetypes = BaseTypesH(source=ENV['src'])
 class Axes(axis.Interface):
     """Interface to EPREM axis-indexing objects."""
 
-    def __init__(self, data: datafile.Interface) -> None:
-        super().__init__(data)
-        self.variables = variable.Interface(data)
+    def __init__(
+        self,
+        data: datafile.Interface,
+        system: typing.Union[str, metric.System]=None,
+    ) -> None:
+        super().__init__(data, system)
         self._time = None
         self._shell = None
         self._species = None
@@ -287,18 +291,13 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         confpath = self._build_confpath(config, directory=datapath.parent)
         # Update the internal data interface.
         dataset = datafile.Interface(datapath)
-        axes = Axes(dataset)
-        variables = variable.Interface(dataset)
+        axes = Axes(dataset, system=self.system())
+        variables = variable.Interface(dataset, system=self.system())
         constants = runtime.Arguments(
             source_path=ENV['src'],
             config_path=confpath,
         )
-        self._data = observing.Interface(
-            axes,
-            variables,
-            constants,
-            system=self.system(),
-        )
+        self._data = observing.Interface(axes, variables, constants)
         # Update other attributes if everything succeeded.
         self._dataset = dataset
         self._confpath = confpath
