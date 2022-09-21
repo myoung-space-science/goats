@@ -341,6 +341,18 @@ def test_observing_unit(stream: eprem.Stream):
     assert numpy.allclose(old, new * float(fundamental.mks['au']))
 
 
+def test_observer_metric_system(
+    rootpath: Path,
+    observables: typing.Dict[str, dict],
+) -> None:
+    """Allow users to declare the observer's metric system."""
+    source = rootpath / 'cone' / 'obs'
+    for system in {'mks'}:
+        stream = eprem.Stream(0, source=source, system=system)
+        for name, expected in observables.items():
+            assert stream[name].unit == expected['unit'][system]
+
+
 def test_interpolation(stream: eprem.Stream):
     """Interpolate an observation."""
     cases = [
