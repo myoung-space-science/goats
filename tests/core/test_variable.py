@@ -614,44 +614,6 @@ def call_func(
         assert numpy.array_equal(result, expected), msg
 
 
-@pytest.mark.xfail
-@pytest.mark.variable
-def test_add_number(components):
-    ref = [components[i] for i in (0, 1)]
-    var = [make_variable(**component) for component in ref]
-    num = 2.3
-    operands = [var[0], num]
-    expected = ref[0]['data'] + num
-    attrs = {k: ref[0][k] for k in ('unit', 'axes')}
-    attrs['name'] = ref[0]['name']
-    call_func(
-        operator.add,
-        variable.Quantity,
-        *operands,
-        expected=expected,
-        attrs=attrs,
-    )
-
-
-@pytest.mark.xfail
-@pytest.mark.variable
-def test_sub_number(components):
-    ref = [components[i] for i in (0, 1)]
-    var = [make_variable(**component) for component in ref]
-    num = 2.3
-    operands = [var[0], num]
-    expected = ref[0]['data'] - num
-    attrs = {k: ref[0][k] for k in ('unit', 'axes')}
-    attrs['name'] = ref[0]['name']
-    call_func(
-        operator.sub,
-        variable.Quantity,
-        *operands,
-        expected=expected,
-        attrs=attrs,
-    )
-
-
 @pytest.mark.variable
 def test_add_variable(components):
     ref = [components[i] for i in (0, 1)]
