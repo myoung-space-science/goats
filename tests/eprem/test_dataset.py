@@ -30,6 +30,7 @@ def test_axes(datapath):
             'test': {
                 'user': (0, 2),
                 'indices': [0, 2],
+                'values': [0, 2],
             },
         },
         'species': {
