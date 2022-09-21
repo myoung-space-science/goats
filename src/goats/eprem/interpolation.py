@@ -86,11 +86,11 @@ def apply(
     array: numpy.ndarray,
     reference: numpy.ndarray,
     targets: typing.Iterable[float],
-    coordinate: str=None,
+    axis: int=None
 ) -> numpy.ndarray:
     """Interpolate `array` to target values over `coordinate`."""
     interpolated = [
-        _apply_interp1d(array, reference, target, coordinate=coordinate)
+        _apply_interp1d(array, reference, target, axis=axis)
         for target in targets
     ]
     if reference.ndim == 2:
@@ -98,25 +98,17 @@ def apply(
     return numpy.array(interpolated)
 
 
-_AXES = {
-    'time': 0,
-    'radius': 1,
-    'energy': 1,
-    'mu': 0,
-}
-
-
 def _apply_interp1d(
     array: numpy.ndarray,
     reference: numpy.ndarray,
     target: float,
-    coordinate: str=None,
+    axis: int=None,
 ) -> typing.List[float]:
     """Interpolate data to `target` along the leading axis."""
     if target in reference:
         idx = numerical.find_nearest(reference, target).index
         return array[idx]
-    if (axis := _AXES.get(coordinate)) is not None:
+    if axis is not None:
         restriction = Restriction(
             restrict_coordinate,
             reference,
