@@ -398,7 +398,7 @@ class Context:
         references = []
         for a in q.axes:
             idx = self.get_index(a)
-            if idx.unit is not None:
+            if idx and idx.unit is not None:
                 coordinates[a] = idx.values
                 references.append(self.coordinates[a])
         return [
