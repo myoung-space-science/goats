@@ -421,8 +421,8 @@ class Context:
     def _build_coordinates(self):
         """Helper for `~coordinates` property. Extracted for overloading."""
         return {
-            k: self.interface.variables[k]
-            for k in self.interface.axes.items(aliased=True)
+            k: self.interface.variables.get(k)
+            for k in self.interface.axes.keys(aliased=True)
         }
 
     def get_index(self, key: str) -> axis.Index:
