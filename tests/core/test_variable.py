@@ -33,33 +33,46 @@ def test_variables(testdata: dict):
     """Test the higher-level variables interface."""
     reference = {
         'time': {
-            'unit': 's',
+            'unit': {
+                'mks': 's',
+                'cgs': 's',
+            },
             'axes': ['time'],
         },
         'Vr': {
-            'unit': 'm / s',
+            'unit': {
+                'mks': 'm / s',
+                'cgs': 'cm / s',
+            },
             'axes': ['time', 'shell'],
         },
         'flux': {
-            'unit': 'm^-2 s^-1 sr^-1 J^-1',
+            'unit': {
+                'mks': 'm^-2 s^-1 sr^-1 J^-1',
+                'cgs': 'cm^-2 s^-1 sr^-1 erg^-1',
+            },
             'axes': ['time', 'shell', 'species', 'energy'],
         },
         'dist': {
-            'unit': 's^3 m^-6',
+            'unit': {
+                'mks': 's^3 m^-6',
+                'cgs': 's^3 cm^-6',
+            },
             'axes': ['time', 'shell', 'species', 'energy', 'mu'],
         },
     }
     for name in ('eprem-obs', 'eprem-flux'):
         datafile = get_interface(testdata, name)
-        variables = variable.Interface(datafile)
         for observable, expected in reference.items():
-            if observable in variables:
-                v = variables[observable]
-                assert v.unit == expected['unit']
-                assert sorted(v.axes) == sorted(expected['axes'])
-            else:
-                with pytest.raises(KeyError):
-                    variables[observable]
+            for system, unit in expected['unit'].items():
+                variables = variable.Interface(datafile, system=system)
+                if observable in variables:
+                    v = variables[observable]
+                    assert v.unit == unit
+                    assert sorted(v.axes) == sorted(expected['axes'])
+                else:
+                    with pytest.raises(KeyError):
+                        variables[observable]
 
 
 def test_standardize():

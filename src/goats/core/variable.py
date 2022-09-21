@@ -164,19 +164,21 @@ class Interface(aliased.Mapping):
     
     This class provides aliased key-based access to all variables in a dataset.
     It converts each requested dataset variable into a `~variable.Quantity`
-    instance with the appropriate MKS unit.
+    instance with the appropriate for its metric system.
     """
 
-    def __init__(self, dataset: datafile.Interface) -> None:
+    def __init__(
+        self,
+        dataset: datafile.Interface,
+        system: typing.Union[str, metric.System]=None,
+    ) -> None:
         super().__init__(dataset.variables)
-        self._system = None
+        self._system = metric.System(system or 'mks')
         self._cache = {}
 
     @property
     def system(self):
         """This observer's metric system."""
-        if self._system is None:
-            self._system = metric.System('mks')
         return self._system
 
     def __getitem__(self, key: str) -> Quantity:
