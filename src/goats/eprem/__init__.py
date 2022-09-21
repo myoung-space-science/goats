@@ -13,7 +13,6 @@ from ..core import (
     fundamental,
     iterables,
     iotools,
-    index,
     measurable,
     metadata,
     numerical,
@@ -269,7 +268,11 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         system: str='mks',
     ) -> None:
         self._id = __id
-        super().__init__('preEruption', 'phiOffset', system=system)
+        super().__init__(
+            'preEruption', 'phiOffset',
+            system=system,
+            apply=Application,
+        )
         self._confpath = None
         self._dataset = None
         self.readfrom(source, config=config)
@@ -347,134 +350,6 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     def dataset(self) -> datafile.Interface:
         """This observer's original dataset."""
         return self._dataset
-
-    def process(self, old: variable.Quantity) -> variable.Quantity:
-        if any(self._get_reference(alias) is not None for alias in old.name):
-            # This is an axis-reference quantity.
-            return self._subscript(old)
-        needed = self._compute_coordinates(old)
-        if not needed:
-            # There are no axes over which to interpolate.
-            return self._subscript(old)
-        new = self._interpolate(old, needed)
-        # We only want to subscript the uninterpolated axes.
-        interpolated = [
-            'shell' if d == 'radius' else d
-            for d in needed
-        ]
-        axes = list(set(old.axes) - set(interpolated))
-        return self._subscript(new, *axes)
-
-    def _subscript(self, q: variable.Quantity, *axes: str):
-        """Extract a subset of this quantity."""
-        if axes:
-            indices = [
-                self.context.get_index(a) if a in axes else slice(None)
-                for a in q.axes
-            ]
-        else:
-            indices = [self.context.get_index(a) for a in q.axes]
-        return q[tuple(indices)]
-
-    def _compute_coordinates(self, q: variable.Quantity):
-        """Determine the measurable observing indices."""
-        dimensions = self._compute_dimensions(q)
-        coordinates = {}
-        if not dimensions:
-            return coordinates
-        for a in q.axes:
-            idx = self.context.get_index(a)
-            if a in dimensions and idx.unit is not None:
-                coordinates[a] = {
-                    'targets': numpy.array(idx.data),
-                    'reference': self._get_reference(a),
-                }
-        for key in reference.ALIASES['radius']:
-            if values := self.context.get_value(key):
-                try:
-                    iter(values)
-                except TypeError:
-                    floats = [float(values)]
-                else:
-                    floats = [float(value) for value in values]
-                coordinates['radius'] = {
-                    'targets': numpy.array(floats),
-                    'reference': self._get_reference('radius'),
-                }
-        return coordinates
-
-    def _compute_dimensions(self, q: variable.Quantity):
-        """Determine over which axes to interpolate, if any."""
-        coordinates = {}
-        references = []
-        for a in q.axes:
-            idx = self.context.get_index(a)
-            if idx.unit is not None:
-                coordinates[a] = idx.data
-                references.append(self._get_reference(a))
-        axes = [
-            a for (a, c), r in zip(coordinates.items(), references)
-            if not numpy.all([r.array_contains(target) for target in c])
-        ]
-        if any(r in self.context for r in reference.ALIASES['radius']):
-            axes.append('radius')
-        return axes
-
-    _references = None
-
-    def _get_reference(self, name: str) -> typing.Optional[variable.Quantity]:
-        """Get a reference quantity for indexing."""
-        if self._references is None:
-            axes = {
-                k: v.reference
-                for k, v in self.data.axes.items(aliased=True)
-            }
-            rtp = {
-                (k, *self.data.variables.alias(k, include=True)):
-                self.data.variables[k]
-                for k in {'radius', 'theta', 'phi'}
-            }
-            self._references = aliased.Mapping({**axes, **rtp})
-        return self._references.get(name)
-
-    def _interpolate(
-        self,
-        q: variable.Quantity,
-        coordinates: dict,
-    ) -> variable.Quantity:
-        """Internal interpolation logic."""
-        array = None
-        for coordinate, current in coordinates.items():
-            array = self._interpolate_coordinate(
-                q,
-                current['targets'],
-                current['reference'],
-                coordinate=coordinate,
-                workspace=array,
-            )
-        meta = {k: getattr(q, k, None) for k in {'unit', 'name', 'axes'}}
-        return variable.Quantity(array, **meta)
-
-    def _interpolate_coordinate(
-        self,
-        q: variable.Quantity,
-        targets: numpy.ndarray,
-        reference: variable.Quantity,
-        coordinate: str=None,
-        workspace: numpy.ndarray=None,
-    ) -> numpy.ndarray:
-        """Interpolate a variable array based on a known coordinate."""
-        array = numpy.array(q) if workspace is None else workspace
-        indices = (q.axes.index(d) for d in reference.axes)
-        dst, src = zip(*enumerate(indices))
-        reordered = numpy.moveaxis(array, src, dst)
-        interpolated = interpolation.apply(
-            reordered,
-            numpy.array(reference),
-            targets,
-            coordinate=coordinate,
-        )
-        return numpy.moveaxis(interpolated, dst, src)
 
     def __str__(self) -> str:
         return str(self.datapath)
