@@ -521,25 +521,6 @@ def test_variable_rename():
     assert list(v.alias('v0', reset=True).name) == ['v0']
 
 
-@pytest.mark.xfail
-@pytest.mark.variable
-def test_variable_get_array(var: typing.Dict[str, variable.Quantity]):
-    """Test the internal `_get_array` method to prevent regression."""
-    v = var['reference']
-    a = v._get_array((0, 0))
-    assert a.shape == ()
-    assert a == 1.0
-    assert v._array is None
-    a = v._get_array(0)
-    assert a.shape == (2,)
-    assert numpy.array_equal(a, [1, 2])
-    assert v._array is None
-    a = v._get_array()
-    assert a.shape == (3, 2)
-    assert numpy.array_equal(a, [[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
-    assert v._array is a
-
-
 # Copied from old test module. There is overlap with existing tests.
 @pytest.fixture
 def components():
