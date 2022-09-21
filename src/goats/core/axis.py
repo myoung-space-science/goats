@@ -155,9 +155,6 @@ class Quantity(metadata.NameMixin, iterables.ReprStrMixin):
     def index(self, *args, **kwargs):
         """Convert arguments into an index-like quantity."""
         targets = self._indexer.normalize(*args)
-        if all(isinstance(value, typing.SupportsIndex) for value in targets):
-            # All the target values are already indices.
-            return Index(Data(targets), name=self.name)
         if self.unit is None:
             # This axis does not represent a measurable quantity, so the
             # index-computing method should not expect a unit and the resulting
