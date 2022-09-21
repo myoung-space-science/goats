@@ -47,7 +47,7 @@ class Index(iterables.ReprStrMixin, collections.UserList):
         name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None:
         super().__init__(list(data.points))
-        self._values = list(data.values)
+        self._values = data.values
         self._unit = metadata.Unit(unit) if unit is not None else None
         self._name = name
 
