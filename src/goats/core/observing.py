@@ -231,18 +231,10 @@ class Interface(collections.abc.Collection):
             raise ValueError(f"No axis corresponding to {key!r}") from None
         if key not in constraints:
             return self.axes[key].index()
-        return self._compute_index(key, constraints[key])
-
-    def _compute_index(self, key: str, this):
-        """Compute a single indexing object from input values."""
-        target = (
-            this if isinstance(this, axis.Index)
-            else self.axes[key].index(*iterables.whole(this))
-        )
-        if target.unit is not None:
-            unit = self.variables.system.get_unit(unit=target.unit)
-            return target[unit]
-        return target
+        this = constraints[key]
+        if isinstance(this, axis.Index):
+            return this
+        return self.axes[key].index(*iterables.whole(this))
 
     def compute_value(self, key: str, **constraints) -> physical.Scalar:
         """Create a parameter value for `key`."""
