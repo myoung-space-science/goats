@@ -6,6 +6,7 @@ from goats.core import aliased
 from goats.core import datafile
 from goats.core import iterables
 from goats.core import metadata
+from goats.core import metric
 from goats.core import reference
 from goats.core import variable
 
@@ -188,14 +189,35 @@ class IndexTypeError(Exception):
 class Interface(aliased.MutableMapping):
     """An interface to the array axes available from a dataset."""
 
-    def __init__(self, dataset: datafile.Interface) -> None:
-        self._variables = variable.Interface(dataset)
+    def __init__(
+        self,
+        dataset: datafile.Interface,
+        system: typing.Union[str, metric.System]=None,
+    ) -> None:
         self.dataset = dataset
+        """The dataset to which these axes belong."""
+        self._variables = None
+        self._system = metric.System(system or 'mks')
         indexers = {
             k: self.build_default(k)
             for k in self.dataset.axes.keys(aliased=True)
         }
         super().__init__(indexers)
+
+    @property
+    def variables(self):
+        """The variable quantities that these axes support."""
+        if self._variables is None:
+            self._variables = variable.Interface(
+                self.dataset,
+                system=self.system,
+            )
+        return self._variables
+
+    @property
+    def system(self):
+        """The metric system of these axes."""
+        return self._system
 
     def __getitem__(self, __k: str) -> Quantity:
         """Get the named axis object, if possible."""
@@ -219,7 +241,7 @@ class Interface(aliased.MutableMapping):
         raise KeyError(f"No indexing method for axis {key!r}")
 
     def build_default(self, key: str):
-        """Define the axis-indexer factory method."""
+        """Define the default axis-indexer method."""
         n = self.dataset.axes[key].size
         def method(targets):
             try:
@@ -239,7 +261,7 @@ class Interface(aliased.MutableMapping):
     def get_unit(self, key: str):
         """Get the metric unit corresponding to `key`."""
         try:
-            unit = self._variables[key].unit
+            unit = self.variables[key].unit
         except KeyError:
             unit = None
         return unit
