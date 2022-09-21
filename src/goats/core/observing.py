@@ -387,7 +387,7 @@ class Context:
             idx = self.get_index(a)
             if a in dimensions and idx.unit is not None:
                 coordinates[a] = {
-                    'targets': numpy.array(idx.data),
+                    'targets': numpy.array(idx.values),
                     'reference': self.coordinates[a],
                 }
         return coordinates
