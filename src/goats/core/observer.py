@@ -1,16 +1,12 @@
-import abc
 import typing
 
-from goats.core import computed
 from goats.core import metadata
 from goats.core import metric
 from goats.core import observable
-from goats.core import observed
 from goats.core import observing
 from goats.core import reference
 from goats.core import spelling
 from goats.core import symbolic
-from goats.core import variable
 
 
 class Interface:
