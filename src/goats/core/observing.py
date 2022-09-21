@@ -130,69 +130,6 @@ class Quantity(variable.Quantity):
         return Parameters(self._parameters)
 
 
-class Metadata(
-    metadata.NameMixin,
-    metadata.AxesMixin,
-): ...
-
-
-class Quantity(Metadata, iterables.ReprStrMixin):
-    """A callable quantity that produces a variable quantity."""
-
-    def __init__(
-        self,
-        __method: computed.Method,
-        *,
-        axes: typing.Iterable[str]=None,
-        unit: metadata.UnitLike=None,
-        name: typing.Union[str, typing.Iterable[str]]=None,
-        parameters: typing.Iterable[str]=None,
-    ) -> None:
-        self.method = __method
-        self._axes = axes
-        self._unit = unit
-        self._name = name
-        self._parameters = parameters or ()
-
-    @property
-    def unit(self):
-        """This quantity's metric unit."""
-        return metadata.Unit(self._unit)
-
-    @property
-    def parameters(self):
-        """The optional parameters used when observing this quantity."""
-        return Parameters(self._parameters)
-
-    def __getitem__(self, unit: metadata.UnitLike):
-        """Set the unit of the resultant values.
-        
-        Notes
-        -----
-        See note at `~measurable.Quantity.__getitem__`.
-        """
-        if unit != self._unit:
-            self._unit = unit
-        return self
-
-    def __call__(self, **quantities):
-        """Create a variable quantity from input quantities."""
-        return variable.Quantity(
-            self.method.compute(**quantities),
-            axes=self.axes,
-            unit=self.unit,
-            name=self.name,
-        )
-
-    def __str__(self) -> str:
-        attrs = [
-            self.method.name,
-            f"axes={self.axes}",
-            f"unit={str(self.unit)!r}",
-        ]
-        return ', '.join(attrs)
-
-
 class Interface(collections.abc.Collection):
     """An interface to quantities required to make observations."""
 
