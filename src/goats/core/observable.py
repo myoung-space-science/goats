@@ -34,7 +34,7 @@ class Quantity(iterables.ReprStrMixin):
         self,
         name: typing.Union[str, typing.Iterable[str], metadata.Name],
         implementation: observing.Implementation,
-        context: observing.Context,
+        application: observing.Application,
     ) -> None:
         """
         Initialize this instance.
@@ -45,15 +45,17 @@ class Quantity(iterables.ReprStrMixin):
             The name(s) of this observable quantity.
 
         implementation : `~observing.Implementation`
-            The object that will apply default parameter values and
-            user-provided constraints to the target observable quantity.
+            The object that represents the observing interface to the target
+            observable quantity.
 
-        context : `~observing.Context`
-            An existing observing context to provide default parameter values.
+        application : `~observing.Application`
+            An existing observing application that will compute the observed
+            quantity, manage user constraints, and provide default parameter
+            values.
         """
         self._name = metadata.Name(name)
         self._implementation = implementation
-        self.context = context
+        self.application = application
         self._unit = None
         self._axes = None
 
@@ -88,6 +90,14 @@ class Quantity(iterables.ReprStrMixin):
 
     def observe(self, **constraints):
         """Observe this observable quantity."""
-        self.context.apply(**constraints)
-        return self._implementation.apply(self.context)
+        self.application.apply(**constraints)
+        return self._implementation.apply(self.application)
+
+    def __str__(self) -> str:
+        display = [
+            f"{str(self.name)!r}",
+            f"unit={str(self.unit)!r}",
+            f"axes={str(self.axes)}",
+        ]
+        return ', '.join(display)
 
