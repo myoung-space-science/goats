@@ -503,10 +503,10 @@ class Implementation:
         axes = (self.interface.get_axes(key) for key in name)
         return next(axes, None)
 
-    def apply(self, context: Context) -> observed.Quantity:
+    def apply(self, application: Application) -> observed.Quantity:
         """Apply an observing context to the target quantity."""
-        result = context.observe(self.name)
-        indices = {k: context.get_index(k) for k in result.axes}
-        scalars = {k: context.get_value(k) for k in result.parameters}
-        return observed.Quantity(result, indices, **scalars)
-
+        result = application.observe(self.name)
+        indices = {k: application.get_index(k) for k in result.axes}
+        scalars = {k: application.get_value(k) for k in result.parameters}
+        context = observed.Context(indices, assumptions=scalars)
+        return observed.Quantity(result, context)
