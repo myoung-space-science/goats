@@ -57,7 +57,12 @@ class Axes(axis.Interface):
     def shell(self):
         """Indexer for the EPREM shell dimension."""
         if self._shell is None:
-            self._shell = self.build_default('shell')
+            def method(targets, unit):
+                # NOTE: The presence of `unit` is a hack because 'shell'
+                # currently gets a unit of '1' even though it should probably be
+                # None. This hack is due to the design of `axis.Quantity`.
+                return axis.Data(targets)
+            self._shell = axis.Indexer(method, len(self.variables['shell']))
         return self._shell
 
     @property
@@ -93,7 +98,7 @@ class Axes(axis.Interface):
                     else targets
                 )
                 compute = self._build_coordinate(numpy.squeeze(this[s, :]))
-                return compute(t, unit=unit)
+                return compute(t, unit)
             self._energy = axis.Indexer(method, this.shape[1])
         return self._energy
 
@@ -118,7 +123,12 @@ class Axes(axis.Interface):
         """Create coordinate-like axis data from the given variable."""
         def method(targets, unit: metadata.UnitLike):
             if not targets:
-                return axis.Data(range(len(this)))
+                # If there are no target values, we assume the user wants the
+                # entire axis.
+                return axis.Data(range(len(this)), values=numpy.array(this))
+            if all(isinstance(t, typing.SupportsIndex) for t in targets):
+                # All the target values are already indices.
+                return axis.Data(targets, values=numpy.array(this))
             measured = measurable.measure(targets)
             if measured.unit != '1':
                 # If the targets include a dimensioned unit, we want to
