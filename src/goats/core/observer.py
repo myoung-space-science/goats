@@ -22,7 +22,7 @@ class Interface:
         self,
         *unobservable: str,
         system: str='mks',
-        context: observing.Context=None,
+        apply: typing.Type[observing.Application]=None,
     ) -> None:
         """Initialize this instance.
         
@@ -36,19 +36,17 @@ class Interface:
         system : string, default='mks'
             The metric system to use for variable and observable quantities.
 
-        context : `~observing.Context`, optional
-            An instance of `~observing.Context` or of a subclass thereof. This
-            attribute will provide default parameter values as well as
-            instructions for evaluating variable quantities during the observing
-            process. If `context` is absent, this class will use an instance of
-            the base class.
+        application : type of observing application, optional
+            A subclass of `~observing.Application` with which to evaluate
+            operational parameters and variable quantities during the observing
+            process. If `application` is absent, this class will use an instance
+            of the base class.
         """
         self._unobservable = unobservable
         self._system = metric.System(system)
-        self._context = context
+        self._application_type = apply or observing.Application
         self._source = None
-        self._context = None
-        self._interface = None
+        self._application = None
         self._spellcheck = None
 
     # TODO: I'm no longer sure it makes sense to allow the user to update an
@@ -64,8 +62,7 @@ class Interface:
     def readfrom(self, source):
         """Update this observer's data source."""
         self._source = source
-        self._context = None
-        self._interface = None
+        self._application = None
         return self
 
     @property
@@ -74,11 +71,11 @@ class Interface:
         return self._source
 
     @property
-    def context(self):
-        """This observer's observing context."""
-        if self._context is None:
-            self._context = observing.Context(self.data)
-        return self._context
+    def application(self):
+        """This observer's observing application."""
+        if self._application is None:
+            self._application = self._application_type(self.data)
+        return self._application
 
     @property
     def assumptions(self):
@@ -128,7 +125,7 @@ class Interface:
             return observable.Quantity(
                 name,
                 observing.Implementation(key, self.data),
-                context=self.context,
+                application=self.application,
             )
         if key in self.data.variables:
             return self.data.variables[key]
