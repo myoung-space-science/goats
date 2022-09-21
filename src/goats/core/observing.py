@@ -138,7 +138,6 @@ class Interface(collections.abc.Collection):
         axes: axis.Interface,
         variables: variable.Interface,
         constants: constant.Interface,
-        system: typing.Union[str, metric.System]=None,
     ) -> None:
         self.axes = axes
         """The axis-managing objects available to this observer."""
@@ -146,7 +145,7 @@ class Interface(collections.abc.Collection):
         """The variable quantities available to this observer."""
         self.constants = constants
         """The constant quantities available to this observer."""
-        self._system = metric.System(system)
+        self._system = None
         self._names = None
         self._functions = None
         assumptions = {
