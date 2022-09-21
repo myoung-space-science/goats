@@ -4,6 +4,7 @@ import numpy
 from goats.core import aliased
 from goats.core import axis
 from goats.core import datafile
+from goats.core import metric
 from goats.core import variable
 from goats import eprem
 
@@ -19,72 +20,110 @@ def test_axes(datapath):
     cases = {
         'time': {
             'length': 50,
-            'test': {
-                'user': (0.1, 0.3, 'day'),
-                'indices': [0, 2],
-                'values': [86400 * i for i in (0.1, 0.3)],
+            'inputs': (0.1, 0.3, 'day'),
+            'expected': {
+                'points': [0, 2],
+                'values': {
+                    'mks': [86400 * i for i in (0.1, 0.3)],
+                    'cgs': [86400 * i for i in (0.1, 0.3)],
+                },
+                'unit': {
+                    'mks': 's',
+                    'cgs': 's',
+                },
             },
         },
         'shell': {
             'length': 2000,
-            'test': {
-                'user': (0, 2),
-                'indices': [0, 2],
-                'values': [0, 2],
+            'inputs': (0, 2),
+            'expected': {
+                'points': [0, 2],
+                'values': {
+                    'mks': [0, 2],
+                    'cgs': [0, 2],
+                },
+                'unit': {
+                    'mks': '1',
+                    'cgs': '1',
+                },
             },
         },
         'species': {
             'length': 1,
-            'test': {
-                'user': ['H+'],
-                'indices': [0],
-                'values': ['H+'],
+            'inputs': ['H+'],
+            'expected': {
+                'points': [0],
+                'values': {
+                    'mks': ['H+'],
+                    'cgs': ['H+'],
+                },
+                'unit': {
+                    'mks': None,
+                    'cgs': None,
+                },
             },
         },
         'energy': {
             'length': 20,
-            'test': {
-                'user': (1e-1, 1e2, 'MeV'),
-                'indices': [0, 19],
-                'values': [1.6022e-13 * i for i in (1e-1, 1e2)],
+            'inputs': (1e-1, 1e2, 'MeV'),
+            'expected': {
+                'points': [0, 19],
+                'values': {
+                    'mks': [1.6022e-13 * i for i in (1e-1, 1e2)],
+                    'cgs': [1.6022e-6 * i for i in (1e-1, 1e2)],
+                },
+                'unit': {
+                    'mks': 'J',
+                    'cgs': 'erg',
+                },
             },
         },
         'mu': {
             'length': 8,
-            'test': {
-                'user': (-1.0, +1.0),
-                'indices': [0, 7],
-                'values': [-1.0, +1.0],
+            'inputs': (-1.0, +1.0),
+            'expected': {
+                'points': [0, 7],
+                'values': {
+                    'mks': [-1.0, +1.0],
+                    'cgs': [-1.0, +1.0],
+                },
+                'unit': {
+                    'mks': '1',
+                    'cgs': '1',
+                },
             },
         },
     }
     data = datafile.Interface(datapath)
-    axes = eprem.Axes(data)
-    for name, expected in cases.items():
-        if name != 'energy':
+    for name, parameters in cases.items():
+        for system in metric.SYSTEMS:
+            axes = eprem.Axes(data, system=system)
             this = axes[name]
-            full = this.index()
-            assert isinstance(full, axis.Index)
-            assert len(full) == expected['length']
-            test = expected['test']
-            user = this.index(*test['user'])
-            assert list(user) == test['indices']
-            if user.unit is not None:
-                assert numpy.allclose(user.values, test['values'])
-            elif any(i != j for i, j in zip(user, user.values)):
-                assert list(user.values) == test['values']
-    name = 'energy'
-    expected = cases['energy']
-    species = axes['species']
-    for s in species.index():
-        this = axes[name]
-        full = this.index(species=s)
-        assert isinstance(full, axis.Index)
-        assert len(full) == expected['length']
-        test = expected['test']
-        user = this.index(*test['user'])
-        assert list(user) == test['indices']
-        assert numpy.allclose(user.values, test['values'])
+            if name == 'energy':
+                for species in axes['species'].index():
+                    check_axis(this, parameters, system, species=species)
+            else:
+                check_axis(this, parameters, system)
+
+
+def check_axis(this: axis.Quantity, parameters, system, **kwargs):
+    """Helper for `test_axes`."""
+    length = parameters['length']
+    inputs = parameters['inputs']
+    expected = parameters['expected']
+    points = expected['points']
+    unit = expected['unit'][system]
+    values = expected['values'][system]
+    full = this.index(**kwargs)
+    assert isinstance(full, axis.Index)
+    assert len(full) == length
+    user = this.index(*inputs, **kwargs)
+    assert list(user) == points
+    assert user.unit == unit
+    if user.unit is not None:
+        assert numpy.allclose(user.values, values)
+    elif any(i != j for i, j in zip(user, user.values)):
+        assert list(user.values) == values
 
 
 def test_single_index(datapath):
