@@ -11,10 +11,11 @@ import pytest
 
 from goats.core import constant
 from goats.core import fundamental
-from goats.core import index
+from goats.core import metric
 from goats.core import observable
 from goats.core import observed
 from goats.core import observer
+from goats.core import physical
 from goats import eprem
 
 
@@ -287,29 +288,16 @@ def test_observable_access(
         assert isinstance(quantity, observable.Quantity)
 
 
-def test_create_observation_from_quantity(
-    stream: eprem.Stream,
-    observables: typing.Dict[str, dict],
-) -> None:
-    """Create the default observation from each observable quantity."""
-    for name, expected in observables.items():
-        this = stream[name]
-        observation = stream.observe(this)
-        assert isinstance(observation, observed.Quantity)
-        for axis in expected['axes']:
-            assert isinstance(observation[axis], index.Quantity), axis
-
-
 def test_create_observation_by_name(
     stream: eprem.Stream,
     observables: typing.Dict[str, dict],
 ) -> None:
     """Create the default observation from each observable quantity."""
     for name, expected in observables.items():
-        observation = stream.observe(name)
+        observation = stream[name].observe()
         assert isinstance(observation, observed.Quantity)
         for axis in expected['axes']:
-            assert isinstance(observation[axis], index.Quantity), axis
+            assert isinstance(observation[axis], physical.Array), axis
 
 
 def test_parameter_access(stream: eprem.Stream) -> None:
@@ -334,11 +322,10 @@ def test_observing_unit(stream: eprem.Stream):
     r = stream['r']
     assert r.unit == 'm'
     assert r['au'].unit == 'au'
-    r.reset()
     assert r.unit == 'm'
-    old = stream.observe(r).data
-    new = stream.observe(r['au']).data
-    assert numpy.allclose(old, new * float(fundamental.mks['au']))
+    old = stream['r'].observe().array
+    new = stream['r']['au'].observe().array
+    assert numpy.allclose(old, new * (metric.Unit('m') // metric.Unit('au')))
 
 
 def test_observer_metric_system(
@@ -347,7 +334,9 @@ def test_observer_metric_system(
 ) -> None:
     """Allow users to declare the observer's metric system."""
     source = rootpath / 'cone' / 'obs'
-    for system in {'mks'}:
+    # systems = metric.SYSTEMS
+    systems = ('cgs', 'mks')
+    for system in systems:
         stream = eprem.Stream(0, source=source, system=system)
         for name, expected in observables.items():
             assert stream[name].unit == expected['unit'][system]
@@ -386,14 +375,13 @@ def test_interpolation(stream: eprem.Stream):
     for case in cases:
         name = case['index']
         value = case['value']
-        observation = stream.observe(
-            'integral flux',
+        observation = stream['integral flux'].observe(
             **{name: value},
             species='H+',
         )
         assert observation.data.shape == (50, 1, 1, 1)
         plt.plot(
-            observation.data.squeeze(),
+            observation.array,
             label=f'{name} = {value}',
             color=case['color'],
             **kwargs.get(name, {}),

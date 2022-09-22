@@ -21,7 +21,7 @@ def test_basetypes_h(source_path):
     for path in (source_path, None):
         b = runtime.BaseTypesH(path)
         for key, value in _BASETYPES_H.items():
-            assert b[key] == value
+            assert b[key] == pytest.approx(value)
 
 
 def test_configuration_c(source_path):
