@@ -107,7 +107,7 @@ class Interface:
     def __getitem__(self, key: str):
         """Access an observable quantity by keyword, if possible."""
         if q := self._get_quantity(key):
-            return q[str(self.system())]
+            return q
         self._check_spelling(key) # -> None if `key` is spelled correctly
         raise KeyError(f"No observable for {key!r}") from None
 
