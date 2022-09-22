@@ -244,8 +244,8 @@ def test_vector_display():
 
 
 @pytest.mark.vector
-def test_vector_init():
-    """Test initializing with various arguments."""
+def test_create_vector():
+    """Initialize a vector from various arguments."""
     unit = 'm'
     name = 'V'
     expected = physical.Vector([1.1], unit=unit, name=name)
