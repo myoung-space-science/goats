@@ -93,6 +93,15 @@ class Quantity(iterables.ReprStrMixin):
         self.application.apply(**constraints)
         return self._implementation.apply(self.application)
 
+    def __eq__(self, __o) -> bool:
+        """True if two instances have equivalent attributes."""
+        if isinstance(__o, Quantity):
+            return all(
+                getattr(self, attr) == getattr(__o, attr)
+                for attr in ('name', 'unit', 'axes')
+            )
+        return NotImplemented
+
     def __str__(self) -> str:
         display = [
             f"{str(self.name)!r}",
