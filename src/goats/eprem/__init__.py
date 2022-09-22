@@ -193,8 +193,17 @@ class Application(observing.Application):
         }
         return {**base, **grid}
 
+    _axes = {
+        'time': 0,
+        'energy': 1,
+        'mu': 1,
+    }
+
     def _compute_coordinates(self, q: variable.Quantity):
-        base = super()._compute_coordinates(q)
+        base = {
+            k: {**c, 'axis': self._axes.get(k)}
+            for k, c in super()._compute_coordinates(q).items()
+        }
         for key in reference.ALIASES['radius']:
             if values := self.get_value(key):
                 try:
@@ -206,14 +215,16 @@ class Application(observing.Application):
                 base['radius'] = {
                     'targets': numpy.array(floats),
                     'reference': self.coordinates['radius'],
+                    'axis': 1,
                 }
         return base
 
     def _compute_dimensions(self, q: variable.Quantity):
         base = super()._compute_dimensions(q)
-        if any(r in self for r in reference.ALIASES['radius']):
-            # See note at `observing.Application.__contains__`.
-            base.append('radius')
+        if (
+            'shell' in q.axes
+            and any(r in self for r in reference.ALIASES['radius'])
+        ): base.append('radius')
         return base
 
     def _interpolate(
