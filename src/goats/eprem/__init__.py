@@ -124,7 +124,7 @@ class Axes(axis.Interface):
 
     def _build_coordinate(self, this: variable.Quantity):
         """Create coordinate-like axis data from the given variable."""
-        def method(targets, unit: metadata.UnitLike):
+        def method(targets, unit: typing.Union[str, metadata.Unit]):
             if not targets:
                 # If there are no target values, we assume the user wants the
                 # entire axis.
@@ -147,9 +147,9 @@ class Axes(axis.Interface):
                 # appropriate unit for both cases.
                 array = physical.Array(measured.values, unit=unit)
             # Convert the reference variable quantity to the default unit.
-            this[unit]
-            if array.unit | this.unit: # Could also use try/except
-                array[this.unit]
+            converted = this[unit]
+            if array.unit | converted.unit: # Could also use try/except
+                array = array[converted.unit]
             values = numpy.array(array)
             indices = [
                 numerical.find_nearest(this, float(value)).index
