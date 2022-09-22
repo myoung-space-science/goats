@@ -507,5 +507,5 @@ class Implementation:
         result = application.observe(self.name)
         indices = {k: application.get_index(k) for k in result.axes}
         scalars = {k: application.get_value(k) for k in result.parameters}
-        context = observed.Context(indices, assumptions=scalars)
+        context = observed.Context(indices, scalars=scalars)
         return observed.Quantity(result, context)
