@@ -323,8 +323,13 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
             return self._subscript_standard(unwrapped)
         return self._subscript_custom(unwrapped)
 
-    def apply_unit(self, new: metadata.UnitLike):
-        self._scale *= new // self._unit
+    def apply_unit(self, unit: metadata.UnitLike):
+        # Create a copy of this instance.
+        new = self._copy_with(unit=unit)
+        # Update the new instance's internal `scale` attribute.
+        new._scale *= unit // self._unit
+        # Return the new instance.
+        return new
 
     def _subscript_standard(self, indices):
         """Perform standard array subscription.

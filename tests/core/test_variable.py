@@ -128,7 +128,7 @@ def test_variable():
     reference = variable.Quantity(v0)
     assert reference is not v0
     v0_cm = v0['cm']
-    assert v0_cm is v0
+    assert v0_cm is not v0
     expected = 100 * reference
     assert numpy.array_equal(v0_cm, expected)
     assert v0_cm.unit == metadata.Unit('cm')
@@ -428,7 +428,7 @@ def test_variable_units(var: typing.Dict[str, variable.Quantity]):
     reference = variable.Quantity(v0)
     v0_km = v0['km']
     assert isinstance(v0_km, variable.Quantity)
-    assert v0_km is v0
+    assert v0_km is not v0
     assert v0_km is not reference
     assert v0_km.unit == 'km'
     assert v0_km.axes == reference.axes
