@@ -98,7 +98,9 @@ class Quantity(iterables.ReprStrMixin):
     def observe(self, **constraints):
         """Observe this observable quantity."""
         self.application.apply(**constraints)
-        return self._implementation.apply(self.application, unit=self.unit)
+        result = self._implementation.apply(self.application, unit=self.unit)
+        self.application.reset()
+        return result
 
     def __eq__(self, __o) -> bool:
         """True if two instances have equivalent attributes."""
