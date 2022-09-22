@@ -314,7 +314,19 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
 
     _builtin = (int, slice, type(...), type(None))
 
-    def __getitem__(self, *args: typing.Union[metadata.UnitLike, IndexLike]):
+    @typing.overload
+    def __getitem__(
+        self: Instance,
+        unit: metadata.UnitLike,
+    ) -> Instance: ...
+
+    @typing.overload
+    def __getitem__(
+        self,
+        *args: IndexLike,
+    ) -> typing.Union[Scalar, 'Array', Instance]: ...
+
+    def __getitem__(self, *args):
         """Create a new instance from a subset of data."""
         if len(args) == 1 and isinstance(args[0], metadata.UnitLike):
             return super().__getitem__(args[0])

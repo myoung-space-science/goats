@@ -115,6 +115,18 @@ class Quantity(physical.Array, metadata.AxesMixin):
             return False
         return numpy.any([numpy.isclose(value, self._array, atol=0.0)])
 
+    @typing.overload
+    def __getitem__(
+        self: Instance,
+        unit: metadata.UnitLike,
+    ) -> Instance: ...
+
+    @typing.overload
+    def __getitem__(
+        self,
+        *args: physical.IndexLike,
+    ) -> typing.Union[physical.Scalar, physical.Array, Instance]: ...
+
     def __getitem__(self, *args):
         result = super().__getitem__(*args)
         if isinstance(result, physical.Array) and result.ndim == self.axes:
