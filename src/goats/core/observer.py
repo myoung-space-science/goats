@@ -113,7 +113,7 @@ class Interface:
 
     def _get_quantity(self, key: str):
         """Retrieve the named quantity from an interface, if possible."""
-        if self.knows(key): # Get logic from `observable.Interface`
+        if self.knows(key):
             name = metadata.Name(
                 key if observable.iscomposed(key)
                 else reference.ALIASES[key]
