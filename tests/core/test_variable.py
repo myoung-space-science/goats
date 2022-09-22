@@ -136,8 +136,8 @@ def test_variable():
 
 
 @pytest.mark.variable
-def test_variable_init():
-    """Test initializing a variable object."""
+def test_create_variable():
+    """Initialize a variable from various arguments."""
     data = [[3.0], [4.5]]
     unit = 'm / s'
     name = 'V'
