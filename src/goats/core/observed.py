@@ -16,10 +16,11 @@ class Context:
     def __init__(
         self,
         indices: typing.Mapping[str, axis.Index],
-        assumptions: typing.Mapping[str, constant.Assumption]=None
+        scalars: typing.Mapping[str, physical.Scalar]=None
     ) -> None:
         self._indices = indices
-        self._assumptions = aliased.Mapping(assumptions or {})
+        self._scalars = scalars
+        self._assumptions = None
         self._axes = None
 
     @property
@@ -38,6 +39,12 @@ class Context:
                     name=index.name,
                 )
                 for k, index in items
+                # HACK: This handles cases in which a function added a
+                # non-standard axis. For example, integral flux removes the
+                # 'energy' axis and adds a 'minimum energy' axis. A long-term
+                # solution should treat non-standard axes as equivalent to
+                # standard axes.
+                if index
             }
             self._axes = aliased.Mapping(axes)
         return self._axes
@@ -45,6 +52,17 @@ class Context:
     @property
     def assumptions(self):
         """The physical assumptions relevant to this observation."""
+        if self._assumptions is None:
+            items = (
+                self._scalars.items(aliased=True)
+                if isinstance(self._scalars, aliased.Mapping)
+                else self._scalars.items()
+            )
+            assumptions = {
+                k: constant.Assumption(scalar)
+                for k, scalar in items if scalar
+            }
+            self._assumptions = aliased.Mapping(assumptions)
         return self._assumptions
 
     def __eq__(self, __o) -> bool:
