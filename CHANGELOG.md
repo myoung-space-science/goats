@@ -1,5 +1,7 @@
 # Changelog
 
+## NEXT
+
 ## v0.0.27 (20Aug2022)
 
 - Develop new observer interface and observing API.
