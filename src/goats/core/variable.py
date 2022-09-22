@@ -118,7 +118,7 @@ class Quantity(physical.Array, metadata.AxesMixin):
     @typing.overload
     def __getitem__(
         self: Instance,
-        unit: metadata.UnitLike,
+        unit: typing.Union[str, metric.Unit],
     ) -> Instance: ...
 
     @typing.overload

@@ -11,6 +11,7 @@ from goats.core import fundamental
 from goats.core import iterables
 from goats.core import measurable
 from goats.core import metadata
+from goats.core import metric
 
 
 Instance = typing.TypeVar('Instance', bound='Quantity')
@@ -317,7 +318,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
     @typing.overload
     def __getitem__(
         self: Instance,
-        unit: metadata.UnitLike,
+        unit: typing.Union[str, metric.Unit],
     ) -> Instance: ...
 
     @typing.overload
