@@ -210,7 +210,7 @@ class Interface(aliased.Mapping):
             # subpackage should ultimately handle this logic (and maybe the
             # other special cases in `substitutions`)
             variable[self.system['mass'].unit]
-            if key == 'mass'
+            if key in {'mass', 'm'}
             else variable[str(self.system)]
         )
         self._cache[key] = converted
