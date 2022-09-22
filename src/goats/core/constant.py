@@ -15,8 +15,10 @@ class Assumption(physical.Vector):
     assumption to the built-in `int` and `float` types.
     """
 
-    def __getitem__(self, index):
-        values = super().__getitem__(index)
+    def __getitem__(self, arg):
+        if isinstance(arg, str):
+            return super().__getitem__(arg)
+        values = super().__getitem__(arg)
         try:
             iter(values)
         except TypeError:
