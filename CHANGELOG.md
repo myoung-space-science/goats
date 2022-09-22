@@ -2,6 +2,18 @@
 
 ## NEXT
 
+- Modify (partially revert) observer interface and observing API
+- Pass names of unobservable quantities to observer interface
+- Provide access to unobservable quantities as variable quantities
+- Support changing observer's data source after initialization
+- Reimplement quantity unit updates to return a new instance
+- Merge index.py functionality into axis.py
+- Add a 'mode' feature to spell checking
+- Extract symbolic.py from algebraic.py
+- Add features to symbolic (previously algebraic) Term and Expression
+- Make significant updates to metric quantities, dimensions, units, and conversions
+- Create a Scalar when initializing Array with a single value
+
 ## v0.0.27 (20Aug2022)
 
 - Develop new observer interface and observing API.
