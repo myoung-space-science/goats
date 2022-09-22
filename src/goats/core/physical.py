@@ -147,6 +147,12 @@ class Vector(Quantity):
     @typing.overload
     def __init__(
         self: Instance,
+        scalar: Scalar,
+    ) -> None: ...
+
+    @typing.overload
+    def __init__(
+        self: Instance,
         instance: Instance,
     ) -> None: ...
 
@@ -154,6 +160,9 @@ class Vector(Quantity):
         if isinstance(__data, measurable.Measurement):
             meta = {'unit': __data.unit}
             __data = __data.values
+        elif isinstance(__data, Scalar):
+            meta = {k: getattr(__data, k) for k in ('unit', 'name')}
+            __data = __data.data
         array = numpy.asfarray(list(iterables.whole(__data)))
         super().__init__(array, **meta)
 
