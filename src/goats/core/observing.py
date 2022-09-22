@@ -478,11 +478,20 @@ class Implementation:
         self,
         name: typing.Union[str, typing.Iterable[str], metadata.Name],
     ) -> metadata.Unit:
-        """Determine the unit corresponding to `name`."""
+        """Return the unit corresponding to `name`."""
         if 'unit' not in self._cache:
             self._cache['unit'] = {}
         if name in self._cache['unit']:
             return self._cache['unit'][name]
+        unit = self._lookup_unit(name)
+        self._cache['unit'][name] = unit
+        return unit
+
+    def _lookup_unit(
+        self,
+        name: typing.Union[str, typing.Iterable[str], metadata.Name],
+    ) -> metadata.Unit:
+        """Determine the unit corresponding to `name`."""
         if isinstance(name, str):
             return self.interface.get_unit(name)
         unit = (self.interface.get_unit(key) for key in name)
@@ -492,11 +501,20 @@ class Implementation:
         self,
         name: typing.Union[str, typing.Iterable[str], metadata.Name],
     ) -> metadata.Axes:
-        """Determine the axes corresponding to `name`."""
+        """Return the axes corresponding to `name`."""
         if 'axes' not in self._cache:
             self._cache['axes'] = {}
         if name in self._cache['axes']:
             return self._cache['axes'][name]
+        axes = self._lookup_axes(name)
+        self._cache['axes'][name] = axes
+        return axes
+
+    def _lookup_axes(
+        self,
+        name: typing.Union[str, typing.Iterable[str], metadata.Name],
+    ) -> metadata.Unit:
+        """Determine the axes corresponding to `name`."""
         if isinstance(name, str):
             return self.interface.get_axes(name)
         axes = (self.interface.get_axes(key) for key in name)
