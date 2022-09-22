@@ -188,10 +188,12 @@ def test_quantity_unit():
     assert q['cgs'] == measurable.Quantity(100, unit='cm')
     with pytest.raises(ValueError):
         q['J']
-    q = measurable.Quantity(2, unit='J')
-    assert q['eV'].unit == 'eV'
+    q0 = measurable.Quantity(2, unit='J')
+    q1 = q0['eV']
+    assert q1 is not q0
+    assert q1.unit == 'eV'
     with pytest.raises(ValueError):
-        q['cm']
+        q0['cm']
 
 
 @pytest.mark.quantity

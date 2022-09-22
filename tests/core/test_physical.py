@@ -213,12 +213,12 @@ def test_vector_operators():
 @pytest.mark.scalar
 def test_scalar_display():
     """Test the results of str(self) and repr(self) for a scalar."""
-    scalar = physical.Scalar(1.234, unit='m')
-    assert str(scalar) == "1.234 [m]"
-    assert repr(scalar).endswith("Scalar(1.234, unit='m')")
-    scalar['cm']
-    assert str(scalar) == "123.4 [cm]"
-    assert repr(scalar).endswith("Scalar(123.4, unit='cm')")
+    old = physical.Scalar(1.234, unit='m')
+    assert str(old) == "1.234 [m]"
+    assert repr(old).endswith("Scalar(1.234, unit='m')")
+    new = old['cm']
+    assert str(new) == "123.4 [cm]"
+    assert repr(new).endswith("Scalar(123.4, unit='cm')")
 
 
 def test_constants():
@@ -235,12 +235,12 @@ def test_constants():
 @pytest.mark.vector
 def test_vector_display():
     """Test the results of str(self) and repr(self) for a vector."""
-    vector = physical.Vector(1.234, unit='m')
-    assert str(vector) == "[1.234] [m]"
-    assert repr(vector).endswith("Vector([1.234], unit='m')")
-    vector['cm']
-    assert str(vector) == "[123.4] [cm]"
-    assert repr(vector).endswith("Vector([123.4], unit='cm')")
+    old = physical.Vector(1.234, unit='m')
+    assert str(old) == "[1.234] [m]"
+    assert repr(old).endswith("Vector([1.234], unit='m')")
+    new = old['cm']
+    assert str(new) == "[123.4] [cm]"
+    assert repr(new).endswith("Vector([123.4], unit='cm')")
 
 
 @pytest.mark.vector
@@ -281,7 +281,7 @@ def check_units(
     original = obj(amount, unit=reference)
     assert original.unit == reference
     updated = original[new]
-    assert updated is original
+    assert updated is not original
     assert updated.unit == new
     factor = metadata.Unit(new) // metadata.Unit(reference)
     assert updated == obj(rescale(amount, factor), unit=new)

@@ -199,19 +199,29 @@ class Quantity(Quantified):
         
         Notes
         -----
-        Using this special method to update the instance unit causes it to act
-        like an in-place version of ``__setitem__``. It supports a simple and
+        Using this special method to change the unit supports a simple and
         relatively intuitive syntax but is arguably an abuse of notation.
         """
         unit = (
             self.unit.norm[arg]
             if str(arg).lower() in metric.SYSTEMS else arg
         )
-        if unit != self._unit:
-            new = self._validate_unit(metadata.Unit(unit))
-            self.apply_unit(new)
-            self._unit = new
-        return self
+        if unit == self._unit:
+            return self
+        new = self._validate_unit(metadata.Unit(unit))
+        return self.apply_unit(new)
+
+    def apply_unit(self, unit: metadata.Unit):
+        """Update data values based on the new unit.
+        
+        Extracted for overloading, to allow subclasses to customize how to
+        update the instance unit and to apply the corresponding conversion
+        factor. For example, some subclasses may wish to simply store an updated
+        scale factor, and to defer application of the scale factor to the data
+        object if doing so here would be inefficient.
+        """
+        data = self._data * (unit // self._unit)
+        return type(self)(data, unit=unit)
 
     def _validate_unit(self, unit: metadata.UnitLike):
         """Raise an exception if `unit` is inconsistent with this quantity.
@@ -224,17 +234,6 @@ class Quantity(Quantified):
         raise ValueError(
             f"The unit {str(unit)!r} is inconsistent with {str(self.unit)!r}"
         ) from None
-
-    def apply_unit(self, new: metadata.Unit):
-        """Update data values based on the new unit.
-        
-        Extracted for overloading, to allow subclasses to customize how to
-        update the instance unit and to apply the corresponding conversion
-        factor. For example, some subclasses may wish to simply store an updated
-        scale factor, and to defer application of the scale factor to the data
-        object if doing so here would be inefficient.
-        """
-        self._data *= new // self._unit
 
     def __measure__(self):
         """Create a measurement from this quantity's data and unit."""
