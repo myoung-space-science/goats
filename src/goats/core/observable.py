@@ -35,6 +35,7 @@ class Quantity(iterables.ReprStrMixin):
         name: typing.Union[str, typing.Iterable[str], metadata.Name],
         implementation: observing.Implementation,
         application: observing.Application,
+        unit: metadata.UnitLike=None,
     ) -> None:
         """
         Initialize this instance.
@@ -52,28 +53,34 @@ class Quantity(iterables.ReprStrMixin):
             An existing observing application that will compute the observed
             quantity, manage user constraints, and provide default parameter
             values.
+
+        unit : unit-like, optional
+            The metric unit to which to convert observations of this quantity.
         """
         self._name = metadata.Name(name)
         self._implementation = implementation
         self.application = application
-        self._unit = None
+        self._unit = metadata.Unit(unit or self._implementation.get_unit(name))
         self._axes = None
 
     def __getitem__(self, __x: metadata.UnitLike):
-        """Set the unit of this quantity."""
+        """Create a quantity with the new unit."""
         unit = (
             self.unit.norm[__x]
             if str(__x).lower() in metric.SYSTEMS else __x
         )
-        if unit != self._unit:
-            self._unit = metadata.Unit(unit)
-        return self
+        if unit == self._unit:
+            return self
+        return Quantity(
+            self.name,
+            self._implementation,
+            self.application,
+            unit=metadata.Unit(unit),
+        )
 
     @property
     def unit(self):
-        """This quantity's metric unit."""
-        if self._unit is None:
-            self._unit = self._implementation.get_unit(self.name)
+        """This quantity's current metric unit."""
         return self._unit
 
     @property
@@ -91,7 +98,7 @@ class Quantity(iterables.ReprStrMixin):
     def observe(self, **constraints):
         """Observe this observable quantity."""
         self.application.apply(**constraints)
-        return self._implementation.apply(self.application)
+        return self._implementation.apply(self.application, unit=self.unit)
 
     def __eq__(self, __o) -> bool:
         """True if two instances have equivalent attributes."""
