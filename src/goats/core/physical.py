@@ -340,7 +340,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         # Create a copy of this instance.
         new = self._copy_with(unit=unit)
         # Update the new instance's internal `scale` attribute.
-        new._scale *= unit // self._unit
+        new._scale = self._scale * (unit // self._unit)
         # Return the new instance.
         return new
 
