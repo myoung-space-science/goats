@@ -389,6 +389,8 @@ def test_interpolation(stream: eprem.Stream):
     }
     # TODO: This should test actual values to make sure that the results at
     # difference shells are different.
+    time_unit = 'hour'
+    data_unit = 'cm^-2 s^-1 sr^-1'
     for case in cases:
         name = case['index']
         value = case['value']
@@ -396,13 +398,17 @@ def test_interpolation(stream: eprem.Stream):
             **{name: value},
             species='H+',
         )
-        assert observation.data.shape == (50, 1, 1, 1)
+        converted = observation[data_unit]
+        assert converted.data.shape == (50, 1, 1, 1)
         plt.plot(
-            observation.array,
+            converted['time'][time_unit],
+            converted.array,
             label=f'{name} = {value}',
             color=case['color'],
             **kwargs.get(name, {}),
         )
+    plt.xlabel(f'Time [{time_unit}]')
+    plt.ylabel(f'Integral Flux [{data_unit}]')
     plt.yscale('log')
     plt.legend()
     plt.savefig('test_interpolation.png')
