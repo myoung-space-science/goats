@@ -328,6 +328,24 @@ def test_observing_unit(stream: eprem.Stream):
     assert numpy.allclose(old, new * (metric.Unit('m') // metric.Unit('au')))
 
 
+def test_observation_unit(stream: eprem.Stream):
+    """Check and change the unit of an observed quantity."""
+    cases = {
+        'r': ('m', 'au'),
+        'Vr': ('m / s', 'km / s'),
+        'flux': ('m^-2 s^-1 sr^-1 J^-1', 'cm^-2 s^-1 sr^-1 MeV^-1'),
+        'mfp / Vr': ('s', 'day'),
+    }
+    for name, (u0, u1) in cases.items():
+        observation = stream[name].observe()
+        assert observation.data.unit == u0
+        converted = observation[u1]
+        assert converted is not observation
+        assert converted.data.name == observation.data.name
+        assert converted.data.axes == observation.data.axes
+        assert converted.data.unit == u1
+
+
 def test_observer_metric_system(
     rootpath: Path,
     observables: typing.Dict[str, dict],

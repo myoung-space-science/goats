@@ -125,6 +125,13 @@ class Quantity(iterables.ReprStrMixin):
             return self._context.axes[__x]
         if __x in self._context.assumptions:
             return self._context.assumptions[__x]
+        try:
+            return type(self)(self.data[__x], self._context)
+        except ValueError as err:
+            raise KeyError(
+                f"{__x!r} does not name a known axis or assumption"
+                f" and is not a valid unit for {self.data.name}"
+            ) from err
 
     def __eq__(self, __o) -> bool:
         """True if two instances have equivalent attributes."""
