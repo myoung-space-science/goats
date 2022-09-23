@@ -98,7 +98,7 @@ class Quantity(iterables.ReprStrMixin):
         dimensions cause it to appear to have higher dimensionality.
         """
         if self._array is None:
-            self._array = numpy.squeeze(self.data)
+            self._array = numpy.array(self.data).squeeze()
         return self._array
 
     @property
