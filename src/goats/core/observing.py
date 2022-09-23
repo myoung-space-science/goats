@@ -22,6 +22,9 @@ from goats.core import symbolic
 from goats.core import variable
 
 
+T = typing.TypeVar('T')
+
+
 class Parameters(collections.abc.Sequence, iterables.ReprStrMixin):
     """The parameters of an `~observing.Quantity`."""
 
@@ -448,7 +451,7 @@ class Application:
             for k in self.interface.axes.keys(aliased=True)
         }
 
-    def get_index(self, key: str) -> axis.Index:
+    def get_index(self, key: str, default: T=None) -> axis.Index:
         """Get the axis-indexing object for `key`."""
         if 'indices' not in self._cache:
             self._cache['indices'] = {}
@@ -458,8 +461,9 @@ class Application:
             idx = self.interface.compute_index(key, **self.user)
             self._cache['indices'][key] = idx
             return idx
+        return default
 
-    def get_value(self, key: str) -> physical.Scalar:
+    def get_value(self, key: str, default: T=None) -> physical.Scalar:
         """Get the parameter value correpsonding to `key`."""
         if 'values' not in self._cache:
             self._cache['values'] = {}
@@ -469,6 +473,7 @@ class Application:
             val = self.interface.compute_value(key, **self.user)
             self._cache['values'][key] = val
             return val
+        return default
 
 
 class Implementation:
