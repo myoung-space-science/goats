@@ -379,32 +379,20 @@ class Application:
 
     def _compute_coordinates(self, q: variable.Quantity):
         """Determine the measurable observing indices."""
-        dimensions = self._compute_dimensions(q)
         coordinates = {}
-        if not dimensions:
-            return coordinates
-        for a in q.axes:
-            idx = self.get_index(a)
-            if a in dimensions and idx.unit is not None:
-                coordinates[a] = {
-                    'targets': numpy.array(idx.values),
-                    'reference': self.coordinates[a],
-                }
-        return coordinates
-
-    def _compute_dimensions(self, q: variable.Quantity):
-        """Determine over which axes to interpolate, if any."""
-        coordinates = {}
-        references = []
         for a in q.axes:
             idx = self.get_index(a)
             if idx and idx.unit is not None:
-                coordinates[a] = idx.values
-                references.append(self.coordinates[a])
-        return [
-            a for (a, c), r in zip(coordinates.items(), references)
-            if not numpy.all([r.array_contains(target) for target in c])
-        ]
+                contained = [
+                    self.coordinates[a].array_contains(target)
+                    for target in idx.values
+                ]
+                if not numpy.all(contained):
+                    coordinates[a] = {
+                        'targets': numpy.array(idx.values),
+                        'reference': self.coordinates[a],
+                    }
+        return coordinates
 
     def _interpolate(
         self,
