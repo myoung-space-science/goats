@@ -334,8 +334,7 @@ def test_observer_metric_system(
 ) -> None:
     """Allow users to declare the observer's metric system."""
     source = rootpath / 'cone' / 'obs'
-    # systems = metric.SYSTEMS
-    systems = ('cgs', 'mks')
+    systems = metric.SYSTEMS
     for system in systems:
         stream = eprem.Stream(0, source=source, system=system)
         for name, expected in observables.items():
