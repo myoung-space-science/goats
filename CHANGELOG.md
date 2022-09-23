@@ -1,5 +1,7 @@
 # Changelog
 
+## NEXT
+
 ## v0.0.28 (22Sep2022)
 
 - Modify (partially revert) observer interface and observing API
