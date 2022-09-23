@@ -11,6 +11,7 @@ from goats.core import aliased
 from goats.core import axis
 from goats.core import computed
 from goats.core import constant
+from goats.core import interpolation
 from goats.core import iterables
 from goats.core import metadata
 from goats.core import metric
@@ -348,7 +349,7 @@ class Application:
         if not needed:
             # There are no axes over which to interpolate.
             return self._subscript(q)
-        return self._interpolate(q)
+        return self._interpolate(q, needed)
 
     def compute(self, q: computed.Quantity) -> variable.Quantity:
         """Determine dependencies and compute the result of this function."""
@@ -405,9 +406,44 @@ class Application:
             if not numpy.all([r.array_contains(target) for target in c])
         ]
 
-    def _interpolate(self, q: variable.Quantity):
-        """Interpolate the given quantity within this context."""
-        raise NotImplementedError
+    def _interpolate(
+        self,
+        q: variable.Quantity,
+        coordinates: typing.Dict[str, typing.Dict[str, typing.Any]],
+    ) -> variable.Quantity:
+        """Internal interpolation logic."""
+        array = None
+        for coordinate in coordinates.values():
+            array = self._interpolate_coordinate(
+                q,
+                coordinate['targets'],
+                coordinate['reference'],
+                axis=coordinate.get('axis'),
+                workspace=array,
+            )
+        meta = {k: getattr(q, k, None) for k in {'unit', 'name', 'axes'}}
+        return variable.Quantity(array, **meta)
+
+    def _interpolate_coordinate(
+        self,
+        q: variable.Quantity,
+        targets: numpy.ndarray,
+        reference: variable.Quantity,
+        axis: int=None,
+        workspace: numpy.ndarray=None,
+    ) -> numpy.ndarray:
+        """Interpolate a variable array based on a known coordinate."""
+        array = numpy.array(q) if workspace is None else workspace
+        indices = (q.axes.index(d) for d in reference.axes)
+        dst, src = zip(*enumerate(indices))
+        reordered = numpy.moveaxis(array, src, dst)
+        interpolated = interpolation.apply(
+            reordered,
+            numpy.array(reference),
+            targets,
+            axis=axis,
+        )
+        return numpy.moveaxis(interpolated, dst, src)
 
     @property
     def coordinates(self):

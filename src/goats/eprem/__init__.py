@@ -23,7 +23,6 @@ from ..core import (
     reference,
     variable,
 )
-from . import interpolation
 from .runtime import BaseTypesH
 
 
@@ -162,27 +161,19 @@ class Axes(axis.Interface):
 class Application(observing.Application):
     """The EPREM-specific observing context."""
 
-    # TODO:
-    # - generalize interpolation from this subpackage
-    # - implement generalized interpolation in core.observing.Application
-    # - add EPREM-specific interpolation here
-    def process(self, q: variable.Quantity) -> variable.Quantity:
-        """Compute EPREM-specific updates to a variable quantity."""
-        if any(alias in self.coordinates for alias in q.name):
-            # This is an axis-reference quantity.
-            return self._subscript(q)
-        needed = self._compute_coordinates(q)
-        if not needed:
-            # There are no axes over which to interpolate.
-            return self._subscript(q)
-        new = self._interpolate(q, needed.values())
+    def _interpolate(
+        self,
+        q: variable.Quantity,
+        coordinates: typing.Dict[str, typing.Dict[str, typing.Any]],
+    ) -> variable.Quantity:
+        base = super()._interpolate(q, coordinates)
         # We only want to subscript the uninterpolated axes.
         interpolated = [
             'shell' if d == 'radius' else d
-            for d in needed
+            for d in coordinates
         ]
         axes = list(set(q.axes) - set(interpolated))
-        return self._subscript(new, *axes)
+        return self._subscript(base, *axes)
 
     def _build_coordinates(self):
         base = super()._build_coordinates()
@@ -230,45 +221,6 @@ class Application(observing.Application):
             and any(r in self for r in reference.ALIASES['radius'])
         ): base.append('radius')
         return base
-
-    def _interpolate(
-        self,
-        q: variable.Quantity,
-        coordinates: typing.Iterable[typing.Dict[str, typing.Any]],
-    ) -> variable.Quantity:
-        """Internal interpolation logic."""
-        array = None
-        for coordinate in coordinates:
-            array = self._interpolate_coordinate(
-                q,
-                coordinate['targets'],
-                coordinate['reference'],
-                axis=coordinate.get('axis'),
-                workspace=array,
-            )
-        meta = {k: getattr(q, k, None) for k in {'unit', 'name', 'axes'}}
-        return variable.Quantity(array, **meta)
-
-    def _interpolate_coordinate(
-        self,
-        q: variable.Quantity,
-        targets: numpy.ndarray,
-        reference: variable.Quantity,
-        axis: int=None,
-        workspace: numpy.ndarray=None,
-    ) -> numpy.ndarray:
-        """Interpolate a variable array based on a known coordinate."""
-        array = numpy.array(q) if workspace is None else workspace
-        indices = (q.axes.index(d) for d in reference.axes)
-        dst, src = zip(*enumerate(indices))
-        reordered = numpy.moveaxis(array, src, dst)
-        interpolated = interpolation.apply(
-            reordered,
-            numpy.array(reference),
-            targets,
-            axis=axis,
-        )
-        return numpy.moveaxis(interpolated, dst, src)
 
 
 Instance = typing.TypeVar('Instance', bound='Observer')
