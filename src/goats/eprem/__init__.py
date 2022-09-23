@@ -204,6 +204,10 @@ class Application(observing.Application):
             k: {**c, 'axis': self._axes.get(k)}
             for k, c in super()._compute_coordinates(q).items()
         }
+        if 'shell' not in q.axes:
+            # The rest of this method deals with radial interpolation, which
+            # only applies when 'shell' is one of the target quantity's axes.
+            return base
         for key in reference.ALIASES['radius']:
             if values := self.get_value(key):
                 try:
