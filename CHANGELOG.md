@@ -2,6 +2,9 @@
 
 ## NEXT
 
+- Ensure that `observed.Quantity.array` returns a `numpy.ndarray`.
+- Add named-based properties to `observer.Interface`.
+
 ## v0.0.28 (22Sep2022)
 
 - Modify (partially revert) observer interface and observing API
