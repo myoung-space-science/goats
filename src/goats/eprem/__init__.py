@@ -214,14 +214,6 @@ class Application(observing.Application):
                 }
         return base
 
-    def _compute_dimensions(self, q: variable.Quantity):
-        base = super()._compute_dimensions(q)
-        if (
-            'shell' in q.axes
-            and any(r in self for r in reference.ALIASES['radius'])
-        ): base.append('radius')
-        return base
-
 
 Instance = typing.TypeVar('Instance', bound='Observer')
 
