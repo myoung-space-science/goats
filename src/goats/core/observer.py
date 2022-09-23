@@ -44,6 +44,10 @@ class Interface:
         self._source = None
         self._application = None
         self._spellcheck = None
+        self._primary = None
+        self._derived = None
+        self._observables = None
+        self._keys = None
 
     # TODO: I'm no longer sure it makes sense to allow the user to update an
     # observer's metric system rather than create a new observer for a new
@@ -59,6 +63,10 @@ class Interface:
         """Update this observer's data source."""
         self._source = source
         self._application = None
+        self._keys = None
+        self._primary = None
+        self._derived = None
+        self._observables = None
         return self
 
     @property
@@ -83,17 +91,60 @@ class Interface:
         """The names of formally observable quantities.
         
         This property contains the names of all primary and derived observable
-        quantities. A primary derived observable quantity is one that comes
-        directly from this observer's dataset; a derived observable quantity is
-        one that is the result of a defined function.
+        quantities. See the `primary` and `derived` properties for their
+        respective definitions. Names are listed a groups of aliases for each
+        observable quantity (e.g., 'mfp | mean free path | mean_free_path'); any
+        of the listed aliases is a valid key for that quantity.
 
         Note that it is also possible to symbolically compose new observable
-        quantities from those listed here. Therefore, this collection represents
-        the minimal set of quantities that this observer can observe.
+        quantities from those listed here (e.g., 'mfp / Vr'). Therefore, this
+        collection represents the minimal set of quantities that this observer
+        can observe.
         """
-        fromdata = list(self.data.variables) + list(self.data.functions)
-        available = set(fromdata) - set(self._unobservable)
-        return tuple(available)
+        if self._observables is None:
+            available = {str(name) for name in self.primary + self.derived}
+            self._observables = tuple(available - set(self._unobservable))
+        return self._observables
+
+    @property
+    def keys(self):
+        """A flat list of known observables.
+        
+        This property primarily exists for convenience to internal search
+        methods and may be removed in future versions. Please use the
+        `observables`, `primary`, and `derived` properties whenever possible.
+        """
+        if self._keys is None:
+            keys = {
+                key
+                for name in self.primary + self.derived
+                for key in name
+            }
+            self._keys = tuple(keys - set(self._unobservable))
+        return self._keys
+
+    @property
+    def primary(self):
+        """The primary observable quantities.
+        
+        A primary observable quantity is a formally observable quantity that
+        comes directly from this observer's data source.
+        """
+        if self._primary is None:
+            self._primary = tuple(self.data.variables.keys(aliased=True))
+        return self._primary
+
+    @property
+    def derived(self):
+        """The derived observable quantities.
+        
+        A derived observable quantity is a formally observable quantity that is
+        the result of a defined function of other (primary or derived)
+        observable quantities, and possibly physical assumptions.
+        """
+        if self._derived is None:
+            self._derived = tuple(self.data.functions.keys(aliased=True))
+        return self._derived
 
     @property
     def data(self):
@@ -139,16 +190,16 @@ class Interface:
 
     def _knows(self, key: str):
         """Internal helper for `~Interface.knows`."""
-        if key in self.observables:
+        if key in self.keys:
             return True
         if observable.iscomposed(key):
             expression = symbolic.Expression(key)
-            return all(term.base in self.observables for term in expression)
+            return all(self._knows(term.base) for term in expression)
         return False
 
     def _check_spelling(self, key: str):
         """Catch misspelled names of observable quantities, if possible."""
-        keys = list(self.observables) + list(self.assumptions)
+        keys = list(self.keys) + list(self.assumptions)
         if self._spellcheck is None:
             self._spellcheck = spelling.SpellChecker(*keys)
         else:
