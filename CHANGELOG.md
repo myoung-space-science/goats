@@ -1,5 +1,7 @@
 # Changelog
 
+## NEXT
+
 ## v0.0.29
 
 - Ensure that `observed.Quantity.array` returns a `numpy.ndarray`.
