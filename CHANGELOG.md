@@ -3,6 +3,7 @@
 ## NEXT
 
 - Convert `observer.Interface` metric system to a read-only property.
+- Add `axis.Quantity.reference` property
 
 ## v0.0.29
 
