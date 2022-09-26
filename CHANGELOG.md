@@ -3,7 +3,8 @@
 ## NEXT
 
 - Ensure that `observed.Quantity.array` returns a `numpy.ndarray`.
-- Add named-based properties to `observer.Interface`.
+- Add properties based on names of observable quantities to `observer.Interface`.
+- Extend interpolation support.
 
 ## v0.0.28 (22Sep2022)
 
