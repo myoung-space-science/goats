@@ -250,8 +250,8 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         confpath = self._build_confpath(config, directory=datapath.parent)
         # Update the internal data interface.
         dataset = datafile.Interface(datapath)
-        axes = Axes(dataset, system=self.system())
-        variables = variable.Interface(dataset, system=self.system())
+        axes = Axes(dataset, system=self.system)
+        variables = variable.Interface(dataset, system=self.system)
         constants = runtime.Arguments(
             source_path=ENV['src'],
             config_path=confpath,
@@ -308,6 +308,10 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     def dataset(self) -> datafile.Interface:
         """This observer's original dataset."""
         return self._dataset
+
+    @property
+    def time(self):
+        """"""
 
     def __str__(self) -> str:
         return str(self.datapath)

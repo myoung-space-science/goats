@@ -49,15 +49,10 @@ class Interface:
         self._observables = None
         self._keys = None
 
-    # TODO: I'm no longer sure it makes sense to allow the user to update an
-    # observer's metric system rather than create a new observer for a new
-    # metric system.
-    def system(self, new: str=None):
-        """Get or set this observer's metric system."""
-        if not new:
-            return self._system
-        self._system = metric.System(new)
-        return self
+    @property
+    def system(self):
+        """This observer's metric system."""
+        return self._system
 
     def readfrom(self, source):
         """Update this observer's data source."""
