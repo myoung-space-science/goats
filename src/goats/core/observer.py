@@ -143,7 +143,13 @@ class Interface:
 
     @property
     def data(self):
-        """An interface to this observer's dataset quantities."""
+        """An interface to this observer's physical quantities.
+        
+        This property represents the variable, axis-indexing, and constant
+        quantities to which this observer's `source` points. It incorporates
+        this observer's metric system, and exposes objects that support
+        arithmetic operations and conversion to numpy arrays.
+        """
         if self._data is None:
             raise NotImplementedError(
                 f"Observer requires an observing interface"

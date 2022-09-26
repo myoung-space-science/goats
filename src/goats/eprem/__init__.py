@@ -306,12 +306,19 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
 
     @property
     def dataset(self) -> datafile.Interface:
-        """This observer's original dataset."""
+        """This observer's original dataset.
+        
+        The dataset object represents as closely as possible the interface to
+        which this observer's `datapath` points. It does not have knowledge of
+        any metric system, and its attributes do not support arithmetic
+        operations or conversion to numpy arrays.
+        """
         return self._dataset
 
     @property
     def time(self):
-        """"""
+        """The times in this observer's dataset."""
+        return self.data
 
     def __str__(self) -> str:
         return str(self.datapath)
