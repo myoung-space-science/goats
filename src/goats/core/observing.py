@@ -315,6 +315,18 @@ class Application:
 
     def observe(self, key: str) -> Quantity:
         """Create an observation within the context of this application."""
+        result = self._observe(key)
+        if any(alias in self.coordinates for alias in result.name):
+            # This is an axis-reference quantity.
+            return self._subscript(result)
+        needed = self._compute_interpolants(result)
+        if not needed:
+            # There are no axes over which to interpolate.
+            return self._subscript(result)
+        return self._interpolate(result, needed)
+
+    def _observe(self, key: str) -> Quantity:
+        """Internal observing logic."""
         expression = symbolic.Expression(reference.NAMES.get(key, key))
         term = expression[0]
         result = self.get_observable(term.base)
@@ -344,15 +356,11 @@ class Application:
         raise ValueError(f"Unknown quantity: {q!r}") from None
 
     def process(self, q: variable.Quantity) -> variable.Quantity:
-        """Compute observer-specific updates to a variable quantity."""
-        if any(alias in self.coordinates for alias in q.name):
-            # This is an axis-reference quantity.
-            return self._subscript(q)
-        needed = self._compute_coordinates(q)
-        if not needed:
-            # There are no axes over which to interpolate.
-            return self._subscript(q)
-        return self._interpolate(q, needed)
+        """Compute observer-specific updates to a variable quantity.
+        
+        The default implementation immediately returns `q`.
+        """
+        return q
 
     def compute(self, q: computed.Quantity) -> variable.Quantity:
         """Determine dependencies and compute the result of this function."""
@@ -373,15 +381,16 @@ class Application:
     def _subscript(self, q: variable.Quantity, *axes: str):
         """Extract a subset of this quantity."""
         if not axes:
-            return q[tuple(self.get_index(a) for a in q.axes)]
+            return q[tuple(self.get_index(a, slice(None)) for a in q.axes)]
         indices = [
-            self.get_index(a) if a in axes else slice(None)
+            self.get_index(a, slice(None))
+            if a in axes else slice(None)
             for a in q.axes
         ]
         return q[tuple(indices)]
 
-    def _compute_coordinates(self, q: variable.Quantity):
-        """Determine the measurable observing indices."""
+    def _compute_interpolants(self, q: variable.Quantity):
+        """Determine the coordinate axes over which to interpolate."""
         coordinates = {}
         for a in q.axes:
             idx = self.get_index(a)
@@ -412,8 +421,8 @@ class Application:
                 axis=coordinate.get('axis'),
                 workspace=array,
             )
-        meta = {k: getattr(q, k, None) for k in {'unit', 'name', 'axes'}}
-        return variable.Quantity(array, **meta)
+        meta = {k: getattr(q, k, None) for k in q.meta.parameters}
+        return type(q)(array, **meta)
 
     def _interpolate_coordinate(
         self,
