@@ -87,6 +87,11 @@ class Indexer(iterables.ReprStrMixin):
         """The method that converts target values into indices."""
         self.size = size
         """The maximum number of indices."""
+        # NOTE: Instances of this class do not expect an array-like reference
+        # object at initialization because knowledge of the appropriate
+        # reference array is not always possible before calling `method`, and
+        # defining reference-based attributes on only certain instances (or
+        # subclasses) could create a misleading interface.
 
     def compute(self, *args, **kwargs):
         """Call the index-computing method."""
