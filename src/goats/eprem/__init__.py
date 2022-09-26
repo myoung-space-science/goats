@@ -124,13 +124,18 @@ class Axes(axis.Interface):
     def _build_coordinate(self, this: variable.Quantity):
         """Create coordinate-like axis data from the given variable."""
         def method(targets, unit: typing.Union[str, metadata.Unit]):
+            # Convert the reference variable quantity to the default unit.
+            converted = this[unit]
             if not targets:
                 # If there are no target values, we assume the user wants the
                 # entire axis.
-                return axis.Data(range(len(this)), values=numpy.array(this))
+                return axis.Data(
+                    range(len(converted)),
+                    values=numpy.array(converted),
+                )
             if all(isinstance(t, typing.SupportsIndex) for t in targets):
                 # All the target values are already indices.
-                return axis.Data(targets, values=numpy.array(this))
+                return axis.Data(targets, values=numpy.array(converted))
             measured = measurable.measure(targets)
             if measured.unit != '1':
                 # If the targets include a dimensioned unit, we want to
@@ -145,8 +150,6 @@ class Axes(axis.Interface):
                 # which may be dimensionless, the default unit is the
                 # appropriate unit for both cases.
                 array = physical.Array(measured.values, unit=unit)
-            # Convert the reference variable quantity to the default unit.
-            converted = this[unit]
             if array.unit | converted.unit: # Could also use try/except
                 array = array[converted.unit]
             values = numpy.array(array)
