@@ -158,6 +158,42 @@ class Quantity(metadata.NameMixin, iterables.ReprStrMixin):
         if self._unit is not None:
             return metadata.Unit(self._unit)
 
+    # NOTE: Duplicate of `measurable.Quantity.__getitem__`.
+    def __getitem__(self, arg: metadata.UnitLike):
+        """Set the unit of this object's values.
+        
+        Notes
+        -----
+        Using this special method to change the unit supports a simple and
+        relatively intuitive syntax but is arguably an abuse of notation.
+        """
+        unit = (
+            self.unit.norm[arg]
+            if str(arg).lower() in metric.SYSTEMS else arg
+        )
+        if unit == self._unit:
+            return self
+        new = self._validate_unit(metadata.Unit(unit))
+        return self.apply_unit(new)
+
+    # NOTE: Significant overlap with `measurable.Quantity.apply_unit`.
+    def apply_unit(self, unit: metadata.Unit):
+        """Create an instance with the new unit."""
+        return type(self)(self._indexer, unit=unit, name=self.name)
+
+    # NOTE: Duplicate of `measurable.Quantity._validate_unit`.
+    def _validate_unit(self, unit: metadata.UnitLike):
+        """Raise an exception if `unit` is inconsistent with this quantity.
+        
+        The given unit is consistent if it has the same dimension in a known
+        metric system as the existing unit.
+        """
+        if self.unit | unit:
+            return unit
+        raise ValueError(
+            f"The unit {str(unit)!r} is inconsistent with {str(self.unit)!r}"
+        ) from None
+
     def index(self, *args, **kwargs):
         """Convert arguments into an index-like quantity."""
         targets = self._indexer.normalize(*args)

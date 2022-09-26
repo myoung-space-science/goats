@@ -126,6 +126,36 @@ def check_axis(this: axis.Quantity, parameters, system, **kwargs):
         assert list(user.values) == values
 
 
+def test_axis_unit(datapath):
+    """Users should be able to update the default axis unit."""
+    cases = {
+        'time': {
+            'points': [0, 2],
+            'day': [0.1, 0.3],
+            'hour': [24 * i for i in [0.1, 0.3]],
+        },
+        'energy': {
+            'points': [0, 19],
+            'MeV': [1e-1, 1e2],
+            'eV': [1e6 * i for i in [1e-1, 1e2]],
+            'erg': [1.6022e-6 * i for i in (1e-1, 1e2)],
+        },
+    }
+    data = datafile.Interface(datapath)
+    axes = eprem.Axes(data)
+    for name, test in cases.items():
+        this = axes[name]
+        points = test.pop('points')
+        for unit, values in test.items():
+            converted = this[unit]
+            assert converted is not this # only if `unit` != MKS default
+            assert converted.unit == unit
+            indexed = converted.index(*values)
+            assert indexed.unit == unit
+            assert list(indexed) == points, f"{name} ({unit})"
+            assert numpy.array_equal(indexed.values, values)
+
+
 def test_single_index(datapath):
     """Users should be able to provide a single numerical value."""
     cases = {
