@@ -190,10 +190,10 @@ class Application(observing.Application):
         'mu': 1,
     }
 
-    def _compute_coordinates(self, q: variable.Quantity):
+    def _compute_interpolants(self, q: variable.Quantity):
         base = {
             k: {**c, 'axis': self._axes.get(k)}
-            for k, c in super()._compute_coordinates(q).items()
+            for k, c in super()._compute_interpolants(q).items()
         }
         if 'shell' not in q.axes:
             # The rest of this method deals with radial interpolation, which
