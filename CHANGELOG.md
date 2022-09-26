@@ -1,6 +1,6 @@
 # Changelog
 
-## NEXT
+## v0.0.29
 
 - Ensure that `observed.Quantity.array` returns a `numpy.ndarray`.
 - Add properties based on names of observable quantities to `observer.Interface`.
