@@ -151,7 +151,7 @@ class Axes(axis.Interface):
                 array = array[converted.unit]
             values = numpy.array(array)
             indices = [
-                numerical.find_nearest(this, float(value)).index
+                numerical.find_nearest(converted, float(value)).index
                 for value in values
             ]
             return axis.Data(indices, values=values)
