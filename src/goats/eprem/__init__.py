@@ -161,12 +161,12 @@ class Axes(axis.Interface):
 class Application(observing.Application):
     """The EPREM-specific observing context."""
 
-    def _interpolate(
+    def interpolate(
         self,
         q: variable.Quantity,
         coordinates: typing.Dict[str, typing.Dict[str, typing.Any]],
     ) -> variable.Quantity:
-        base = super()._interpolate(q, coordinates)
+        base = super().interpolate(q, coordinates)
         # We only want to subscript the uninterpolated axes.
         interpolated = [
             'shell' if d == 'radius' else d

@@ -323,7 +323,7 @@ class Application:
         if not needed:
             # There are no axes over which to interpolate.
             return self._subscript(result)
-        return self._interpolate(result, needed)
+        return self.interpolate(result, needed)
 
     def _observe(self, key: str) -> Quantity:
         """Internal observing logic."""
@@ -406,7 +406,7 @@ class Application:
                     }
         return coordinates
 
-    def _interpolate(
+    def interpolate(
         self,
         q: variable.Quantity,
         coordinates: typing.Dict[str, typing.Dict[str, typing.Any]],
