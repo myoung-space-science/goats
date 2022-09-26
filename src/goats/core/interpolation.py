@@ -119,9 +119,22 @@ def _apply_interp1d(
     else:
         ref = reference
         arr = array
+    # HACK: If `ref.size == 1`, the restriction process constrained the
+    # reference array to a single value. There is no point in attempting to
+    # interpolate over a single reference value since interpolation will fail
+    # with fewer than two interpolant values. This may mean that `target` is
+    # numerically outside the range of `reference`, which could lead to
+    # pathological cases, but the solution would require some care to ensure
+    # that `target` is far enough from the extrema of `reference` to represent a
+    # truly erroneous value.
     if reference.ndim == 2:
+        if ref.size == 1:
+            return [numpy.squeeze(y) for y in arr]
         interps = [interp1d(x, y, axis=0) for x, y in zip(ref, arr)]
         return [interp(target) for interp in interps]
+    if ref.size == 1:
+        # See note above about `ref.size == 1`.
+        return numpy.squeeze(arr)
     interp = interp1d(ref, arr, axis=0)
     return interp(target)
 
