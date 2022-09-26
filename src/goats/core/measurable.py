@@ -211,18 +211,6 @@ class Quantity(Quantified):
         new = self._validate_unit(metadata.Unit(unit))
         return self.apply_unit(new)
 
-    def apply_unit(self, unit: metadata.Unit):
-        """Update data values based on the new unit.
-        
-        Extracted for overloading, to allow subclasses to customize how to
-        update the instance unit and to apply the corresponding conversion
-        factor. For example, some subclasses may wish to simply store an updated
-        scale factor, and to defer application of the scale factor to the data
-        object if doing so here would be inefficient.
-        """
-        data = self._data * (unit // self._unit)
-        return type(self)(data, unit=unit)
-
     def _validate_unit(self, unit: metadata.UnitLike):
         """Raise an exception if `unit` is inconsistent with this quantity.
         
@@ -234,6 +222,18 @@ class Quantity(Quantified):
         raise ValueError(
             f"The unit {str(unit)!r} is inconsistent with {str(self.unit)!r}"
         ) from None
+
+    def apply_unit(self, unit: metadata.Unit):
+        """Update data values based on the new unit.
+        
+        Extracted for overloading, to allow subclasses to customize how to
+        update the instance unit and to apply the corresponding conversion
+        factor. For example, some subclasses may wish to simply store an updated
+        scale factor, and to defer application of the scale factor to the data
+        object if doing so here would be inefficient.
+        """
+        data = self._data * (unit // self._unit)
+        return type(self)(data, unit=unit)
 
     def __measure__(self):
         """Create a measurement from this quantity's data and unit."""
