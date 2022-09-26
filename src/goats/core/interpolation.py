@@ -129,11 +129,10 @@ def _apply_interp1d(
     # truly erroneous value.
     if reference.ndim == 2:
         if ref.size == 1:
-            return [numpy.squeeze(y) for y in arr]
+            return numpy.array([numpy.squeeze(y) for y in arr])
         interps = [interp1d(x, y, axis=0) for x, y in zip(ref, arr)]
-        return [interp(target) for interp in interps]
+        return numpy.array([interp(target) for interp in interps])
     if ref.size == 1:
-        # See note above about `ref.size == 1`.
         return numpy.squeeze(arr)
     interp = interp1d(ref, arr, axis=0)
     return interp(target)
