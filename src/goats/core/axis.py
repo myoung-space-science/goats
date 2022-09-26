@@ -141,6 +141,7 @@ class Quantity(metadata.NameMixin, iterables.ReprStrMixin):
             self._unit = None
         self._indexer, kwd = self.parse_attrs(__a, meta, name='')
         self._name = metadata.Name(kwd['name'])
+        self._reference = None
 
     def parse_attrs(
         self,
@@ -152,6 +153,13 @@ class Quantity(metadata.NameMixin, iterables.ReprStrMixin):
         if isinstance(this, Quantity):
             return this._indexer, {k: getattr(this, k) for k in targets}
         return this, {k: meta.get(k, v) for k, v in targets.items()}
+
+    @property
+    def reference(self):
+        """The full array of axis values."""
+        if self._reference is None:
+            self._reference = self.index().values
+        return self._reference
 
     @property
     def unit(self):

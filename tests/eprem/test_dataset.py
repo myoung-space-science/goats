@@ -156,6 +156,38 @@ def test_axis_unit(datapath):
             assert numpy.array_equal(indexed.values, values)
 
 
+def test_axis_reference(datapath):
+    """Users should be able to access reference values for an axis."""
+    data = datafile.Interface(datapath)
+    axes = eprem.Axes(data)
+    variables = variable.Interface(data)
+    cases = {
+        'time': {
+            'reference': variables['time'],
+            'units': ['day', 'hour'],
+        },
+        'shell': {
+            'reference': variables['shell'],
+        },
+        'species': {
+            'reference': ['H+'],
+        },
+        'energy': {
+            'reference': variables['energy'][0],
+            'units': ['eV', 'erg'],
+        },
+        'mu': {
+            'reference': variables['mu'],
+        },
+    }
+    for name, test in cases.items():
+        this = axes[name]
+        reference = test['reference']
+        assert numpy.array_equal(this.reference, reference)
+        for unit in test.get('units', []):
+            assert numpy.array_equal(this[unit].reference, reference[unit])
+
+
 def test_single_index(datapath):
     """Users should be able to provide a single numerical value."""
     cases = {
