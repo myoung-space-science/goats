@@ -2,6 +2,8 @@
 
 ## NEXT
 
+- Convert `observer.Interface` metric system to a read-only property.
+
 ## v0.0.29
 
 - Ensure that `observed.Quantity.array` returns a `numpy.ndarray`.
