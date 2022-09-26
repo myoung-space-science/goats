@@ -237,11 +237,11 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
                 return Scalar(data, **kwargs)
         return super().__new__(cls)
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, __data, **meta) -> None:
         """Initialize an array from arguments."""
-        super().__init__(*args, **kwargs)
+        super().__init__(__data, **meta)
         self._scale = 1.0
-        self._full_array = None
+        self._full_array = getattr(__data, '_array', None)
         self._ndim = None
         self._shape = None
         self.display.register(data='_get_data_type')
@@ -534,8 +534,21 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, Quantity):
         If `index` is ``None`` or an empty iterable, this method will produce
         the entire array. Otherwise, it will create the requested subarray from
         `self.data`. It will always attempt to use a cached version of the full
-        array before loading from disk.
+        array before loading from disk. The specific algorithm is as follows:
+
+        - If `index` is "missing" (i.e., `None` or an empty iterable object, but
+          not 0), the caller wants the full array.
         
+            - If we already have the full array, return it.
+            - Else, read it, save it, and return it.
+
+        - Else, if `index` is not missing, the caller wants a subarray.
+
+            - If we already have the full array, subscript and return it.
+            - Else, continue
+
+        - Else, read and subscript it, and return the subarray.
+
         The reasoning behind this algorithm is as follows: If we need to load
         the full array at any point, we may as well save it because subscripting
         an in-memory `numpy.ndarray` is much faster than re-reading from disk
