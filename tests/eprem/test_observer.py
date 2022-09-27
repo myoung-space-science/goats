@@ -16,6 +16,7 @@ from goats.core import observable
 from goats.core import observed
 from goats.core import observer
 from goats.core import physical
+from goats.core import variable
 from goats import eprem
 
 
@@ -37,19 +38,21 @@ def stream(rootpath: Path):
 
 
 @pytest.fixture
-def observables() -> typing.Dict[str, dict]:
-    """Information about each observable."""
+def quantities() -> typing.Dict[str, dict]:
+    """Information about each quantity available to an EPREM observer."""
     T, S, P, E, M = 'time', 'shell', 'species', 'energy', 'mu'
     return {
         'time': {
             'axes': (T,),
             'unit': {'mks': 's', 'cgs': 's'},
             'aliases': ['t', 'times'],
+            'observable': False,
         },
         'shell': {
             'axes': (S,),
             'unit': {'mks': '1', 'cgs': '1'},
             'aliases': ['shells'],
+            'observable': False,
         },
         'mu': {
             'axes': (M,),
@@ -59,166 +62,199 @@ def observables() -> typing.Dict[str, dict]:
                 'pitch angle', 'pitch-angle', 'pitch-angle cosine',
                 'pitch angles', 'pitch-angles', 'pitch-angle cosines',
             ],
+            'observable': False,
         },
         'mass': {
             'axes': (P,),
             'unit': {'mks': 'kg', 'cgs': 'g'},
             'aliases': ['m'],
+            'observable': False,
         },
         'charge': {
             'axes': (P,),
             'unit': {'mks': 'C', 'cgs': 'statC'},
             'aliases': ['q'],
+            'observable': False,
         },
         'egrid': {
             'axes': (P, E),
             'unit': {'mks': 'J', 'cgs': 'erg'},
             'aliases': ['energy', 'energies', 'E'],
+            'observable': False,
         },
         'vgrid': {
             'axes': (P, E),
             'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
             'aliases': ['speed', 'vparticle'],
+            'observable': False,
         },
         'R': {
             'axes': (T, S),
             'unit': {'mks': 'm', 'cgs': 'cm'},
             'aliases': ['r', 'radius'],
+            'observable': False,
         },
         'T': {
             'axes': (T, S),
             'unit': {'mks': 'rad', 'cgs': 'rad'},
             'aliases': ['theta'],
+            'observable': False,
         },
         'P': {
             'axes': (T, S),
             'unit': {'mks': 'rad', 'cgs': 'rad'},
             'aliases': ['phi'],
+            'observable': False,
         },
         'Br': {
             'axes': (T, S),
             'unit': {'mks': 'T', 'cgs': 'G'},
             'aliases': ['br'],
+            'observable': True,
         },
         'Bt': {
             'axes': (T, S),
             'unit': {'mks': 'T', 'cgs': 'G'},
             'aliases': ['bt', 'Btheta', 'btheta'],
+            'observable': True,
         },
         'Bp': {
             'axes': (T, S),
             'unit': {'mks': 'T', 'cgs': 'G'},
             'aliases': ['bp', 'Bphi', 'bphi'],
+            'observable': True,
         },
         'Vr': {
             'axes': (T, S),
             'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
             'aliases': ['vr'],
+            'observable': True,
         },
         'Vt': {
             'axes': (T, S),
             'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
             'aliases': ['vt', 'Vtheta', 'vtheta'],
+            'observable': True,
         },
         'Vp': {
             'axes': (T, S),
             'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
             'aliases': ['vp', 'Vphi', 'vphi'],
+            'observable': True,
         },
         'Rho': {
             'axes': (T, S),
             'unit': {'mks': 'm^-3', 'cgs': 'cm^-3'},
             'aliases': ['rho'],
+            'observable': True,
         },
         'Dist': {
             'axes': (T, S, P, E, M),
             'unit': {'mks': 's^3/m^6', 'cgs': 's^3/cm^6'},
             'aliases': ['dist', 'f'],
+            'observable': True,
         },
         'x': {
             'axes': (T, S),
             'unit': {'mks': 'm', 'cgs': 'cm'},
             'aliases': ['X'],
+            'observable': True,
         },
         'y': {
             'axes': (T, S),
             'unit': {'mks': 'm', 'cgs': 'cm'},
             'aliases': ['Y'],
+            'observable': True,
         },
         'z': {
             'axes': (T, S),
             'unit': {'mks': 'm', 'cgs': 'cm'},
             'aliases': ['Z'],
+            'observable': True,
         },
         'B': {
             'axes': (T, S),
             'unit': {'mks': 'T', 'cgs': 'G'},
             'aliases': ['b_mag', '|B|', 'bmag', 'b mag'],
+            'observable': True,
         },
         'V': {
             'axes': (T, S),
             'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
             'aliases': ['v_mag', '|V|', 'vmag', 'v mag', 'v', '|v|'],
+            'observable': True,
         },
         'BV': {
             'axes': (T, S),
             'unit': {'mks': 'T * m/s', 'cgs': 'G * cm/s'},
             'aliases': ['bv_mag', 'bv', '|bv|', '|BV|'],
+            'observable': True,
         },
         'Vpara': {
             'axes': (T, S),
             'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
             'aliases': ['v_para', 'vpara'],
+            'observable': True,
         },
         'Vperp': {
             'axes': (T, S),
             'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
             'aliases': ['v_perp', 'vperp'],
+            'observable': True,
         },
         'flow angle': {
             'axes': (T, S),
             'unit': {'mks': 'rad', 'cgs': 'rad'},
             'aliases': ['flow_angle', 'angle'],
+            'observable': True,
         },
         'div(V)': {
             'axes': (T, S),
             'unit': {'mks': '1/s', 'cgs': '1/s'},
             'aliases': ['div_v', 'divV', 'divv', 'div V', 'div v', 'div(v)'],
+            'observable': True,
         },
         'density ratio': {
             'axes': (T, S),
             'unit': {'mks': '1', 'cgs': '1'},
             'aliases': ['density_ratio', 'n2/n1', 'n_2/n_1'],
+            'observable': True,
         },
         'rigidity': {
             'axes': (P, E),
             'unit': {'mks': 'kg m / (s C)', 'cgs': 'g cm / (s statC)'},
             'aliases': ['Rg', 'R_g'],
+            'observable': True,
         },
         'mean free path': {
             'axes': (T, S, P, E),
             'unit': {'mks': 'm', 'cgs': 'cm'},
             'aliases': ['mean_free_path', 'mfp'],
+            'observable': True,
         },
         'acceleration rate': {
             'axes': (T, S, P, E),
             'unit': {'mks': '1/s', 'cgs': '1/s'},
             'aliases': ['acceleration_rate'],
+            'observable': True,
         },
         'energy density': {
             'axes': (T, S, P),
             'unit': {'mks': 'J/m^3', 'cgs': 'erg/cm^3'},
             'aliases': ['energy_density'],
+            'observable': True,
         },
         'average energy': {
             'axes': (T, S, P),
             'unit': {'mks': 'J', 'cgs': 'erg'},
             'aliases': ['average_energy'],
+            'observable': True,
         },
         'isotropic distribution': {
             'axes': (T, S, P, E),
             'unit': {'mks': 's^3/m^6', 'cgs': 's^3/cm^6'},
             'aliases': ['isotropic_distribution', 'isodist'],
+            'observable': True,
         },
         'flux': {
             'axes': (T, S, P, E),
@@ -227,6 +263,7 @@ def observables() -> typing.Dict[str, dict]:
                 'cgs': '# / (s sr cm^2 erg)',
             },
             'aliases': ['Flux', 'J', 'J(E)', 'j', 'j(E)'],
+            'observable': True,
         },
         'fluence': {
             'axes': (S, P, E),
@@ -235,6 +272,7 @@ def observables() -> typing.Dict[str, dict]:
                 'cgs': '# / (sr cm^2 erg)',
             },
             'aliases': [],
+            'observable': True,
         },
         'integral flux': {
             'axes': (T, S, P),
@@ -243,13 +281,21 @@ def observables() -> typing.Dict[str, dict]:
                 'cgs': '# / (s sr cm^2)',
             },
             'aliases': ['integral_flux'],
+            'observable': True,
         },
         'Vr / Br': {
             'axes': (T, S),
             'unit': {'mks': 'm / (s T)', 'cgs': 'cm / (s G)'},
             'aliases': [],
+            'observable': True,
         },
     }
+
+
+@pytest.fixture
+def observables(quantities: typing.Dict[str, dict]):
+    """Information about formally observable quantities."""
+    return {k: v for k, v in quantities.items() if v['observable']}
 
 
 def test_create_stream(rootpath: Path):
@@ -278,14 +324,17 @@ def test_change_source(rootpath: Path):
     assert stream.confpath == newdir / 'eprem_input_file'
 
 
-def test_observable_access(
+def test_quantity_access(
     stream: eprem.Stream,
-    observables: typing.Dict[str, dict],
+    quantities: typing.Dict[str, dict],
 ) -> None:
-    """Access all observables."""
-    for name in observables:
+    """Test access to all non-constant quantities."""
+    for name, it_is in quantities.items():
         quantity = stream[name]
-        assert isinstance(quantity, observable.Quantity)
+        if it_is['observable']:
+            assert isinstance(quantity, observable.Quantity), name
+        else:
+            assert isinstance(quantity, variable.Quantity), name
 
 
 def test_create_observation(
@@ -348,14 +397,14 @@ def test_observation_unit(stream: eprem.Stream):
 
 def test_observer_metric_system(
     rootpath: Path,
-    observables: typing.Dict[str, dict],
+    quantities: typing.Dict[str, dict],
 ) -> None:
     """Allow users to declare the observer's metric system."""
     source = rootpath / 'cone' / 'obs'
     systems = metric.SYSTEMS
     for system in systems:
         stream = eprem.Stream(0, source=source, system=system)
-        for name, expected in observables.items():
+        for name, expected in quantities.items():
             assert stream[name].unit == expected['unit'][system]
 
 
