@@ -73,7 +73,7 @@ class MappingKey(collections.abc.Set, iterables.ReprStrMixin):
         return ' | '.join(str(alias) for alias in self._aliases)
 
 
-class KeyMap(iterables.MappingBase):
+class KeyMap(iterables.MappingBase, iterables.ReprStrMixin):
     """A collection that associates common aliases."""
 
     def __init__(self, *keys: Aliases) -> None:
@@ -106,6 +106,9 @@ class KeyMap(iterables.MappingBase):
             raise KeyError(f"{s!r} not found") from err
         else:
             return found
+
+    def __str__(self) -> str:
+        return ', '.join(f"{str(k)!r}" for k in self._aliased)
 
 
 def keysfrom(
