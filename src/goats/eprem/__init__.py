@@ -307,21 +307,44 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         """The path to this observer's dataset."""
         return self._source
 
-    @property
-    def dataset(self) -> datafile.Interface:
-        """This observer's original dataset.
-        
-        The dataset object represents as closely as possible the interface to
-        which this observer's `datapath` points. It does not have knowledge of
-        any metric system, and its attributes do not support arithmetic
-        operations or conversion to numpy arrays.
-        """
-        return self._dataset
+    # TODO: This is still not quite right for `api_test/run.py`; even if it
+    # were, I still want everything to go through `_build_axis`. Maybe it's
+    # worth re-defining separate array-like axis objects for indices, symbols,
+    # and coordinates.
 
     @property
     def time(self):
-        """The times in this observer's dataset."""
-        return self.data
+        """The time values in this observer's dataset."""
+        return self._build_axis('time')
+
+    @property
+    def shell(self):
+        """The shell values in this observer's dataset."""
+        return self.data.axes['shell'].reference
+
+    @property
+    def species(self):
+        """The species values in this observer's dataset."""
+        return self.data.axes['species'].reference
+
+    @property
+    def energy(self):
+        """The energy values in this observer's dataset."""
+        return self._build_axis('energy')
+
+    @property
+    def mu(self):
+        """The pitch-angle cosine values in this observer's dataset."""
+        return self._build_axis('mu')
+
+    def _build_axis(self, key: str):
+        """Create a representation of the values for an axis."""
+        this = self.data.axes[key]
+        return physical.Array(
+            this.reference,
+            unit=this.unit,
+            name=this.name,
+        )
 
     def __str__(self) -> str:
         return str(self.datapath)
