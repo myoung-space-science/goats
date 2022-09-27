@@ -84,8 +84,8 @@ class KeyMap(iterables.MappingBase, iterables.ReprStrMixin):
             An iterable collection of associated keys. Each key may be a string
             or an iterable of strings (including instances of `~MappingKey`).
         """
-        self._aliased = [MappingKey(key) for key in keys]
-        self._flat = [key for alias in self._aliased for key in alias]
+        self._groups = [MappingKey(key) for key in keys]
+        self._flat = [key for group in self._groups for key in group]
         super().__init__(self._flat)
 
     def __getitem__(self, __k) -> MappingKey:
@@ -99,7 +99,7 @@ class KeyMap(iterables.MappingBase, iterables.ReprStrMixin):
         """
         s = str(__k)
         m = MappingKey(__k)
-        alias = (k for k in self._aliased if s in k or m == k)
+        alias = (k for k in self._groups if s in k or m == k)
         try:
             found = next(alias)
         except StopIteration as err:
@@ -108,7 +108,7 @@ class KeyMap(iterables.MappingBase, iterables.ReprStrMixin):
             return found
 
     def __str__(self) -> str:
-        return ', '.join(f"{str(k)!r}" for k in self._aliased)
+        return ', '.join(f"{str(k)!r}" for k in self._groups)
 
 
 def keysfrom(
