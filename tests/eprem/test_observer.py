@@ -319,7 +319,10 @@ def test_change_source(rootpath: Path):
     assert stream.datapath == olddir / 'obs000000.nc'
     assert stream.confpath == olddir / 'eprem_input_file'
     newdir = rootpath / 'wind' / 'obs'
-    stream.readfrom(newdir)
+    stream.reset(source=newdir)
+    assert stream.datapath == newdir / 'obs000000.nc'
+    assert stream.confpath == olddir / 'eprem_input_file'
+    stream.reset(config=newdir)
     assert stream.datapath == newdir / 'obs000000.nc'
     assert stream.confpath == newdir / 'eprem_input_file'
 
@@ -368,21 +371,21 @@ def test_parameter_access(stream: eprem.Stream) -> None:
 
 def test_observing_unit(stream: eprem.Stream):
     """Change the unit of an observable quantity."""
-    r = stream['r']
-    assert r.unit == 'm'
-    assert r['au'].unit == 'au'
-    assert r.unit == 'm'
-    old = stream['r'].observe().array
-    new = stream['r']['au'].observe().array
+    mfp = stream['mfp']
+    assert mfp.unit == 'm'
+    assert mfp['au'].unit == 'au'
+    assert mfp.unit == 'm'
+    old = stream['mfp'].observe().array
+    new = stream['mfp']['au'].observe().array
     assert numpy.allclose(old, new * (metric.Unit('m') // metric.Unit('au')))
 
 
 def test_observation_unit(stream: eprem.Stream):
     """Check and change the unit of an observed quantity."""
     cases = {
-        'r': ('m', 'au'),
         'Vr': ('m / s', 'km / s'),
         'flux': ('m^-2 s^-1 sr^-1 J^-1', 'cm^-2 s^-1 sr^-1 MeV^-1'),
+        'mfp': ('m', 'au'),
         'mfp / Vr': ('s', 'day'),
     }
     for name, (u0, u1) in cases.items():

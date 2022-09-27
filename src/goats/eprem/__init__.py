@@ -249,36 +249,39 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         system: str='mks',
     ) -> None:
         self._id = __id
+        datapath = self._build_datapath(source)
+        confpath = self._build_confpath(config, directory=datapath.parent)
         super().__init__(
+            self._build_interface(
+                datapath=datapath,
+                confpath=confpath,
+                system=system,
+            ),
             *self._unobservable,
             system=system,
             apply=Application,
         )
-        self._confpath = None
+        self._source = datapath
+        self._confpath = confpath
         self._dataset = None
-        self.readfrom(source, config=config)
 
-    def readfrom(
+    def reset(
         self: Instance,
-        source: iotools.PathLike,
+        source: iotools.PathLike=None,
         config: iotools.PathLike=None
     ) -> Instance:
-        # Use arguments to update paths.
-        datapath = self._build_datapath(source)
-        confpath = self._build_confpath(config, directory=datapath.parent)
-        # Update the internal data interface.
-        dataset = datafile.Interface(datapath)
-        axes = Axes(dataset, system=self.system)
-        variables = variable.Interface(dataset, system=self.system)
-        constants = runtime.Arguments(
-            source_path=ENV['src'],
-            config_path=confpath,
-        )
-        self._data = observing.Interface(axes, variables, constants)
-        # Update other attributes if everything succeeded.
-        self._dataset = dataset
-        self._confpath = confpath
-        return super().readfrom(datapath)
+        paths = {}
+        if source is not None:
+            datapath = self._build_datapath(source)
+            paths['datapath'] = datapath
+        else:
+            datapath = self.datapath
+        if config is not None:
+            confpath = self._build_confpath(config, directory=datapath.parent)
+            paths['confpath'] = confpath
+            self._confpath = confpath
+        self._data = self._build_interface(**paths)
+        return super().reset(datapath)
 
     def _build_datapath(self, directory: iotools.PathLike):
         """Create the path to the dataset from `directory`."""
@@ -311,6 +314,25 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         raise ValueError(
             f"Can't create path to configuration file from {config!r}"
         ) from None
+
+    def _build_interface(
+        self,
+        datapath: iotools.ReadOnlyPath=None,
+        confpath: iotools.ReadOnlyPath=None,
+        system: str=None,
+    ) -> observing.Interface:
+        """Create this observer's observing interface.
+        
+        This method will use current instance values for any missing arguments.
+        """
+        dataset = datafile.Interface(datapath or self.datapath)
+        axes = Axes(dataset, system=(system or self.system))
+        variables = variable.Interface(dataset, system=(system or self.system))
+        constants = runtime.Arguments(
+            source_path=ENV['src'],
+            config_path=(confpath or self.confpath),
+        )
+        return observing.Interface(axes, variables, constants)
 
     @property
     def confpath(self) -> iotools.ReadOnlyPath:
