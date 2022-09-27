@@ -1,5 +1,6 @@
 import typing
 
+from goats.core import aliased
 from goats.core import metadata
 from goats.core import metric
 from goats.core import observable
@@ -16,6 +17,7 @@ class Interface:
 
     def __init__(
         self,
+        __data: observing.Interface,
         *unobservable: str,
         system: str='mks',
         apply: typing.Type[observing.Application]=None,
@@ -38,38 +40,53 @@ class Interface:
             process. If `application` is absent, this class will use an instance
             of the base class.
         """
+        self._data = __data
         self._unobservable = unobservable
         self._system = metric.System(system)
         self._application_type = apply or observing.Application
+        self._quantities = self._define_quantities(__data, *unobservable)
         self._source = None
         self._application = None
         self._spellcheck = None
-        self._primary = None
-        self._derived = None
-        self._observables = None
-        self._keys = None
+
+    def _define_quantities(
+        self,
+        data: observing.Interface,
+        *unobservable: str,
+    ) -> typing.Dict[str, aliased.KeyMap]:
+        """Internal logic for sorting observer quantities."""
+        primary = data.variables.keys(aliased=True)
+        derived = data.functions.keys(aliased=True)
+        available = aliased.KeyMap(*primary, *derived)
+        return {
+            'primary': aliased.KeyMap(primary),
+            'derived': aliased.KeyMap(derived),
+            'available': available,
+            'observable': available.without(*unobservable),
+        }
 
     @property
     def system(self):
         """This observer's metric system."""
         return self._system
 
-    def readfrom(self, source):
-        """Update this observer's data source.
+    def reset(self, source=None):
+        """Reset data-dependent attributes.
         
-        The base implementation sets `source` as the new target from which to
-        read data and resets various data-related attributes. Concrete
-        subclasses will likely want to call the base implementation first,
-        possibly after modifying `source` (e.g., to normalize a path), then
-        implement observer-specific logic necessary to update the actual data
-        quantities.
+        The base implementation resets various data-related attributes and sets
+        `source`, if given, as the new target from which to read data. Concrete
+        subclasses may wish to implement additional data-related logic (e.g.,
+        reinitialize interfaces), possibly after modifying `source` (e.g., to
+        normalize a path).
+
+        Parameters
+        ----------
+        source, optional
+            The new source of this observer's data. The acceptable type(s) will
+            be observer-specific.
         """
         self._source = source
         self._application = None
-        self._keys = None
-        self._primary = None
-        self._derived = None
-        self._observables = None
         return self
 
     @property
@@ -86,8 +103,8 @@ class Interface:
 
     @property
     def assumptions(self):
-        """The operational assumptions available to this observer."""
-        return self.data.assumptions
+        """The names of operational assumptions available to this observer."""
+        return aliased.KeyMap(*self.data.assumptions.keys(aliased=True))
 
     @property
     def observables(self):
@@ -104,27 +121,7 @@ class Interface:
         collection represents the minimal set of quantities that this observer
         can observe.
         """
-        if self._observables is None:
-            available = {str(name) for name in self.primary + self.derived}
-            self._observables = tuple(available - set(self._unobservable))
-        return self._observables
-
-    @property
-    def keys(self):
-        """A flat list of known observables.
-        
-        This property primarily exists for convenience to internal search
-        methods and may be removed in future versions. Please use the
-        `observables`, `primary`, and `derived` properties whenever possible.
-        """
-        if self._keys is None:
-            keys = {
-                key
-                for name in self.primary + self.derived
-                for key in name
-            }
-            self._keys = tuple(keys - set(self._unobservable))
-        return self._keys
+        return self._quantities['observable']
 
     @property
     def primary(self):
@@ -133,9 +130,7 @@ class Interface:
         A primary observable quantity is a formally observable quantity that
         comes directly from this observer's data source.
         """
-        if self._primary is None:
-            self._primary = tuple(self.data.variables.keys(aliased=True))
-        return self._primary
+        return self._quantities['primary']
 
     @property
     def derived(self):
@@ -145,9 +140,7 @@ class Interface:
         the result of a defined function of other (primary or derived)
         observable quantities, and possibly physical assumptions.
         """
-        if self._derived is None:
-            self._derived = tuple(self.data.functions.keys(aliased=True))
-        return self._derived
+        return self._quantities['derived']
 
     @property
     def data(self):
@@ -185,8 +178,8 @@ class Interface:
             )
         if key in self.data.variables:
             return self.data.variables[key]
-        if key in self.assumptions:
-            return self.assumptions[key]
+        if key in self.data.assumptions:
+            return self.data.assumptions[key]
 
     def knows(
         self,
@@ -199,7 +192,7 @@ class Interface:
 
     def _knows(self, key: str):
         """Internal helper for `~Interface.knows`."""
-        if key in self.keys:
+        if key in list(self.observables):
             return True
         if observable.iscomposed(key):
             expression = symbolic.Expression(key)
@@ -208,7 +201,7 @@ class Interface:
 
     def _check_spelling(self, key: str):
         """Catch misspelled names of observable quantities, if possible."""
-        keys = list(self.keys) + list(self.assumptions)
+        keys = list(self.observables) + list(self.assumptions)
         if self._spellcheck is None:
             self._spellcheck = spelling.SpellChecker(*keys)
         else:
