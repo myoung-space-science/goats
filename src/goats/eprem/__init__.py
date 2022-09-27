@@ -263,7 +263,6 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         )
         self._source = datapath
         self._confpath = confpath
-        self._dataset = None
 
     def reset(
         self: Instance,
