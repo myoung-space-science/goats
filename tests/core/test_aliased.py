@@ -26,13 +26,16 @@ def test_key():
 
 def test_keymap():
     """Test the collection that groups aliases."""
-    original = [('a', 'A'), 'b', ['c', 'C']]
+    original = [('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2']]
     keymap = aliased.KeyMap(*original)
     assert keymap['a'] == aliased.MappingKey('a', 'A')
     assert keymap['A'] == aliased.MappingKey('a', 'A')
     assert keymap['b'] == aliased.MappingKey('b')
     assert keymap['c'] == aliased.MappingKey('c', 'C')
     assert keymap['C'] == aliased.MappingKey('c', 'C')
+    assert keymap['d0'] == aliased.MappingKey('d0', 'd1', 'd2')
+    assert keymap['d1'] == aliased.MappingKey('d0', 'd1', 'd2')
+    assert keymap['d2'] == aliased.MappingKey('d0', 'd1', 'd2')
 
 
 def test_mapping():
