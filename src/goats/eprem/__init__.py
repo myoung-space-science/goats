@@ -226,6 +226,21 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
 
     _templates: typing.Iterable[typing.Callable] = None
 
+    _unobservable = [
+        'preEruption',
+        'phiOffset',
+        'mass',
+        'charge',
+        'time',
+        'shell',
+        'energy',
+        'speed',
+        'mu',
+        'radius',
+        'theta',
+        'phi',
+    ]
+
     def __init__(
         self,
         __id: int,
@@ -235,7 +250,7 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     ) -> None:
         self._id = __id
         super().__init__(
-            'preEruption', 'phiOffset',
+            *self._unobservable,
             system=system,
             apply=Application,
         )
