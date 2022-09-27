@@ -36,6 +36,16 @@ def test_keymap():
     assert keymap['d0'] == aliased.MappingKey('d0', 'd1', 'd2')
     assert keymap['d1'] == aliased.MappingKey('d0', 'd1', 'd2')
     assert keymap['d2'] == aliased.MappingKey('d0', 'd1', 'd2')
+    splits = {
+        'a': ['b', ('c', 'C'), ('d0', 'd1', 'd2')],
+        ('a', 'd1'): ['b', ('c', 'C')],
+        ('d1', 'a'): ['b', ('c', 'C')],
+        (aliased.MappingKey('c', 'C'), 'd0'): [('a', 'A'), 'b'],
+        (aliased.MappingKey('C'), 'd0'): [('a', 'A'), 'b', ('c', 'C')],
+        ('T', 'd0'): [('a', 'A'), 'b', ('c', 'C')],
+    }
+    for r, k in splits.items():
+        assert keymap.without(*r) == aliased.KeyMap(*k)
 
 
 def test_mapping():

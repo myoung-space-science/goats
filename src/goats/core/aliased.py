@@ -107,6 +107,21 @@ class KeyMap(iterables.MappingBase, iterables.ReprStrMixin):
         else:
             return found
 
+    def without(self, *keys: typing.Union[str, MappingKey]):
+        """Create a new keymap after removing `keys`."""
+        subset = [
+            group
+            for group in self._groups
+            if (
+                # none of the keys is in this group
+                all(key not in group for key in keys)
+                and
+                # this group is not one of the keys
+                group not in keys
+            )
+        ]
+        return type(self)(*subset)
+
     def __str__(self) -> str:
         return ', '.join(f"{str(k)!r}" for k in self._groups)
 
