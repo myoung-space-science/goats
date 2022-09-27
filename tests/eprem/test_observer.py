@@ -252,7 +252,7 @@ def observables() -> typing.Dict[str, dict]:
     }
 
 
-def test_init_stream(rootpath: Path):
+def test_create_stream(rootpath: Path):
     """Attempt to initialize a stream observer with various arguments."""
     source = rootpath / 'cone' / 'obs'
     # from ID and directory
@@ -288,7 +288,7 @@ def test_observable_access(
         assert isinstance(quantity, observable.Quantity)
 
 
-def test_create_observation_by_name(
+def test_create_observation(
     stream: eprem.Stream,
     observables: typing.Dict[str, dict],
 ) -> None:
