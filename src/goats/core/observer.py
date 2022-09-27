@@ -55,7 +55,15 @@ class Interface:
         return self._system
 
     def readfrom(self, source):
-        """Update this observer's data source."""
+        """Update this observer's data source.
+        
+        The base implementation sets `source` as the new target from which to
+        read data and resets various data-related attributes. Concrete
+        subclasses will likely want to call the base implementation first,
+        possibly after modifying `source` (e.g., to normalize a path), then
+        implement observer-specific logic necessary to update the actual data
+        quantities.
+        """
         self._source = source
         self._application = None
         self._keys = None
