@@ -122,25 +122,6 @@ class Interface:
         return self._quantities['observable']
 
     @property
-    def primary(self):
-        """The primary observable quantities.
-        
-        A primary observable quantity is a formally observable quantity that
-        comes directly from this observer's data source.
-        """
-        return self._quantities['primary']
-
-    @property
-    def derived(self):
-        """The derived observable quantities.
-        
-        A derived observable quantity is a formally observable quantity that is
-        the result of a defined function of other (primary or derived)
-        observable quantities, and possibly physical assumptions.
-        """
-        return self._quantities['derived']
-
-    @property
     def data(self):
         """An interface to this observer's physical quantities.
         
