@@ -13,8 +13,6 @@ from goats.core import symbolic
 class Interface:
     """The base class for all observers."""
 
-    _data: observing.Interface=None
-
     def __init__(
         self,
         __data: observing.Interface,
