@@ -11,6 +11,7 @@ from goats.core import aliased
 from goats.core import axis
 from goats.core import computed
 from goats.core import constant
+from goats.core import datafile
 from goats.core import interpolation
 from goats.core import iterables
 from goats.core import metadata
@@ -132,6 +133,63 @@ class Quantity(variable.Quantity):
     def parameters(self):
         """The optional parameters that define this observing quantity."""
         return Parameters(self._parameters)
+
+
+class Dataset(typing.Generic[T]):
+    """Abstract base class for observing-related data objects."""
+
+    def __init__(self, source: T, system: str='mks') -> None:
+        self._source = source
+        self._system = system
+        self._data = None
+
+    def get_axes(self) -> axis.Interface:
+        """Get the available axis-managing objects."""
+        return axis.Interface(self.data, self.system)
+
+    def get_variables(self) -> variable.Interface:
+        """Get the available variable quantities."""
+        return variable.Interface(self.data, self.system)
+
+    def get_constants(self) -> constant.Interface:
+        """Get the available constant quantities."""
+        return constant.Interface()
+
+    def reset(self, source=None):
+        """Reset data-dependent attributes.
+        
+        The base implementation resets various data-related attributes to their
+        uninitialized values and sets `source`, if given, as the new target from
+        which to read data. Concrete subclasses may wish to implement additional
+        data-related logic (e.g., reinitialize interfaces), possibly after
+        modifying `source` (e.g., to normalize a path).
+
+        Parameters
+        ----------
+        source, optional
+            The new source of this observer's data. The acceptable type(s) will
+            be observer-specific.
+        """
+        self._data = None
+        self._source = source
+        return self
+
+    @property
+    def data(self):
+        """This dataset's data interface."""
+        if self._data is None:
+            self._data = datafile.Interface(self.source)
+        return self._data
+
+    @property
+    def source(self):
+        """The source of this dataset's data."""
+        return self._source
+
+    @property
+    def system(self):
+        """The metric system associated with this dataset."""
+        return self._system
 
 
 class Interface(collections.abc.Collection):
