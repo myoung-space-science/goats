@@ -120,7 +120,7 @@ class Interface:
         support arithmetic operations and conversion to numpy arrays.
         """
         if self._quantities is None:
-            self._quantities = observing.Interface(
+            self._quantities = observing.Quantities(
                 self._data,
                 system=self.system,
             )

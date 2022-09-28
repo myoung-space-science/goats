@@ -169,7 +169,7 @@ class Dataset(abc.ABC, typing.Generic[T]):
         return self
 
 
-class Interface(collections.abc.Collection):
+class Quantities(collections.abc.Collection):
     """An interface to quantities required to make observations."""
 
     def __init__(self, dataset: Dataset, system: str=None) -> None:
@@ -337,7 +337,7 @@ class Interface(collections.abc.Collection):
 class Application:
     """A general observing application."""
 
-    def __init__(self, interface: Interface) -> None:
+    def __init__(self, interface: Quantities) -> None:
         self.interface = interface
         """The interface to an observer's dataset."""
         self.user = None
@@ -568,7 +568,7 @@ class Implementation:
     def __init__(
         self,
         name: str,
-        interface: Interface,
+        interface: Quantities,
     ) -> None:
         """
         Initialize this instance.
