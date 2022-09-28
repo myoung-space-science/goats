@@ -15,7 +15,7 @@ class Interface:
 
     def __init__(
         self,
-        __data: observing.Interface,
+        __data: observing.Dataset,
         *unobservable: str,
         system: str='mks',
         apply: typing.Type[observing.Application]=None,
@@ -24,6 +24,9 @@ class Interface:
         
         Parameters
         ----------
+        __data : `~observing.Dataset`
+            The observer's dataset.
+
         *unobservable : string
             The names of variable quantities from this observer's dataset to
             exclude from the set of formally observable quantities. These
@@ -32,7 +35,7 @@ class Interface:
         system : string, default='mks'
             The metric system to use for variable and observable quantities.
 
-        application : type of observing application, optional
+        apply : type of observing application, optional
             A subclass of `~observing.Application` with which to evaluate
             operational parameters and variable quantities during the observing
             process. If `application` is absent, this class will use an instance
@@ -42,40 +45,18 @@ class Interface:
         self._unobservable = unobservable
         self._system = metric.System(system)
         self._application_type = apply or observing.Application
-        self._quantities = self._define_quantities(__data, *unobservable)
-        self._source = None
+        self._quantities = None
         self._application = None
         self._spellcheck = None
 
-    def _define_quantities(
-        self,
-        data: observing.Interface,
-        *unobservable: str,
-    ) -> typing.Dict[str, aliased.KeyMap]:
-        """Internal logic for sorting observer quantities."""
-        primary = data.variables.keys(aliased=True)
-        derived = data.functions.keys(aliased=True)
-        available = aliased.KeyMap(*primary, *derived)
-        return {
-            'primary': aliased.KeyMap(primary),
-            'derived': aliased.KeyMap(derived),
-            'available': available,
-            'observable': available.without(*unobservable),
-        }
-
-    @property
-    def system(self):
-        """This observer's metric system."""
-        return self._system
-
-    def reset(self, source=None):
-        """Reset data-dependent attributes.
+    def reset(self, source=None, **kwargs):
+        """Reset the dataset interface.
         
-        The base implementation resets various data-related attributes and sets
-        `source`, if given, as the new target from which to read data. Concrete
-        subclasses may wish to implement additional data-related logic (e.g.,
-        reinitialize interfaces), possibly after modifying `source` (e.g., to
-        normalize a path).
+        The base implementation resets various data-related attributes to their
+        uninitialized values and sets `source`, if given, as the new target from
+        which to read data. Concrete subclasses may wish to implement additional
+        data-related logic (e.g., reinitialize interfaces), possibly after
+        modifying `source` (e.g., to normalize a path).
 
         Parameters
         ----------
@@ -83,58 +64,67 @@ class Interface:
             The new source of this observer's data. The acceptable type(s) will
             be observer-specific.
         """
-        self._source = source
+        self._quantities = None
         self._application = None
+        self._spellcheck = None
+        if source is not None:
+            self._data.readfrom(source, **kwargs)
         return self
 
     @property
-    def source(self):
-        """The source of this observer's data."""
-        return self._source
+    def system(self):
+        """This observer's metric system."""
+        return self._system
 
     @property
     def application(self):
         """This observer's observing application."""
         if self._application is None:
-            self._application = self._application_type(self.data)
+            self._application = self._application_type(self.quantities)
         return self._application
 
     @property
     def assumptions(self):
         """The names of operational assumptions available to this observer."""
-        return aliased.KeyMap(*self.data.assumptions.keys(aliased=True))
+        keys = self.quantities.assumptions.keys(aliased=True)
+        return aliased.KeyMap(*keys)
 
     @property
     def observables(self):
         """The names of formally observable quantities.
         
         This property contains the names of all primary and derived observable
-        quantities. See the `primary` and `derived` properties for their
-        respective definitions. Names are listed a groups of aliases for each
-        observable quantity (e.g., 'mfp | mean free path | mean_free_path'); any
-        of the listed aliases is a valid key for that quantity.
+        quantities. See `~observing.Interface.primary` and
+        `~observing.Interface.derived` for their respective definitions. Names
+        are listed a groups of aliases for each observable quantity (e.g., 'mfp
+        | mean free path | mean_free_path'); any of the listed aliases is a
+        valid key for that quantity.
 
         Note that it is also possible to symbolically compose new observable
         quantities from those listed here (e.g., 'mfp / Vr'). Therefore, this
         collection represents the minimal set of quantities that this observer
         can observe.
         """
-        return self._quantities['observable']
+        primary = self.quantities.primary
+        derived = self.quantities.derived
+        available = aliased.KeyMap(*primary, *derived)
+        return available.without(*self._unobservable)
 
     @property
-    def data(self):
+    def quantities(self):
         """An interface to this observer's physical quantities.
         
         This property represents the variable, axis-indexing, and constant
-        quantities to which this observer's `source` points. It incorporates
-        this observer's metric system, and exposes objects that support
-        arithmetic operations and conversion to numpy arrays.
+        quantities that are available from this observer's dataset. It
+        incorporates this observer's metric system, and exposes objects that
+        support arithmetic operations and conversion to numpy arrays.
         """
-        if self._data is None:
-            raise NotImplementedError(
-                f"Observer requires an observing interface"
-            ) from None
-        return self._data
+        if self._quantities is None:
+            self._quantities = observing.Interface(
+                self._data,
+                system=self.system,
+            )
+        return self._quantities
 
     def __getitem__(self, key: str):
         """Access an observable quantity by keyword, if possible."""
@@ -152,13 +142,13 @@ class Interface:
             )
             return observable.Quantity(
                 name,
-                observing.Implementation(key, self.data),
+                observing.Implementation(key, self.quantities),
                 application=self.application,
             )
-        if key in self.data.variables:
-            return self.data.variables[key]
-        if key in self.data.assumptions:
-            return self.data.assumptions[key]
+        if key in self.quantities.variables:
+            return self.quantities.variables[key]
+        if key in self.quantities.assumptions:
+            return self.quantities.assumptions[key]
 
     def knows(
         self,
