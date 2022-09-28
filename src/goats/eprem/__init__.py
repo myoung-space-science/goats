@@ -303,35 +303,26 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         datapath = self._build_datapath(source)
         confpath = self._build_confpath(config, directory=datapath.parent)
         super().__init__(
-            self._build_interface(
-                datapath=datapath,
-                confpath=confpath,
-                system=system,
-            ),
+            Dataset(datapath, confpath),
             *self._unobservable,
             system=system,
             apply=Application,
         )
-        self._source = datapath
-        self._confpath = confpath
 
     def reset(
         self: Instance,
         source: iotools.PathLike=None,
         config: iotools.PathLike=None
     ) -> Instance:
-        paths = {}
-        if source is not None:
-            datapath = self._build_datapath(source)
-            paths['datapath'] = datapath
-        else:
-            datapath = self.datapath
-        if config is not None:
-            confpath = self._build_confpath(config, directory=datapath.parent)
-            paths['confpath'] = confpath
-            self._confpath = confpath
-        self._data = self._build_interface(**paths)
-        return super().reset(datapath)
+        datapath = (
+            self._build_datapath(source) if source is not None
+            else self.datapath
+        )
+        if config is None:
+            return super().reset(source=datapath)
+        confpath = self._build_confpath(config, directory=datapath.parent)
+        self._confpath = confpath
+        return super().reset(source=datapath, confpath=confpath)
 
     def _build_datapath(self, directory: iotools.PathLike):
         """Create the path to the dataset from `directory`."""
@@ -365,34 +356,15 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
             f"Can't create path to configuration file from {config!r}"
         ) from None
 
-    def _build_interface(
-        self,
-        datapath: iotools.ReadOnlyPath=None,
-        confpath: iotools.ReadOnlyPath=None,
-        system: str=None,
-    ) -> observing.Interface:
-        """Create this observer's observing interface.
-        
-        This method will use current instance values for any missing arguments.
-        """
-        dataset = datafile.Interface(datapath or self.datapath)
-        axes = Axes(dataset, system=(system or self.system))
-        variables = variable.Interface(dataset, system=(system or self.system))
-        constants = runtime.Arguments(
-            source_path=ENV['src'],
-            config_path=(confpath or self.confpath),
-        )
-        return observing.Interface(axes, variables, constants)
-
     @property
     def confpath(self) -> iotools.ReadOnlyPath:
         """The full path to this observer's runtime parameter file."""
-        return self._confpath
+        return self._data.confpath
 
     @property
     def datapath(self) -> iotools.ReadOnlyPath:
         """The path to this observer's dataset."""
-        return self._source
+        return self._data.datapath
 
     # TODO: This is still not quite right for `api_test/run.py`; even if it
     # were, I still want everything to go through `_build_axis`. Maybe it's
@@ -407,12 +379,12 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     @property
     def shell(self):
         """The shell values in this observer's dataset."""
-        return self.data.axes['shell'].reference
+        return self._data.axes['shell'].reference
 
     @property
     def species(self):
         """The species values in this observer's dataset."""
-        return self.data.axes['species'].reference
+        return self._data.axes['species'].reference
 
     @property
     def energy(self):
@@ -426,7 +398,7 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
 
     def _build_axis(self, key: str):
         """Create a representation of the values for an axis."""
-        this = self.data.axes[key]
+        this = self._data.axes[key]
         return physical.Array(
             this.reference,
             unit=this.unit,
