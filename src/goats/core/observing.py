@@ -183,25 +183,19 @@ class Interface(collections.abc.Collection):
     """An interface to quantities required to make observations."""
 
     def __init__(self, dataset: Dataset) -> None:
-        self.axes = dataset.get_axes()
-        """The axis-managing objects available to this observer."""
-        self.variables = dataset.get_variables()
-        """The variable quantities available to this observer."""
-        self.constants = dataset.get_constants()
-        """The constant quantities available to this observer."""
+        self._dataset = dataset
+        self._axes = None
+        self._variables = None
+        self._constants = None
         self._system = None
         self._names = None
+        self._primary = None
+        self._derived = None
         self._functions = None
-        assumptions = {
-            k: v
-            for k, v in self.constants.items(aliased=True)
-            if isinstance(v, constant.Assumption)
-        } if self.constants else {}
-        self.assumptions = aliased.Mapping(assumptions)
-        """The default physical assumptions."""
+        self._assumptions = None
 
     def __contains__(self, __x) -> bool:
-        return __x in self.names
+        return __x in self.names or any(__x in name for name in self.names)
 
     def __iter__(self) -> typing.Iterator:
         return iter(self.names)
@@ -210,18 +204,73 @@ class Interface(collections.abc.Collection):
         return len(self.names)
 
     @property
+    def axes(self):
+        """The available axis-managing objects."""
+        if self._axes is None:
+            self._axes = self._dataset.get_axes()
+        return self._axes
+
+    @property
+    def variables(self):
+        """The available variable quantities."""
+        if self._variables is None:
+            self._variables = self._dataset.get_variables()
+        return self._variables
+
+    @property
+    def assumptions(self):
+        """The default physical assumptions."""
+        if self._assumptions is None:
+            assumptions = {
+                k: v
+                for k, v in self.constants.items(aliased=True)
+                if isinstance(v, constant.Assumption)
+            } if self.constants else {}
+            self._assumptions = aliased.Mapping(assumptions)
+        return self._assumptions
+
+    @property
+    def constants(self):
+        """The available constant quantities."""
+        if self._constants is None:
+            self._constants = self._dataset.get_constants()
+        return self._constants
+
+    @property
     def system(self):
         """The metric system of this observer's dataset quantities."""
         if self._system is None:
-            self._system = self.variables.system
+            self._system = self._dataset.system
         return self._system
 
     @property
     def names(self):
         """The names of all available quantities."""
         if self._names is None:
-            self._names = list(self.variables) + list(self.functions)
+            self._names = self.primary + self.derived
         return self._names
+
+    @property
+    def primary(self):
+        """The names of all available primary quantities.
+        
+        A primary quantity is a quantity that comes directly from the dataset.
+        """
+        if self._primary is None:
+            self._primary = tuple(self.variables.keys(aliased=True))
+        return self._primary
+
+    @property
+    def derived(self):
+        """The names of all available quantities.
+        
+        A derived quantity is a quantity that is the result of a defined
+        function of one or more primary or derived quantities, and zero or more
+        physical assumptions.
+        """
+        if self._derived is None:
+            self._derived = tuple(self.functions.keys(aliased=True))
+        return self._derived
 
     @property
     def functions(self):
