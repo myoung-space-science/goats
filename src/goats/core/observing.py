@@ -155,21 +155,8 @@ class Dataset(typing.Generic[T]):
         """Get the available constant quantities."""
         return constant.Interface()
 
-    def reset(self, source=None):
-        """Reset data-dependent attributes.
-        
-        The base implementation resets various data-related attributes to their
-        uninitialized values and sets `source`, if given, as the new target from
-        which to read data. Concrete subclasses may wish to implement additional
-        data-related logic (e.g., reinitialize interfaces), possibly after
-        modifying `source` (e.g., to normalize a path).
-
-        Parameters
-        ----------
-        source, optional
-            The new source of this observer's data. The acceptable type(s) will
-            be observer-specific.
-        """
+    def reset(self, source: T):
+        """Reset the data source."""
         self._data = None
         self._source = source
         return self
