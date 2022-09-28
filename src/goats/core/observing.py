@@ -136,23 +136,26 @@ class Quantity(variable.Quantity):
 
 
 class Dataset(typing.Generic[T]):
-    """Abstract base class for observing-related data objects."""
+    """Base class for observing-related data objects."""
 
     def __init__(self, source: T, system: str='mks') -> None:
         self._source = source
         self._system = system
         self._data = None
 
-    def get_axes(self) -> axis.Interface:
-        """Get the available axis-managing objects."""
+    @property
+    def axes(self) -> axis.Interface:
+        """The available axis-managing objects."""
         return axis.Interface(self.data, self.system)
 
-    def get_variables(self) -> variable.Interface:
-        """Get the available variable quantities."""
+    @property
+    def variables(self) -> variable.Interface:
+        """The available variable quantities."""
         return variable.Interface(self.data, self.system)
 
-    def get_constants(self) -> constant.Interface:
-        """Get the available constant quantities."""
+    @property
+    def constants(self) -> constant.Interface:
+        """The available constant quantities."""
         return constant.Interface()
 
     def reset(self, source: T):
@@ -207,14 +210,14 @@ class Interface(collections.abc.Collection):
     def axes(self):
         """The available axis-managing objects."""
         if self._axes is None:
-            self._axes = self._dataset.get_axes()
+            self._axes = self._dataset.axes
         return self._axes
 
     @property
     def variables(self):
         """The available variable quantities."""
         if self._variables is None:
-            self._variables = self._dataset.get_variables()
+            self._variables = self._dataset.variables
         return self._variables
 
     @property
@@ -233,7 +236,7 @@ class Interface(collections.abc.Collection):
     def constants(self):
         """The available constant quantities."""
         if self._constants is None:
-            self._constants = self._dataset.get_constants()
+            self._constants = self._dataset.constants
         return self._constants
 
     @property
