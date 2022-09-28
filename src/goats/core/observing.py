@@ -1,3 +1,4 @@
+import abc
 import collections
 import collections.abc
 import contextlib
@@ -135,71 +136,48 @@ class Quantity(variable.Quantity):
         return Parameters(self._parameters)
 
 
-class Dataset(typing.Generic[T]):
-    """Base class for observing-related data objects."""
+class Dataset(abc.ABC, typing.Generic[T]):
+    """Abstract base class for observing-related data objects."""
 
-    def __init__(self, source: T, system: str='mks') -> None:
-        self._source = source
-        self._system = system
-        self._data = None
-        self._axes = None
-        self._variables = None
-        self._constants = None
+    def __init__(self, __type: typing.Type[T], source) -> None:
+        self._type = __type
+        self._data = self._type(source)
 
-    @property
-    def axes(self) -> axis.Interface:
-        """The available axis-managing objects."""
-        if self._axes is None:
-            self._axes = axis.Interface(self.data, self.system)
-        return self._axes
+    @abc.abstractmethod
+    def get_axes(self, system: str=None) -> axis.Interface:
+        """Get the available axis-managing objects."""
+        return axis.Interface(self.data, system=system)
 
-    @property
-    def variables(self) -> variable.Interface:
-        """The available variable quantities."""
-        if self._variables is None:
-            self._variables = variable.Interface(self.data, self.system)
-        return self._variables
+    @abc.abstractmethod
+    def get_variables(self, system: str=None) -> variable.Interface:
+        """Get the available variable quantities."""
+        return variable.Interface(self.data, system=system)
 
-    @property
-    def constants(self) -> constant.Interface:
-        """The available constant quantities."""
-        if self._constants is None:
-            self._constants = constant.Interface()
-        return self._constants
-
-    def reset(self, source: T):
-        """Reset the data source."""
-        self._data = None
-        self._source = source
-        return self
+    @abc.abstractmethod
+    def get_constants(self) -> constant.Interface:
+        """Get the available constant quantities."""
+        return constant.Interface()
 
     @property
     def data(self):
-        """This dataset's data interface."""
-        if self._data is None:
-            self._data = datafile.Interface(self.source)
+        """The object that manages access to this dataset's data."""
         return self._data
 
-    @property
-    def source(self):
-        """The source of this dataset's data."""
-        return self._source
-
-    @property
-    def system(self):
-        """The metric system associated with this dataset."""
-        return self._system
+    def readfrom(self, source):
+        """Update the data source."""
+        self._data = self._type(source)
+        return self
 
 
 class Interface(collections.abc.Collection):
     """An interface to quantities required to make observations."""
 
-    def __init__(self, dataset: Dataset) -> None:
+    def __init__(self, dataset: Dataset, system: str=None) -> None:
         self._dataset = dataset
+        self._system = metric.System(system or 'mks')
         self._axes = None
         self._variables = None
         self._constants = None
-        self._system = None
         self._names = None
         self._primary = None
         self._derived = None
@@ -219,14 +197,14 @@ class Interface(collections.abc.Collection):
     def axes(self):
         """The available axis-managing objects."""
         if self._axes is None:
-            self._axes = self._dataset.axes
+            self._axes = self._dataset.get_axes(self.system)
         return self._axes
 
     @property
     def variables(self):
         """The available variable quantities."""
         if self._variables is None:
-            self._variables = self._dataset.variables
+            self._variables = self._dataset.get_variables(self.system)
         return self._variables
 
     @property
@@ -245,14 +223,12 @@ class Interface(collections.abc.Collection):
     def constants(self):
         """The available constant quantities."""
         if self._constants is None:
-            self._constants = self._dataset.constants
+            self._constants = self._dataset.get_constants()
         return self._constants
 
     @property
     def system(self):
-        """The metric system of this observer's dataset quantities."""
-        if self._system is None:
-            self._system = self._dataset.system
+        """The metric system to use for observations."""
         return self._system
 
     @property
