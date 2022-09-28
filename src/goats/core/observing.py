@@ -195,26 +195,21 @@ class Dataset(typing.Generic[T]):
 class Interface(collections.abc.Collection):
     """An interface to quantities required to make observations."""
 
-    def __init__(
-        self,
-        axes: axis.Interface,
-        variables: variable.Interface,
-        constants: constant.Interface,
-    ) -> None:
-        self.axes = axes
+    def __init__(self, dataset: Dataset) -> None:
+        self.axes = dataset.get_axes()
         """The axis-managing objects available to this observer."""
-        self.variables = variables
+        self.variables = dataset.get_variables()
         """The variable quantities available to this observer."""
-        self.constants = constants
+        self.constants = dataset.get_constants()
         """The constant quantities available to this observer."""
         self._system = None
         self._names = None
         self._functions = None
         assumptions = {
             k: v
-            for k, v in constants.items(aliased=True)
+            for k, v in self.constants.items(aliased=True)
             if isinstance(v, constant.Assumption)
-        } if constants else {}
+        } if self.constants else {}
         self.assumptions = aliased.Mapping(assumptions)
         """The default physical assumptions."""
 
