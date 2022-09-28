@@ -142,21 +142,30 @@ class Dataset(typing.Generic[T]):
         self._source = source
         self._system = system
         self._data = None
+        self._axes = None
+        self._variables = None
+        self._constants = None
 
     @property
     def axes(self) -> axis.Interface:
         """The available axis-managing objects."""
-        return axis.Interface(self.data, self.system)
+        if self._axes is None:
+            self._axes = axis.Interface(self.data, self.system)
+        return self._axes
 
     @property
     def variables(self) -> variable.Interface:
         """The available variable quantities."""
-        return variable.Interface(self.data, self.system)
+        if self._variables is None:
+            self._variables = variable.Interface(self.data, self.system)
+        return self._variables
 
     @property
     def constants(self) -> constant.Interface:
         """The available constant quantities."""
-        return constant.Interface()
+        if self._constants is None:
+            self._constants = constant.Interface()
+        return self._constants
 
     def reset(self, source: T):
         """Reset the data source."""
