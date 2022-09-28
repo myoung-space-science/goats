@@ -8,7 +8,7 @@ import numpy.typing
 from goats import Environment
 from ..core import (
     axis,
-    aliased,
+    constant,
     datafile,
     fundamental,
     iterables,
@@ -30,6 +30,9 @@ ENV = Environment('eprem')
 
 
 basetypes = BaseTypesH(source=ENV['src'])
+
+
+T = typing.TypeVar('T')
 
 
 class Axes(axis.Interface):
@@ -159,6 +162,54 @@ class Axes(axis.Interface):
             ]
             return axis.Data(indices, values=values)
         return method
+
+
+Instance = typing.TypeVar('Instance', bound='Dataset')
+
+
+class Dataset(observing.Dataset):
+    """Interface to an EPREM dataset."""
+
+    def __init__(
+        self,
+        datapath: iotools.ReadOnlyPath,
+        confpath: iotools.ReadOnlyPath,
+    ) -> None:
+        super().__init__(datafile.Interface, datapath)
+        self._datapath = datapath
+        self._confpath = confpath
+
+    def get_axes(self, system: str=None) -> axis.Interface:
+        return Axes(self.data, system=system)
+
+    def get_variables(self, system: str=None) -> variable.Interface:
+        return variable.Interface(self.data, system=system)
+
+    def get_constants(self) -> constant.Interface:
+        return runtime.Arguments(
+            source_path=ENV['src'],
+            config_path=self.confpath,
+        )
+
+    def readfrom(
+        self: Instance,
+        datapath: iotools.ReadOnlyPath,
+        confpath: iotools.ReadOnlyPath=None,
+    ) -> Instance:
+        self._datapath = datapath
+        if confpath:
+            self._confpath = confpath
+        return super().readfrom(datapath)
+
+    @property
+    def confpath(self) -> iotools.ReadOnlyPath:
+        """The full path to this dataset's runtime parameter file."""
+        return self._confpath
+
+    @property
+    def datapath(self) -> iotools.ReadOnlyPath:
+        """The path to this dataset."""
+        return self._datapath
 
 
 class Application(observing.Application):
