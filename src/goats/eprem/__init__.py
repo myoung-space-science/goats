@@ -308,6 +308,7 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
             system=system,
             apply=Application,
         )
+        self._axes = None
 
     def reset(
         self: Instance,
@@ -322,6 +323,7 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
             return super().reset(source=datapath)
         confpath = self._build_confpath(config, directory=datapath.parent)
         self._confpath = confpath
+        self._axes = None
         return super().reset(source=datapath, confpath=confpath)
 
     def _build_datapath(self, directory: iotools.PathLike):
@@ -366,44 +368,45 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         """The path to this observer's dataset."""
         return self._data.datapath
 
-    # TODO: This is still not quite right for `api_test/run.py`; even if it
-    # were, I still want everything to go through `_build_axis`. Maybe it's
-    # worth re-defining separate array-like axis objects for indices, symbols,
-    # and coordinates.
+    @property
+    def radius(self):
+        """The time-dependent radius values in this observer's dataset."""
+        return self.quantities.variables['radius']
+
+    @property
+    def theta(self):
+        """The time-dependent theta values in this observer's dataset."""
+        return self.quantities.variables['theta']
+
+    @property
+    def phi(self):
+        """The time-dependent phi values in this observer's dataset."""
+        return self.quantities.variables['phi']
 
     @property
     def time(self):
         """The time values in this observer's dataset."""
-        return self._build_axis('time')
+        return axis.Array(self.quantities.axes['time'])
 
     @property
     def shell(self):
         """The shell values in this observer's dataset."""
-        return self._data.axes['shell'].reference
+        return axis.List(self.quantities.axes['shell'])
 
     @property
     def species(self):
         """The species values in this observer's dataset."""
-        return self._data.axes['species'].reference
+        return axis.List(self.quantities.axes['species'])
 
     @property
     def energy(self):
         """The energy values in this observer's dataset."""
-        return self._build_axis('energy')
+        return axis.Array(self.quantities.axes['energy'])
 
     @property
     def mu(self):
         """The pitch-angle cosine values in this observer's dataset."""
-        return self._build_axis('mu')
-
-    def _build_axis(self, key: str):
-        """Create a representation of the values for an axis."""
-        this = self._data.axes[key]
-        return physical.Array(
-            this.reference,
-            unit=this.unit,
-            name=this.name,
-        )
+        return axis.Array(self.quantities.axes['mu'])
 
     def __str__(self) -> str:
         return str(self.datapath)
