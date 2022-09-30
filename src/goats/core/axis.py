@@ -312,19 +312,15 @@ class Array(physical.Array):
 
     def _as_string(self, prefix: str='', suffix: str=''):
         """Create a string representation of this object."""
-        def float_formatter(x):
-            if abs(x) <= 1e-4:
-                return f"{x:.3e}"
-            return f"{x:.3f}"
         signed = any(i < 0 for i in numpy.array(self))
         string = numpy.array2string(
             self,
-            suppress_small=True,
             threshold=4,
             edgeitems=2,
             sign='+' if signed else '-',
             separator=', ',
-            formatter={'float_kind': float_formatter},
+            precision=3,
+            floatmode='maxprec_equal',
             prefix=prefix,
             suffix=suffix,
         )
