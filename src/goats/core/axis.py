@@ -2,11 +2,14 @@ import collections
 import numbers
 import typing
 
+import numpy
+
 from goats.core import aliased
 from goats.core import datafile
 from goats.core import iterables
 from goats.core import metadata
 from goats.core import metric
+from goats.core import physical
 from goats.core import reference
 from goats.core import variable
 
@@ -229,6 +232,103 @@ class Quantity(metadata.NameMixin, iterables.ReprStrMixin):
         if self.unit:
             string += f", unit={str(self.unit)!r}"
         return string
+
+
+class List(collections.UserList):
+    """A sequence of non-measurable axis values."""
+
+    def __init__(self, __q: Quantity) -> None:
+        super().__init__(__q.reference)
+        self._q = __q
+        self._name = None
+
+    @property
+    def name(self):
+        """The name of the axis quantity."""
+        if self._name is None:
+            self._name = self._q.name
+        return self._name
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return self._as_string()
+
+    def __repr__(self) -> str:
+        """An unambiguous representation of this object."""
+        module = f"{self.__module__.replace('goats.', '')}."
+        name = self.__class__.__qualname__
+        return self._as_string(
+            prefix=f'{module}{name}(',
+            suffix=')',
+        )
+
+    def _as_string(self, prefix: str='', suffix: str=''):
+        """Create a string representation of this object."""
+        string = numpy.array2string(
+            numpy.array(self),
+            suppress_small=True,
+            threshold=4,
+            edgeitems=2,
+            separator=', ',
+            prefix=prefix,
+            suffix=suffix,
+        )
+        return f"{prefix}{string}{suffix}"
+
+
+class Array(physical.Array):
+    """A sequence of measurable axis values."""
+
+    def __init__(self, __q: Quantity) -> None:
+        super().__init__(__q.reference, unit=__q.unit, name=__q.name)
+        self._q = __q
+
+    def at(self, *values, **kwargs):
+        """Compute axis indices at the given values.
+        
+        Notes
+        -----
+        Unlike `~axis.Quantity.index`, this assumes that `values` are numerical
+        values in the current unit.
+        """
+        return self._q.index([*values, self.unit], **kwargs)
+
+    def __getitem__(self, unit: metadata.UnitLike):
+        """Create a new instance with updated unit."""
+        return type(self)(self._q[unit])
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return self._as_string(suffix=f', unit={self.unit}')
+
+    def __repr__(self) -> str:
+        """An unambiguous representation of this object."""
+        module = f"{self.__module__.replace('goats.', '')}."
+        name = self.__class__.__qualname__
+        return self._as_string(
+            prefix=f'{module}{name}(',
+            suffix=f', unit={self.unit})',
+        )
+
+    def _as_string(self, prefix: str='', suffix: str=''):
+        """Create a string representation of this object."""
+        def float_formatter(x):
+            if abs(x) <= 1e-4:
+                return f"{x:.3e}"
+            return f"{x:.3f}"
+        signed = any(i < 0 for i in numpy.array(self))
+        string = numpy.array2string(
+            self,
+            suppress_small=True,
+            threshold=4,
+            edgeitems=2,
+            sign='+' if signed else '-',
+            separator=', ',
+            formatter={'float_kind': float_formatter},
+            prefix=prefix,
+            suffix=suffix,
+        )
+        return f"{prefix}{string}{suffix}"
 
 
 class IndexTypeError(Exception):
