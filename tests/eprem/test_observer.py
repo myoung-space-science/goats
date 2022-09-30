@@ -38,6 +38,28 @@ def stream(rootpath: Path):
 
 
 @pytest.fixture
+def axes():
+    """Metadata for EPREM dataset axes."""
+    return {
+        'time': {
+            'length': 50,
+        },
+        'shell': {
+            'length': 2000,
+        },
+        'species': {
+            'length': 1,
+        },
+        'energy': {
+            'length': 20,
+        },
+        'mu': {
+            'length': 8,
+        },
+    }
+
+
+@pytest.fixture
 def quantities() -> typing.Dict[str, dict]:
     """Information about each quantity available to an EPREM observer."""
     T, S, P, E, M = 'time', 'shell', 'species', 'energy', 'mu'
