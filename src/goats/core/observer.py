@@ -84,9 +84,9 @@ class Interface:
         return self._application
 
     @property
-    def assumptions(self):
-        """The names of operational assumptions available to this observer."""
-        keys = self.quantities.assumptions.keys(aliased=True)
+    def parameters(self):
+        """The names of operational arguments relevant to this observer."""
+        keys = self.quantities.constants.keys(aliased=True)
         return aliased.KeyMap(*keys)
 
     @property
@@ -147,8 +147,8 @@ class Interface:
             )
         if key in self.quantities.variables:
             return self.quantities.variables[key]
-        if key in self.quantities.assumptions:
-            return self.quantities.assumptions[key]
+        if key in self.quantities.constants:
+            return self.quantities.constants[key]
 
     def knows(
         self,
