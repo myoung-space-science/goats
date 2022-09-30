@@ -433,6 +433,31 @@ def test_observer_metric_system(
             assert stream[name].unit == expected['unit'][system]
 
 
+def test_observer_axes(stream: eprem.Stream, axes: dict):
+    """Test the observer's axis-like objects."""
+    assert len(stream.time) == axes['time']['length']
+    assert len(stream.shell) == axes['shell']['length']
+    assert len(stream.species) == axes['species']['length']
+    assert len(stream.energy) == axes['energy']['length']
+    assert len(stream.mu) == axes['mu']['length']
+    for unit, scale in {'s': 86400, 'day': 1.0}.items():
+        array = numpy.array(stream.time[unit])
+        assert array[0] == pytest.approx(0.1 * scale)
+        assert array[-1] == pytest.approx(5.0 * scale)
+    for unit, scale in {'J': 1.6022e-13, 'MeV': 1.0}.items():
+        array = numpy.array(stream.energy[unit])
+        assert array[0] == pytest.approx(1e-1 * scale)
+        assert array[-1] == pytest.approx(1e2 * scale)
+    array = numpy.array(stream.mu)
+    assert array[0] == pytest.approx(-1.0)
+    assert array[-1] == pytest.approx(1.0)
+    array = numpy.array(stream.shell)
+    assert array[0] == 0
+    assert array[-1] == 1999
+    array = numpy.array(stream.species)
+    assert array[0] == 'H+'
+
+
 def test_interpolation(stream: eprem.Stream):
     """Interpolate an observation."""
     cases = [
