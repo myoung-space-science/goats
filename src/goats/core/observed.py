@@ -3,7 +3,7 @@ import typing
 import numpy
 
 from goats.core import aliased
-from goats.core import axis
+from goats.core import index
 from goats.core import iterables
 from goats.core import constant
 from goats.core import physical
@@ -15,7 +15,7 @@ class Context:
 
     def __init__(
         self,
-        indices: typing.Mapping[str, axis.Index],
+        indices: typing.Mapping[str, index.Quantity],
         scalars: typing.Mapping[str, physical.Scalar]=None
     ) -> None:
         self._indices = indices

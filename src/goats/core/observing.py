@@ -305,14 +305,14 @@ class Quantities(collections.abc.Collection):
                 this *= self.get_axes(term.base)
         return metadata.Axes(this)
 
-    def compute_index(self, key: str, **constraints) -> axis.Index:
+    def compute_index(self, key: str, **constraints) -> axis.Quantity:
         """Compute the axis-indexing object for `key`."""
         if key not in self.axes:
             raise ValueError(f"No axis corresponding to {key!r}") from None
         if key not in constraints:
             return self.axes[key].index()
         this = constraints[key]
-        if isinstance(this, axis.Index):
+        if isinstance(this, axis.Quantity):
             return this
         return self.axes[key].index(*iterables.whole(this))
 
@@ -537,7 +537,7 @@ class Application:
             for k in self.interface.axes.keys(aliased=True)
         }
 
-    def get_index(self, key: str, default: T=None) -> axis.Index:
+    def get_index(self, key: str, default: T=None) -> axis.Quantity:
         """Get the axis-indexing object for `key`."""
         if 'indices' not in self._cache:
             self._cache['indices'] = {}
