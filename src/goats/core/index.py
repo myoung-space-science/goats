@@ -146,7 +146,7 @@ class Array(Quantity):
         super().__init__(arg, **meta)
 
     def __array__(self, *args, **kwargs):
-        """"""
+        """Called for conversion to numpy array types."""
         return numpy.array(self.values, *args, **kwargs)
 
     # NOTE: The following unit-related logic includes significant overlap with
