@@ -1,6 +1,5 @@
 import pathlib
 import typing
-import numbers
 
 import numpy
 import numpy.typing
@@ -11,8 +10,9 @@ from ..core import (
     constant,
     datafile,
     fundamental,
-    iterables,
     iotools,
+    index,
+    iterables,
     measurable,
     metadata,
     metric,
@@ -66,7 +66,7 @@ class Axes(axis.Interface):
                 # NOTE: The presence of `unit` is a hack because 'shell'
                 # currently gets a unit of '1' even though it should probably be
                 # None. This hack is due to the design of `axis.Quantity`.
-                return axis.Data(targets)
+                return index.Data(targets)
             self._shell = axis.Indexer(method, len(self.variables['shell']))
         return self._shell
 
@@ -95,7 +95,7 @@ class Axes(axis.Interface):
                 targets,
                 unit: metadata.UnitLike,
                 species: typing.Union[str, int]=0,
-            ) -> axis.Data:
+            ) -> index.Data:
                 s = self.species.compute([species]).points
                 t = (
                     numpy.squeeze(targets[s, :])
@@ -120,7 +120,7 @@ class Axes(axis.Interface):
                     if isinstance(target, str) else int(target)
                     for target in targets
                 ]
-                return axis.Data(indices, values=symbols)
+                return index.Data(indices, values=symbols)
             self._species = axis.Indexer(method, len(symbols))
         return self._species
 
@@ -132,13 +132,13 @@ class Axes(axis.Interface):
             if not targets:
                 # If there are no target values, we assume the user wants the
                 # entire axis.
-                return axis.Data(
+                return index.Data(
                     range(len(converted)),
                     values=numpy.array(converted),
                 )
             if all(isinstance(t, typing.SupportsIndex) for t in targets):
                 # All the target values are already indices.
-                return axis.Data(targets, values=numpy.array(converted))
+                return index.Data(targets, values=numpy.array(converted))
             measured = measurable.measure(targets)
             if measured.unit != '1':
                 # If the targets include a dimensioned unit, we want to
@@ -160,7 +160,7 @@ class Axes(axis.Interface):
                 numerical.find_nearest(converted, float(value)).index
                 for value in values
             ]
-            return axis.Data(indices, values=values)
+            return index.Data(indices, values=values)
         return method
 
 
@@ -386,27 +386,27 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     @property
     def time(self):
         """The time values in this observer's dataset."""
-        return axis.Array(self.quantities.axes['time'])
+        return self.quantities.axes['time'].reference
 
     @property
     def shell(self):
         """The shell values in this observer's dataset."""
-        return axis.List(self.quantities.axes['shell'])
+        return self.quantities.axes['shell'].reference
 
     @property
     def species(self):
         """The species values in this observer's dataset."""
-        return axis.List(self.quantities.axes['species'])
+        return self.quantities.axes['species'].reference
 
     @property
     def energy(self):
         """The energy values in this observer's dataset."""
-        return axis.Array(self.quantities.axes['energy'])
+        return self.quantities.axes['energy'].reference
 
     @property
     def mu(self):
         """The pitch-angle cosine values in this observer's dataset."""
-        return axis.Array(self.quantities.axes['mu'])
+        return self.quantities.axes['mu'].reference
 
     def __str__(self) -> str:
         return str(self.datapath)

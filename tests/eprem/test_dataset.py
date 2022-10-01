@@ -3,6 +3,7 @@ import numpy
 
 from goats.core import aliased
 from goats.core import axis
+from goats.core import index
 from goats.core import datafile
 from goats.core import metric
 from goats.core import variable
@@ -115,7 +116,7 @@ def check_axis(this: axis.Quantity, parameters, system, **kwargs):
     unit = expected['unit'][system]
     values = expected['values'][system]
     full = this.index(**kwargs)
-    assert isinstance(full, axis.Index)
+    assert isinstance(full, index.Quantity)
     assert len(full) == length
     user = this.index(*inputs, **kwargs)
     assert list(user) == points
