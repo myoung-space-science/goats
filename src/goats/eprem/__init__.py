@@ -1,3 +1,4 @@
+import contextlib
 import pathlib
 import typing
 
@@ -295,7 +296,7 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     def __init__(
         self,
         __id: int,
-        source: iotools.PathLike=ENV['source'],
+        source: iotools.PathLike=pathlib.Path.cwd(),
         config: iotools.PathLike=ENV['config'],
         system: str='mks',
     ) -> None:
@@ -336,7 +337,9 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
                 self._id,
                 directory=this,
             )
-            return iotools.ReadOnlyPath(path)
+            with contextlib.suppress(TypeError):
+                # Couldn't initialize with `path` for some reason.
+                return iotools.ReadOnlyPath(path)
         raise TypeError(
             f"Can't create path to dataset from {directory!r}"
         ) from None
