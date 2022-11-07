@@ -2,7 +2,7 @@
 This module contains high-level tests of the observer/observable/observation framework. Note that some tests may take especially long to run.
 """
 
-from pathlib import Path
+import pathlib
 import typing
 
 import numpy
@@ -20,7 +20,7 @@ from goats.core import variable
 from goats import eprem
 
 
-def get_stream(rootpath: Path):
+def get_stream(rootpath: pathlib.Path):
     """Create a stream observer.
 
     This is separated out to allow developers to create a stream outside of the
@@ -32,7 +32,7 @@ def get_stream(rootpath: Path):
 
 
 @pytest.fixture
-def stream(rootpath: Path):
+def stream(rootpath: pathlib.Path):
     """Provide a stream observer via fixture."""
     return get_stream(rootpath)
 
@@ -320,7 +320,7 @@ def observables(quantities: typing.Dict[str, dict]):
     return {k: v for k, v in quantities.items() if v['observable']}
 
 
-def test_create_stream(rootpath: Path):
+def test_create_stream(rootpath: pathlib.Path):
     """Attempt to initialize a stream observer with various arguments."""
     source = rootpath / 'cone' / 'obs'
     # from ID and directory
@@ -334,7 +334,7 @@ def test_create_stream(rootpath: Path):
     assert isinstance(stream, observer.Interface)
 
 
-def test_change_source(rootpath: Path):
+def test_change_source(rootpath: pathlib.Path):
     """Make sure changing the source paths updates the observer."""
     olddir = rootpath / 'cone' / 'obs'
     stream = eprem.Stream(0, source=olddir)
@@ -421,7 +421,7 @@ def test_observation_unit(stream: eprem.Stream):
 
 
 def test_observer_metric_system(
-    rootpath: Path,
+    rootpath: pathlib.Path,
     quantities: typing.Dict[str, dict],
 ) -> None:
     """Allow users to declare the observer's metric system."""
