@@ -69,6 +69,21 @@ def test_unwrap():
         assert iterables.unwrap(case, wrap=tuple) == (3, 4)
 
 
+def test_string_to_list():
+    """Test the function that converts, e.g., '[1, 2]' to [1, 2]."""
+    convert = {
+        '[1, 2]': [1, 2],
+        '[1]': [1],
+        '[]': [],
+        "[1, '2']": [1, 2],
+        "['1', '2']": [1, 2],
+    }
+    for string, result in convert.items():
+        assert iterables.string_to_list(string) == result
+    with pytest.raises(TypeError):
+        iterables.string_to_list('1')
+
+
 def test_naked():
     """Test the function that identifies objects not wrapped in an iterable."""
     cases = [..., 'this', 0, 0.0, range(1), slice(None)]

@@ -189,7 +189,13 @@ def slice_to_range(s: slice, stop: int=0) -> range:
 
 def string_to_list(string: str) -> list:
     """Convert a string representation of a list to a list"""
-    return [numerical.cast(i) for i in string.strip('[]').split(',')]
+    if not (string.startswith('[') and string.endswith(']')):
+        raise TypeError(f"Can't convert {string!r} to a list") from None
+    inside = string.strip('[]')
+    if not inside:
+        return []
+    items = [item.strip(" ''") for item in inside.split(',')]
+    return [numerical.cast(i) for i in items]
 
 
 def naked(targets: typing.Any) -> bool:
