@@ -3,6 +3,7 @@ This module contains high-level tests of the observer/observable/observation fra
 """
 
 import pathlib
+import shutil
 import typing
 
 import numpy
@@ -323,15 +324,45 @@ def observables(quantities: typing.Dict[str, dict]):
 def test_create_stream(rootpath: pathlib.Path):
     """Attempt to initialize a stream observer with various arguments."""
     source = rootpath / 'cone' / 'obs'
-    # from ID and directory
+    datapath = pathlib.Path(source / 'obs000000.nc')
+    confpath = pathlib.Path(source / 'eprem_input_file')
+    # from ID and absolute directory
     stream = eprem.Stream(0, source=source)
     assert isinstance(stream, observer.Interface)
-    # from full path: DEPRECATED
-    with pytest.raises(TypeError):
-        eprem.Stream(source=source / 'obs000000.nc')
-    # from only ID, with default path
+    assert stream.datapath == datapath
+    assert stream.confpath == confpath
+    # from ID and relative directory
+    dirname = 'local-data'
+    testdir = pathlib.Path(dirname)
+    if testdir.resolve() != pathlib.Path.cwd():
+        testdir.mkdir()
+    testdata = pathlib.Path(shutil.copy(datapath, dirname)).resolve()
+    assert testdata.parent == pathlib.Path.cwd() / dirname
+    testconf = pathlib.Path(shutil.copy(confpath, dirname)).resolve()
+    assert testconf.parent == pathlib.Path.cwd() / dirname
+    stream = eprem.Stream(0, source=dirname)
+    assert isinstance(stream, observer.Interface)
+    assert stream.datapath == testdata
+    assert stream.confpath == testconf
+    testdata.unlink()
+    testconf.unlink()
+    if testdir.resolve() != pathlib.Path.cwd():
+        testdir.rmdir()
+    # from only ID
+    dirname = '.'
+    testdata = pathlib.Path(shutil.copy(datapath, dirname)).resolve()
+    assert testdata.parent == pathlib.Path.cwd() / dirname
+    testconf = pathlib.Path(shutil.copy(confpath, dirname)).resolve()
+    assert testconf.parent == pathlib.Path.cwd() / dirname
     stream = eprem.Stream(0)
     assert isinstance(stream, observer.Interface)
+    assert stream.datapath == testdata
+    assert stream.confpath == testconf
+    testdata.unlink()
+    testconf.unlink()
+    # from full path: DEPRECATED
+    with pytest.raises(TypeError):
+        eprem.Stream(source=datapath)
 
 
 def test_change_source(rootpath: pathlib.Path):
