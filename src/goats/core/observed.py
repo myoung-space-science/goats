@@ -3,9 +3,10 @@ import typing
 import numpy
 
 from goats.core import aliased
+from goats.core import constant
 from goats.core import index
 from goats.core import iterables
-from goats.core import constant
+from goats.core import metric
 from goats.core import physical
 from goats.core import variable
 
@@ -93,9 +94,10 @@ class Quantity(iterables.ReprStrMixin):
     def array(self):
         """The observed data array, with singular dimensions removed.
         
-        This property intends to provide a convenient shortcut for cases in
-        which the observation result is effectively N-dimensional but singular
-        dimensions cause it to appear to have higher dimensionality.
+        This property primarily provides a shortcut for cases in which the
+        result of observing an N-dimensional quantity is an effectively
+        M-dimensional quantity, with M<N, but singular dimensions cause it to
+        appear to have higher dimensionality.
         """
         if self._array is None:
             self._array = numpy.array(self.data).squeeze()
@@ -105,8 +107,8 @@ class Quantity(iterables.ReprStrMixin):
     def data(self):
         """The observed variable quantity.
         
-        This property provides direct access to the array interface, as well as
-        to metadata properties of the observed quantity.
+        This property provides direct access to the variable-quantity interface,
+        as well as to metadata properties of the observed quantity.
         """
         if self._data is None:
             self._data = self._quantity
@@ -120,18 +122,25 @@ class Quantity(iterables.ReprStrMixin):
         return self._parameters
 
     def __getitem__(self, __x):
-        """Get a scalar by name or array values by index."""
+        """Get context items or update the unit.
+        
+        Parameters
+        ----------
+        __x : string
+            If `__x` names a known array axis or physical assumption, return
+            that quantity. If `__x` is a valid unit for this observed quantity,
+            return a new instance with updated unit.
+        """
+        if not isinstance(__x, (str, aliased.MappingKey, metric.Unit)):
+            raise TypeError(
+                f"{__x!r} must name a context item or a unit."
+                "Use the array property to access data values."
+            ) from None
         if __x in self._context.axes:
             return self._context.axes[__x]
         if __x in self._context.assumptions:
             return self._context.assumptions[__x]
-        try:
-            return type(self)(self.data[__x], self._context)
-        except ValueError as err:
-            raise KeyError(
-                f"{__x!r} does not name a known axis or assumption"
-                f" and is not a valid unit for {self.data.name}"
-            ) from err
+        return type(self)(self.data[__x], self._context)
 
     def __eq__(self, __o) -> bool:
         """True if two instances have equivalent attributes."""
