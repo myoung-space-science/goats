@@ -2,11 +2,12 @@
 
 ## NEXT
 
+## v0.0.30
+
 - Convert `observer.Interface` metric system to a read-only property.
-- Add `axis.Quantity.reference` property
-- Define new axis array-like objects for reference values:
-    - `axis.Array` for measurable quantities
-    - `axis.List` for unmeasurable quantities
+- Redefine `index.Quantity`.
+- Define `index.Array`: subclass of `index.Quantity`.
+- Add `axis.Quantity.reference` property: instance of `index.Array`.
 - Add EPREM observer axis-related properties
 
 ## v0.0.29
