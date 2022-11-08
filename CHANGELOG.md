@@ -2,6 +2,8 @@
 
 ## NEXT
 
+- Fix bug related to where `eprem.Observer` searches for data files.
+
 ## v0.0.30
 
 - Convert `observer.Interface` metric system to a read-only property.
