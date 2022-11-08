@@ -447,11 +447,11 @@ _CONFIGURATION_C = {
      },
     'mass': {
         'type': list,
-        'default': '1.0',
+        'default': '[1.0]',
      },
     'charge': {
         'type': list,
-        'default': '1.0',
+        'default': '[1.0]',
      },
     'numObservers': {
         'type': int,
@@ -461,15 +461,15 @@ _CONFIGURATION_C = {
      },
     'obsR': {
         'type': list,
-        'default': '0',
+        'default': '[0]',
      },
     'obsTheta': {
         'type': list,
-        'default': '0',
+        'default': '[0]',
      },
     'obsPhi': {
         'type': list,
-        'default': '0',
+        'default': '[0]',
      },
     'idw_p': {
         'type': float,

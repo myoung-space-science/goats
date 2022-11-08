@@ -90,7 +90,7 @@
             "mode": "readInt"
         },
         "charge": {
-            "default": "1.0",
+            "default": "[1.0]",
             "mode": "readDoubleArray"
         },
         "checkSeedPopulation": {
@@ -408,7 +408,7 @@
             "mode": "readDouble"
         },
         "mass": {
-            "default": "1.0",
+            "default": "[1.0]",
             "mode": "readDoubleArray"
         },
         "mfpRadialPower": {
@@ -502,15 +502,15 @@
             "mode": "readInt"
         },
         "obsPhi": {
-            "default": "0",
+            "default": "[0]",
             "mode": "readDoubleArray"
         },
         "obsR": {
-            "default": "0",
+            "default": "[0]",
             "mode": "readDoubleArray"
         },
         "obsTheta": {
-            "default": "0",
+            "default": "[0]",
             "mode": "readDoubleArray"
         },
         "omegaSun": {

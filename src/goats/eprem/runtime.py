@@ -334,7 +334,7 @@ class VariableDefinition:
         """Parse information about a defined variable."""
         parsed = {
             'size': int(parsable['size']),
-            'value': parsable['value'],
+            'value': f"[{','.join(iterables.whole(parsable['value']))}]",
         }
         return parsable['name'], parsed
 
