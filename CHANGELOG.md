@@ -5,7 +5,7 @@
 - Fix bug related to where `eprem.Observer` searches for data files.
 - Convert each array-like default EPREM parameter value to a string representation of a list.
 
-## v0.0.30
+## v0.0.30 (07Nov2022)
 
 - Convert `observer.Interface` metric system to a read-only property.
 - Redefine `index.Quantity`.
@@ -13,7 +13,7 @@
 - Add `axis.Quantity.reference` property: instance of `index.Array`.
 - Add EPREM observer axis-related properties
 
-## v0.0.29
+## v0.0.29 (26Sep2022)
 
 - Ensure that `observed.Quantity.array` returns a `numpy.ndarray`.
 - Add properties based on names of observable quantities to `observer.Interface`.
