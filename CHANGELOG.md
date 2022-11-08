@@ -3,6 +3,7 @@
 ## NEXT
 
 - Fix bug related to where `eprem.Observer` searches for data files.
+- Convert each array-like default EPREM parameter value to a string representation of a list.
 
 ## v0.0.30
 
