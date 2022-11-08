@@ -2,6 +2,8 @@
 
 ## NEXT
 
+## v0.0.31 (08Nov2022)
+
 - Fix bug related to where `eprem.Observer` searches for data files.
 - Convert each array-like default EPREM parameter value to a string representation of a list.
 
