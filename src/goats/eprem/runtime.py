@@ -631,7 +631,7 @@ class Runtime(iterables.MappingBase):
     }
 
     def _evaluate(self, current: typing.Union[str, numbers.Real]):
-        """Compute the final value of a current."""
+        """Compute the final value of a parameter."""
         if isinstance(current, numbers.Real):
             return current
         if value := numerical.cast(current, strict=False):
