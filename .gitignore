@@ -2,6 +2,7 @@
 data/
 dev/
 tests/**/*.png
+docs/figures
 
 # Visual Studio Code
 .vscode/
