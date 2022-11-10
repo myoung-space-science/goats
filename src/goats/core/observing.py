@@ -250,7 +250,7 @@ class Quantities(collections.abc.Collection):
 
     @property
     def derived(self):
-        """The names of all available quantities.
+        """The names of all available derived quantities.
         
         A derived quantity is a quantity that is the result of a defined
         function of one or more primary or derived quantities, and zero or more
@@ -262,7 +262,7 @@ class Quantities(collections.abc.Collection):
 
     @property
     def functions(self):
-        """The computable quantities available to this observer."""
+        """The names of functions for computing derived quantities."""
         if self._functions is None:
             self._functions = computed.Interface(self.axes, self.variables)
         return self._functions
