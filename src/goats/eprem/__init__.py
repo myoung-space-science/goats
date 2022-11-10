@@ -281,16 +281,6 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     _unobservable = [
         'preEruption',
         'phiOffset',
-        'mass',
-        'charge',
-        'time',
-        'shell',
-        'energy',
-        'speed',
-        'mu',
-        'radius',
-        'theta',
-        'phi',
     ]
 
     def __init__(
