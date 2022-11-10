@@ -65,17 +65,29 @@ def quantities() -> typing.Dict[str, dict]:
     """Information about each quantity available to an EPREM observer."""
     T, S, P, E, M = 'time', 'shell', 'species', 'energy', 'mu'
     return {
+        'preEruption': {
+            'axes': (),
+            'unit': {'mks': 's', 'cgs': 's'},
+            'aliases': [],
+            'observable': False,
+        },
+        'phiOffset': {
+            'axes': (T,),
+            'unit': {'mks': 's', 'cgs': 's'},
+            'aliases': [],
+            'observable': False,
+        },
         'time': {
             'axes': (T,),
             'unit': {'mks': 's', 'cgs': 's'},
             'aliases': ['t', 'times'],
-            'observable': False,
+            'observable': True,
         },
         'shell': {
             'axes': (S,),
             'unit': {'mks': '1', 'cgs': '1'},
             'aliases': ['shells'],
-            'observable': False,
+            'observable': True,
         },
         'mu': {
             'axes': (M,),
@@ -85,49 +97,49 @@ def quantities() -> typing.Dict[str, dict]:
                 'pitch angle', 'pitch-angle', 'pitch-angle cosine',
                 'pitch angles', 'pitch-angles', 'pitch-angle cosines',
             ],
-            'observable': False,
+            'observable': True,
         },
         'mass': {
             'axes': (P,),
             'unit': {'mks': 'kg', 'cgs': 'g'},
             'aliases': ['m'],
-            'observable': False,
+            'observable': True,
         },
         'charge': {
             'axes': (P,),
             'unit': {'mks': 'C', 'cgs': 'statC'},
             'aliases': ['q'],
-            'observable': False,
+            'observable': True,
         },
         'egrid': {
             'axes': (P, E),
             'unit': {'mks': 'J', 'cgs': 'erg'},
             'aliases': ['energy', 'energies', 'E'],
-            'observable': False,
+            'observable': True,
         },
         'vgrid': {
             'axes': (P, E),
             'unit': {'mks': 'm/s', 'cgs': 'cm/s'},
             'aliases': ['speed', 'vparticle'],
-            'observable': False,
+            'observable': True,
         },
         'R': {
             'axes': (T, S),
             'unit': {'mks': 'm', 'cgs': 'cm'},
             'aliases': ['r', 'radius'],
-            'observable': False,
+            'observable': True,
         },
         'T': {
             'axes': (T, S),
             'unit': {'mks': 'rad', 'cgs': 'rad'},
             'aliases': ['theta'],
-            'observable': False,
+            'observable': True,
         },
         'P': {
             'axes': (T, S),
             'unit': {'mks': 'rad', 'cgs': 'rad'},
             'aliases': ['phi'],
-            'observable': False,
+            'observable': True,
         },
         'Br': {
             'axes': (T, S),
