@@ -2,6 +2,11 @@
 
 ## NEXT
 
+## v0.0.33 (10Nov2022)
+
+- Add Jupyter notebook with examples.
+- Incorporate examples into README.md
+
 ## v0.0.32 (10Nov2022)
 
 - Fix bug in `observer.Interface` spell-checking.
