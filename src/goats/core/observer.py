@@ -30,7 +30,7 @@ class Interface:
         *unobservable : string
             The names of variable quantities from this observer's dataset to
             exclude from the set of formally observable quantities. These
-            quantities will still be accessible in their variable form.
+            quantities will still be accessible as variable quantities.
 
         system : string, default='mks'
             The metric system to use for variable and observable quantities.
@@ -96,7 +96,7 @@ class Interface:
         This property contains the names of all primary and derived observable
         quantities. See `~observing.Interface.primary` and
         `~observing.Interface.derived` for their respective definitions. Names
-        are listed a groups of aliases for each observable quantity (e.g., 'mfp
+        are listed as groups of aliases for each observable quantity (e.g., 'mfp
         | mean free path | mean_free_path'); any of the listed aliases is a
         valid key for that quantity.
 
@@ -170,7 +170,7 @@ class Interface:
 
     def _check_spelling(self, key: str):
         """Catch misspelled names of observable quantities, if possible."""
-        keys = list(self.observables) + list(self.assumptions)
+        keys = list(self.observables) + list(self.parameters)
         if self._spellcheck is None:
             self._spellcheck = spelling.SpellChecker(*keys)
         else:
