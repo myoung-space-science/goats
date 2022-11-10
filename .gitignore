@@ -2,7 +2,9 @@
 data/
 dev/
 tests/**/*.png
-docs/figures
+figures
+readme.ipynb
+readme.md
 
 # Visual Studio Code
 .vscode/

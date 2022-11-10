@@ -12,7 +12,213 @@ $ pip install goats
 
 ## Usage
 
-- TODO
+Before getting started, let's make sure we know which version we're using.
+
+
+```python
+import goats
+print(goats.__version__)
+```
+
+    0.0.32
+
+
+The first thing we'll do is import the packages we need.
+
+* `pathlib` is the built-in package for working with system paths  
+* `matplotlib` is a popular third-party package for creating figures  
+* `eprem` is the GOATS subpackage for working with EPREM output  
+
+
+```python
+import pathlib
+
+import matplotlib.pyplot as plt
+
+from goats import eprem
+```
+
+Next, we'll create a stream observer, which is the type of observer that corresponds to an EPREM output file with a name like `obs######.nc`. This invokation assumes that the data file, as well as an EPREM runtime parameter file called `eprem_input_file`, are in a local subdirectory called `data`.
+
+Note that if the data file is in the current directory, you can omit `source=<path/to/data>`.
+
+
+```python
+stream = eprem.Stream(350, source='data/example', config='eprem_input_file')
+```
+
+We can request the value of simulation runtime parameters by aliased keyword. For example, let's check the assumed mean free path at 1 au.
+
+
+```python
+print(stream['lambda0'])
+```
+
+    'lamo | lambda0 | lam0': [1.] [au]
+
+
+The text tells us that this simulation run used a value of 1.0 au (astronomical unit) for this parameter. It also suggests that we could have requested this value by the keywords 'lamo' or 'lam0'.
+
+
+```python
+print(stream['lamo'])
+print(stream['lam0'])
+```
+
+    'lamo | lambda0 | lam0': [1.] [au]
+    'lamo | lambda0 | lam0': [1.] [au]
+
+
+We can also request observable quantities by aliased keyword. Here is the radial velocity.
+
+
+```python
+vr = stream['Vr']
+print(vr)
+```
+
+    'Vr | vr', unit='m s^-1', axes=['time', 'shell']
+
+
+The text tells us that the radial velocity output array has a time axis and a shell axis. EPREM shells are logical surface of nodes in the Lagrangian grid. Each shell index along a given stream represents one node. We can observe radial velocity at a single time (e.g., 1 hour of real time since simulation start) on a single node as follows:
+
+
+```python
+t0 = 1.0, 'hour'
+vr.observe(time=t0, shell=1000)
+```
+
+
+
+
+    core.observed.Quantity('Vr | vr': unit='m s^-1', dimensions=['time', 'shell'], parameters=[])
+
+
+
+In the case of a constant isotropic solar wind, the stream nodes would extend radially outward from the Sun; with some trial-and-error, we could figure out which shell is closest to a particular radius (e.g., 1 au).
+
+Instead, we often want to interpolate an observation to the radius of interest.
+
+
+```python
+observed = vr.observe(radius=[0.1, 'au'])
+```
+
+Now that we have an observation of the radial velocity at 0.1 au as a function of time, we can plot it. First, we'll define intermediate variables to hold the time in hours and the radial velocity in kilometers per second.
+
+
+```python
+time = observed['time']['hour']
+data = observed.data['km / s']
+```
+
+Next, we'll make sure there's a `figures` directory (to avoid cluttering the current directory) and load the plotting library.
+
+
+```python
+figpath = pathlib.Path('figures').resolve()
+figpath.mkdir(exist_ok=True)
+```
+
+Finally, we'll create and save the plot.
+
+
+```python
+plt.plot(time, data)
+plt.xlabel('Time [hours]')
+plt.ylabel('Vr [km/s]')
+plt.savefig(figpath / 'vr-hours.png')
+```
+
+
+    
+![png](readme_files/readme_22_0.png)
+    
+
+
+There are many other observable quantities available to an observer, and they are not limited to those in the observer's source data.
+
+
+```python
+print('flux' in stream.observables)
+print('mean free path' in stream.observables)
+```
+
+    True
+    True
+
+
+
+```python
+stream['flux']
+```
+
+
+
+
+    core.observable.Quantity('J | Flux | j | j(E) | J(E) | flux', unit='J^-1 s^-1 sr^-1 m^-2', axes=['time', 'shell', 'species', 'energy'])
+
+
+
+
+```python
+stream['mean free path']
+```
+
+
+
+
+    core.observable.Quantity('mean free path | mean_free_path | mfp', unit='m', axes=['time', 'shell', 'species', 'energy'])
+
+
+
+We can even create observable quantities by symbolically composing existing observable quantities
+
+
+```python
+stream['mfp / Vr']
+```
+
+
+
+
+    core.observable.Quantity('mfp / Vr', unit='s', axes=['time', 'shell', 'species', 'energy'])
+
+
+
+
+```python
+stream['rho * energy']
+```
+
+
+
+
+    core.observable.Quantity('rho * energy', unit='kg m^-1 s^-2', axes=['species', 'energy', 'time', 'shell'])
+
+
+
+Note that the unit is consistent with the composed quantity and that the axes of the composed quantity represent the union of the axes of the component quantities.
+
+To illustrate full use of a composed quantity, consider observing the ratio of the mean free path of protons with 1 and 5 MeV to the radial velocity of the solar wind.
+
+
+```python
+observed = stream['mfp / Vr'].observe(radius=[0.1, 'au'], energy=[1, 5, 'MeV'])
+lines = plt.plot(observed['time']['hour'], observed.array)
+lines[0].set_label('1 MeV')
+lines[1].set_label('5 MeV')
+plt.xlabel('Time [hours]')
+plt.ylabel('mfp / Vr [s]')
+plt.legend()
+plt.savefig(figpath / 'mfp_vr-hours.png')
+```
+
+
+    
+![png](readme_files/readme_32_0.png)
+    
+
 
 ## Contributing
 
@@ -25,3 +231,4 @@ Interested in contributing? Check out the contributing guidelines. Please note t
 ## Credits
 
 `goats` was created with [`cookiecutter`](https://cookiecutter.readthedocs.io/en/latest/) and the `py-pkgs-cookiecutter` [template](https://github.com/py-pkgs/py-pkgs-cookiecutter).
+
