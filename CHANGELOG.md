@@ -2,6 +2,12 @@
 
 ## NEXT
 
+## v0.0.32 (10Nov2022)
+
+- Fix bug in `observer.Interface` spell-checking.
+- Add dimension-related quantities to the EPREM observer's formally observable
+  quantities, in order to support more composed observable quantities.
+
 ## v0.0.31 (08Nov2022)
 
 - Fix bug related to where `eprem.Observer` searches for data files.
