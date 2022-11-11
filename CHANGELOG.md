@@ -2,6 +2,11 @@
 
 ## NEXT
 
+## v0.0.35 (11Nov2022)
+
+- End use of `goats.Environment`.
+- Fix additional environment-related bugs.
+
 ## v.0.0.34 (11Nov2022)
 
 - Deprecate use of `Environment` for EPREM.

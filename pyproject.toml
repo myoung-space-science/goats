@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "goats"
-version = "0.0.34"
+version = "0.0.35"
 description = "A set of tools for analyzing heliophysical datasets"
 authors = ["Matt Young"]
 license = "GNU General Public License v3.0"
