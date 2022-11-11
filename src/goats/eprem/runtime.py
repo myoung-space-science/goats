@@ -536,7 +536,7 @@ class Runtime(iterables.MappingBase):
 
     def __init__(
         self,
-        source_path: iotools.PathLike,
+        source_path: iotools.PathLike=None,
         config_path: iotools.PathLike=None,
         **kwargs
     ) -> None:

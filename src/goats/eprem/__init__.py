@@ -26,8 +26,7 @@ from ..core import (
 from .runtime import BaseTypesH
 
 
-_C_SRC = iotools.ReadOnlyPath('~/emmrem/open/source/eprem/src')
-basetypes = BaseTypesH(_C_SRC)
+basetypes = BaseTypesH()
 
 
 T = typing.TypeVar('T')
@@ -184,10 +183,7 @@ class Dataset(observing.Dataset):
         return variable.Interface(self.data, system=system)
 
     def get_constants(self) -> constant.Interface:
-        return runtime.Arguments(
-            source_path=_C_SRC,
-            config_path=self.confpath,
-        )
+        return runtime.Arguments(config_path=self.confpath)
 
     def readfrom(
         self: Instance,
