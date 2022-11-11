@@ -5,7 +5,6 @@ import typing
 import numpy
 import numpy.typing
 
-from goats import Environment
 from ..core import (
     axis,
     constant,
@@ -27,10 +26,8 @@ from ..core import (
 from .runtime import BaseTypesH
 
 
-ENV = Environment('eprem')
-
-
-basetypes = BaseTypesH(source=ENV['src'])
+_C_SRC = iotools.ReadOnlyPath('~/emmrem/open/source/eprem/src')
+basetypes = BaseTypesH(_C_SRC)
 
 
 T = typing.TypeVar('T')
@@ -188,7 +185,7 @@ class Dataset(observing.Dataset):
 
     def get_constants(self) -> constant.Interface:
         return runtime.Arguments(
-            source_path=ENV['src'],
+            source_path=_C_SRC,
             config_path=self.confpath,
         )
 
@@ -286,8 +283,8 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     def __init__(
         self,
         __id: int,
+        config: iotools.PathLike,
         source: iotools.PathLike=pathlib.Path.cwd(),
-        config: iotools.PathLike=ENV['config'],
         system: str='mks',
     ) -> None:
         self._id = __id
@@ -319,8 +316,7 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
 
     def _build_datapath(self, directory: iotools.PathLike):
         """Create the path to the dataset from `directory`."""
-        default = ENV['source'] or pathlib.Path.cwd()
-        this = iotools.ReadOnlyPath(directory or default)
+        this = iotools.ReadOnlyPath(directory or pathlib.Path.cwd())
         if this.is_dir():
             path = iotools.find_file_by_template(
                 self._templates,
@@ -337,16 +333,21 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     def _build_confpath(
         self,
         config: iotools.PathLike,
-        directory: iotools.PathLike=pathlib.Path.cwd(),
+        directory: iotools.PathLike=None,
     ) -> iotools.ReadOnlyPath:
         """Create the path to the configuration file."""
-        if not config: # use default directory and name
-            return iotools.ReadOnlyPath(directory / ENV['config'])
-        this = pathlib.Path(config)
-        if this.is_dir(): # use default directory
-            return iotools.ReadOnlyPath(this / ENV['config'])
-        if this.name == config: # use default name
-            return iotools.ReadOnlyPath(directory / this)
+        # Create a `Path` but don't expand or resolve it.
+        path = pathlib.Path(config)
+        if directory and path.name == config:
+            # There is a directory to check and `config` is just a filename.
+            full = iotools.ReadOnlyPath(directory) / config
+            if full.exists():
+                return full
+        # Expand and resolve path.
+        this = iotools.ReadOnlyPath(config)
+        if this.exists():
+            # The absolute path exists, so return it.
+            return this
         raise ValueError(
             f"Can't create path to configuration file from {config!r}"
         ) from None

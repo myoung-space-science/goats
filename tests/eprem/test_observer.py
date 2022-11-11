@@ -29,7 +29,7 @@ def get_stream(rootpath: pathlib.Path):
     and calling simple plotting routines for visual end-to-end tests.
     """
     source = rootpath / 'cone' / 'obs'
-    return eprem.Stream(0, source=source)
+    return eprem.Stream(0, config='eprem_input_file', source=source)
 
 
 @pytest.fixture
@@ -339,7 +339,7 @@ def test_create_stream(rootpath: pathlib.Path):
     datapath = pathlib.Path(source / 'obs000000.nc')
     confpath = pathlib.Path(source / 'eprem_input_file')
     # from ID and absolute directory
-    stream = eprem.Stream(0, source=source)
+    stream = eprem.Stream(0, config='eprem_input_file', source=source)
     assert isinstance(stream, observer.Interface)
     assert stream.datapath == datapath
     assert stream.confpath == confpath
@@ -352,7 +352,7 @@ def test_create_stream(rootpath: pathlib.Path):
     assert testdata.parent == pathlib.Path.cwd() / dirname
     testconf = pathlib.Path(shutil.copy(confpath, dirname)).resolve()
     assert testconf.parent == pathlib.Path.cwd() / dirname
-    stream = eprem.Stream(0, source=dirname)
+    stream = eprem.Stream(0, config='eprem_input_file', source=dirname)
     assert isinstance(stream, observer.Interface)
     assert stream.datapath == testdata
     assert stream.confpath == testconf
@@ -366,7 +366,7 @@ def test_create_stream(rootpath: pathlib.Path):
     assert testdata.parent == pathlib.Path.cwd() / dirname
     testconf = pathlib.Path(shutil.copy(confpath, dirname)).resolve()
     assert testconf.parent == pathlib.Path.cwd() / dirname
-    stream = eprem.Stream(0)
+    stream = eprem.Stream(0, config='eprem_input_file')
     assert isinstance(stream, observer.Interface)
     assert stream.datapath == testdata
     assert stream.confpath == testconf
@@ -374,20 +374,20 @@ def test_create_stream(rootpath: pathlib.Path):
     testconf.unlink()
     # from full path: DEPRECATED
     with pytest.raises(TypeError):
-        eprem.Stream(source=datapath)
+        eprem.Stream(source=datapath, config='eprem_input_file')
 
 
 def test_change_source(rootpath: pathlib.Path):
     """Make sure changing the source paths updates the observer."""
     olddir = rootpath / 'cone' / 'obs'
-    stream = eprem.Stream(0, source=olddir)
+    stream = eprem.Stream(0, config='eprem_input_file', source=olddir)
     assert stream.datapath == olddir / 'obs000000.nc'
     assert stream.confpath == olddir / 'eprem_input_file'
     newdir = rootpath / 'wind' / 'obs'
     stream.reset(source=newdir)
     assert stream.datapath == newdir / 'obs000000.nc'
     assert stream.confpath == olddir / 'eprem_input_file'
-    stream.reset(config=newdir)
+    stream.reset(config=newdir / 'eprem_input_file')
     assert stream.datapath == newdir / 'obs000000.nc'
     assert stream.confpath == newdir / 'eprem_input_file'
 
@@ -471,7 +471,12 @@ def test_observer_metric_system(
     source = rootpath / 'cone' / 'obs'
     systems = metric.SYSTEMS
     for system in systems:
-        stream = eprem.Stream(0, source=source, system=system)
+        stream = eprem.Stream(
+            0,
+            config='eprem_input_file',
+            source=source,
+            system=system,
+        )
         for name, expected in quantities.items():
             assert stream[name].unit == expected['unit'][system]
 
