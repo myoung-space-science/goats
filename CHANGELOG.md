@@ -2,6 +2,11 @@
 
 ## NEXT
 
+## v.0.0.34 (11Nov2022)
+
+- Deprecate use of `Environment` for EPREM.
+- Future releases may entirely remove `goats.Environment` and related `.ini` files.
+
 ## v0.0.33 (10Nov2022)
 
 - Add Jupyter notebook with examples.
