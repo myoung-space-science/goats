@@ -6,9 +6,9 @@ import typing
 
 import numpy
 
-from goats.core import symbolic
 from goats.core import aliased
 from goats.core import iterables
+from goats.core import symbolic
 
 
 _prefixes = [
@@ -865,10 +865,6 @@ class _Property(collections.abc.Mapping, iterables.ReprStrMixin):
             for k, v in merged.items()
         }
 
-    # TODO: 
-    # - Define a function in `symbolic` that is equivalent to calling
-    #   `symbolic.OperandFactory().create(...)`.
-    # - Refactor this method.
     _operand = symbolic.OperandFactory()
     def _expand(self, term: symbolic.Term):
         """Create a `dict` of operands from this term."""
@@ -1583,8 +1579,6 @@ class Conversion(iterables.ReprStrMixin):
         if len(args) == 1 and isinstance(args[0], cls):
             return args[0]
         key = tuple(args)
-        # TODO: Can we use the existence of a particular conversion to more
-        # efficiently create its inverse?
         if available := cls._instances.get(key):
             return available
         u0, u1 = key
@@ -1770,8 +1764,6 @@ class Conversion(iterables.ReprStrMixin):
                         for this in reduction.units
                     ]
                 )
-        # TODO: Should we try this in other `_convert_by_expressions` or
-        # `_resolve_terms`?
         if symbolic.Expression(decomposed) == '1':
             return 1.0
         return self._resolve_terms(decomposed)
