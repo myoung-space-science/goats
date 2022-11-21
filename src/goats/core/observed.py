@@ -1,79 +1,9 @@
-import typing
-
 import numpy
 
 from goats.core import aliased
-from goats.core import constant
-from goats.core import index
 from goats.core import iterables
 from goats.core import metric
-from goats.core import physical
-from goats.core import variable
-
-
-class Context:
-    """The context of an observation."""
-
-    def __init__(
-        self,
-        indices: typing.Mapping[str, index.Quantity],
-        scalars: typing.Mapping[str, physical.Scalar]=None
-    ) -> None:
-        self._indices = indices
-        self._scalars = scalars
-        self._assumptions = None
-        self._axes = None
-
-    @property
-    def axes(self):
-        """The arrays of axis values relevant to the observation."""
-        if self._axes is None:
-            items = (
-                self._indices.items(aliased=True)
-                if isinstance(self._indices, aliased.Mapping)
-                else self._indices.items()
-            )
-            axes = {
-                k: physical.Array(
-                    index.values,
-                    unit=index.unit,
-                    name=index.name,
-                )
-                for k, index in items
-                # HACK: This handles cases in which a function added a
-                # non-standard axis. For example, integral flux removes the
-                # 'energy' axis and adds a 'minimum energy' axis. A long-term
-                # solution should treat non-standard axes as equivalent to
-                # standard axes.
-                if index
-            }
-            self._axes = aliased.Mapping(axes)
-        return self._axes
-
-    @property
-    def assumptions(self):
-        """The physical assumptions relevant to this observation."""
-        if self._assumptions is None:
-            items = (
-                self._scalars.items(aliased=True)
-                if isinstance(self._scalars, aliased.Mapping)
-                else self._scalars.items()
-            )
-            assumptions = {
-                k: constant.Assumption(scalar)
-                for k, scalar in items if scalar
-            }
-            self._assumptions = aliased.Mapping(assumptions)
-        return self._assumptions
-
-    def __eq__(self, __o) -> bool:
-        """True if two contexts have equal axes and assumptions."""
-        if isinstance(__o, Context):
-            return all(
-                getattr(self, attr) == getattr(__o, attr)
-                for attr in ('axes', 'assumptions')
-            )
-        return NotImplemented
+from goats.core import observing
 
 
 class Quantity(iterables.ReprStrMixin):
@@ -81,13 +11,13 @@ class Quantity(iterables.ReprStrMixin):
 
     def __init__(
         self,
-        __v: variable.Quantity,
-        context: Context,
+        result: observing.Implementation,
+        unit: metric.Unit=None,
     ) -> None:
-        self._quantity = __v
-        self._context = context
-        self._array = None
+        self._result = result
+        self._unit = unit
         self._data = None
+        self._array = None
         self._parameters = None
 
     @property
@@ -111,14 +41,15 @@ class Quantity(iterables.ReprStrMixin):
         as well as to metadata properties of the observed quantity.
         """
         if self._data is None:
-            self._data = self._quantity
+            data = self._result.data
+            self._data = data[self._unit] if self._unit else data
         return self._data
 
     @property
     def parameters(self):
-        """The names of scalar assumptions relevant to this observation."""
+        """The physical parameters relevant to this observation."""
         if self._parameters is None:
-            self._parameters = list(self._context.assumptions)
+            self._parameters = list(self._result.context)
         return self._parameters
 
     def __getitem__(self, __x):
@@ -136,11 +67,9 @@ class Quantity(iterables.ReprStrMixin):
                 f"{__x!r} must name a context item or a unit."
                 "Use the array property to access data values."
             ) from None
-        if __x in self._context.axes:
-            return self._context.axes[__x]
-        if __x in self._context.assumptions:
-            return self._context.assumptions[__x]
-        return type(self)(self.data[__x], self._context)
+        if __x in self._result:
+            return self._result[__x]
+        return type(self)(self._result, __x)
 
     def __eq__(self, __o) -> bool:
         """True if two instances have equivalent attributes."""
