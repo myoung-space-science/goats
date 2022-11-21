@@ -5,6 +5,8 @@ from goats.core import iterables
 from goats.core import metadata
 from goats.core import metric
 from goats.core import observing
+from goats.core import observed
+from goats.core import reference
 
 
 def iscomposed(this):
@@ -27,14 +29,67 @@ def iscomposed(this):
     )
 
 
+class Interface:
+    """An interface to arbitrary observable quantities."""
+
+    def __init__(self, __quantities: observing.Interface) -> None:
+        self._quantities = __quantities
+
+    def get_unit(self, key: str):
+        """Compute or retrieve the metric unit of a physical quantity."""
+        if found := self._quantities.get_unit(key):
+            return found
+        s = str(key)
+        expression = symbolic.Expression(reference.NAMES.get(s, s))
+        term = expression[0]
+        this = self.get_unit(term.base) ** term.exponent
+        if len(expression) > 1:
+            for term in expression[1:]:
+                this *= self.get_unit(term.base) ** term.exponent
+        return metadata.Unit(this)
+
+    def get_dimensions(self, key: str):
+        """Compute or retrieve the array dimensions of a physical quantity."""
+        if found := self._quantities.get_dimensions(key):
+            return found
+        s = str(key)
+        expression = symbolic.Expression(reference.NAMES.get(s, s))
+        term = expression[0]
+        this = self.get_dimensions(term.base)
+        if len(expression) > 1:
+            for term in expression[1:]:
+                this *= self.get_dimensions(term.base)
+        return metadata.Axes(this)
+
+    def get_parameters(self, key: str):
+        """Compute or retrieve the parameters of a physical quantity."""
+        if found := self._quantities.get_parameters(key):
+            return found
+        s = str(key)
+        expression = symbolic.Expression(reference.NAMES.get(s, s))
+        term = expression[0]
+        this = self.get_parameters(term.base)
+        if len(expression) > 1:
+            for term in expression[1:]:
+                this *= self.get_parameters(term.base)
+        return observing.Parameters(this)
+
+    def implement(self, key: str, constraints: typing.Mapping):
+        """Create an interface to observational data and context."""
+        return observing.Implementation(
+            self._quantities,
+            key,
+            constraints,
+        )
+
+
 class Quantity(iterables.ReprStrMixin):
     """A quantity that produces an observation."""
 
     def __init__(
         self,
-        name: typing.Union[str, typing.Iterable[str], metadata.Name],
-        implementation: observing.Implementation,
-        application: observing.Application,
+        __quantities: observing.Interface,
+        name: str,
         unit: metadata.UnitLike=None,
     ) -> None:
         """
@@ -42,26 +97,20 @@ class Quantity(iterables.ReprStrMixin):
 
         Parameters
         ----------
-        name : string, iterable of strings, or `~metadata.Name`
-            The name(s) of this observable quantity.
+        __quantities : `~observing.Interface`
+            The interface to physical quantities used in making observations.
 
-        implementation : `~observing.Implementation`
-            The object that represents the observing interface to the target
-            observable quantity.
-
-        application : `~observing.Application`
-            An existing observing application that will compute the observed
-            quantity, manage user constraints, and provide default parameter
-            values.
+        name : string
+            The name of this observable quantity.
 
         unit : unit-like, optional
             The metric unit to which to convert observations of this quantity.
         """
-        self._name = metadata.Name(name)
-        self._implementation = implementation
-        self.application = application
-        self._unit = metadata.Unit(unit or self._implementation.get_unit(name))
-        self._axes = None
+        self._interface = Interface(__quantities)
+        self._name = name
+        self._unit = metadata.Unit(unit or __quantities.get_unit(name))
+        self._dimensions = None
+        self._parameters = None
 
     def __getitem__(self, __x: metadata.UnitLike):
         """Create a quantity with the new unit."""
@@ -71,12 +120,7 @@ class Quantity(iterables.ReprStrMixin):
         )
         if unit == self._unit:
             return self
-        return Quantity(
-            self.name,
-            self._implementation,
-            self.application,
-            unit=metadata.Unit(unit),
-        )
+        return Quantity(self._interface, self.name, unit=self.unit)
 
     @property
     def unit(self):
@@ -84,30 +128,42 @@ class Quantity(iterables.ReprStrMixin):
         return self._unit
 
     @property
-    def axes(self):
-        """This quantity's indexable axes."""
-        if self._axes is None:
-            self._axes = self._implementation.get_axes(self.name)
-        return self._axes
+    def dimensions(self):
+        """This quantity's indexable dimensions."""
+        if self._dimensions is None:
+            self._dimensions = self._interface.get_dimensions(self.name)
+        return self._dimensions
 
     @property
-    def name(self):
-        """This quantity's name."""
-        return self._name
+    def parameters(self):
+        """The physical parameters relevant to this quantity."""
+        if self._parameters is None:
+            self._parameters = self._interface.get_parameters(self.name)
+        return self._parameters
 
     def observe(self, **constraints):
         """Observe this observable quantity."""
-        self.application.apply(**constraints)
-        result = self._implementation.apply(self.application, unit=self.unit)
-        self.application.reset()
-        return result
+        result = self._interface.implement(self._name, constraints)
+        return observed.Quantity(result, unit=self.unit)
+
+    @property
+    def name(self):
+        """"""
+        return self._name
+
+    _checkable = (
+        'name',
+        'unit',
+        'dimensions',
+        'parameters',
+    )
 
     def __eq__(self, __o) -> bool:
         """True if two instances have equivalent attributes."""
         if isinstance(__o, Quantity):
             return all(
                 getattr(self, attr) == getattr(__o, attr)
-                for attr in ('name', 'unit', 'axes')
+                for attr in self._checkable
             )
         return NotImplemented
 
@@ -115,7 +171,8 @@ class Quantity(iterables.ReprStrMixin):
         display = [
             f"{str(self.name)!r}",
             f"unit={str(self.unit)!r}",
-            f"axes={str(self.axes)}",
+            f"dimensions={str(self.dimensions)}",
+            f"parameters={str(self.parameters)}",
         ]
         return ', '.join(display)
 
