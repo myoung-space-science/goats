@@ -458,39 +458,53 @@ class ConfigKeyError(KeyError):
 class ConfigFile(iterables.MappingBase):
     """A class to handle EPREM run configuration files.
 
-    Parameters
-    ---------------------
-    filepath : string or path
-        The full path to the simulation-run config file to read. This class will
-        convert to input string or `pathlib.Path` object into a fully-qualified
-        read-only path.
-
-    comments : list of strings, default='#'
-        List of single-character strings to interpret as signifying a comment
-        line. This method will automatically ignore lines that begin with either
-        the empty string or the newline character.
-
     Notes
     -----
     This interface was designed to provide a faithful representation of the
     information in a given configuration file. A few notable consequences are as
     follows:
+
     - The look-up methods do not accept aliases as keys.
     - The parsing routine does not attempt to cast parsed values from strings to
       their underlying types, meaning all values are internally represented as
       strings. This only applies to each instance as a whole, since the object
       returned by look-up methods may perform type casting.
     - The unit associated with a specific value, when available, are those
-      consistent with the convetions of EPREM (cf. configuration.c) and do not
-      necessarily conform to a particular unit system. For example, many
-      reference lengths or distances (e.g., reference mean free path or observer
-      positions) are in au despite the fact that EPREM works with lengths in cm.
+      consistent with the configuration conventions of EPREM (cf.
+      ``src/configuration.c``) and do not necessarily conform to a particular
+      unit system. For example, many reference lengths or distances (e.g.,
+      reference mean free path or observer positions) are in 'au' despite the
+      fact that EPREM internally works with lengths in cm.
     """
     def __init__(
         self,
-        filepath: typing.Union[str, pathlib.Path],
+        filepath: iotools.PathLike,
         comments: typing.List[str]=None,
     ) -> None:
+        """Create an instance.
+
+        Parameters
+        ---------------------
+        filepath : string or path
+            The path to the simulation-run config file to read. This class will
+            convert the argument to a fully-qualified read-only path.
+
+        comments : list of strings, default='#'
+            List of single-character strings to interpret as signifying a
+            comment line. This method will automatically ignore lines that begin
+            with either the empty string or the newline character.
+
+        Notes
+        -----
+        * The argument to `filepath` may be relative but it must include the
+          file name. For example, suppose the relevant configuration file is
+          called `config.ini`. Then, passing `filepath='config.ini'` or
+          `filepath='./config.ini'` within the containing directory, as well as
+          `filepath='</path/to/dir>/config.ini'` elsewhere (even if
+          `/path/to/dir` is relative), would be valid, but passing
+          `filepath='</path/to/dir>'` (even if `/path/to/dir` is absolute) would
+          not be valid.
+        """
         self.filepath = iotools.ReadOnlyPath(filepath)
         self.comments = comments or ['#']
         self.KeyError = ConfigKeyError
