@@ -781,6 +781,167 @@ class Arguments(constant.Interface):
         return aliased.MutableMapping(base)
 
 
+class Interface(aliased.Mapping):
+    """An interface to EPREM parameters."""
+
+    def __init__(self, path: iotools.PathLike=None, **opts) -> None:
+        """
+        Parameters
+        ----------
+        path : path-like, default=None
+            The location of the EPREM configuration file containing
+            user-provided parameter values for a particular EPREM simulation
+            run. May be omitted, in which case this class will use default
+            argument values.
+
+        **opts
+            Options for loading the configuration file. See
+            `~runtime.ConfigFile` for more information.
+
+        Notes
+        -----
+        Path-like arguments may be any path-like object (e.g., `str`,
+        `pathlib.Path`), may be relative, and may contain standard wildcard
+        characters (e.g., `~`).
+        """
+        reference = ConfigurationC()
+        values = {
+            **{
+                key: info.get('default')
+                for key, info in _LOCAL.items()
+            },
+            **dict(reference),
+        }
+        keys = tuple(set(tuple(_LOCAL) + tuple(reference)))
+        base = {
+            (key, *_ALIASES.get(key, [])): {
+                'unit': _UNITS.get(key),
+                'value': values.get(key),
+            }
+            for key in keys
+        }
+        super().__init__(base)
+        self._user = ConfigFile(path, **opts) if path else {}
+        self._reference = reference
+        self._basetypes = BaseTypesH()
+        self._current = None
+
+    def __getitem__(self, __k: str):
+        """Create the appropriate object for the named parameter."""
+        try:
+            this = super().__getitem__(__k)
+        except KeyError:
+            raise KeyError(f"No parameter corresponding to {__k!r}") from None
+        value = this['value']
+        aliases = self.alias(__k, include=True)
+        if unit := this['unit']:
+            return constant.Assumption(value, unit=unit, name=aliases)
+        return constant.Option(value, name=aliases)
+
+    @property
+    def basetypes(self):
+        """Values of constants defined in EPREM `src/baseTypes.h`."""
+        return self._basetypes
+
+    @property
+    def user(self) -> typing.Mapping[str, str]:
+        """The user-provided parameter values."""
+        return self._user
+
+    @property
+    def reference(self):
+        """Parameter metadata from EPREM `src/configuration.c`."""
+        return self._reference
+
+    _special_cases = {
+        'N_PROCS': None,
+        'third': 1/3,
+    }
+
+    def _evaluate(self, current: typing.Union[str, numbers.Real]):
+        """Compute the final value of a parameter."""
+        if isinstance(current, numbers.Real):
+            return current
+        if value := numerical.cast(current, strict=False):
+            return value
+        if current in self._special_cases:
+            return self._special_cases[current]
+        argument = self._get_argument(current)
+        if argument is not None:
+            definition = argument['definition']
+            if isinstance(definition, argument['type']):
+                return definition
+            return self._evaluate(definition)
+        if isinstance(current, str):
+            return self._resolve(current)
+        raise TypeError(f"Can't evaluate {current!r}") from None
+
+    _struct_member = re.compile(r'\Aconfig\.\w*\Z')
+
+    def _resolve(self, definition: str):
+        """Resolve a parameter definition into simpler components."""
+        if self._struct_member.match(definition):
+            return self._evaluate(definition.replace('config.', ''))
+        if result := self._compute_sum(definition):
+            return result
+        if any(c in definition for c in {'*', '/'}):
+            expression = symbolic.Expression(definition)
+            evaluated = [
+                term.coefficient * self._evaluate(term.base)**term.exponent
+                for term in expression
+            ]
+            return functools.reduce(lambda x,y: x*y, evaluated)
+        raise TypeError(f"Can't resolve {definition!r}") from None
+
+    def _compute_sum(self, arg: str) -> numbers.Real:
+        """Compute the sum of two known parameters.
+        
+        Notes
+        -----
+        This is only designed to handle strings that contain a single additive
+        operator joining two arguments that `_evaluate` already knows how to
+        handle.
+        """
+        for operator in ('+', '-'):
+            if operator in arg:
+                terms = [
+                    self._evaluate(s.strip())
+                    for s in arg.split(operator)
+                ]
+                return terms[0] + float(f'{operator}1')*terms[1]
+
+    def _get_argument(self, name: str):
+        """Get the current definition and type of a parameter."""
+        if self._current is None:
+            self._current = {
+                key: self._convert(
+                    self.user.get(key) or parameter['default'],
+                    parameter['type'],
+                )
+                for key, parameter in self.reference.items()
+            }
+        if name in self._current:
+            return {
+                'definition': self._current[name],
+                'type': self.reference[name]['type']
+            }
+        if name in self.basetypes:
+            return {
+                'definition': self.basetypes[name],
+                'type': type(self.basetypes[name]),
+            }
+
+    def _convert(self, arg: typing.Union[str, _RT], realtype: _RT):
+        """Convert `arg` to its real type, if necessary and possible."""
+        if isinstance(arg, realtype):
+            return arg
+        if realtype in {int, float}:
+            return soft_convert(arg, realtype)
+        if realtype == list:
+            return soft_convert(arg, iterables.string_to_list)
+        return arg
+
+
 _LOCAL = {
     'minimum_energy': {
         'aliases': ['Emin', 'minimum energy'],
