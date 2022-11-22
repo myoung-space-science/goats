@@ -715,30 +715,37 @@ class Runtime(iterables.MappingBase):
 class Arguments(constant.Interface):
     """Aliased access to EPREM parameter arguments."""
 
+    @typing.overload
     def __init__(
         self,
-        runtime: Runtime=None,
-        **runtime_init,
+        source_path: iotools.PathLike,
+        config_path: iotools.PathLike,
+        **kwargs
     ) -> None:
-        """Initialize an instance of this class.
-
-        The caller may pass an existing instance of `~parameters.Runtime` or the
-        arguments necessary to create the appropriate instance. See
-        documentation at `~parameters.Runtime` for information. Note that this
-        class will use an existing instance of `~parameters.Runtime` if
-        available, without checking for the presence of additional arguments.
-
+        """Create an interface from paths.
+        
         Parameters
         ----------
-        runtime : optional
-            An instance of `parameters.Runtime` initialized with paths relevant
-            to the simulation run under analysis.
-
-        **runtime_init : optional
-            See `~parameters.Runtime`.
+        See `~runtime.Runtime`.
         """
-        runtime = runtime or Runtime(**runtime_init)
-        super().__init__(self._build_mapping(runtime))
+
+    @typing.overload
+    def __init__(self, __runtime: Runtime) -> None:
+        """Create an interface from a runtime mapping.
+        
+        Parameters
+        ----------
+        runtime
+            An instance of `~parameters.Runtime` initialized with paths relevant
+            to the simulation run under analysis.
+        """
+
+    def __init__(self, *args, **kwargs) -> None:
+        if not kwargs and len(args) == 1:
+            arg = args[0]
+            if isinstance(arg, Runtime):
+                return super().__init__(self._build_mapping(arg))
+        super().__init__(self._build_mapping(Runtime(*args, **kwargs)))
 
     def _build_mapping(self, runtime: Runtime):
         """Build the mapping of available parameters."""
