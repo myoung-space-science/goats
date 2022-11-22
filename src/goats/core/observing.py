@@ -134,11 +134,78 @@ class Quantity(variable.Quantity):
         return Parameters(self._parameters)
 
 
+class Dataset(collections.abc.Mapping):
+    """A collection of observing-related physical quantities."""
+
+    def __init__(self, *mappings: typing.Mapping[str]) -> None:
+        self._mappings = mappings
+
+    def __len__(self) -> int:
+        """Compute the number of items in all mappings."""
+        return len(self._mappings)
+
+    def __iter__(self) -> typing.Iterator[str]:
+        return iter(self._mappings)
+
+    def __getitem__(self, __key: str):
+        return self._mappings[__key]
+
+    def get_unit(self, key: str):
+        """Compute or retrieve the metric unit of a physical quantity."""
+        if found := self._lookup('unit', key):
+            return found
+        s = str(key)
+        expression = symbolic.Expression(reference.NAMES.get(s, s))
+        term = expression[0]
+        this = self.get_unit(term.base) ** term.exponent
+        if len(expression) > 1:
+            for term in expression[1:]:
+                this *= self.get_unit(term.base) ** term.exponent
+        return metadata.Unit(this)
+
+    def get_dimensions(self, key: str):
+        """Compute or retrieve the array dimensions of a physical quantity."""
+        if found := self._lookup('dimensions', key):
+            return found
+        s = str(key)
+        expression = symbolic.Expression(reference.NAMES.get(s, s))
+        term = expression[0]
+        this = self.get_dimensions(term.base)
+        if len(expression) > 1:
+            for term in expression[1:]:
+                this *= self.get_dimensions(term.base)
+        return metadata.Axes(this)
+
+    def get_parameters(self, key: str):
+        """Compute or retrieve the parameters of a physical quantity."""
+        if found := self._lookup('parameters', key):
+            return found
+        s = str(key)
+        expression = symbolic.Expression(reference.NAMES.get(s, s))
+        term = expression[0]
+        this = self.get_parameters(term.base)
+        if len(expression) > 1:
+            for term in expression[1:]:
+                this *= self.get_parameters(term.base)
+        return Parameters(this)
+
+    def _lookup(self, __name: str, target: str):
+        """Search for an attribute among available quantities."""
+        for mapping in self._mappings:
+            if target in mapping:
+                return getattr(mapping[target], __name, None)
+
+
 class Interface(collections.abc.Collection):
     """Base class for observing-related interfaces."""
 
-    def __init__(self, quantities: typing.Mapping) -> None:
-        self._quantities = quantities
+    def __init__(
+        self,
+        __quantities: Dataset,
+        **constraints
+    ) -> None:
+        self._quantities = __quantities
+        self._constraints = constraints
         self._observables = None
 
     def __contains__(self, __x: str) -> bool:
@@ -162,18 +229,6 @@ class Interface(collections.abc.Collection):
     def observables(self):
         """The names of observable physical quantities."""
         return self._observables
-
-    @abc.abstractmethod
-    def get_unit(self, key: str):
-        """Retrieve the metric unit of a physical quantity."""
-
-    @abc.abstractmethod
-    def get_dimensions(self, key: str):
-        """Retrieve the array dimensions of a physical quantity."""
-
-    @abc.abstractmethod
-    def get_parameters(self, key: str):
-        """Compute or retrieve the physical parameters of a quantity."""
 
     @abc.abstractmethod
     def get_quantity(self, key: str):
