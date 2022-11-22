@@ -228,18 +228,6 @@ class Interface(collections.abc.Collection):
         """Iterate over names of available quantities."""
         return iter(self.quantities)
 
-    def get_unit(self, key: str):
-        """"""
-        return self._quantities.get_unit(key)
-
-    def get_dimensions(self, key: str):
-        """"""
-        return self._quantities.get_dimensions(key)
-
-    def get_parameters(self, key: str):
-        """"""
-        return self._quantities.get_parameters(key)
-
     @property
     def quantities(self):
         """The names of available physical quantities."""
