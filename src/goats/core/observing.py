@@ -6,17 +6,9 @@ import numbers
 import operator as standard
 import typing
 
-import numpy
-
-from goats.core import aliased
-from goats.core import axis
-from goats.core import computed
-from goats.core import constant
-from goats.core import interpolation
 from goats.core import iterables
 from goats.core import metadata
-from goats.core import metric
-from goats.core import physical
+from goats.core import observed
 from goats.core import reference
 from goats.core import symbolic
 from goats.core import variable
@@ -196,6 +188,11 @@ class Dataset(collections.abc.Mapping):
                 return getattr(mapping[target], __name, None)
 
 
+# Consider merging `Dataset` with this class.
+# - convert this class to a `collections.abc.Mapping`
+# - initialize with *mappings
+# - __getitem__ would return arbitrary unprocessed quantities
+# - potential drawback: prohibiting observer-specific `Dataset` subclasses
 class Interface(collections.abc.Collection):
     """Base class for observing-related interfaces."""
 
@@ -204,8 +201,19 @@ class Interface(collections.abc.Collection):
         __quantities: Dataset,
         **constraints
     ) -> None:
+        """Create a new instance.
+        
+        Parameters
+        ----------
+        __quantities
+            An instance of `~observing.Dataset` or a subclass.
+
+        constraints : mapping
+            User-provided observing constraints.
+        """
         self._quantities = __quantities
         self._constraints = constraints
+        self._cache = {}
         self._observables = None
 
     def __contains__(self, __x: str) -> bool:
@@ -220,6 +228,18 @@ class Interface(collections.abc.Collection):
         """Iterate over names of available quantities."""
         return iter(self.quantities)
 
+    def get_unit(self, key: str):
+        """"""
+        return self._quantities.get_unit(key)
+
+    def get_dimensions(self, key: str):
+        """"""
+        return self._quantities.get_dimensions(key)
+
+    def get_parameters(self, key: str):
+        """"""
+        return self._quantities.get_parameters(key)
+
     @property
     def quantities(self):
         """The names of available physical quantities."""
@@ -230,72 +250,133 @@ class Interface(collections.abc.Collection):
         """The names of observable physical quantities."""
         return self._observables
 
-    @abc.abstractmethod
     def get_quantity(self, key: str):
         """Compute or retrieve a physical quantity."""
+        return self._quantities.get(key)
 
     @abc.abstractmethod
-    def get_observable(self, key: str):
-        """Compute or retrieve an observable quantity."""
+    def get_result(self, key: str) -> Quantity:
+        """Compute an observed quantity."""
+
+    @abc.abstractmethod
+    def get_context(self, key: str) -> typing.Mapping:
+        """Define the observing context."""
 
 
-class Implementation(collections.abc.Mapping):
-    """Base class for observation results.
-    
-    This class represents the observer-specific result of observing an
-    observable quantity.
-    """
+class Application:
+    """"""
 
     def __init__(
         self,
         __interface: Interface,
         name: str,
-        constraints: typing.Mapping,
     ) -> None:
-        """
-        Initialize this instance.
+        """Initialize this instance.
 
         Parameters
         ----------
         interface : `~Interface`
-            The interface to all observing-related quantities.
+            The user-constrained interface to observing-related quantities.
+
+        name : string
+            The name of the observable quantity.
+        """
+        self._name = name
+        self._result = __interface.get_result(name)
+        self._context = __interface.get_context(name)
+        self._indices = None
+        self._constants = None
+
+    @property
+    def result(self):
+        """The observed variable quantity."""
+        return self._result
+
+    @property
+    def indices(self):
+        """The axis-indexing object for each dimension."""
+        if self._indices is None:
+            self._indices = self._context['indices']
+        return self._indices
+
+    @property
+    def constants(self):
+        """The relevant physical parameter values."""
+        if self._constants is None:
+            self._constants = self._context.get('constants', {})
+        return self._constants
+
+
+class Implementation(Dataset):
+    """The implementation of an observable quantity."""
+
+    def __init__(
+        self,
+        __type: typing.Type[Interface],
+        name: str,
+        *mappings: typing.Mapping[str],
+    ) -> None:
+        """Initialize this instance.
+
+        Parameters
+        ----------
+        __type
+            # TODO
 
         name : string
             The name of the quantity to observe.
 
-        constraints : mapping
-            User-provided observing constraints.
+        *mappings
+            # TODO
         """
-        self._interface = __interface
+        super().__init__(*mappings)
+        self._type = __type
         self._name = name
-        self._contraints = constraints
-        self._data = None
-        self._metadata = None
-        self._context = None
+        self._dataset = None
+        self._unit = None
+        self._dimensions = None
+        self._parameters = None
 
-    def __len__(self) -> int:
-        """Compute the number of metadata elements."""
-        return len(self._metadata)
-
-    def __iter__(self) -> typing.Iterator[str]:
-        """Iterate over metadata parameters."""
-        return iter(self._metadata)
-
-    def __getitem__(self, __k: str):
-        """Retrieve a metadata attribute."""
-        return self._metadata[__k]
+    def apply(self, **constraints):
+        """Apply user constraints to this implementation."""
+        interface = self._type(self.dataset, **constraints)
+        context = interface.get_context(self.name)
+        return observed.Quantity(
+            interface.get_result(self.name),
+            context['axes'],
+            constants=context.get('constants'),
+        )
 
     @property
-    def data(self) -> variable.Quantity:
-        """The observed variable quantity."""
-        if self._data is None:
-            raise NotImplementedError
-        return self._data
+    def dataset(self):
+        """A copy of the underlying dataset."""
+        if self._dataset is None:
+            self._dataset = Dataset(*self._mappings)
+        return self._dataset
 
     @property
-    def context(self) -> typing.Mapping:
-        """The metadata attributes relevant to this observation."""
-        if self._context is None:
-            raise NotImplementedError
-        return self._context
+    def unit(self):
+        """The metric unit of this observable quantity."""
+        if self._unit is None:
+            self._unit = self.get_unit(self.name)
+        return self._unit
+
+    @property
+    def dimensions(self):
+        """The array dimensions of this observable quantity."""
+        if self._dimensions is None:
+            self._dimensions = self.get_dimensions(self.name)
+        return self._dimensions
+
+    @property
+    def parameters(self):
+        """The physical parameters of this observable quantity."""
+        if self._parameters is None:
+            self._parameters = self.get_parameters(self.name)
+        return self._parameters
+
+    @property
+    def name(self):
+        """The name of the target observable quantity."""
+        return self._name
 

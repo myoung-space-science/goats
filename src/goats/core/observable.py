@@ -86,29 +86,18 @@ class Interface:
 class Quantity(iterables.ReprStrMixin):
     """A quantity that produces an observation."""
 
-    def __init__(
-        self,
-        __quantities: observing.Interface,
-        name: str,
-        unit: metadata.UnitLike=None,
-    ) -> None:
+    def __init__(self, __i: observing.Implementation) -> None:
         """
         Initialize this instance.
 
         Parameters
         ----------
-        __quantities : `~observing.Interface`
-            The interface to physical quantities used in making observations.
-
-        name : string
-            The name of this observable quantity.
-
-        unit : unit-like, optional
-            The metric unit to which to convert observations of this quantity.
+        __i : `~observing.Implementation`
+            An implementation of the observer-defined observing interface.
         """
-        self._interface = Interface(__quantities)
-        self._name = name
-        self._unit = metadata.Unit(unit or __quantities.get_unit(name))
+        self._i = __i
+        self._name = None
+        self._unit = None
         self._dimensions = None
         self._parameters = None
 
@@ -120,31 +109,32 @@ class Quantity(iterables.ReprStrMixin):
         )
         if unit == self._unit:
             return self
-        return Quantity(self._interface, self.name, unit=self.unit)
+        return Quantity(self._i)
 
     @property
     def unit(self):
         """This quantity's current metric unit."""
+        if self._unit is None:
+            self._unit = self._i.unit
         return self._unit
 
     @property
     def dimensions(self):
         """This quantity's indexable dimensions."""
         if self._dimensions is None:
-            self._dimensions = self._interface.get_dimensions(self.name)
+            self._dimensions = self._i.dimensions
         return self._dimensions
 
     @property
     def parameters(self):
         """The physical parameters relevant to this quantity."""
         if self._parameters is None:
-            self._parameters = self._interface.get_parameters(self.name)
+            self._parameters = self._i.parameters
         return self._parameters
 
     def observe(self, **constraints):
         """Observe this observable quantity."""
-        result = self._interface.implement(self._name, constraints)
-        return observed.Quantity(result, unit=self.unit)
+        return observed.Quantity(self._i.apply(**constraints))
 
     @property
     def name(self):

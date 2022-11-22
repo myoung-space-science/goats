@@ -1,9 +1,11 @@
+import typing
+
 import numpy
 
 from goats.core import aliased
 from goats.core import iterables
 from goats.core import metric
-from goats.core import observing
+from goats.core import variable
 
 
 class Quantity(iterables.ReprStrMixin):
@@ -11,12 +13,13 @@ class Quantity(iterables.ReprStrMixin):
 
     def __init__(
         self,
-        result: observing.Implementation,
-        unit: metric.Unit=None,
+        __data: variable.Quantity,
+        axes: typing.Mapping,
+        constants: typing.Mapping=None,
     ) -> None:
-        self._result = result
-        self._unit = unit
-        self._data = None
+        self._data = __data
+        self._axes = axes
+        self._constants = constants
         self._array = None
         self._parameters = None
 
@@ -40,16 +43,13 @@ class Quantity(iterables.ReprStrMixin):
         This property provides direct access to the variable-quantity interface,
         as well as to metadata properties of the observed quantity.
         """
-        if self._data is None:
-            data = self._result.data
-            self._data = data[self._unit] if self._unit else data
         return self._data
 
     @property
     def parameters(self):
         """The physical parameters relevant to this observation."""
         if self._parameters is None:
-            self._parameters = list(self._result.context)
+            self._parameters = list(self._constants)
         return self._parameters
 
     def __getitem__(self, __x):
@@ -67,16 +67,18 @@ class Quantity(iterables.ReprStrMixin):
                 f"{__x!r} must name a context item or a unit."
                 "Use the array property to access data values."
             ) from None
-        if __x in self._result:
-            return self._result[__x]
-        return type(self)(self._result, __x)
+        if __x in self._axes:
+            return self._axes[__x]
+        if __x in self._constants:
+            return self._constants[__x]
+        return type(self)(self.data, self._axes, self._constants)
 
     def __eq__(self, __o) -> bool:
         """True if two instances have equivalent attributes."""
         if isinstance(__o, Quantity):
             return all(
                 getattr(self, attr) == getattr(__o, attr)
-                for attr in ('data', 'context')
+                for attr in ('data', 'axes', 'constants')
             )
         return NotImplemented
 
