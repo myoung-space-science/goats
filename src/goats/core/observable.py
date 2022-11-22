@@ -134,7 +134,7 @@ class Quantity(iterables.ReprStrMixin):
 
     def observe(self, **constraints):
         """Observe this observable quantity."""
-        return observed.Quantity(self._i.apply(**constraints))
+        return self._i.apply(**constraints)
 
     @property
     def name(self):
