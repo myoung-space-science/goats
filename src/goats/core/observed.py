@@ -5,7 +5,7 @@ import numpy
 from goats.core import aliased
 from goats.core import iterables
 from goats.core import metric
-from goats.core import observing
+from goats.core import variable
 
 
 class Quantity(iterables.ReprStrMixin):
@@ -13,9 +13,13 @@ class Quantity(iterables.ReprStrMixin):
 
     def __init__(
         self,
-        __observed: observing.Application,
+        __data: variable.Quantity,
+        axes: typing.Mapping,
+        constants: typing.Mapping=None,
     ) -> None:
-        self._observed = __observed
+        self._data = __data
+        self._axes = axes
+        self._constants = constants
         self._array = None
         self._parameters = None
 
@@ -39,13 +43,13 @@ class Quantity(iterables.ReprStrMixin):
         This property provides direct access to the variable-quantity interface,
         as well as to metadata properties of the observed quantity.
         """
-        return self._observed.result
+        return self._data
 
     @property
     def parameters(self):
         """The physical parameters relevant to this observation."""
         if self._parameters is None:
-            self._parameters = list(self._observed.constants)
+            self._parameters = list(self._constants)
         return self._parameters
 
     def __getitem__(self, __x):
@@ -63,11 +67,11 @@ class Quantity(iterables.ReprStrMixin):
                 f"{__x!r} must name a context item or a unit."
                 "Use the array property to access data values."
             ) from None
-        if __x in self._observed.indices:
-            return self._observed.indices[__x]
-        if __x in self._observed.constants:
-            return self._observed.constants[__x]
-        return type(self)(self._observed)
+        if __x in self._axes:
+            return self._axes[__x]
+        if __x in self._constants:
+            return self._constants[__x]
+        return type(self)(self.data, self._axes, self._constants)
 
     def __eq__(self, __o) -> bool:
         """True if two instances have equivalent attributes."""

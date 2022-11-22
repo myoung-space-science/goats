@@ -263,58 +263,14 @@ class Interface(collections.abc.Collection):
         """Define the observing context."""
 
 
-class Application:
-    """"""
-
-    def __init__(
-        self,
-        __interface: Interface,
-        name: str,
-    ) -> None:
-        """Initialize this instance.
-
-        Parameters
-        ----------
-        interface : `~Interface`
-            The user-constrained interface to observing-related quantities.
-
-        name : string
-            The name of the observable quantity.
-        """
-        self._name = name
-        self._result = __interface.get_result(name)
-        self._context = __interface.get_context(name)
-        self._indices = None
-        self._constants = None
-
-    @property
-    def result(self):
-        """The observed variable quantity."""
-        return self._result
-
-    @property
-    def indices(self):
-        """The axis-indexing object for each dimension."""
-        if self._indices is None:
-            self._indices = self._context['indices']
-        return self._indices
-
-    @property
-    def constants(self):
-        """The relevant physical parameter values."""
-        if self._constants is None:
-            self._constants = self._context.get('constants', {})
-        return self._constants
-
-
-class Implementation(Dataset):
+class Implementation:
     """The implementation of an observable quantity."""
 
     def __init__(
         self,
         __type: typing.Type[Interface],
         name: str,
-        *mappings: typing.Mapping[str],
+        dataset: Dataset,
     ) -> None:
         """Initialize this instance.
 
@@ -326,13 +282,12 @@ class Implementation(Dataset):
         name : string
             The name of the quantity to observe.
 
-        *mappings
+        dataset
             # TODO
         """
-        super().__init__(*mappings)
         self._type = __type
         self._name = name
-        self._dataset = None
+        self._dataset = dataset
         self._unit = None
         self._dimensions = None
         self._parameters = None
@@ -350,29 +305,27 @@ class Implementation(Dataset):
     @property
     def dataset(self):
         """A copy of the underlying dataset."""
-        if self._dataset is None:
-            self._dataset = Dataset(*self._mappings)
         return self._dataset
 
     @property
     def unit(self):
         """The metric unit of this observable quantity."""
         if self._unit is None:
-            self._unit = self.get_unit(self.name)
+            self._unit = self.dataset.get_unit(self.name)
         return self._unit
 
     @property
     def dimensions(self):
         """The array dimensions of this observable quantity."""
         if self._dimensions is None:
-            self._dimensions = self.get_dimensions(self.name)
+            self._dimensions = self.dataset.get_dimensions(self.name)
         return self._dimensions
 
     @property
     def parameters(self):
         """The physical parameters of this observable quantity."""
         if self._parameters is None:
-            self._parameters = self.get_parameters(self.name)
+            self._parameters = self.dataset.get_parameters(self.name)
         return self._parameters
 
     @property
