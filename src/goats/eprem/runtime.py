@@ -566,8 +566,6 @@ class Runtime(iterables.MappingBase):
         self._basetypes = None
         self._reference = None
         super().__init__(tuple(self.reference))
-        # BUG: These `kwargs` will persist even if the user updates the
-        # config-file path, which could create an inconsistency.
         self._kwargs = kwargs
         self._current = None
 
@@ -666,10 +664,14 @@ class Runtime(iterables.MappingBase):
         raise TypeError(f"Can't resolve {definition!r}") from None
 
     def _compute_sum(self, arg: str) -> numbers.Real:
-        """Compute the sum of two known parameters."""
-        # HACK: This is only designed to handle strings that contain a single
-        # additive operator joining two arguments that `_evaluate` already knows
-        # how to handle.
+        """Compute the sum of two known parameters.
+        
+        Notes
+        -----
+        This is only designed to handle strings that contain a single additive
+        operator joining two arguments that `_evaluate` already knows how to
+        handle.
+        """
         for operator in ('+', '-'):
             if operator in arg:
                 terms = [
