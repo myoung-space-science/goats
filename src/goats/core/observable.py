@@ -29,60 +29,6 @@ def iscomposed(this):
     )
 
 
-class Interface:
-    """An interface to arbitrary observable quantities."""
-
-    def __init__(self, __quantities: observing.Interface) -> None:
-        self._quantities = __quantities
-
-    def get_unit(self, key: str):
-        """Compute or retrieve the metric unit of a physical quantity."""
-        if found := self._quantities.get_unit(key):
-            return found
-        s = str(key)
-        expression = symbolic.Expression(reference.NAMES.get(s, s))
-        term = expression[0]
-        this = self.get_unit(term.base) ** term.exponent
-        if len(expression) > 1:
-            for term in expression[1:]:
-                this *= self.get_unit(term.base) ** term.exponent
-        return metadata.Unit(this)
-
-    def get_dimensions(self, key: str):
-        """Compute or retrieve the array dimensions of a physical quantity."""
-        if found := self._quantities.get_dimensions(key):
-            return found
-        s = str(key)
-        expression = symbolic.Expression(reference.NAMES.get(s, s))
-        term = expression[0]
-        this = self.get_dimensions(term.base)
-        if len(expression) > 1:
-            for term in expression[1:]:
-                this *= self.get_dimensions(term.base)
-        return metadata.Axes(this)
-
-    def get_parameters(self, key: str):
-        """Compute or retrieve the parameters of a physical quantity."""
-        if found := self._quantities.get_parameters(key):
-            return found
-        s = str(key)
-        expression = symbolic.Expression(reference.NAMES.get(s, s))
-        term = expression[0]
-        this = self.get_parameters(term.base)
-        if len(expression) > 1:
-            for term in expression[1:]:
-                this *= self.get_parameters(term.base)
-        return observing.Parameters(this)
-
-    def implement(self, key: str, constraints: typing.Mapping):
-        """Create an interface to observational data and context."""
-        return observing.Implementation(
-            self._quantities,
-            key,
-            constraints,
-        )
-
-
 class Quantity(iterables.ReprStrMixin):
     """A quantity that produces an observation."""
 
