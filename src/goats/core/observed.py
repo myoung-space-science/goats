@@ -14,12 +14,12 @@ class Quantity(iterables.ReprStrMixin):
     def __init__(
         self,
         __data: variable.Quantity,
-        axes: typing.Mapping,
-        constants: typing.Mapping=None,
+        indices: typing.Mapping,
+        assumptions: typing.Mapping=None,
     ) -> None:
         self._data = __data
-        self._axes = axes
-        self._constants = constants
+        self._indices = indices
+        self._assumptions = assumptions
         self._array = None
         self._parameters = None
 
@@ -49,7 +49,7 @@ class Quantity(iterables.ReprStrMixin):
     def parameters(self):
         """The physical parameters relevant to this observation."""
         if self._parameters is None:
-            self._parameters = list(self._constants)
+            self._parameters = list(self._assumptions)
         return self._parameters
 
     def __getitem__(self, __x):
@@ -67,18 +67,18 @@ class Quantity(iterables.ReprStrMixin):
                 f"{__x!r} must name a context item or a unit."
                 "Use the array property to access data values."
             ) from None
-        if __x in self._axes:
-            return self._axes[__x]
-        if __x in self._constants:
-            return self._constants[__x]
-        return type(self)(self.data, self._axes, self._constants)
+        if __x in self._indices:
+            return self._indices[__x]
+        if __x in self._assumptions:
+            return self._assumptions[__x]
+        return type(self)(self.data, self._indices, self._assumptions)
 
     def __eq__(self, __o) -> bool:
         """True if two instances have equivalent attributes."""
         if isinstance(__o, Quantity):
             return all(
                 getattr(self, attr) == getattr(__o, attr)
-                for attr in ('data', 'axes', 'constants')
+                for attr in ('data', 'indices', 'assumptions')
             )
         return NotImplemented
 
