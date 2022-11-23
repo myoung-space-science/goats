@@ -286,10 +286,19 @@ class Application(collections.abc.Collection):
             Otherwise, overwrite the current constraints with `constraints`.
         """
         if not update:
-            return type(self)(self._quantities, constraints)
+            return self.apply(constraints)
         user = self.constraints.copy()
         user.update(constraints)
-        return type(self)(self._quantities, user)
+        return self.apply(user)
+
+    def apply(self, constraints: typing.Mapping):
+        """Unconditionally create a new instance with the given constraints.
+
+        This method acts like a hook for `constrain`. Concrete subclasses that
+        overload `__init__` may want to overload this method to ensure
+        consistency.
+        """
+        return type(self)(self._quantities, constraints)
 
     @abc.abstractmethod
     def get_result(self, key: str) -> Quantity:
