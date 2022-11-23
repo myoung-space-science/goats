@@ -1422,11 +1422,17 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
 
         >>> that = symbolic.Expression(this)
 
-        Both `this` and `that` represent the same expression... >>> this
-        core.symbolic.Expression(a b c^-1) >>> that core.symbolic.Expression(a b
-        c^-1)
+        Both `this` and `that` represent the same expression...
+        
+        >>> this
+        core.symbolic.Expression(a b c^-1)
+        >>> that
+        core.symbolic.Expression(a b c^-1)
 
-        ...because they are the same object. >>> that is this True
+        ...because they are the same object.
+
+        >>> that is this
+        True
         """
 
     def __init__(self, expression, **kwargs) -> None:
