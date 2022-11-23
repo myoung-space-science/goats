@@ -1638,6 +1638,25 @@ class Expression(collections.abc.Sequence, iterables.ReprStrMixin):
 algebraic.Multiplicative.register(Expression)
 
 
+def composition(this):
+    """True if `this` appears to be a symbolic composition of terms.
+    
+    Parameters
+    ----------
+    this
+        The object to check.
+
+    Notes
+    -----
+    This is more stringent than simply checking whether `this` can instantiate a
+    `~symbolic.Expression` because any string would satisfy that condition.
+    """
+    return (
+        isinstance(this, Expression)
+        or isinstance(this, str) and ('/' in this or '*' in this)
+    )
+
+
 Expressable = typing.TypeVar(
     'Expressable',
     str,

@@ -676,6 +676,19 @@ def test_expression_diff():
         assert e0.difference(e1, split=True) == expected['split']
 
 
+def test_composition():
+    """Test the module function that checks for a symbolic composition."""
+    cases = {
+        'a / b': True,
+        'a * b': True,
+        'a * b / c': True,
+        '(a * b / c)': True,
+        'a': False,
+    }
+    for case, truth in cases.items():
+        assert symbolic.composition(case) == truth
+
+
 def test_product():
     """Test the module function that computes a symbolic product."""
     cases = {
