@@ -127,8 +127,8 @@ class Quantity(variable.Quantity):
         return Parameters(self._parameters)
 
 
-class Quantities(collections.abc.Mapping):
-    """A collection of observing-related physical quantities."""
+class Interface(collections.abc.Mapping):
+    """An interface to observing-related physical quantities."""
 
     def __init__(
         self,
@@ -219,12 +219,12 @@ class Quantities(collections.abc.Mapping):
                 return getattr(mapping[target], __name, None)
 
 
-class Interface(collections.abc.Collection):
-    """Base class for observing-related interfaces."""
+class Application(collections.abc.Collection):
+    """Base class for observing applications."""
 
     def __init__(
         self,
-        __quantities: Quantities,
+        __quantities: Interface,
         **constraints
     ) -> None:
         """Create a new instance.
@@ -232,7 +232,7 @@ class Interface(collections.abc.Collection):
         Parameters
         ----------
         __quantities
-            An instance of `~observing.Dataset` or a subclass.
+            An instance of `~observing.Interface` or a subclass.
 
         constraints : mapping
             User-provided observing constraints.
@@ -282,8 +282,8 @@ class Implementation:
 
     def __init__(
         self,
-        __type: typing.Type[Interface],
-        quantities: Quantities,
+        __type: typing.Type[Application],
+        quantities: Interface,
         name: str,
         unit: metadata.UnitLike=None,
     ) -> None:
@@ -292,7 +292,7 @@ class Implementation:
         Parameters
         ----------
         __type : type of observing interface
-            A subtype of `~observing.Interface`.
+            A subtype of `~observing.Application`.
 
         quantities
             A collection of observing-related physical quantities.

@@ -13,7 +13,7 @@ class Interface:
 
     def __init__(
         self,
-        __type: observing.Interface,
+        __type: observing.Application,
         *unobservable: str,
         system: str='mks',
     ) -> None:
@@ -21,8 +21,8 @@ class Interface:
         
         Parameters
         ----------
-        __type : type of observing interface
-            A subtype of `~observing.Interface`.
+        __type : type of observing application
+            A subtype of `~observing.Application`.
 
         *unobservable : string
             The names of variable quantities from this observer's dataset to
@@ -38,7 +38,7 @@ class Interface:
         self._quantities = None
         self._spellcheck = None
 
-    def update(self, __quantities: observing.Quantities):
+    def update(self, __quantities: observing.Interface):
         """Use a new interface to physical quantities."""
         self._quantities = __quantities
         self._spellcheck = None
@@ -69,10 +69,10 @@ class Interface:
 
     @property
     def quantities(self):
-        """An interface to this observer's physical quantities.
+        """The interface to available physical quantities.
         
-        This property represents the quantities that this observer will use when
-        making observations.
+        This collection represents the quantities that this observer will use
+        when making observations.
         """
         return self._quantities
 
