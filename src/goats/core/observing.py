@@ -220,7 +220,10 @@ class Interface(collections.abc.Mapping):
 
 
 class Application(collections.abc.Collection):
-    """Base class for observing applications."""
+    """Abstract base class for observing applications.
+
+    Concrete subclasses must overload the `get_result` and `get_config` methods.
+    """
 
     def __init__(
         self,
