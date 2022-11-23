@@ -99,7 +99,7 @@ class Interface:
         """Internal helper for `~Interface.observes`."""
         if key in list(self.observables):
             return True
-        if observable.iscomposed(key):
+        if symbolic.composition(key):
             expression = symbolic.Expression(key)
             return all(self._observes(term.base) for term in expression)
         return False
