@@ -15,6 +15,7 @@ class Interface:
         self,
         *unobservable: str,
         system: str='mks',
+        application: observing.Application=None,
     ) -> None:
         """Initialize this instance.
         
@@ -27,10 +28,17 @@ class Interface:
 
         system : string, default='mks'
             The metric system to use for variable and observable quantities.
+
+        application : subclass of `~observing.Application`, optional
+            An instance of the observer-specific observing application. Users
+            may set the observing application after initialization via the
+            `update` method. This class will raise an exception if the user
+            attempts to access physical quantities without a valid observing
+            application.
         """
         self._unobservable = unobservable
         self._system = metric.System(system)
-        self._application = None
+        self._application = application
         self._quantities = None
         self._spellcheck = None
 
