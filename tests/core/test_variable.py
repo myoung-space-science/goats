@@ -1,6 +1,5 @@
 import itertools
 import operator
-import random
 import typing
 
 import numpy
@@ -8,16 +7,9 @@ import numpy.typing
 import pytest
 
 from goats.core import algebraic
-from goats.core import datafile
-from goats.core import variable
-from goats.core import physical
-from goats.core import measurable
 from goats.core import metadata
-
-
-def get_interface(testdata: dict, name: str) -> datafile.Interface:
-    """Get an interface to a dataset file by name."""
-    return datafile.Interface(testdata[name]['path'])
+from goats.core import physical
+from goats.core import variable
 
 
 def get_reference(
@@ -27,65 +19,6 @@ def get_reference(
 ) -> typing.Dict[str, dict]:
     """Get reference values for the named dataset."""
     return testdata[name].get(key, {})
-
-
-def test_variables(testdata: dict):
-    """Test the higher-level variables interface."""
-    reference = {
-        'time': {
-            'unit': {
-                'mks': 's',
-                'cgs': 's',
-            },
-            'axes': ['time'],
-        },
-        'Vr': {
-            'unit': {
-                'mks': 'm / s',
-                'cgs': 'cm / s',
-            },
-            'axes': ['time', 'shell'],
-        },
-        'flux': {
-            'unit': {
-                'mks': 'm^-2 s^-1 sr^-1 J^-1',
-                'cgs': 'cm^-2 s^-1 sr^-1 erg^-1',
-            },
-            'axes': ['time', 'shell', 'species', 'energy'],
-        },
-        'dist': {
-            'unit': {
-                'mks': 's^3 m^-6',
-                'cgs': 's^3 cm^-6',
-            },
-            'axes': ['time', 'shell', 'species', 'energy', 'mu'],
-        },
-    }
-    for name in ('eprem-obs', 'eprem-flux'):
-        datafile = get_interface(testdata, name)
-        for observable, expected in reference.items():
-            for system, unit in expected['unit'].items():
-                variables = variable.Interface(datafile, system=system)
-                if observable in variables:
-                    v = variables[observable]
-                    assert v.unit == unit
-                    assert sorted(v.axes) == sorted(expected['axes'])
-                else:
-                    with pytest.raises(KeyError):
-                        variables[observable]
-
-
-def test_standardize():
-    """Test the helper function that standardizes unit strings."""
-    cases = {
-        'julian date': 'day',
-        'shell': '1',
-        'cos(mu)': '1',
-        'e-': 'e',
-        '# / cm^2 s sr MeV': '# / (cm^2 s sr MeV/nuc)',
-    }
-    for old, new in cases.items():
-        assert variable.standardize(old) == new
 
 
 @pytest.mark.variable
