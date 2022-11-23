@@ -1,16 +1,16 @@
 """Tools for managing variable quantities in datasets."""
 
+import abc
+import collections.abc
 import numbers
 import typing
 
 import numpy
 import numpy.typing
 
-from goats.core import aliased
 from goats.core import datafile
 from goats.core import metric
 from goats.core import metadata
-from goats.core import reference
 from goats.core import physical
 
 
@@ -171,20 +171,16 @@ def _mean(v: Quantity, **kwargs):
 S = typing.TypeVar('S', bound='Interface')
 
 
-class Interface(aliased.Mapping):
-    """An interface to dataset variables.
+class Interface(collections.abc.Mapping):
+    """Base class for interfaces to dataset variables.
     
-    This class provides aliased key-based access to all variables in a dataset.
-    It converts each requested dataset variable into a `~variable.Quantity`
-    instance with the appropriate for its metric system.
+    Concrete subclasses must define the `build` method.
     """
 
     def __init__(
         self,
-        dataset: datafile.Interface,
         system: typing.Union[str, metric.System]=None,
     ) -> None:
-        super().__init__(dataset.variables)
         self._system = metric.System(system or 'mks')
         self._cache = {}
 
@@ -193,52 +189,17 @@ class Interface(aliased.Mapping):
         """This observer's metric system."""
         return self._system
 
-    def __getitem__(self, key: str) -> Quantity:
-        """Create the named variable, if possible."""
-        if key in self._cache:
-            return self._cache[key]
-        datavar = super().__getitem__(key)
-        variable = Quantity(
-            datavar.data,
-            unit=standardize(datavar.unit),
-            axes=datavar.axes,
-            name=reference.ALIASES.get(key, key),
-        )
-        converted = (
-            # HACK: This special case comes from the fact that EPREM outputs
-            # mass in 'nucleon', which is really a mass number. The `eprem`
-            # subpackage should ultimately handle this logic (and maybe the
-            # other special cases in `substitutions`)
-            variable[self.system['mass'].unit]
-            if key in {'mass', 'm'}
-            else variable[str(self.system)]
-        )
-        self._cache[key] = converted
-        return converted
+    def __getitem__(self, __k: str) -> Quantity:
+        """Retrieve or create the named quantity, if possible."""
+        if __k in self._cache:
+            return self._cache[__k]
+        if built := self.build(__k):
+            return built
+        raise KeyError(f"No quantity corresponding to {__k!r}") from None
 
-
-substitutions = {
-    'julian date': 'day',
-    'shell': '1',
-    'cos(mu)': '1',
-    'e-': 'e',
-    '# / cm^2 s sr MeV': '# / cm^2 s sr MeV/nuc',
-}
-"""Conversions from non-standard units."""
-
-T = typing.TypeVar('T')
-
-def standardize(unit: T):
-    """Replace this unit string with a standard unit string, if possible.
-
-    This function looks for `unit` in the known conversions and returns the
-    standard unit string if it exists. If this doesn't find a standard unit
-    string, it just returns the input.
-    """
-    unit = substitutions.get(str(unit), unit)
-    if '/' in unit:
-        num, den = str(unit).split('/', maxsplit=1)
-        unit = ' / '.join((num.strip(), f"({den.strip()})"))
-    return unit
-
-
+    @abc.abstractmethod
+    def build(self, key: str) -> typing.Optional[Quantity]:
+        """Create the named variable quantity.
+        
+        Concrete implementations should return `None` upon failure.
+        """
