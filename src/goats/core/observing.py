@@ -6,10 +6,12 @@ import numbers
 import operator as standard
 import typing
 
+from goats.core import index
 from goats.core import iterables
 from goats.core import metadata
 from goats.core import metric
 from goats.core import observed
+from goats.core import constant
 from goats.core import reference
 from goats.core import symbolic
 from goats.core import variable
@@ -219,6 +221,28 @@ class Interface(collections.abc.Mapping):
                 return getattr(mapping[target], __name, None)
 
 
+class Context:
+    """The observing context of an observation."""
+
+    def __init__(
+        self,
+        indices: typing.Mapping[str, index.Quantity],
+        assumptions: typing.Mapping[str, constant.Assumption]=None,
+    ) -> None:
+        self._indices = indices
+        self._assumptions = assumptions or {}
+
+    @property
+    def indices(self):
+        """The indexing object for each array dimension."""
+        return self._indices
+
+    @property
+    def assumptions(self):
+        """The relevant physical assumptions."""
+        return self._assumptions
+
+
 class Application(collections.abc.Collection):
     """Abstract base class for observing applications.
 
@@ -308,7 +332,7 @@ class Application(collections.abc.Collection):
         """Compute an observed quantity."""
 
     @abc.abstractmethod
-    def get_context(self, key: str) -> typing.Mapping:
+    def get_context(self, key: str) -> Context:
         """Define the observing context."""
 
 
@@ -367,8 +391,8 @@ class Implementation:
         context = application.get_context(self.name)
         return observed.Quantity(
             application.get_result(self.name),
-            context['axes'],
-            constants=context.get('constants'),
+            context.indices,
+            assumptions=context.assumptions,
         )
 
     def __getitem__(self, __x: metadata.UnitLike):
