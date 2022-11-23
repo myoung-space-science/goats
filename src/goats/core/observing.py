@@ -126,7 +126,7 @@ class Quantity(variable.Quantity):
         return Parameters(self._parameters)
 
 
-class Dataset(collections.abc.Mapping):
+class Quantities(collections.abc.Mapping):
     """A collection of observing-related physical quantities."""
 
     def __init__(self, *mappings: typing.Mapping[str]) -> None:
@@ -193,7 +193,7 @@ class Interface(collections.abc.Collection):
 
     def __init__(
         self,
-        __quantities: Dataset,
+        __quantities: Quantities,
         **constraints
     ) -> None:
         """Create a new instance.
@@ -253,7 +253,7 @@ class Implementation:
         self,
         __type: typing.Type[Interface],
         name: str,
-        dataset: Dataset,
+        dataset: Quantities,
     ) -> None:
         """Initialize this instance.
 
