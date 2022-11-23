@@ -129,18 +129,48 @@ class Quantity(variable.Quantity):
 class Quantities(collections.abc.Mapping):
     """A collection of observing-related physical quantities."""
 
-    def __init__(self, *mappings: typing.Mapping[str]) -> None:
-        self._mappings = mappings
+    def __init__(
+        self,
+        *observables: typing.Mapping[str],
+        **others: typing.Mapping[str],
+    ) -> None:
+        self._observables = observables
+        self._others = others
 
     def __len__(self) -> int:
-        """Compute the number of items in all mappings."""
-        return len(self._mappings)
+        """Compute the number of available physical quantities."""
+        return len(self.available)
 
     def __iter__(self) -> typing.Iterator[str]:
-        return iter(self._mappings)
+        """Iterate over available physical quantities."""
+        return iter(self.available)
 
-    def __getitem__(self, __key: str):
-        return self._mappings[__key]
+    @property
+    def available(self):
+        """The names of all available physical quantities."""
+        others = tuple(k for m in self._others.values() for k in m)
+        return self.observable + others
+
+    @property
+    def observable(self):
+        """The names of observable physical quantities."""
+        return tuple(k for m in self._observables for k in m)
+
+    def __getitem__(self, __k: str):
+        """Access physical quantities by key."""
+        # Is it an observable quantity?
+        for mapping in self._observables:
+            if __k in mapping:
+                return mapping[__k]
+        # Is it an unobservable quantity?
+        for mapping in self._others.values():
+            if __k in mapping:
+                return mapping[__k]
+        # Is it a group of unobservable quantities?
+        if __k in self._others:
+            return self._others[__k]
+        # We're out of options.
+        raise KeyError(f"No known quantity for {__k!r}") from None
 
     def get_unit(self, key: str):
         """Compute or retrieve the metric unit of a physical quantity."""
@@ -183,7 +213,7 @@ class Quantities(collections.abc.Mapping):
 
     def _lookup(self, __name: str, target: str):
         """Search for an attribute among available quantities."""
-        for mapping in self._mappings:
+        for mapping in self._observables:
             if target in mapping:
                 return getattr(mapping[target], __name, None)
 
