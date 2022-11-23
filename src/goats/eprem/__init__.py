@@ -263,6 +263,25 @@ class Application(observing.Application):
         return base
 
 
+Instance = typing.TypeVar('Instance', bound='Application')
+
+
+class Application(observing.Application):
+    """The EPREM observing application."""
+
+    def __init__(
+        self,
+        __data: datafile.Interface,
+        constraints: typing.Mapping=None
+    ) -> None:
+        quantities = observing.Interface()
+        super().__init__(quantities, constraints)
+        self._data = __data
+
+    def apply(self, constraints: typing.Mapping):
+        return type(self)(self._data, constraints)
+
+
 Instance = typing.TypeVar('Instance', bound='Observer')
 
 
@@ -279,36 +298,82 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     def __init__(
         self,
         __id: int,
-        config: iotools.PathLike,
-        source: iotools.PathLike=pathlib.Path.cwd(),
+        source: iotools.PathLike=None,
+        config: iotools.PathLike=None,
         system: str='mks',
     ) -> None:
-        self._id = __id
-        datapath = self._build_datapath(source)
-        confpath = self._build_confpath(config, directory=datapath.parent)
         super().__init__(
-            Dataset(datapath, confpath),
             *self._unobservable,
             system=system,
-            apply=Application,
         )
+        self._id = __id
+        self._source = source or pathlib.Path.cwd()
+        self._config = config
+        self._datapath = None
+        self._confpath = None
         self._axes = None
+        
 
-    def reset(
+    def update(
         self: Instance,
         source: iotools.PathLike=None,
         config: iotools.PathLike=None
     ) -> Instance:
-        datapath = (
-            self._build_datapath(source) if source is not None
-            else self.datapath
-        )
-        if config is None:
-            return super().reset(source=datapath)
-        confpath = self._build_confpath(config, directory=datapath.parent)
-        self._confpath = confpath
-        self._axes = None
-        return super().reset(source=datapath, confpath=confpath)
+        if config:
+            self._config = config
+            self._confpath = None
+        if source:
+            self._source = source
+            self._datapath = None
+        quantities = observing.Interface()
+        application = Application(quantities)
+        return super().update(application)
+
+    def _build_application(self, datapath, confpath):
+        """"""
+
+    @property
+    def confpath(self) -> iotools.ReadOnlyPath:
+        """The full path to this dataset's runtime parameter file."""
+        if self._confpath is None:
+            # Compare the current config-file string to its filename.
+            if pathlib.Path(self._config).name == self._config:
+                # The current config-file string is just a filename.
+                full = self.datapath.parent / self._config
+                if full.exists():
+                    # The config file exists in the data directory.
+                    return full
+            # Expand and resolve the current config-file path.
+            this = iotools.ReadOnlyPath(self._config)
+            if this.exists():
+                # The absolute path exists.
+                return this
+            raise ValueError(
+                "Can't create path to configuration file"
+                f" from {self._config!r}"
+            ) from None
+        return self._confpath
+
+    @property
+    def datapath(self) -> iotools.ReadOnlyPath:
+        """The path to this dataset."""
+        if self._datapath is None:
+            # Expand and resolve the current data source.
+            this = iotools.ReadOnlyPath(self._source or '.')
+            if this.is_dir():
+                # The current data source is a directory.
+                path = iotools.find_file_by_template(
+                    self._templates,
+                    self._id,
+                    directory=this,
+                )
+                with contextlib.suppress(TypeError):
+                    return iotools.ReadOnlyPath(path)
+            # We couldn't create a valid data path for some reason.
+            raise TypeError(
+                f"Can't create path to dataset from {self._source!r}"
+            ) from None
+        return self._datapath
 
     def _build_datapath(self, directory: iotools.PathLike):
         """Create the path to the dataset from `directory`."""
@@ -347,16 +412,6 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         raise ValueError(
             f"Can't create path to configuration file from {config!r}"
         ) from None
-
-    @property
-    def confpath(self) -> iotools.ReadOnlyPath:
-        """The full path to this observer's runtime parameter file."""
-        return self._data.confpath
-
-    @property
-    def datapath(self) -> iotools.ReadOnlyPath:
-        """The path to this observer's dataset."""
-        return self._data.datapath
 
     @property
     def radius(self):
