@@ -225,7 +225,7 @@ class Application(collections.abc.Collection):
     def __init__(
         self,
         __quantities: Interface,
-        **constraints
+        constraints: typing.Mapping=None,
     ) -> None:
         """Create a new instance.
         
@@ -234,11 +234,11 @@ class Application(collections.abc.Collection):
         __quantities
             An instance of `~observing.Interface` or a subclass.
 
-        constraints : mapping
+        constraints : mapping, optional
             User-provided observing constraints.
         """
         self._quantities = __quantities
-        self._constraints = constraints
+        self._constraints = dict(constraints or {})
         self._cache = {}
         self._observables = None
 
@@ -260,6 +260,11 @@ class Application(collections.abc.Collection):
         return self._quantities
 
     @property
+    def constraints(self):
+        """The set of observing constraints."""
+        return self._constraints
+
+    @property
     def observables(self):
         """The names of observable physical quantities."""
         return self._observables
@@ -267,6 +272,24 @@ class Application(collections.abc.Collection):
     def get_quantity(self, key: str):
         """Compute or retrieve a physical quantity."""
         return self._quantities.get(key)
+
+    def constrain(self, constraints: typing.Mapping, update: bool=False):
+        """Create a new instance with the given constraints.
+        
+        Parameters
+        ----------
+        constraints : mapping
+            A mapping from string name to constraint value.
+
+        update : bool, default=false
+            If true, update the current constraints from `constraints`.
+            Otherwise, overwrite the current constraints with `constraints`.
+        """
+        user = self.constraints.copy()
+        if not update:
+            return type(self)(self._quantities, constraints)
+        user.update(constraints)
+        return type(self)(self._quantities, user)
 
     @abc.abstractmethod
     def get_result(self, key: str) -> Quantity:
