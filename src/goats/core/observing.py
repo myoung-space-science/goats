@@ -8,6 +8,7 @@ import typing
 
 from goats.core import iterables
 from goats.core import metadata
+from goats.core import metric
 from goats.core import observed
 from goats.core import reference
 from goats.core import symbolic
@@ -282,32 +283,36 @@ class Implementation:
     def __init__(
         self,
         __type: typing.Type[Interface],
+        quantities: Quantities,
         name: str,
-        dataset: Quantities,
+        unit: metadata.UnitLike=None,
     ) -> None:
         """Initialize this instance.
 
         Parameters
         ----------
-        __type
-            # TODO
+        __type : type of observing interface
+            A subtype of `~observing.Interface`.
+
+        quantities
+            A collection of observing-related physical quantities.
 
         name : string
             The name of the quantity to observe.
 
-        dataset
-            # TODO
+        unit : unit-like, optional
+            The metric unit to which to convert observations of this quantity.
         """
         self._type = __type
+        self._quantities = quantities
         self._name = name
-        self._dataset = dataset
-        self._unit = None
+        self._unit = metadata.Unit(unit) if unit else None
         self._dimensions = None
         self._parameters = None
 
-    def apply(self, **constraints):
-        """Apply user constraints to this implementation."""
-        interface = self._type(self.dataset, **constraints)
+    def observe(self, **constraints):
+        """Create an observation within the given user constraints."""
+        interface = self._type(self.quantities, **constraints)
         context = interface.get_context(self.name)
         return observed.Quantity(
             interface.get_result(self.name),
@@ -315,30 +320,40 @@ class Implementation:
             constants=context.get('constants'),
         )
 
+    def __getitem__(self, __x: metadata.UnitLike):
+        """Create a quantity with the new unit."""
+        unit = (
+            self.unit.norm[__x]
+            if str(__x).lower() in metric.SYSTEMS else __x
+        )
+        if unit == self._unit:
+            return self
+        return Implementation(self._type, self.quantities, self.name, self.unit)
+
     @property
-    def dataset(self):
-        """A copy of the underlying dataset."""
-        return self._dataset
+    def quantities(self):
+        """The observing-related physical quantities."""
+        return self._quantities
 
     @property
     def unit(self):
         """The metric unit of this observable quantity."""
         if self._unit is None:
-            self._unit = self.dataset.get_unit(self.name)
+            self._unit = self.quantities.get_unit(self.name)
         return self._unit
 
     @property
     def dimensions(self):
         """The array dimensions of this observable quantity."""
         if self._dimensions is None:
-            self._dimensions = self.dataset.get_dimensions(self.name)
+            self._dimensions = self.quantities.get_dimensions(self.name)
         return self._dimensions
 
     @property
     def parameters(self):
         """The physical parameters of this observable quantity."""
         if self._parameters is None:
-            self._parameters = self.dataset.get_parameters(self.name)
+            self._parameters = self.quantities.get_parameters(self.name)
         return self._parameters
 
     @property
@@ -346,3 +361,27 @@ class Implementation:
         """The name of the target observable quantity."""
         return self._name
 
+    _checkable = (
+        'name',
+        'unit',
+        'dimensions',
+        'parameters',
+    )
+
+    def __eq__(self, __o) -> bool:
+        """True if two instances have equivalent attributes."""
+        if isinstance(__o, Quantity):
+            return all(
+                getattr(self, attr) == getattr(__o, attr)
+                for attr in self._checkable
+            )
+        return NotImplemented
+
+    def __str__(self) -> str:
+        display = [
+            f"{str(self.name)!r}",
+            f"unit={str(self.unit)!r}",
+            f"dimensions={str(self.dimensions)}",
+            f"parameters={str(self.parameters)}",
+        ]
+        return ', '.join(display)

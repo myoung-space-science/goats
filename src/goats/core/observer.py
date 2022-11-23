@@ -3,7 +3,6 @@ import typing
 from goats.core import aliased
 from goats.core import metadata
 from goats.core import metric
-from goats.core import observable
 from goats.core import observing
 from goats.core import spelling
 from goats.core import symbolic
@@ -80,10 +79,9 @@ class Interface:
     def __getitem__(self, __k: str):
         """Access an observable quantity by keyword, if possible."""
         if self.observes(__k):
-            implementation = observing.Implementation(
+            return observing.Implementation(
                 self._type, __k, self.quantities
             )
-            return observable.Quantity(implementation)
         if __k in self.quantities:
             return self.quantities[__k]
         self._check_spelling(__k) # -> None if `__k` is spelled correctly

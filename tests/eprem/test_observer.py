@@ -13,7 +13,7 @@ import pytest
 from goats.core import constant
 from goats.core import fundamental
 from goats.core import metric
-from goats.core import observable
+from goats.core import observing
 from goats.core import observed
 from goats.core import observer
 from goats.core import physical
@@ -400,7 +400,7 @@ def test_quantity_access(
     for name, it_is in quantities.items():
         quantity = stream[name]
         if it_is['observable']:
-            assert isinstance(quantity, observable.Quantity), name
+            assert isinstance(quantity, observing.Implementation), name
         else:
             assert isinstance(quantity, variable.Quantity), name
 
