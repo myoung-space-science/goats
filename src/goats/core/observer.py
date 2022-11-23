@@ -13,7 +13,6 @@ class Interface:
 
     def __init__(
         self,
-        __type: observing.Application,
         *unobservable: str,
         system: str='mks',
     ) -> None:
@@ -21,9 +20,6 @@ class Interface:
         
         Parameters
         ----------
-        __type : type of observing application
-            A subtype of `~observing.Application`.
-
         *unobservable : string
             The names of variable quantities from this observer's dataset to
             exclude from the set of formally observable quantities. These
@@ -32,15 +28,15 @@ class Interface:
         system : string, default='mks'
             The metric system to use for variable and observable quantities.
         """
-        self._type = __type
         self._unobservable = unobservable
         self._system = metric.System(system)
+        self._application = None
         self._quantities = None
         self._spellcheck = None
 
-    def update(self, __quantities: observing.Interface):
-        """Use a new interface to physical quantities."""
-        self._quantities = __quantities
+    def update(self, __application: observing.Application):
+        """Use a new observing application."""
+        self._application = __application
         self._spellcheck = None
         return self
 
@@ -74,14 +70,23 @@ class Interface:
         This collection represents the quantities that this observer will use
         when making observations.
         """
-        return self._quantities
+        if self._application is None:
+            raise NotImplementedError(
+                "This observer does not have an observing application."
+            ) from None
+        try:
+            self._quantities = self._application.quantities
+            return self._quantities
+        except AttributeError as err:
+            raise TypeError(
+                "Can't access physical quantities from observing application"
+                f" of type {type(self._application)!r}"
+            ) from err
 
     def __getitem__(self, __k: str):
         """Access an observable quantity by keyword, if possible."""
         if self.observes(__k):
-            return observing.Implementation(
-                self._type, __k, self.quantities
-            )
+            return observing.Implementation(self._application, __k)
         if __k in self.quantities:
             return self.quantities[__k]
         self._check_spelling(__k) # -> None if `__k` is spelled correctly
