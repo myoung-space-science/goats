@@ -302,6 +302,26 @@ class Implementation:
 
         unit : unit-like, optional
             The metric unit to which to convert observations of this quantity.
+
+        Notes
+        -----
+        * It is uncommon to initialize an instance of this class with an
+          explicit unit. Most users will create an instance of this class via an
+          observer, then change the instance unit as necessary via bracket
+          syntax. Doing so actually creates a new instance, which the `unit`
+          argument makes possible. For example, suppose `MyObserver` supports a
+          'velocity' quantity and that its default unit is 'm / s':
+
+        >>> observer = MyObserver(...)
+        >>> v0 = observer['velocity']
+        >>> v0.unit
+        'm / s'
+        >>> v1 = v0['km / h']
+        >>> v1.unit
+        'km / h'
+        >>> v0.unit
+        'm / s'
+
         """
         self._type = __type
         self._quantities = quantities
