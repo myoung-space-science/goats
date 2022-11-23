@@ -22,6 +22,9 @@ class Interface:
         
         Parameters
         ----------
+        __type : type of observing interface
+            A subtype of `~observing.Interface`.
+
         *unobservable : string
             The names of variable quantities from this observer's dataset to
             exclude from the set of formally observable quantities. These
