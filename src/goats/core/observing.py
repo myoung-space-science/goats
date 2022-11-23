@@ -305,8 +305,7 @@ class Implementation:
 
     def __init__(
         self,
-        __type: typing.Type[Application],
-        quantities: Interface,
+        __application: Application,
         name: str,
         unit: metadata.UnitLike=None,
     ) -> None:
@@ -314,11 +313,9 @@ class Implementation:
 
         Parameters
         ----------
-        __type : type of observing interface
-            A subtype of `~observing.Application`.
-
-        quantities
-            A collection of observing-related physical quantities.
+        __application : subclass of `~observing.Application`
+            The concrete observing application with which to create observations
+            of the named quantity.
 
         name : string
             The name of the quantity to observe.
@@ -346,8 +343,7 @@ class Implementation:
         'm / s'
 
         """
-        self._type = __type
-        self._quantities = quantities
+        self._application = __application
         self._name = name
         self._unit = metadata.Unit(unit) if unit else None
         self._dimensions = None
@@ -355,10 +351,10 @@ class Implementation:
 
     def observe(self, **constraints):
         """Create an observation within the given user constraints."""
-        interface = self._type(self.quantities, **constraints)
-        context = interface.get_context(self.name)
+        application = self._application.constrain(constraints)
+        context = application.get_context(self.name)
         return observed.Quantity(
-            interface.get_result(self.name),
+            application.get_result(self.name),
             context['axes'],
             constants=context.get('constants'),
         )
@@ -371,12 +367,12 @@ class Implementation:
         )
         if unit == self._unit:
             return self
-        return Implementation(self._type, self.quantities, self.name, self.unit)
+        return Implementation(self._application, self.name, self.unit)
 
     @property
     def quantities(self):
         """The observing-related physical quantities."""
-        return self._quantities
+        return self._application.quantities
 
     @property
     def unit(self):
