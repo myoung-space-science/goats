@@ -285,9 +285,9 @@ class Application(collections.abc.Collection):
             If true, update the current constraints from `constraints`.
             Otherwise, overwrite the current constraints with `constraints`.
         """
-        user = self.constraints.copy()
         if not update:
             return type(self)(self._quantities, constraints)
+        user = self.constraints.copy()
         user.update(constraints)
         return type(self)(self._quantities, user)
 
