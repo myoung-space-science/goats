@@ -188,11 +188,6 @@ class Dataset(collections.abc.Mapping):
                 return getattr(mapping[target], __name, None)
 
 
-# Consider merging `Dataset` with this class.
-# - convert this class to a `collections.abc.Mapping`
-# - initialize with *mappings
-# - __getitem__ would return arbitrary unprocessed quantities
-# - potential drawback: prohibiting observer-specific `Dataset` subclasses
 class Interface(collections.abc.Collection):
     """Base class for observing-related interfaces."""
 
