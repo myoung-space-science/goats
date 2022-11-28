@@ -1,7 +1,5 @@
 """Tools for managing variable quantities in datasets."""
 
-import abc
-import collections.abc
 import contextlib
 import numbers
 import typing
@@ -9,6 +7,7 @@ import typing
 import numpy
 import numpy.typing
 
+from goats.core import aliased
 from goats.core import datafile
 from goats.core import metric
 from goats.core import metadata
@@ -172,41 +171,49 @@ def _mean(v: Quantity, **kwargs):
 S = typing.TypeVar('S', bound='Interface')
 
 
-class Interface(collections.abc.Mapping):
-    """Base class for interfaces to dataset variables.
-    
-    Concrete subclasses must define the `build` method.
-    """
+class Interface(aliased.Mapping):
+    """Base class for interfaces to dataset variables."""
 
     def __init__(
         self,
         __data: datafile.Interface,
-        system: typing.Union[str, metric.System]=None,
     ) -> None:
-        self._dataset = __data
-        self._system = metric.System(system or 'mks')
+        super().__init__(__data.variables)
         self._cache = {}
-
-    @property
-    def system(self):
-        """This observer's metric system."""
-        return self._system
 
     def __getitem__(self, __k: str) -> Quantity:
         """Retrieve or create the named quantity, if possible."""
         if __k in self._cache:
             return self._cache[__k]
         with contextlib.suppress(KeyError):
-            variable = self._dataset.variables[__k]
+            variable = super().__getitem__(__k)
             if built := self.build(variable):
+                self._cache[__k] = built
                 return built
         raise KeyError(
             f"No variable quantity corresponding to {__k!r}"
         ) from None
 
-    @abc.abstractmethod
-    def build(self, __v: datafile.Variable) -> typing.Optional[Quantity]:
+    def build(self, __v: datafile.Variable):
         """Convert a raw variable into a variable quantity.
+
+        Parameters
+        ----------
+        __v : `~datafile.Variable`
+            A variable-like object from the dataset.
         
-        Concrete implementations should return `None` upon failure.
+        Notes
+        -----
+        * The base implementation initializes and immediately returns an
+          instance of `~variable.Quantity`, which it directly initializes from
+          attributes of the argument. Observer-specific subclasses may wish to
+          overload this method in order to provide additional functionality
+          (e.g., unit standardization).
         """
+        return Quantity(
+            __v.data,
+            unit=__v.unit,
+            axes=__v.axes,
+            name=__v.name,
+        )
+
