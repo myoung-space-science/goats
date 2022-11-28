@@ -2,6 +2,7 @@
 
 import abc
 import collections.abc
+import contextlib
 import numbers
 import typing
 
@@ -179,8 +180,10 @@ class Interface(collections.abc.Mapping):
 
     def __init__(
         self,
+        __data: datafile.Interface,
         system: typing.Union[str, metric.System]=None,
     ) -> None:
+        self._dataset = __data
         self._system = metric.System(system or 'mks')
         self._cache = {}
 
@@ -193,13 +196,17 @@ class Interface(collections.abc.Mapping):
         """Retrieve or create the named quantity, if possible."""
         if __k in self._cache:
             return self._cache[__k]
-        if built := self.build(__k):
-            return built
-        raise KeyError(f"No quantity corresponding to {__k!r}") from None
+        with contextlib.suppress(KeyError):
+            variable = self._dataset.variables[__k]
+            if built := self.build(variable):
+                return built
+        raise KeyError(
+            f"No variable quantity corresponding to {__k!r}"
+        ) from None
 
     @abc.abstractmethod
-    def build(self, key: str) -> typing.Optional[Quantity]:
-        """Create the named variable quantity.
+    def build(self, __v: datafile.Variable) -> typing.Optional[Quantity]:
+        """Convert a raw variable into a variable quantity.
         
         Concrete implementations should return `None` upon failure.
         """
