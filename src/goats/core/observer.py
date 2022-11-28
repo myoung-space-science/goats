@@ -8,6 +8,9 @@ from goats.core import spelling
 from goats.core import symbolic
 
 
+A = typing.TypeVar('A', bound=observing.Application)
+
+
 class Interface:
     """The base class for all observers."""
 
@@ -15,7 +18,7 @@ class Interface:
         self,
         *unobservable: str,
         system: str='mks',
-        application: observing.Application=None,
+        application: A=None,
     ) -> None:
         """Initialize this instance.
         
@@ -42,7 +45,7 @@ class Interface:
         self._quantities = None
         self._spellcheck = None
 
-    def update(self, __application: observing.Application):
+    def update(self, __application: A):
         """Use a new observing application."""
         self._application = __application
         self._spellcheck = None
