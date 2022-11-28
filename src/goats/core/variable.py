@@ -177,8 +177,10 @@ class Interface(aliased.Mapping):
     def __init__(
         self,
         __data: datafile.Interface,
+        system: typing.Union[str, metric.System]=None,
     ) -> None:
         super().__init__(__data.variables)
+        self._system = metric.System(system) if system else None
         self._cache = {}
 
     def __getitem__(self, __k: str) -> Quantity:
@@ -210,10 +212,16 @@ class Interface(aliased.Mapping):
           overload this method in order to provide additional functionality
           (e.g., unit standardization).
         """
+        unit = __v.unit
         return Quantity(
             __v.data,
-            unit=__v.unit,
+            unit=(self.system.get_unit(unit=unit) if self.system else unit),
             axes=__v.axes,
             name=__v.name,
         )
+
+    @property
+    def system(self):
+        """The associated metric system, if any."""
+        return self._system
 
