@@ -374,7 +374,7 @@ class Mapping(collections.abc.Mapping):
         self,
         mapping: typing.Union[Aliasable, 'Mapping']=None,
         key: str=None,
-        keymap: KeyMap=None,
+        keymap: typing.Union[KeyMap, 'Mapping']=None,
     ) -> None:
         """Initialize this instance.
         
@@ -404,7 +404,11 @@ class Mapping(collections.abc.Mapping):
             self.as_dict = _build_mapping(
                 mapping=mapping,
                 key=key,
-                keymap=keymap,
+                keymap=(
+                    KeyMap(*keymap.keys(aliased=True))
+                    if isinstance(keymap, Mapping)
+                    else keymap
+                ),
             )
         self._flat_dict = {alias: k for k in self.as_dict for alias in k}
 
