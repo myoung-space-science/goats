@@ -385,12 +385,8 @@ class Implementation:
     def observe(self, **constraints):
         """Create an observation within the given user constraints."""
         application = self._application.constrain(constraints)
-        context = application.get_context(self.name)
-        return observed.Quantity(
-            application.get_result(self.name),
-            context.indices,
-            assumptions=context.assumptions,
-        )
+        result = application.create(self.name)
+        return result[self.unit]
 
     def __getitem__(self, __x: metadata.UnitLike):
         """Create a quantity with the new unit."""
