@@ -131,13 +131,8 @@ class Quantity(variable.Quantity):
 class Interface(collections.abc.Mapping):
     """An interface to observing-related physical quantities."""
 
-    def __init__(
-        self,
-        *observables: typing.Mapping[str],
-        **others: typing.Mapping[str],
-    ) -> None:
-        self._observables = observables
-        self._others = others
+    def __init__(self, *mappings: typing.Mapping[str]) -> None:
+        self._mappings = mappings
 
     def __len__(self) -> int:
         """Compute the number of available physical quantities."""
@@ -149,29 +144,14 @@ class Interface(collections.abc.Mapping):
 
     @property
     def available(self):
-        """The names of all available physical quantities."""
-        others = tuple(k for m in self._others.values() for k in m)
-        return self.observable + others
-
-    @property
-    def observable(self):
-        """The names of observable physical quantities."""
-        return tuple(k for m in self._observables for k in m)
+        """The names of available physical quantities."""
+        return tuple({k for m in self._mappings for k in m})
 
     def __getitem__(self, __k: str):
         """Access physical quantities by key."""
-        # Is it an observable quantity?
-        for mapping in self._observables:
+        for mapping in self._mappings:
             if __k in mapping:
                 return mapping[__k]
-        # Is it an unobservable quantity?
-        for mapping in self._others.values():
-            if __k in mapping:
-                return mapping[__k]
-        # Is it a group of unobservable quantities?
-        if __k in self._others:
-            return self._others[__k]
-        # We're out of options.
         raise KeyError(f"No known quantity for {__k!r}") from None
 
     def get_unit(self, key: str):
@@ -215,7 +195,7 @@ class Interface(collections.abc.Mapping):
 
     def _lookup(self, __name: str, target: str):
         """Search for an attribute among available quantities."""
-        for mapping in self._observables:
+        for mapping in self._mappings:
             if target in mapping:
                 return getattr(mapping[target], __name, None)
 
