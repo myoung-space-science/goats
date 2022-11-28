@@ -1,17 +1,16 @@
 import abc
 import collections
 import collections.abc
-import contextlib
 import numbers
 import operator as standard
 import typing
 
+from goats.core import constant
 from goats.core import index
 from goats.core import iterables
 from goats.core import metadata
 from goats.core import metric
 from goats.core import observed
-from goats.core import constant
 from goats.core import reference
 from goats.core import symbolic
 from goats.core import variable
