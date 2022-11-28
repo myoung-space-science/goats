@@ -169,7 +169,7 @@ class Interface(collections.abc.Mapping):
 
     def get_dimensions(self, key: str):
         """Compute or retrieve the array dimensions of a physical quantity."""
-        if found := self._lookup('dimensions', key):
+        if found := self._lookup('axes', key):
             return found
         s = str(key)
         expression = symbolic.Expression(reference.NAMES.get(s, s))
