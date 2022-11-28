@@ -245,10 +245,9 @@ class Context:
 class Application(collections.abc.Collection):
     """Abstract base class for observing applications.
 
-    Concrete subclasses must overload the following abstract methods:
-    
-    * `get_result(key: str) -> ~observing.Result`
-    * `get_context(key: str) -> ~observing.Context`
+    Concrete subclasses must overload the abstract method `create`, which should
+    take the string name of an observable quantity and return an instance of
+    ~observed.Quantity.
     """
 
     def __init__(
@@ -330,12 +329,8 @@ class Application(collections.abc.Collection):
         return type(self)(self._quantities, constraints)
 
     @abc.abstractmethod
-    def get_result(self, key: str) -> Quantity:
-        """Compute an observed quantity."""
-
-    @abc.abstractmethod
-    def get_context(self, key: str) -> Context:
-        """Define the observing context."""
+    def create(self, key: str) -> Quantity:
+        """Create an observed quantity."""
 
 
 class Implementation:
