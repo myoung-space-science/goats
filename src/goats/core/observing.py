@@ -291,7 +291,7 @@ class Application(collections.abc.Collection):
         """Create an observed quantity."""
 
 
-class Implementation:
+class Implementation(iterables.ReprStrMixin):
     """The implementation of an observable quantity."""
 
     def __init__(
