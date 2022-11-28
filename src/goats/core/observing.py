@@ -246,7 +246,10 @@ class Context:
 class Application(collections.abc.Collection):
     """Abstract base class for observing applications.
 
-    Concrete subclasses must overload the `get_result` and `get_config` methods.
+    Concrete subclasses must overload the following abstract methods:
+    
+    * `get_result(key: str) -> ~observing.Result`
+    * `get_context(key: str) -> ~observing.Context`
     """
 
     def __init__(
