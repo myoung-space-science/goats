@@ -68,8 +68,8 @@ class Interface:
         collection represents the minimal set of quantities that this observer
         can observe.
         """
-        these = aliased.KeyMap(self.quantities.observable)
-        return these.without(*self._unobservable)
+        available = aliased.KeyMap(self.quantities.available)
+        return available.without(*self._unobservable)
 
     @property
     def quantities(self):
