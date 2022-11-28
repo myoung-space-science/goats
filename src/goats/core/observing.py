@@ -220,28 +220,6 @@ class Interface(collections.abc.Mapping):
                 return getattr(mapping[target], __name, None)
 
 
-class Context:
-    """The observing context of an observation."""
-
-    def __init__(
-        self,
-        indices: typing.Mapping[str, index.Quantity],
-        assumptions: typing.Mapping[str, constant.Assumption]=None,
-    ) -> None:
-        self._indices = indices
-        self._assumptions = assumptions or {}
-
-    @property
-    def indices(self):
-        """The indexing object for each array dimension."""
-        return self._indices
-
-    @property
-    def assumptions(self):
-        """The relevant physical assumptions."""
-        return self._assumptions
-
-
 class Application(collections.abc.Collection):
     """Abstract base class for observing applications.
 
