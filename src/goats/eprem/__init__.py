@@ -6,21 +6,26 @@ import numpy
 import numpy.typing
 
 from ..core import (
+    aliased,
     axis,
+    computed,
     constant,
     datafile,
     fundamental,
     iotools,
     index,
+    interpolation,
     iterables,
     measurable,
     metadata,
     metric,
     numerical,
+    observed,
     observer,
     observing,
     physical,
     reference,
+    symbolic,
     variable,
 )
 from .runtime import BaseTypesH
@@ -32,28 +37,129 @@ basetypes = BaseTypesH()
 T = typing.TypeVar('T')
 
 
-class Axes(axis.Interface):
+class Variables(variable.Interface):
+    """An interface to EPREM variables."""
+
+    def __init__(
+        self,
+        __data: datafile.Interface,
+        system: typing.Union[str, metric.System]=None,
+    ) -> None:
+        super().__init__(__data, system=system)
+
+    def build(self, __v: datafile.Variable):
+        name = __v.name
+        v = variable.Quantity(
+            __v.data,
+            unit=standardize(__v.unit),
+            axes=__v.axes,
+            name=name,
+        )
+        return (
+            v[self.system['mass'].unit]
+            if name in {'mass', 'm'}
+            else v[str(self.system)]
+        )
+
+
+_UNIT_MAP = {
+    'julian date': 'day',
+    'shell': '1',
+    'cos(mu)': '1',
+    'e-': 'e',
+    '# / cm^2 s sr MeV': '# / cm^2 s sr MeV/nuc',
+}
+"""Substitutions for non-standard EPREM units.
+
+This dictionary maps each non-standard unit associated with an EPREM output
+quantity to a standard unit, as defined in `~core.metric.py`.
+"""
+
+
+def standardize(unit: T):
+    """Replace this unit string with a standard unit string, if possible.
+
+    This function looks for `unit` in the known conversions and returns the
+    standard unit string if it exists. If this doesn't find a standard unit
+    string, it just returns the input.
+    """
+    unit = _UNIT_MAP.get(str(unit), unit)
+    if '/' in unit:
+        num, den = str(unit).split('/', maxsplit=1)
+        unit = ' / '.join((num.strip(), f"({den.strip()})"))
+    return unit
+
+
+class Axes(aliased.Mapping):
     """Interface to EPREM axis-indexing objects."""
 
     def __init__(
         self,
-        data: datafile.Interface,
+        __data: datafile.Interface,
         system: typing.Union[str, metric.System]=None,
     ) -> None:
-        super().__init__(data, system)
+        """Initialize this instance."""
+        self._system = metric.System(system or 'mks')
+        self._variables = Variables(__data, system=system)
+        self._names = __data.available('axes').canonical
         self._time = None
         self._shell = None
         self._species = None
         self._energy = None
         self._mu = None
-        defined = {
+        indexers = {
             'time': self.time,
             'shell': self.shell,
             'species': self.species,
             'energy': self.energy,
             'mu': self.mu,
         }
-        self.update(defined)
+        super().__init__(indexers, keymap=__data.axes)
+
+    def __getitem__(self, __k: str):
+        """Get the named axis object, if possible."""
+        if __k in self.keys():
+            method = super().__getitem__(__k)
+            meta = self.get_metadata(__k)
+            return axis.Quantity(method, **meta)
+        raise KeyError(
+            f"No known indexing method for {__k}"
+        ) from None
+
+    def get_metadata(self, key: str):
+        """Get metadata attributes corresponding to `key`."""
+        name = reference.NAMES.get(key, key)
+        try:
+            unit = self.variables[key].unit
+        except KeyError:
+            unit = None
+        return axis.Metadata(name=name, unit=unit)
+
+    def resolve(
+        self,
+        names: typing.Iterable[str],
+        mode: str='strict',
+    ) -> typing.Tuple[str]:
+        """Compute and order the available axes in `names`."""
+        ordered = tuple(name for name in self._names if name in names)
+        if mode == 'strict':
+            return ordered
+        extra = tuple(name for name in names if name not in ordered)
+        if not extra:
+            return ordered
+        if mode == 'append':
+            return ordered + extra
+        raise ValueError(f"Unrecognized mode {mode!r}")
+
+    @property
+    def variables(self):
+        """The variable quantities that these axes support."""
+        return self._variables
+
+    @property
+    def system(self):
+        """The metric system of these axes."""
+        return self._system
 
     @property
     def shell(self):
@@ -161,106 +267,82 @@ class Axes(axis.Interface):
         return method
 
 
-Instance = typing.TypeVar('Instance', bound='Dataset')
-
-
-class Dataset(observing.Dataset):
-    """Interface to an EPREM dataset."""
+class Functions(aliased.Mapping):
+    """An interface to computable quantities."""
 
     def __init__(
         self,
-        datapath: iotools.ReadOnlyPath,
-        confpath: iotools.ReadOnlyPath,
+        axes: Axes,
+        variables: Variables,
     ) -> None:
-        super().__init__(datafile.Interface, datapath)
-        self._datapath = datapath
-        self._confpath = confpath
+        super().__init__(computed.registry, keymap=reference.ALIASES)
+        self.axes = axes
+        self.variables = variables
+        self._cache = {}
 
-    def get_axes(self, system: str=None) -> axis.Interface:
-        return Axes(self.data, system=system)
+    def __getitem__(self, __k: str) -> computed.Quantity:
+        if 'quantity' not in self._cache:
+            self._cache['quantity'] = {}
+        if __k in self._cache['quantity']:
+            return self._cache['quantity'][__k]
+        quantity = computed.Quantity(
+            self.get_method(__k),
+            axes=self.get_axes(__k),
+            unit=self.get_unit(__k),
+            name=self.get_name(__k),
+        )
+        self._cache['quantity'][__k] = quantity
+        return quantity
 
-    def get_variables(self, system: str=None) -> variable.Interface:
-        return variable.Interface(self.data, system=system)
+    def get_method(self, key: str):
+        """Get a `~computed.Method` for `key`."""
+        try:
+            this = super().__getitem__(key).copy()
+        except KeyError:
+            return None
+        else:
+            method = this.pop('method')
+            return computed.Method(method, **this)
 
-    def get_constants(self) -> constant.Interface:
-        return runtime.Arguments(config_path=self.confpath)
+    def get_name(self, key: str):
+        """Get the set of aliases for `key`."""
+        return self.alias(key, include=True)
 
-    def readfrom(
-        self: Instance,
-        datapath: iotools.ReadOnlyPath,
-        confpath: iotools.ReadOnlyPath=None,
-    ) -> Instance:
-        self._datapath = datapath
-        if confpath:
-            self._confpath = confpath
-        return super().readfrom(datapath)
+    def get_unit(self, key: str):
+        """Determine the unit of `key` based on its metric quantity."""
+        this = reference.METADATA.get(key, {}).get('quantity')
+        return self.variables.system.get_unit(quantity=this)
 
-    @property
-    def confpath(self) -> iotools.ReadOnlyPath:
-        """The full path to this dataset's runtime parameter file."""
-        return self._confpath
+    def get_axes(self, key: str):
+        """Compute appropriate axis names for `key`."""
+        if 'axes' not in self._cache:
+            self._cache['axes'] = {}
+        if key in self._cache['axes']:
+            return self._cache['axes'][key]
+        method = self.get_method(key)
+        self._removed = self._get_metadata(method, 'removed')
+        self._added = self._get_metadata(method, 'added')
+        self._accumulated = []
+        axes = self._gather_axes(method)
+        self._cache['axes'][key] = axes
+        return axes
 
-    @property
-    def datapath(self) -> iotools.ReadOnlyPath:
-        """The path to this dataset."""
-        return self._datapath
+    def _gather_axes(self, target: computed.Method):
+        """Recursively gather appropriate axes."""
+        for parameter in target.parameters:
+            if parameter in self.variables:
+                self._accumulated.extend(self.variables[parameter].axes)
+            elif method := self.get_method(parameter):
+                self._removed.extend(self._get_metadata(method, 'removed'))
+                self._added.extend(self._get_metadata(method, 'added'))
+                self._accumulated.extend(self._gather_axes(method))
+        unique = set(self._accumulated) - set(self._removed) | set(self._added)
+        return self.axes.resolve(unique, mode='append')
 
-
-class Application(observing.Application):
-    """The EPREM-specific observing context."""
-
-    def interpolate(
-        self,
-        q: variable.Quantity,
-        coordinates: typing.Dict[str, typing.Dict[str, typing.Any]],
-    ) -> variable.Quantity:
-        base = super().interpolate(q, coordinates)
-        # We only want to subscript the uninterpolated axes.
-        interpolated = [
-            'shell' if d == 'radius' else d
-            for d in coordinates
-        ]
-        axes = list(set(q.axes) - set(interpolated))
-        return self._subscript(base, *axes)
-
-    def _build_coordinates(self):
-        base = super()._build_coordinates()
-        grid = {
-            (k, *self.interface.variables.alias(k, include=True)):
-            self.interface.variables[k]
-            for k in {'radius', 'theta', 'phi'}
-        }
-        return {**base, **grid}
-
-    _axes = {
-        'time': 0,
-        'energy': 1,
-        'mu': 1,
-    }
-
-    def _compute_interpolants(self, q: variable.Quantity):
-        base = {
-            k: {**c, 'axis': self._axes.get(k)}
-            for k, c in super()._compute_interpolants(q).items()
-        }
-        if 'shell' not in q.axes:
-            # The rest of this method deals with radial interpolation, which
-            # only applies when 'shell' is one of the target quantity's axes.
-            return base
-        for key in reference.ALIASES['radius']:
-            if values := self.get_value(key):
-                try:
-                    iter(values)
-                except TypeError:
-                    floats = [float(values)]
-                else:
-                    floats = [float(value) for value in values]
-                base['radius'] = {
-                    'targets': numpy.array(floats),
-                    'reference': self.coordinates['radius'],
-                    'axis': 1,
-                }
-        return base
+    def _get_metadata(self, method: computed.Method, key: str) -> list:
+        """Helper for accessing a method's metadata dictionary."""
+        value = method.get(key)
+        return list(iterables.whole(value)) if value else []
 
 
 Instance = typing.TypeVar('Instance', bound='Application')
@@ -271,15 +353,306 @@ class Application(observing.Application):
 
     def __init__(
         self,
-        __data: datafile.Interface,
-        constraints: typing.Mapping=None
+        datapath: iotools.ReadOnlyPath,
+        confpath: iotools.ReadOnlyPath,
+        system: typing.Union[str, metric.System],
     ) -> None:
-        quantities = observing.Interface()
-        super().__init__(quantities, constraints)
-        self._data = __data
+        """Initialize this instance.
+        
+        Parameters
+        ----------
+        datapath : string or `~pathlib.Path`
+            The path to the data source.
 
-    def apply(self, constraints: typing.Mapping):
-        return type(self)(self._data, constraints)
+        system : string or `~metric.System`
+            The metric system to use.
+        """
+        dataset = datafile.Interface(datapath)
+        variables = Variables(dataset, system=system)
+        axes = Axes(dataset, system=system)
+        functions = Functions(axes, variables)
+        quantities = observing.Interface(variables, functions)
+        super().__init__(quantities)
+        self._constants = runtime.Interface(confpath)
+        self._variables = variables
+        self._axes = axes
+        self._functions = functions
+        self._system = system
+        self._parameters = None
+
+    def create(self, key: str) -> observed.Quantity:
+        result = self.observe(key)
+        return observed.Quantity(
+            result,
+            indices={k: self.get_index(k) for k in result.axes},
+            assumptions={k: self.get_value(k) for k in result.parameters},
+        )
+
+    def observe(self, key: str) -> observing.Quantity:
+        """Create an observation within the context of this application."""
+        result = self._observe(key)
+        if any(alias in self.coordinates for alias in result.name):
+            # This is an axis-reference quantity.
+            return self._subscript(result)
+        needed = self._compute_interpolants(result)
+        if not needed:
+            # There are no axes over which to interpolate.
+            return self._subscript(result)
+        return self.interpolate(result, needed)
+
+    def _observe(self, key: str) -> observing.Quantity:
+        """Internal observing logic."""
+        expression = symbolic.Expression(reference.NAMES.get(key, key))
+        term = expression[0]
+        result = self.get_observable(term.base)
+        if len(expression) == 1:
+            # We don't need to multiply or divide quantities.
+            if term.exponent == 1:
+                # We don't even need to raise this quantity to a power.
+                return result
+            return result ** term.exponent
+        q0 = result ** term.exponent
+        if len(expression) > 1:
+            for term in expression[1:]:
+                result = self.get_observable(term.base)
+                q0 *= result ** term.exponent
+        return q0
+
+    def evaluate(self, q) -> observing.Quantity:
+        """Create an observing quantity based on the given quantity."""
+        if isinstance(q, computed.Quantity):
+            parameters = [
+                parameter for parameter in q.parameters
+                if parameter in self.parameters
+            ]
+            return observing.Quantity(self.compute(q), parameters=parameters)
+        if isinstance(q, variable.Quantity):
+            return observing.Quantity(self.process(q))
+        raise ValueError(f"Unknown quantity: {q!r}") from None
+
+    def process(self, q: variable.Quantity) -> variable.Quantity:
+        """Compute observer-specific updates to a variable quantity.
+        
+        The default implementation immediately returns `q`.
+        """
+        return q
+
+    def compute(self, q: computed.Quantity) -> variable.Quantity:
+        """Determine dependencies and compute the result of this function."""
+        dependencies = {p: self.get_dependency(p) for p in q.parameters}
+        return q(**dependencies)
+
+    def get_dependency(self, key: str):
+        """Get the named constant or variable quantity."""
+        if this := self.get_observable(key):
+            return this
+        return self.get_value(key)
+
+    def get_observable(self, key: str):
+        """Retrieve and evaluate an observable quantity."""
+        if quantity := self.get_quantity(key):
+            return self.evaluate(quantity)
+
+    def _subscript(self, q: variable.Quantity, *axes: str):
+        """Extract a subset of this quantity."""
+        if not axes:
+            return q[tuple(self.get_index(a, slice(None)) for a in q.axes)]
+        indices = [
+            self.get_index(a, slice(None))
+            if a in axes else slice(None)
+            for a in q.axes
+        ]
+        return q[tuple(indices)]
+
+    _axis_indices = {
+        'time': 0,
+        'energy': 1,
+        'mu': 1,
+    }
+
+    def _compute_interpolants(self, q: variable.Quantity):
+        """Determine the coordinate axes over which to interpolate."""
+        coordinates = {}
+        for a in q.axes:
+            idx = self.get_index(a)
+            if idx and idx.unit is not None:
+                contained = [
+                    self.coordinates[a].array_contains(target)
+                    for target in idx.values
+                ]
+                if not numpy.all(contained):
+                    coordinates[a] = {
+                        'targets': numpy.array(idx.values),
+                        'reference': self.coordinates[a],
+                    }
+        interpolants = {
+            k: {**c, 'axis': self._axis_indices.get(k)}
+            for k, c in coordinates.items()
+        }
+        if 'shell' not in q.axes:
+            # The rest of this method deals with radial interpolation, which
+            # only applies when 'shell' is one of the target quantity's axes.
+            return interpolants
+        for key in reference.ALIASES['radius']:
+            if values := self.get_value(key):
+                try:
+                    iter(values)
+                except TypeError:
+                    floats = [float(values)]
+                else:
+                    floats = [float(value) for value in values]
+                interpolants['radius'] = {
+                    'targets': numpy.array(floats),
+                    'reference': self.coordinates['radius'],
+                    'axis': 1,
+                }
+        return interpolants
+
+    def interpolate(
+        self,
+        q: variable.Quantity,
+        coordinates: typing.Dict[str, typing.Dict[str, typing.Any]],
+    ) -> variable.Quantity:
+        """Internal interpolation logic."""
+        array = None
+        for coordinate in coordinates.values():
+            array = self._interpolate_coordinate(
+                q,
+                coordinate['targets'],
+                coordinate['reference'],
+                axis=coordinate.get('axis'),
+                workspace=array,
+            )
+        meta = {k: getattr(q, k, None) for k in q.meta.parameters}
+        base = type(q)(array, **meta)
+        interpolated = [
+            # We only want to subscript the uninterpolated axes.
+            'shell' if d == 'radius' else d
+            for d in coordinates
+        ]
+        axes = list(set(q.axes) - set(interpolated))
+        return self._subscript(base, *axes)
+
+    def _interpolate_coordinate(
+        self,
+        q: variable.Quantity,
+        targets: numpy.ndarray,
+        reference: variable.Quantity,
+        axis: int=None,
+        workspace: numpy.ndarray=None,
+    ) -> numpy.ndarray:
+        """Interpolate a variable array based on a known coordinate."""
+        array = numpy.array(q) if workspace is None else workspace
+        indices = (q.axes.index(d) for d in reference.axes)
+        dst, src = zip(*enumerate(indices))
+        reordered = numpy.moveaxis(array, src, dst)
+        interpolated = interpolation.apply(
+            reordered,
+            numpy.array(reference),
+            targets,
+            axis=axis,
+        )
+        return numpy.moveaxis(interpolated, dst, src)
+
+    @property
+    def coordinates(self) -> typing.Mapping[str, variable.Quantity]:
+        """The reference quantities for dataset coordinate axes."""
+        if self._coordinates is None:
+            base = {
+                k: self.variables.get(k)
+                for k in self.axes.keys(aliased=True)
+            }
+            grid = {
+                (k, *self.variables.alias(k, include=True)):
+                self.variables[k]
+                for k in {'radius', 'theta', 'phi'}
+            }
+            self._coordinates = aliased.Mapping({**base, **grid})
+        return self._coordinates
+
+    def get_index(self, key: str, default: T=None) -> index.Quantity:
+        """Get the axis-indexing object for `key`."""
+        if 'indices' not in self._cache:
+            self._cache['indices'] = {}
+        if key in self._cache['indices']:
+            return self._cache['indices'][key]
+        with contextlib.suppress(ValueError):
+            idx = self.compute_index(key)
+            self._cache['indices'][key] = idx
+            return idx
+        return default
+
+    def compute_index(self, key: str) -> index.Quantity:
+        """Compute the axis-indexing object for `key`."""
+        if key not in self.axes:
+            raise ValueError(f"No axis corresponding to {key!r}") from None
+        if key not in self.constraints:
+            return self.axes[key].index()
+        this = self.constraints[key]
+        if isinstance(this, index.Quantity):
+            return this
+        return self.axes[key].index(*iterables.whole(this))
+
+    def get_value(self, key: str, default: T=None) -> physical.Scalar:
+        """Get the parameter value correpsonding to `key`."""
+        if 'values' not in self._cache:
+            self._cache['values'] = {}
+        if key in self._cache['values']:
+            return self._cache['values'][key]
+        with contextlib.suppress(ValueError):
+            val = self.compute_value(key, **self.constraints)
+            self._cache['values'][key] = val
+            return val
+        return default
+
+    def compute_value(self, key: str) -> physical.Scalar:
+        """Create a parameter value for `key`."""
+        if key not in self.constants and key not in self.constraints:
+            raise ValueError(
+                f"No parameter corresponding to {key!r}"
+            ) from None
+        if key in self.constraints:
+            return self._compute_value(self.constraints[key])
+        return self._compute_value(self.constants[key])
+
+    def _compute_value(self, this):
+        """Compute a parameter value."""
+        # TODO: Generalize beyond scalar parameters.
+        scalar = physical.scalar(this)
+        unit = self.system.get_unit(unit=scalar.unit)
+        return scalar[unit]
+
+    @property
+    def system(self):
+        """The metric system in use."""
+        return self._system
+
+    @property
+    def parameters(self):
+        """The names of available physical constants."""
+        if self._parameters is None:
+            self._parameters = tuple(self.constants)
+        return self._parameters
+
+    @property
+    def variables(self):
+        """The available array-like quantities."""
+        return self._variables
+
+    @property
+    def axes(self):
+        """The available axis-indexing quantities."""
+        return self._axes
+
+    @property
+    def functions(self):
+        """The available callable quantities."""
+        return self._functions
+
+    @property
+    def constants(self):
+        """The available constant quantities."""
+        return self._constants
 
 
 Instance = typing.TypeVar('Instance', bound='Observer')
@@ -312,7 +685,12 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         self._datapath = None
         self._confpath = None
         self._axes = None
-        
+        if self._source and self._config:
+            # It's only worth calling `update` at this point if we have both
+            # `source` and `config`. Calling this without arguments will use the
+            # current values of `source` and `config`. That is a valid action
+            # but it only updates the instance during initialization.
+            self.update()
 
     def update(
         self: Instance,
@@ -325,12 +703,8 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         if source:
             self._source = source
             self._datapath = None
-        quantities = observing.Interface()
-        application = Application(quantities)
+        application = Application(self.datapath, self.confpath, self.system)
         return super().update(application)
-
-    def _build_application(self, datapath, confpath):
-        """"""
 
     @property
     def confpath(self) -> iotools.ReadOnlyPath:
@@ -416,45 +790,45 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     @property
     def radius(self):
         """The time-dependent radius values in this observer's dataset."""
-        return self.quantities.variables['radius']
+        return self._application.variables['radius']
 
     @property
     def theta(self):
         """The time-dependent theta values in this observer's dataset."""
-        return self.quantities.variables['theta']
+        return self._application.variables['theta']
 
     @property
     def phi(self):
         """The time-dependent phi values in this observer's dataset."""
-        return self.quantities.variables['phi']
+        return self._application.variables['phi']
 
     @property
     def time(self):
         """The time values in this observer's dataset."""
-        return self.quantities.axes['time'].reference
+        return self._application.axes['time'].reference
 
     @property
     def shell(self):
         """The shell values in this observer's dataset."""
-        return self.quantities.axes['shell'].reference
+        return self._application.axes['shell'].reference
 
     @property
     def species(self):
         """The species values in this observer's dataset."""
-        return self.quantities.axes['species'].reference
+        return self._application.axes['species'].reference
 
     @property
     def energy(self):
         """The energy values in this observer's dataset."""
-        return self.quantities.axes['energy'].reference
+        return self._application.axes['energy'].reference
 
     @property
     def mu(self):
         """The pitch-angle cosine values in this observer's dataset."""
-        return self.quantities.axes['mu'].reference
+        return self._application.axes['mu'].reference
 
     def __str__(self) -> str:
-        return str(self.datapath)
+        return str(self._id)
 
 
 class Stream(Observer):
