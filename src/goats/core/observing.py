@@ -131,7 +131,7 @@ class Quantity(variable.Quantity):
 class Interface(collections.abc.Mapping):
     """An interface to observing-related physical quantities."""
 
-    def __init__(self, *mappings: typing.Mapping[str]) -> None:
+    def __init__(self, *mappings: typing.Mapping[str, T]) -> None:
         self._mappings = mappings
 
     def __len__(self) -> int:
