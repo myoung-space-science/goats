@@ -71,7 +71,7 @@ class Interface:
         collection represents the minimal set of quantities that this observer
         can observe.
         """
-        available = aliased.KeyMap(self.quantities.available)
+        available = aliased.KeyMap(*self.quantities.available)
         return available.without(*self._unobservable)
 
     @property
