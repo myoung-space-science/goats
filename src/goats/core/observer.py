@@ -41,7 +41,6 @@ class Interface:
         self._unobservable = unobservable
         self._system = metric.System(system)
         self._context = context
-        self._quantities = None
         self._spellcheck = None
 
     def update(self, __context: C):
