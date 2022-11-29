@@ -554,6 +554,15 @@ class Context(collections.abc.Collection, typing.Generic[T]):
             self._constraints = dict(new)
         return self
 
+    @property
+    def constraints(self):
+        """The current set of observing constraints."""
+        if self._constraints is None:
+            self._constraints = {}
+        if isinstance(self._constraints, dict):
+            return self._constraints
+        return dict(self._constraints)
+
     def __contains__(self, __x: str) -> bool:
         """True if `__x` is an available physical quantity."""
         return __x in self.available
