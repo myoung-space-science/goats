@@ -507,7 +507,7 @@ class Result:
 
 
 class Context(collections.abc.Collection, typing.Generic[T]):
-    """An observer-specific observing context.
+    """ABC for observer-specific observing contexts.
     
     Concrete subclasses must overload the abstract method `observe`, which
     should take the string name of an observable quantity and return an instance
