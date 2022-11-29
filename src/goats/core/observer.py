@@ -17,7 +17,7 @@ class Interface:
     def __init__(
         self,
         *unobservable: str,
-        system: str='mks',
+        system: str=None,
         context: C=None,
     ) -> None:
         """Initialize this instance.
@@ -39,7 +39,7 @@ class Interface:
             access physical quantities without a valid observing context.
         """
         self._unobservable = unobservable
-        self._system = metric.System(system)
+        self._system = metric.System(system or 'mks')
         self._context = context
         self._spellcheck = None
 
