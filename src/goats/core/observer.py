@@ -8,7 +8,7 @@ from goats.core import spelling
 from goats.core import symbolic
 
 
-A = typing.TypeVar('A', bound=observing.Application)
+C = typing.TypeVar('C', bound=observing.Context)
 
 
 class Interface:
@@ -18,7 +18,7 @@ class Interface:
         self,
         *unobservable: str,
         system: str='mks',
-        application: A=None,
+        context: C=None,
     ) -> None:
         """Initialize this instance.
         
@@ -32,22 +32,21 @@ class Interface:
         system : string, default='mks'
             The metric system to use for variable and observable quantities.
 
-        application : subclass of `~observing.Application`, optional
-            An instance of the observer-specific observing application. Users
-            may set the observing application after initialization via the
-            `update` method. This class will raise an exception if the user
-            attempts to access physical quantities without a valid observing
-            application.
+        context : subclass of `~observing.Context`, optional
+            An instance of the observer-specific observing context. Users may
+            set the observing context after initialization via the `update`
+            method. This class will raise an exception if the user attempts to
+            access physical quantities without a valid observing context.
         """
         self._unobservable = unobservable
         self._system = metric.System(system)
-        self._application = application
+        self._context = context
         self._quantities = None
         self._spellcheck = None
 
-    def update(self, __application: A):
-        """Use a new observing application."""
-        self._application = __application
+    def update(self, __context: C):
+        """Use a new observing context."""
+        self._context = __context
         self._spellcheck = None
         return self
 
@@ -71,35 +70,15 @@ class Interface:
         collection represents the minimal set of quantities that this observer
         can observe.
         """
-        available = aliased.KeyMap(*self.quantities.available)
+        available = aliased.KeyMap(*self.context.available)
         return available.without(*self._unobservable)
-
-    @property
-    def quantities(self):
-        """The interface to available physical quantities.
-        
-        This collection represents the quantities that this observer will use
-        when making observations.
-        """
-        if self._application is None:
-            raise NotImplementedError(
-                "This observer does not have an observing application."
-            ) from None
-        try:
-            self._quantities = self._application.quantities
-            return self._quantities
-        except AttributeError as err:
-            raise TypeError(
-                "Can't access physical quantities from observing application"
-                f" of type {type(self._application)!r}"
-            ) from err
 
     def __getitem__(self, __k: str):
         """Access an observable quantity by keyword, if possible."""
         if self.observes(__k):
-            return observing.Implementation(self._application, __k)
-        if __k in self.quantities:
-            return self.quantities[__k]
+            return observing.Implementation(__k, self.context)
+        if __k in self.context:
+            return self.context[__k]
         self._check_spelling(__k) # -> None if `__k` is spelled correctly
         raise KeyError(f"No observable for {__k!r}") from None
 
@@ -123,10 +102,19 @@ class Interface:
 
     def _check_spelling(self, key: str):
         """Catch misspelled names of physical quantities, if possible."""
-        keys = list(self.quantities)
+        keys = list(self.context)
         if self._spellcheck is None:
             self._spellcheck = spelling.SpellChecker(*keys)
         else:
             self._spellcheck.words |= keys
         return self._spellcheck.check(key)
+
+    @property
+    def context(self):
+        """The current observing context."""
+        if self._context is None:
+            raise NotImplementedError(
+                "This observer does not have an observing context."
+            ) from None
+        return self._context
 
