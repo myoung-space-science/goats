@@ -371,7 +371,7 @@ class Application(observing.Application):
         variables = Variables(dataset, system=system)
         axes = Axes(dataset, system=system)
         functions = Functions(axes, variables)
-        quantities = observing.Interface(variables, functions)
+        quantities = observing.Collection(variables, functions)
         super().__init__(quantities)
         self._constants = runtime.Interface(confpath)
         self._variables = variables

@@ -128,8 +128,8 @@ class Quantity(variable.Quantity):
         return Parameters(self._parameters)
 
 
-class Interface(collections.abc.Mapping):
-    """An interface to observing-related physical quantities."""
+class Collection(collections.abc.Mapping):
+    """A collection of observing-related physical quantities."""
 
     def __init__(self, *mappings: typing.Mapping[str, T]) -> None:
         self._mappings = mappings
@@ -210,7 +210,7 @@ class Application(collections.abc.Collection):
 
     def __init__(
         self,
-        __quantities: Interface,
+        __quantities: Collection,
         constraints: typing.Mapping=None,
     ) -> None:
         """Create a new instance.
