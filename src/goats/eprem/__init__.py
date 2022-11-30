@@ -345,52 +345,47 @@ class Functions(aliased.Mapping):
         return list(iterables.whole(value)) if value else []
 
 
-Instance = typing.TypeVar('Instance', bound='Application')
+Instance = typing.TypeVar('Instance', bound='Context')
 
 
-class Application(observing.Application):
-    """The EPREM observing application."""
+class Context(observing.Context):
+    """The EPREM observing context."""
 
     def __init__(
         self,
-        datapath: iotools.ReadOnlyPath,
-        confpath: iotools.ReadOnlyPath,
-        system: typing.Union[str, metric.System],
+        variables: Variables,
+        axes: Axes,
+        constants: runtime.Interface,
     ) -> None:
         """Initialize this instance.
         
         Parameters
         ----------
-        datapath : string or `~pathlib.Path`
-            The path to the data source.
-
         system : string or `~metric.System`
             The metric system to use.
         """
-        dataset = datafile.Interface(datapath)
-        variables = Variables(dataset, system=system)
-        axes = Axes(dataset, system=system)
         functions = Functions(axes, variables)
-        quantities = observing.Collection(variables, functions)
-        super().__init__(quantities)
-        self._constants = runtime.Interface(confpath)
+        super().__init__(variables, functions)
+        self._constants = constants
         self._variables = variables
         self._axes = axes
         self._functions = functions
-        self._system = system
+        self._system = variables.system
         self._parameters = None
+        self._coordinates = None
+        self._cache = {}
 
-    def create(self, key: str) -> observed.Quantity:
-        result = self.observe(key)
-        return observed.Quantity(
+    def observe(self, name: str) -> observing.Result:
+        result = self._observe(name)
+        return observing.Result(
             result,
             indices={k: self.get_index(k) for k in result.axes},
             assumptions={k: self.get_value(k) for k in result.parameters},
         )
 
-    def observe(self, key: str) -> observing.Quantity:
+    def _observe(self, key: str) -> observing.Quantity:
         """Create an observation within the context of this application."""
-        result = self._observe(key)
+        result = self._build(key)
         if any(alias in self.coordinates for alias in result.name):
             # This is an axis-reference quantity.
             return self._subscript(result)
@@ -400,7 +395,7 @@ class Application(observing.Application):
             return self._subscript(result)
         return self.interpolate(result, needed)
 
-    def _observe(self, key: str) -> observing.Quantity:
+    def _build(self, key: str) -> observing.Quantity:
         """Internal observing logic."""
         expression = symbolic.Expression(reference.NAMES.get(key, key))
         term = expression[0]
@@ -619,13 +614,8 @@ class Application(observing.Application):
         """Compute a parameter value."""
         # TODO: Generalize beyond scalar parameters.
         scalar = physical.scalar(this)
-        unit = self.system.get_unit(unit=scalar.unit)
+        unit = self._system.get_unit(unit=scalar.unit)
         return scalar[unit]
-
-    @property
-    def system(self):
-        """The metric system in use."""
-        return self._system
 
     @property
     def parameters(self):
@@ -673,43 +663,56 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         __id: int,
         source: iotools.PathLike=None,
         config: iotools.PathLike=None,
-        system: str='mks',
+        system: str=None,
     ) -> None:
-        super().__init__(
-            *self._unobservable,
-            system=system,
-        )
         self._id = __id
+        # Consider also allowing `source` to be null, thereby only associating
+        # an instance with its ID.
         self._source = source or pathlib.Path.cwd()
         self._config = config
+        self._system = system or 'mks'
         self._datapath = None
         self._confpath = None
-        self._axes = None
-        if self._source and self._config:
-            # It's only worth calling `update` at this point if we have both
-            # `source` and `config`. Calling this without arguments will use the
-            # current values of `source` and `config`. That is a valid action
-            # but it only updates the instance during initialization.
-            self.update()
+        context = self._build_context(system=system)
+        if context:
+            self._variables = context.variables
+            self._axes = context.axes
+        super().__init__(*self._unobservable, context=context)
 
     def update(
         self: Instance,
         source: iotools.PathLike=None,
-        config: iotools.PathLike=None
+        config: iotools.PathLike=None,
     ) -> Instance:
+        if source or config:
+            context = self._build_context(source, config)
+            self._variables = context.variables
+            self._axes = context.axes
+            return super().update(context)
+        return self
+
+    def _build_context(self, source=None, config=None, system=None):
+        """Create an instance of the EPREM observing context."""
+        if not source and not config:
+            return
         if config:
             self._config = config
             self._confpath = None
         if source:
             self._source = source
             self._datapath = None
-        application = Application(self.datapath, self.confpath, self.system)
-        return super().update(application)
+        dataset = datafile.Interface(self.datapath)
+        variables = Variables(dataset, system=system or 'mks')
+        axes = Axes(dataset, system=system or 'mks')
+        constants = runtime.Interface(self.confpath)
+        return Context(variables, axes, constants)
 
     @property
     def confpath(self) -> iotools.ReadOnlyPath:
         """The full path to this dataset's runtime parameter file."""
         if self._confpath is None:
+            if self._config is None:
+                return
             # Compare the current config-file string to its filename.
             if pathlib.Path(self._config).name == self._config:
                 # The current config-file string is just a filename.
@@ -732,6 +735,8 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     def datapath(self) -> iotools.ReadOnlyPath:
         """The path to this dataset."""
         if self._datapath is None:
+            if self._source is None:
+                return
             # Expand and resolve the current data source.
             this = iotools.ReadOnlyPath(self._source or '.')
             if this.is_dir():
@@ -749,83 +754,45 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
             ) from None
         return self._datapath
 
-    def _build_datapath(self, directory: iotools.PathLike):
-        """Create the path to the dataset from `directory`."""
-        this = iotools.ReadOnlyPath(directory or pathlib.Path.cwd())
-        if this.is_dir():
-            path = iotools.find_file_by_template(
-                self._templates,
-                self._id,
-                directory=this,
-            )
-            with contextlib.suppress(TypeError):
-                # Couldn't initialize with `path` for some reason.
-                return iotools.ReadOnlyPath(path)
-        raise TypeError(
-            f"Can't create path to dataset from {directory!r}"
-        ) from None
-
-    def _build_confpath(
-        self,
-        config: iotools.PathLike,
-        directory: iotools.PathLike=None,
-    ) -> iotools.ReadOnlyPath:
-        """Create the path to the configuration file."""
-        # Create a `Path` but don't expand or resolve it.
-        path = pathlib.Path(config)
-        if directory and path.name == config:
-            # There is a directory to check and `config` is just a filename.
-            full = iotools.ReadOnlyPath(directory) / config
-            if full.exists():
-                return full
-        # Expand and resolve path.
-        this = iotools.ReadOnlyPath(config)
-        if this.exists():
-            # The absolute path exists, so return it.
-            return this
-        raise ValueError(
-            f"Can't create path to configuration file from {config!r}"
-        ) from None
-
     @property
     def radius(self):
         """The time-dependent radius values in this observer's dataset."""
-        return self._application.variables['radius']
+        return self._variables['radius']
 
     @property
     def theta(self):
         """The time-dependent theta values in this observer's dataset."""
-        return self._application.variables['theta']
+        return self._variables['theta']
 
     @property
     def phi(self):
         """The time-dependent phi values in this observer's dataset."""
-        return self._application.variables['phi']
+        return self._variables['phi']
 
     @property
     def time(self):
         """The time values in this observer's dataset."""
-        return self._application.axes['time'].reference
+        return self._axes['time'].reference
 
     @property
     def shell(self):
         """The shell values in this observer's dataset."""
-        return self._application.axes['shell'].reference
+        return self._axes['shell'].reference
 
     @property
     def species(self):
         """The species values in this observer's dataset."""
-        return self._application.axes['species'].reference
+        return self._axes['species'].reference
 
     @property
     def energy(self):
         """The energy values in this observer's dataset."""
-        return self._application.axes['energy'].reference
+        return self._axes['energy'].reference
 
     @property
     def mu(self):
         """The pitch-angle cosine values in this observer's dataset."""
-        return self._application.axes['mu'].reference
+        return self._axes['mu'].reference
 
     def __str__(self) -> str:
         return str(self._id)
