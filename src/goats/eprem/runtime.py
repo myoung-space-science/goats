@@ -873,13 +873,13 @@ class Interface(aliased.Mapping):
                 return definition
             return self._evaluate(definition)
         if isinstance(current, str):
-            return self._resolve(current)
+            return self._decompose(current)
         raise TypeError(f"Can't evaluate {current!r}") from None
 
     _struct_member = re.compile(r'\Aconfig\.\w*\Z')
 
-    def _resolve(self, definition: str):
-        """Resolve a parameter definition into simpler components."""
+    def _decompose(self, definition: str):
+        """Split a parameter definition into simpler components."""
         if self._struct_member.match(definition):
             return self._evaluate(definition.replace('config.', ''))
         if result := self._compute_sum(definition):
@@ -891,7 +891,7 @@ class Interface(aliased.Mapping):
                 for term in expression
             ]
             return functools.reduce(lambda x,y: x*y, evaluated)
-        raise TypeError(f"Can't resolve {definition!r}") from None
+        raise TypeError(f"Can't decompose {definition!r}") from None
 
     def _compute_sum(self, arg: str) -> numbers.Real:
         """Compute the sum of two known parameters.
