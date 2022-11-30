@@ -17,7 +17,6 @@ class Interface:
     def __init__(
         self,
         *unobservable: str,
-        system: str=None,
         context: C=None,
     ) -> None:
         """Initialize this instance.
@@ -29,9 +28,6 @@ class Interface:
             exclude from the set of formally observable quantities. These
             quantities will still be accessible as variable quantities.
 
-        system : string, default='mks'
-            The metric system to use for variable and observable quantities.
-
         context : subclass of `~observing.Context`, optional
             An instance of the observer-specific observing context. Users may
             set the observing context after initialization via the `update`
@@ -39,7 +35,6 @@ class Interface:
             access physical quantities without a valid observing context.
         """
         self._unobservable = unobservable
-        self._system = metric.System(system or 'mks')
         self._context = context
         self._spellcheck = None
 
@@ -48,11 +43,6 @@ class Interface:
         self._context = __context
         self._spellcheck = None
         return self
-
-    @property
-    def system(self):
-        """This observer's metric system."""
-        return self._system
 
     @property
     def observables(self):
