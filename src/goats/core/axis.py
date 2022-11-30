@@ -70,7 +70,7 @@ class Indexer(iterables.ReprStrMixin):
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
-class Quantity:
+class Quantity(iterables.ReprStrMixin):
     """A callable representation of a dataset axis."""
 
     @typing.overload
