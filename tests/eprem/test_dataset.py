@@ -143,7 +143,7 @@ def test_axis_unit(datapath):
         },
     }
     data = datafile.Interface(datapath)
-    axes = eprem.Axes(data)
+    axes = eprem.Axes(data, system='mks')
     for name, test in cases.items():
         this = axes[name]
         points = test.pop('points')
@@ -160,8 +160,8 @@ def test_axis_unit(datapath):
 def test_axis_reference(datapath):
     """Users should be able to access reference values for an axis."""
     data = datafile.Interface(datapath)
-    axes = eprem.Axes(data)
-    variables = variable.Interface(data)
+    axes = eprem.Axes(data, system='mks')
+    variables = eprem.Variables(data, system='mks')
     cases = {
         'time': {
             'reference': variables['time'],
@@ -221,7 +221,7 @@ def test_single_index(datapath):
         }
     }
     data = datafile.Interface(datapath)
-    axes = eprem.Axes(data)
+    axes = eprem.Axes(data, system='mks')
     for name, expected in cases.items():
         this = axes[name]
         result = this.index(expected['input'])
@@ -272,7 +272,7 @@ def test_resolve_axes(datapath):
         },
     ]
     data = datafile.Interface(datapath)
-    axes = eprem.Axes(data)
+    axes = eprem.Axes(data, system='mks')
     for case in cases:
         names = case['input']
         expected = case['output']
@@ -388,7 +388,7 @@ def test_variables(datapath):
         },
     }
     data = datafile.Interface(datapath)
-    variables = variable.Interface(data)
+    variables = eprem.Variables(data, system='mks')
     for name, expected in cases.items():
         current = variables[name]
         assert current.axes == expected['axes']
@@ -438,7 +438,7 @@ def test_variable_interface(testdata: dict):
         datafile = get_interface(testdata, name)
         for observable, expected in reference.items():
             for system, unit in expected['unit'].items():
-                variables = variable.Interface(datafile, system=system)
+                variables = eprem.Variables(datafile, system=system)
                 if observable in variables:
                     v = variables[observable]
                     assert v.unit == unit
