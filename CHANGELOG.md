@@ -2,9 +2,13 @@
 
 ## NEXT
 
-- Refactor observing framework
-- Allow user to create EPREM observers without explicit paths; source and config paths are required at the time of observation
-- Rename 'axes' to 'dimensions' in regard to variable quantities
+- Refactor observing framework. Observers must define a concrete implementation of the abstract base class `observing.Context`.
+- Allow user to create EPREM observers without explicit paths; source and config paths are required at the time of observation.
+- Rename 'axes' to 'dimensions' in regard to variable quantities.
+- Remove 'name' from physical quantities.
+- Redefine `variable.Quantity` to reduce inheritance.
+- Deprecate core/observable.py; merge `observable.Quantity` into `observing.Implementation`.
+- Redefine interface to EPREM runtime constants.
 
 ## v0.0.35 (11Nov2022)
 
