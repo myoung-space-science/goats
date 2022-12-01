@@ -8,17 +8,7 @@ import pytest
 
 from goats.core import algebraic
 from goats.core import metadata
-from goats.core import physical
 from goats.core import variable
-
-
-def get_reference(
-    testdata: typing.Dict[str, dict],
-    name: str,
-    key: str,
-) -> typing.Dict[str, dict]:
-    """Get reference values for the named dataset."""
-    return testdata[name].get(key, {})
 
 
 @pytest.mark.variable
