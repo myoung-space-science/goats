@@ -506,7 +506,6 @@ class Implementation(iterables.ReprStrMixin):
         return self._name
 
     _checkable = (
-        'name',
         'unit',
         'dimensions',
         'parameters',
@@ -514,7 +513,7 @@ class Implementation(iterables.ReprStrMixin):
 
     def __eq__(self, __o) -> bool:
         """True if two instances have equivalent attributes."""
-        if isinstance(__o, Quantity):
+        if isinstance(__o, Implementation):
             return all(
                 getattr(self, attr) == getattr(__o, attr)
                 for attr in self._checkable
