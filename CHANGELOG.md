@@ -4,6 +4,7 @@
 
 - Refactor observing framework
 - Allow user to create EPREM observers without explicit paths; source and config paths are required at the time of observation
+- Rename 'axes' to 'dimensions' in regard to variable quantities
 
 ## v0.0.35 (11Nov2022)
 
