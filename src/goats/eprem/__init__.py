@@ -385,7 +385,7 @@ class Context(observing.Context):
     def _observe(self, key: str) -> observing.Quantity:
         """Create an observation within the context of this application."""
         result = self._build(key)
-        if any(name in self.coordinates for name in reference.NAMES[key]):
+        if any(k in self.coordinates for k in reference.NAMES.get(key, [])):
             # This is an axis-reference quantity.
             return self._subscript(result)
         needed = self._compute_interpolants(result)
