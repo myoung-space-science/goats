@@ -454,7 +454,7 @@ class Implementation(iterables.ReprStrMixin):
         )
         if unit == self._unit:
             return self
-        return Quantity(self.name, self._context, unit=unit)
+        return Implementation(self.name, self._context, unit=unit)
 
     @property
     def unit(self):
