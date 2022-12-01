@@ -116,6 +116,7 @@ class Quantity(variable.Quantity):
         super().__init__(__interface, dimensions=dimensions, unit=unit)
         p = getattr(__interface, 'parameters', parameters or ())
         self._parameters = Parameters(*p)
+        self.meta.register('parameters')
 
     @property
     def parameters(self):
