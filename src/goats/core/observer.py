@@ -67,7 +67,7 @@ class Interface:
         if self.observes(__k):
             return observing.Implementation(__k, self.context)
         if __k in self.context:
-            return self.context[__k]
+            return self.context.get_quantity(__k)
         self._check_spelling(__k) # -> None if `__k` is spelled correctly
         raise KeyError(f"No observable for {__k!r}") from None
 
