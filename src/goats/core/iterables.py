@@ -1519,8 +1519,9 @@ def hastype(
         instance of the given types.
 
     strict : bool, default=False
-        If true, return ``True`` if `__obj` contains only `__type`. Otherwise,
-        return ``True`` if `__obj` contains at least one of `__types`.
+        If true, return ``True`` if `__obj` contains only members with the
+        target type(s). Otherwise, return ``True`` if `__obj` contains at least
+        one member with the target type(s).
 
     Examples
     --------
@@ -1554,7 +1555,8 @@ def hastype(
     >>> iterables.hastype([1, 2], int, tuple)
     False
 
-    By default, only one member of a wrapped object needs to be an instance of one of the target types:
+    By default, only one member of a wrapped object needs to be an instance of
+    one of the target types:
 
     >>> iterables.hastype([1, 2.0], int, list)
     True
