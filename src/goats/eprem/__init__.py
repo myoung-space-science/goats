@@ -447,14 +447,15 @@ class Context(observing.Context):
         if quantity := self.get_quantity(key):
             return self.evaluate(quantity)
 
-    def _subscript(self, q: variable.Quantity, *axes: str):
+    def _subscript(self, q: variable.Quantity, *dimensions: str):
         """Extract a subset of this quantity."""
-        if not axes:
-            return q[tuple(self.get_index(a, slice(None)) for a in q.axes)]
         indices = [
-            self.get_index(a, slice(None))
-            if a in axes else slice(None)
-            for a in q.axes
+            self.get_index(dimension, slice(None))
+            if dimension in dimensions else slice(None)
+            for dimension in q.dimensions
+        ] if dimensions else [
+            self.get_index(dimensions, slice(None))
+            for dimensions in q.dimensions
         ]
         return q[tuple(indices)]
 
