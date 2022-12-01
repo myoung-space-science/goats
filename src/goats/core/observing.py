@@ -224,7 +224,7 @@ class Result(iterables.ReprStrMixin):
     def __str__(self) -> str:
         """A simplified representation of this object."""
         attrs = [
-            f"unit='{self.data.unit}'",
+            f"unit={(self.data.unit)!r}",
             f"dimensions={self.data.dimensions}",
             f"parameters={self.parameters}",
         ]
