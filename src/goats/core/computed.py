@@ -476,27 +476,24 @@ class Method(collections.abc.Mapping, iterables.ReprStrMixin):
         return f"{self.name}{self.signature}"
 
 
-class Metadata(
-    metadata.NameMixin,
-    metadata.AxesMixin,
-): ...
-
-class Quantity(Metadata, iterables.ReprStrMixin):
+class Quantity(iterables.ReprStrMixin):
     """A callable quantity that produces a variable quantity."""
 
     def __init__(
         self,
         __method: Method,
-        *,
-        axes: typing.Iterable[str],
+        dimensions: typing.Iterable[str]=None,
         unit: metadata.UnitLike=None,
-        name: typing.Union[str, typing.Iterable[str]]=None,
     ) -> None:
         self.method = __method
-        self._axes = axes
+        self._dimensions = dimensions
         self._unit = unit
-        self._name = name
         self._parameters = None
+
+    @property
+    def dimensions(self):
+        """This quantity's indexable axes."""
+        return metadata.Axes(self._dimensions)
 
     @property
     def unit(self):
@@ -525,15 +522,14 @@ class Quantity(Metadata, iterables.ReprStrMixin):
         """Create a variable quantity from input quantities."""
         return variable.Quantity(
             self.method.compute(**quantities),
-            axes=self.axes,
+            dimensions=self.dimensions,
             unit=self.unit,
-            name=self.name,
         )
 
     def __str__(self) -> str:
         attrs = [
             self.method.name,
-            f"axes={self.axes}",
+            f"dimensions={self.dimensions}",
             f"unit={str(self.unit)!r}",
         ]
         return ', '.join(attrs)

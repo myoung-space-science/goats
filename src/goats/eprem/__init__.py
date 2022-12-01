@@ -286,9 +286,8 @@ class Functions(aliased.Mapping):
             return self._cache['quantity'][__k]
         quantity = computed.Quantity(
             self.get_method(__k),
-            axes=self.get_axes(__k),
+            dimensions=self.get_dimensions(__k),
             unit=self.get_unit(__k),
-            name=self.get_name(__k),
         )
         self._cache['quantity'][__k] = quantity
         return quantity
@@ -312,7 +311,7 @@ class Functions(aliased.Mapping):
         this = reference.METADATA.get(key, {}).get('quantity')
         return self.variables.system.get_unit(quantity=this)
 
-    def get_axes(self, key: str):
+    def get_dimensions(self, key: str):
         """Compute appropriate axis names for `key`."""
         if 'axes' not in self._cache:
             self._cache['axes'] = {}
@@ -322,11 +321,11 @@ class Functions(aliased.Mapping):
         self._removed = self._get_metadata(method, 'removed')
         self._added = self._get_metadata(method, 'added')
         self._accumulated = []
-        axes = self._gather_axes(method)
+        axes = self._gather_dimensions(method)
         self._cache['axes'][key] = axes
         return axes
 
-    def _gather_axes(self, target: computed.Method):
+    def _gather_dimensions(self, target: computed.Method):
         """Recursively gather appropriate axes."""
         for parameter in target.parameters:
             if parameter in self.variables:
@@ -334,7 +333,7 @@ class Functions(aliased.Mapping):
             elif method := self.get_method(parameter):
                 self._removed.extend(self._get_metadata(method, 'removed'))
                 self._added.extend(self._get_metadata(method, 'added'))
-                self._accumulated.extend(self._gather_axes(method))
+                self._accumulated.extend(self._gather_dimensions(method))
         unique = set(self._accumulated) - set(self._removed) | set(self._added)
         return self.axes.resolve(unique, mode='append')
 
