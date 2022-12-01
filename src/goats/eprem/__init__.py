@@ -427,13 +427,6 @@ class Context(observing.Context):
             return observing.Quantity(self.process(q))
         raise ValueError(f"Unknown quantity: {q!r}") from None
 
-    def process(self, q: variable.Quantity) -> variable.Quantity:
-        """Compute observer-specific updates to a variable quantity.
-        
-        The default implementation immediately returns `q`.
-        """
-        return q
-
     def compute(self, q: computed.Quantity) -> variable.Quantity:
         """Determine dependencies and compute the result of this function."""
         dependencies = {p: self.get_dependency(p) for p in q.parameters}
@@ -447,8 +440,16 @@ class Context(observing.Context):
 
     def get_observable(self, key: str):
         """Retrieve and evaluate an observable quantity."""
-        if quantity := self.get_quantity(key):
-            return self.evaluate(quantity)
+        quantity = self.get_quantity(key)
+        if isinstance(quantity, computed.Quantity):
+            data = self.compute(quantity)
+            parameters = [
+                parameter for parameter in quantity.parameters
+                if parameter in self.parameters
+            ]
+            return observing.Quantity(data, parameters=parameters)
+        if isinstance(quantity, variable.Quantity):
+            return observing.Quantity(quantity)
 
     def _subscript(self, q: variable.Quantity, *dimensions: str):
         """Extract a subset of this quantity."""
