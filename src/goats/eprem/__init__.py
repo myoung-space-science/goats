@@ -344,6 +344,10 @@ class Functions(aliased.Mapping):
         return list(iterables.whole(value)) if value else []
 
 
+class ContextKeyError(Exception):
+    """Can't find a parameter value within this context."""
+
+
 Instance = typing.TypeVar('Instance', bound='Context')
 
 
@@ -571,7 +575,7 @@ class Context(observing.Context):
             self._cache['indices'] = {}
         if key in self._cache['indices']:
             return self._cache['indices'][key]
-        with contextlib.suppress(ValueError):
+        with contextlib.suppress(ContextKeyError):
             idx = self.compute_index(key)
             self._cache['indices'][key] = idx
             return idx
@@ -580,7 +584,7 @@ class Context(observing.Context):
     def compute_index(self, key: str) -> index.Quantity:
         """Compute the axis-indexing object for `key`."""
         if key not in self.axes:
-            raise ValueError(f"No axis corresponding to {key!r}") from None
+            raise ContextKeyError(f"No axis corresponding to {key!r}") from None
         if key not in self.constraints:
             return self.axes[key].index()
         this = self.constraints[key]
@@ -594,7 +598,7 @@ class Context(observing.Context):
             self._cache['values'] = {}
         if key in self._cache['values']:
             return self._cache['values'][key]
-        with contextlib.suppress(ValueError):
+        with contextlib.suppress(ContextKeyError):
             val = self.compute_value(key, **self.constraints)
             self._cache['values'][key] = val
             return val
@@ -603,7 +607,7 @@ class Context(observing.Context):
     def compute_value(self, key: str) -> physical.Scalar:
         """Create a parameter value for `key`."""
         if key not in self.constants and key not in self.constraints:
-            raise ValueError(
+            raise ContextKeyError(
                 f"No parameter corresponding to {key!r}"
             ) from None
         if key in self.constraints:
