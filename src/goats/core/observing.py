@@ -386,17 +386,26 @@ C = typing.TypeVar('C', bound=Context)
 class Target:
     """An arbitrary observing target."""
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, unit: metadata.UnitLike=None) -> None:
         self._name = name
+        self._unit = metric.Unit(unit or '1')
 
     def apply(self, context: Context):
         """Observe this quantity within the given context."""
-        return context.observe(self.name)
+        result = context.observe(self.name)
+        if self.unit:
+            return result[str(self.unit)]
+        return result
 
     @property
     def name(self):
         """The name of the target quantity."""
         return self._name
+
+    @property
+    def unit(self):
+        """The metric unit of the result."""
+        return self._unit
 
 
 class Implementation(iterables.ReprStrMixin):
@@ -456,7 +465,7 @@ class Implementation(iterables.ReprStrMixin):
     def target(self):
         """The quantity to observe."""
         if self._target is None:
-            self._target = Target(self.name)
+            self._target = Target(self.name, self.unit)
         return self._target
 
     def __getitem__(self, __x: metadata.UnitLike):
@@ -465,6 +474,7 @@ class Implementation(iterables.ReprStrMixin):
             self.unit.norm[__x]
             if str(__x).lower() in metric.SYSTEMS else __x
         )
+        self._target = None
         if unit == self._unit:
             return self
         return Implementation(self.name, self._context, unit=unit)
