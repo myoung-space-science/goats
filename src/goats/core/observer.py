@@ -91,7 +91,7 @@ class Interface:
 
     def _check_spelling(self, key: str):
         """Catch misspelled names of physical quantities, if possible."""
-        keys = list(self.context)
+        keys = self.context.available
         if self._spellcheck is None:
             self._spellcheck = spelling.SpellChecker(*keys)
         else:
