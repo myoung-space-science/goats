@@ -657,9 +657,8 @@ class Interface(aliased.Mapping):
         unit = __v.unit
         return Quantity(
             __v.data,
+            dimensions=__v.axes,
             unit=(self.system.get_unit(unit=unit) if self.system else unit),
-            axes=__v.axes,
-            name=__v.name,
         )
 
     @property
