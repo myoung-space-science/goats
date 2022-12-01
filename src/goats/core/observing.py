@@ -243,6 +243,7 @@ class Context(collections.abc.Collection, typing.Generic[T]):
         """
         self._mappings = mappings
         self._constraints = dict(constraints or {})
+        self._available = None
 
     @abc.abstractmethod
     def observe(self, name: str) -> Result:
@@ -290,7 +291,9 @@ class Context(collections.abc.Collection, typing.Generic[T]):
     @property
     def available(self):
         """The names of available physical quantities."""
-        return tuple({k for m in self._mappings for k in m})
+        if self._available is None:
+            self._available = tuple({k for m in self._mappings for k in m})
+        return self._available
 
     def get_unit(self, name: str):
         """Compute or retrieve the metric unit of a physical quantity."""
