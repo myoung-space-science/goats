@@ -104,30 +104,22 @@ class Parameters(collections.abc.Sequence, iterables.ReprStrMixin):
 class Quantity(variable.Quantity):
     """A quantity with one or more name(s), a unit, and axes."""
 
-    _parameters: Parameters=None
-
-    def __init__(self, __data, **meta) -> None:
-        super().__init__(__data, **meta)
-        parsed = self.parse_attrs(__data, meta, parameters=())
-        self._parameters = Parameters(parsed['parameters'])
-        self.meta.register('parameters')
-        self.display.register('parameters')
-        self.display['__str__'].append("parameters={parameters}")
-        self.display['__repr__'].append("parameters={parameters}")
-
-    def parse_attrs(self, this, meta: dict, **targets):
-        if (
-            isinstance(this, variable.Quantity)
-            and not isinstance(this, Quantity)
-        ): # barf
-            meta.update({k: getattr(this, k) for k in ('unit', 'name', 'axes')})
-            this = this.data
-        return super().parse_attrs(this, meta, **targets)
+    def __init__(
+        self,
+        __interface,
+        dimensions: typing.Iterable[str]=None,
+        unit: metadata.UnitLike=None,
+        parameters: typing.Iterable[str]=None,
+    ) -> None:
+        """Create a new observing Quantity."""
+        super().__init__(__interface, dimensions=dimensions, unit=unit)
+        p = getattr(__interface, 'parameters', parameters or ())
+        self._parameters = Parameters(*p)
 
     @property
     def parameters(self):
         """The optional parameters that define this observing quantity."""
-        return Parameters(self._parameters)
+        return self._parameters
 
 
 class Result:
