@@ -329,7 +329,7 @@ class Context(collections.abc.Collection, typing.Generic[T]):
 
     def get_dimensions(self, name: str):
         """Compute or retrieve the array dimensions of a physical quantity."""
-        if found := self.get_attribute('axes', name):
+        if found := self.get_attribute('dimensions', name):
             return found
         s = str(name)
         expression = symbolic.Expression(reference.NAMES.get(s, s))
