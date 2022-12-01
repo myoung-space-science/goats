@@ -157,10 +157,13 @@ class Result(iterables.ReprStrMixin):
             # standard axes.
             if index
         }
-        self._indices = aliased.Mapping(tmp)
+        self._axes = aliased.Mapping(tmp)
+        self._indices = indices
         self._assumptions = assumptions
         self._array = None
         self._parameters = None
+        self._unit = None
+        self._dimensions = None
 
     @property
     def array(self):
@@ -191,6 +194,16 @@ class Result(iterables.ReprStrMixin):
             self._parameters = list(self._assumptions)
         return self._parameters
 
+    @property
+    def unit(self):
+        """The metric unit of the observed values."""
+        return self._unit
+
+    @property
+    def dimensions(self):
+        """The dimensions of the data array."""
+        return self._dimensions
+
     def __getitem__(self, __x):
         """Get context items or update the unit.
         
@@ -206,11 +219,11 @@ class Result(iterables.ReprStrMixin):
                 f"{__x!r} must name a context item or a unit."
                 "Use the array property to access data values."
             ) from None
-        if __x in self._indices:
-            return self._indices[__x]
+        if __x in self._axes:
+            return self._axes[__x]
         if __x in self._assumptions:
             return self._assumptions[__x]
-        return type(self)(self.data, self._indices, self._assumptions)
+        return type(self)(self.data[__x], self._indices, self._assumptions)
 
     def __eq__(self, __o) -> bool:
         """True if two instances have equivalent attributes."""
@@ -224,8 +237,8 @@ class Result(iterables.ReprStrMixin):
     def __str__(self) -> str:
         """A simplified representation of this object."""
         attrs = [
-            f"unit={(self.data.unit)!r}",
-            f"dimensions={self.data.dimensions}",
+            f"unit={str(self.unit)!r}",
+            f"dimensions={self.dimensions}",
             f"parameters={self.parameters}",
         ]
         return ', '.join(attrs)
