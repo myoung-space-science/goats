@@ -367,7 +367,7 @@ class Context(observing.Context):
             The metric system to use.
         """
         functions = Functions(axes, variables)
-        super().__init__(variables, functions)
+        super().__init__(variables, functions, constraints=constants)
         self._constants = constants
         self._variables = variables
         self._axes = axes
