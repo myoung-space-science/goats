@@ -804,15 +804,15 @@ class Interface(aliased.Mapping):
         `pathlib.Path`), may be relative, and may contain standard wildcard
         characters (e.g., `~`).
         """
-        reference = ConfigurationC()
+        runtime = Runtime(config_path=path)
         values = {
             **{
                 key: info.get('default')
                 for key, info in _LOCAL.items()
             },
-            **dict(reference),
+            **dict(runtime),
         }
-        keys = tuple(set(tuple(_LOCAL) + tuple(reference)))
+        keys = tuple(set(tuple(_LOCAL) + tuple(runtime)))
         base = {
             (key, *_ALIASES.get(key, [])): {
                 'unit': _UNITS.get(key),
@@ -822,7 +822,7 @@ class Interface(aliased.Mapping):
         }
         super().__init__(base)
         self._user = ConfigFile(path, **opts) if path else {}
-        self._reference = reference
+        self._reference = ConfigurationC()
         self._basetypes = BaseTypesH()
         self._current = None
 
