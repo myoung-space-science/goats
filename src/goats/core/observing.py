@@ -329,42 +329,15 @@ class Context(collections.abc.Collection, typing.Generic[T]):
 
     def get_unit(self, name: str):
         """Compute or retrieve the metric unit of a physical quantity."""
-        if found := self.get_attribute('unit', name):
-            return found
-        s = str(name)
-        expression = symbolic.Expression(reference.NAMES.get(s, s))
-        term = expression[0]
-        this = self.get_unit(term.base) ** term.exponent
-        if len(expression) > 1:
-            for term in expression[1:]:
-                this *= self.get_unit(term.base) ** term.exponent
-        return metadata.Unit(this)
+        return metadata.Unit(self.get_metadata('unit', name))
 
     def get_dimensions(self, name: str):
         """Compute or retrieve the array dimensions of a physical quantity."""
-        if found := self.get_attribute('dimensions', name):
-            return found
-        s = str(name)
-        expression = symbolic.Expression(reference.NAMES.get(s, s))
-        term = expression[0]
-        this = self.get_dimensions(term.base)
-        if len(expression) > 1:
-            for term in expression[1:]:
-                this *= self.get_dimensions(term.base)
-        return metadata.Axes(this)
+        return metadata.Axes(self.get_metadata('dimensions', name))
 
     def get_parameters(self, name: str):
         """Compute or retrieve the parameters of a physical quantity."""
-        if found := self.get_attribute('parameters', name):
-            return found
-        s = str(name)
-        expression = symbolic.Expression(reference.NAMES.get(s, s))
-        term = expression[0]
-        this = self.get_parameters(term.base)
-        if len(expression) > 1:
-            for term in expression[1:]:
-                this *= self.get_parameters(term.base)
-        return Parameters(this)
+        return Parameters(self.get_metadata('parameters', name))
 
     def get_quantity(self, name: str):
         """Retrieve a physical quantity by name, if available."""
@@ -373,11 +346,24 @@ class Context(collections.abc.Collection, typing.Generic[T]):
                 return mapping[name]
         return self.constraints.get(name)
 
-    def get_attribute(self, __name: str, target: str):
+    def get_metadata(self, name: str, target: str):
+        """Get a metadata attribute for an arbitrary quantity."""
+        if found := self.get_attribute(name, target):
+            return found
+        s = str(target)
+        expression = symbolic.Expression(reference.NAMES.get(s, s))
+        term = expression[0]
+        built = self.get_attribute(name, term.base)
+        if len(expression) > 1:
+            for term in expression[1:]:
+                built *= self.get_attribute(name, term.base)**term.exponent
+        return built
+
+    def get_attribute(self, name: str, target: str):
         """Get the named attribute for the target quantity, if possible."""
         for mapping in self._mappings:
             if target in mapping:
-                return getattr(mapping[target], __name, None)
+                return getattr(mapping[target], name, None)
 
 
 C = typing.TypeVar('C', bound=Context)
