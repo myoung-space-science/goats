@@ -47,7 +47,7 @@ class Variable(typing.NamedTuple):
 
     data: numpy.typing.ArrayLike
     unit: str
-    axes: typing.Tuple[str]
+    dimensions: typing.Tuple[str]
     name: str
 
     def __str__(self) -> str:
@@ -68,7 +68,7 @@ class Variable(typing.NamedTuple):
         attrs = [
             f"data={type(self.data)}",
             f"unit={self.unit!r}",
-            f"axes={self.axes}",
+            f"dimensions={self.dimensions}",
             f"name={self.name!r}",
         ]
         indent = ' ' * tab
@@ -86,12 +86,12 @@ class NetCDFVariables(Viewer):
         if name in self.members:
             data = self.members[name]
             unit = self._get_unit_from_data(data)
-            axes = self._get_axes_from_data(data)
-            return Variable(data, unit, axes, name)
+            dimensions = self._get_dimensions_from_data(data)
+            return Variable(data, unit, dimensions, name)
         raise KeyError(f"No variable called '{name}'")
 
-    def _get_axes_from_data(self, data):
-        """Compute appropriate variable axes from a dataset object."""
+    def _get_dimensions_from_data(self, data):
+        """Compute appropriate variable dimensions from a dataset object."""
         return tuple(getattr(data, 'dimensions', ()))
 
     def _get_unit_from_data(self, data):
@@ -257,7 +257,7 @@ class Interface(iterables.ReprStrMixin, metaclass=iotools.PathSet):
                 aliased=tuple(self.variables.keys(aliased=True)),
                 canonical=tuple(self.viewers['variables'].keys()),
             )
-        if key in {'axis', 'axes'}:
+        if key in {'axis', 'axes', 'dimension', 'dimensions'}:
             return SubsetKeys(
                 full=tuple(self.axes),
                 aliased=tuple(self.axes.keys(aliased=True)),

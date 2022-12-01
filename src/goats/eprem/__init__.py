@@ -51,7 +51,7 @@ class Variables(variable.Interface):
         name = __v.name
         v = variable.Quantity(
             __v.data,
-            dimensions=__v.axes,
+            dimensions=__v.dimensions,
             unit=standardize(__v.unit),
         )
         return (

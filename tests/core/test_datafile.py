@@ -36,11 +36,11 @@ def test_interface(testdata: dict):
     assert sorted(available.canonical) == sorted(canonical)
 
 
-def test_axes(testdata: dict):
-    """Test file-level access to dataset axes."""
+def test_dimensions(testdata: dict):
+    """Test file-level access to dataset dimensions."""
     testname = 'basic'
     dataset = get_interface(testdata, testname)
-    reference = get_reference(testdata, testname, 'axes')
+    reference = get_reference(testdata, testname, 'dimensions')
     assert isinstance(dataset.axes, typing.Mapping)
     for axis in reference:
         assert axis in dataset.axes
@@ -63,5 +63,5 @@ def test_variables(testdata: dict):
         assert variable.name in names
         ref = reference[variable.name]
         assert variable.unit == ref.get('unit')
-        assert sorted(variable.axes) == sorted(ref.get('axes', ()))
+        assert sorted(variable.dimensions) == sorted(ref.get('dimensions', ()))
 

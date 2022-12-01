@@ -29,7 +29,7 @@ def testdata(rootpath: pathlib.Path):
 
 _DATASETS = {
     'basic': {
-        'axes': {
+        'dimensions': {
             'time': {'size': 0},
             'level': {'size': 0},
             'lat': {'size': 73},
@@ -37,19 +37,19 @@ _DATASETS = {
         },
         'variables': {
             'time': {
-                'axes': ['time'],
+                'dimensions': ['time'],
             },
             'level': {
-                'axes': ['level'],
+                'dimensions': ['level'],
             },
             'lat': {
-                'axes': ['lat'],
+                'dimensions': ['lat'],
             },
             'lon': {
-                'axes': ['lon'],
+                'dimensions': ['lon'],
             },
             'temp': {
-                'axes': ['time', 'level', 'lat', 'lon'],
+                'dimensions': ['time', 'level', 'lat', 'lon'],
                 'unit': 'K',
             },
         },
