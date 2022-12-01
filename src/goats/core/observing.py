@@ -390,7 +390,7 @@ class Target:
         self._name = name
         self._unit = metric.Unit(unit or '1')
 
-    def apply(self, context: Context):
+    def apply(self, context: Context) -> Result:
         """Observe this quantity within the given context."""
         result = context.observe(self.name)
         if self.unit:
