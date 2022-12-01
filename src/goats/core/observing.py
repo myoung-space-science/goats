@@ -251,11 +251,13 @@ class Context(collections.abc.Collection, typing.Generic[T]):
             Zero or more mappings from string to physical quantity
 
         constraints : mapping, optional
-            User-provided observing constraints.
+            The default constant observing constraints.
         """
         self._mappings = mappings
-        self._constraints = dict(constraints or {})
+        self._default = dict(constraints or {})
+        self._constraints = None
         self._available = None
+        self._observable = None
 
     @abc.abstractmethod
     def observe(self, name: str) -> Result:
@@ -273,20 +275,17 @@ class Context(collections.abc.Collection, typing.Generic[T]):
             If true, update the current constraints from `new`.
             Otherwise, overwrite the current constraints with `new`.
         """
-        if update:
-            self._constraints.update(new)
-        else:
-            self._constraints = dict(new)
+        if not update:
+            self._constraints = self._default.copy()
+        self._constraints.update(new)
         return self
 
     @property
     def constraints(self):
         """The current set of observing constraints."""
         if self._constraints is None:
-            self._constraints = {}
-        if isinstance(self._constraints, dict):
-            return self._constraints
-        return dict(self._constraints)
+            self._constraints = self._default.copy()
+        return self._constraints
 
     def __contains__(self, __x: str) -> bool:
         """True if `__x` is an available physical quantity."""
@@ -304,8 +303,15 @@ class Context(collections.abc.Collection, typing.Generic[T]):
     def available(self):
         """The names of available physical quantities."""
         if self._available is None:
-            self._available = tuple({k for m in self._mappings for k in m})
+            self._available = self.observable + tuple(self.constraints)
         return self._available
+
+    @property
+    def observable(self):
+        """The names of observable physical quantities."""
+        if self._observable is None:
+            self._observable = tuple({k for m in self._mappings for k in m})
+        return self._observable
 
     def get_unit(self, name: str):
         """Compute or retrieve the metric unit of a physical quantity."""
@@ -351,6 +357,7 @@ class Context(collections.abc.Collection, typing.Generic[T]):
         for mapping in self._mappings:
             if name in mapping:
                 return mapping[name]
+        return self.constraints.get(name)
 
     def get_attribute(self, __name: str, target: str):
         """Get the named attribute for the target quantity, if possible."""
