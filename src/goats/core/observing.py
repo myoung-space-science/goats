@@ -13,6 +13,7 @@ from goats.core import index
 from goats.core import iterables
 from goats.core import metadata
 from goats.core import metric
+from goats.core import physical
 from goats.core import reference
 from goats.core import symbolic
 from goats.core import variable
@@ -122,7 +123,7 @@ class Quantity(variable.Quantity):
         return self._parameters
 
 
-class Result:
+class Result(iterables.ReprStrMixin):
     """A general observing result.
     
     An instance of this class represents the observation of a named observable
@@ -136,7 +137,26 @@ class Result:
         assumptions: typing.Mapping[str, constant.Assumption]=None,
     ) -> None:
         self._data = __data
-        self._indices = indices
+        items = (
+            indices.items(aliased=True)
+            if isinstance(indices, aliased.Mapping)
+            else indices.items()
+        )
+        tmp = {
+            k: physical.Array( # <- eventually want an `axis.Array` class
+                index.values,
+                unit=index.unit,
+                name=index.name,
+            )
+            for k, index in items
+            # HACK: This handles cases in which a function added a
+            # non-standard axis. For example, integral flux removes the
+            # 'energy' axis and adds a 'minimum energy' axis. A long-term
+            # solution should treat non-standard axes as equivalent to
+            # standard axes.
+            if index
+        }
+        self._indices = aliased.Mapping(tmp)
         self._assumptions = assumptions
         self._array = None
         self._parameters = None
@@ -204,10 +224,10 @@ class Result:
         """A simplified representation of this object."""
         attrs = [
             f"unit='{self.data.unit}'",
-            f"dimensions={self.data.axes}",
+            f"dimensions={self.data.dimensions}",
             f"parameters={self.parameters}",
         ]
-        return f"'{self.data.name}': {', '.join(attrs)}"
+        return ', '.join(attrs)
 
 
 class Context(collections.abc.Collection, typing.Generic[T]):
