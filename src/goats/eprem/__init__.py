@@ -378,7 +378,7 @@ class Context(observing.Context):
         result = self._observe(name)
         return observing.Result(
             result,
-            indices={k: self.get_index(k) for k in result.axes},
+            indices={k: self.get_index(k) for k in result.dimensions},
             assumptions={k: self.get_value(k) for k in result.parameters},
         )
 
