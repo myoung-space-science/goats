@@ -1,12 +1,10 @@
 import pytest
 import numpy
 
-from goats.core import aliased
 from goats.core import axis
 from goats.core import index
 from goats.core import datafile
 from goats.core import metric
-from goats.core import variable
 from goats import eprem
 
 
@@ -174,7 +172,7 @@ def test_axis_reference(datapath):
             'reference': ['H+'],
         },
         'energy': {
-            'reference': variables['energy'][0],
+            'reference': numpy.squeeze(variables['energy'][0]),
             'units': ['eV', 'erg'],
         },
         'mu': {
@@ -391,61 +389,8 @@ def test_variables(datapath):
     variables = eprem.Variables(data, system='mks')
     for name, expected in cases.items():
         current = variables[name]
-        assert current.axes == expected['axes']
+        assert current.dimensions == expected['axes']
         assert current.unit == expected['unit']
-        key = aliased.MappingKey(name, *expected['aliases'])
-        assert current.name == key
-
-
-def get_interface(testdata: dict, name: str) -> datafile.Interface:
-    """Get an interface to a dataset file by name."""
-    return datafile.Interface(testdata[name]['path'])
-
-
-def test_variable_interface(testdata: dict):
-    """Test the interface to variable quantities."""
-    reference = {
-        'time': {
-            'unit': {
-                'mks': 's',
-                'cgs': 's',
-            },
-            'axes': ['time'],
-        },
-        'Vr': {
-            'unit': {
-                'mks': 'm / s',
-                'cgs': 'cm / s',
-            },
-            'axes': ['time', 'shell'],
-        },
-        'flux': {
-            'unit': {
-                'mks': 'm^-2 s^-1 sr^-1 J^-1',
-                'cgs': 'cm^-2 s^-1 sr^-1 erg^-1',
-            },
-            'axes': ['time', 'shell', 'species', 'energy'],
-        },
-        'dist': {
-            'unit': {
-                'mks': 's^3 m^-6',
-                'cgs': 's^3 cm^-6',
-            },
-            'axes': ['time', 'shell', 'species', 'energy', 'mu'],
-        },
-    }
-    for name in ('eprem-obs', 'eprem-flux'):
-        datafile = get_interface(testdata, name)
-        for observable, expected in reference.items():
-            for system, unit in expected['unit'].items():
-                variables = eprem.Variables(datafile, system=system)
-                if observable in variables:
-                    v = variables[observable]
-                    assert v.unit == unit
-                    assert sorted(v.axes) == sorted(expected['axes'])
-                else:
-                    with pytest.raises(KeyError):
-                        variables[observable]
 
 
 def test_standardize():
