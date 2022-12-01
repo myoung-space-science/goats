@@ -71,7 +71,7 @@ class Parameters(collections.abc.Sequence, iterables.ReprStrMixin):
         return NotImplemented
 
     def __eq__(self, other):
-        """True if self and other represent the same axes."""
+        """True if self and other represent the same parameters."""
         return (
             isinstance(other, Parameters) and other._names == self._names
             or (
@@ -103,7 +103,7 @@ class Parameters(collections.abc.Sequence, iterables.ReprStrMixin):
 
 
 class Quantity(variable.Quantity):
-    """A quantity with one or more name(s), a unit, and axes."""
+    """A variable quantity with associated parameters."""
 
     def __init__(
         self,
@@ -333,7 +333,7 @@ class Context(collections.abc.Collection, typing.Generic[T]):
 
     def get_dimensions(self, name: str):
         """Compute or retrieve the array dimensions of a physical quantity."""
-        return metadata.Axes(self.get_metadata('dimensions', name))
+        return metadata.Dimensions(self.get_metadata('dimensions', name))
 
     def get_parameters(self, name: str):
         """Compute or retrieve the parameters of a physical quantity."""

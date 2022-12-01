@@ -121,15 +121,15 @@ _BASE = {
         'quantity': 'energy',
     },
     ('isotropic_distribution', 'isotropic distribution', 'isodist'): {
-        'removed axes': ['mu'],
+        'removed dimensions': ['mu'],
         'quantity': 'particle distribution',
     },
     'fluence': {
-        'removed axes': ['time'],
+        'removed dimensions': ['time'],
         'quantity': 'number / (area * solid_angle * energy / mass_number)',
     },
     ('integral_flux', 'integral flux'): {
-        'removed axes': ['energy'],
+        'removed dimensions': ['energy'],
         'quantity': 'number / (area * solid_angle * time)',
     },
 }

@@ -768,7 +768,7 @@ class Name(collections.abc.Collection, Attribute):
         return str(self._aliases)
 
 
-class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
+class Dimensions(collections.abc.Sequence, iterables.ReprStrMixin):
     """A representation of one or more axis names."""
 
     def __init__(self, *names: str) -> None:
@@ -799,9 +799,9 @@ class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
         """Return the unique axis names in order."""
         names = list(a._names)
         for b in others:
-            if isinstance(b, Axes):
+            if isinstance(b, Dimensions):
                 names.extend(b._names)
-        return Axes(*iterables.unique(*names))
+        return Dimensions(*iterables.unique(*names))
 
     __mul__ = merge
     """Called for self * other."""
@@ -817,9 +817,9 @@ class Axes(collections.abc.Sequence, iterables.ReprStrMixin):
         return NotImplemented
 
     def __eq__(self, other):
-        """True if self and other represent the same axes."""
+        """True if self and other represent the same dimensions."""
         return (
-            isinstance(other, Axes) and other._names == self._names
+            isinstance(other, Dimensions) and other._names == self._names
             or (
                 isinstance(other, str)
                 and len(self) == 1
@@ -893,15 +893,15 @@ class NameMixin:
         return self
 
 
-class AxesMixin:
-    """Mixin class for quantities with axes."""
+class DimensionsMixin:
+    """Mixin class for quantities with dimensions."""
 
-    _axes: Axes=None
+    _dimensions: Dimensions=None
 
     @property
-    def axes(self):
-        """This quantity's indexable axes."""
-        return Axes(self._axes)
+    def dimensions(self):
+        """This quantity's indexable dimensions."""
+        return Dimensions(self._dimensions)
 
 
 # def base(*names: str, result: str=None):

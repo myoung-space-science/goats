@@ -85,7 +85,7 @@ class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
             'dimensions',
             dimensions or [f'x{i}' for i in range(self.ndim)]
         )
-        self._dimensions = metadata.Axes(*tmp)
+        self._dimensions = metadata.Dimensions(*tmp)
         # Finally, check for consistency between the given dimensions and the
         # dimensions of the data array. This must happen last because it will
         # call properties that require the previously initialized attributes.

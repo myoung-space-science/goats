@@ -139,7 +139,7 @@ class Axes(aliased.Mapping):
         names: typing.Iterable[str],
         mode: str='strict',
     ) -> typing.Tuple[str]:
-        """Compute and order the available axes in `names`."""
+        """Compute and order the available dimensions in `names`."""
         ordered = tuple(name for name in self._names if name in names)
         if mode == 'strict':
             return ordered

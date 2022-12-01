@@ -149,11 +149,11 @@ def apply_additive(opr):
 
 def test_dimensions_object():
     """Make sure axes names behave as expected in operations."""
-    assert len(metadata.Axes()) == 0
+    assert len(metadata.Dimensions()) == 0
     names = ['a', 'b', 'c']
     for i, name in enumerate(names, start=1):
         subset = names[:i]
-        dimensions = metadata.Axes(*subset)
+        dimensions = metadata.Dimensions(*subset)
         assert len(dimensions) == i
         assert all(name in dimensions for name in subset)
         assert dimensions[i-1] == name
@@ -162,9 +162,9 @@ def test_dimensions_object():
 def test_dimensions_init():
     """Test various ways to initialize dimensions metadata."""
     names = ['a', 'b', 'c']
-    assert len(metadata.Axes(names)) == 3
-    assert len(metadata.Axes(*names)) == 3
-    assert len(metadata.Axes([names])) == 3
+    assert len(metadata.Dimensions(names)) == 3
+    assert len(metadata.Dimensions(*names)) == 3
+    assert len(metadata.Dimensions([names])) == 3
     invalid = [
         [1, 2, 3],
         [[1], [2], [3]],
@@ -172,14 +172,14 @@ def test_dimensions_init():
     ]
     for case in invalid:
         with pytest.raises(TypeError):
-            metadata.Axes(*case)
+            metadata.Dimensions(*case)
 
 
 def test_dimensions_operators():
     """Test built-in operations on dimensions metadata."""
-    xy = metadata.Axes('x', 'y')
-    yz = metadata.Axes('y', 'z')
-    zw = metadata.Axes('z', 'w')
+    xy = metadata.Dimensions('x', 'y')
+    yz = metadata.Dimensions('y', 'z')
+    zw = metadata.Dimensions('z', 'w')
     pairs = {
         (xy, xy): {
             standard.add: xy,
@@ -202,8 +202,8 @@ def test_dimensions_operators():
     # multiplication and division should concatenate unique dimensions
     for opr in (standard.mul, standard.truediv):
         assert opr(xy, xy) == xy
-        assert opr(xy, yz) == metadata.Axes('x', 'y', 'z')
-        assert opr(xy, zw) == metadata.Axes('x', 'y', 'z', 'w')
+        assert opr(xy, yz) == metadata.Dimensions('x', 'y', 'z')
+        assert opr(xy, zw) == metadata.Dimensions('x', 'y', 'z', 'w')
     # exponentiation is not valid
     with pytest.raises(TypeError):
         pow(xy, xy)
@@ -216,19 +216,19 @@ def test_dimensions_operators():
 
 def test_dimensions_merge():
     """Test the ability to extract unique dimensions in order."""
-    xy = metadata.Axes('x', 'y')
-    yz = metadata.Axes('y', 'z')
-    zw = metadata.Axes('z', 'w')
-    assert xy.merge(xy) == metadata.Axes('x', 'y')
-    assert xy.merge(yz) == metadata.Axes('x', 'y', 'z')
-    assert yz.merge(xy) == metadata.Axes('y', 'z', 'x')
-    assert xy.merge(zw) == metadata.Axes('x', 'y', 'z', 'w')
-    assert zw.merge(xy) == metadata.Axes('z', 'w', 'x', 'y')
-    assert yz.merge(zw) == metadata.Axes('y', 'z', 'w')
-    assert zw.merge(yz) == metadata.Axes('z', 'w', 'y')
-    assert xy.merge(yz, zw) == metadata.Axes('x', 'y', 'z', 'w')
+    xy = metadata.Dimensions('x', 'y')
+    yz = metadata.Dimensions('y', 'z')
+    zw = metadata.Dimensions('z', 'w')
+    assert xy.merge(xy) == metadata.Dimensions('x', 'y')
+    assert xy.merge(yz) == metadata.Dimensions('x', 'y', 'z')
+    assert yz.merge(xy) == metadata.Dimensions('y', 'z', 'x')
+    assert xy.merge(zw) == metadata.Dimensions('x', 'y', 'z', 'w')
+    assert zw.merge(xy) == metadata.Dimensions('z', 'w', 'x', 'y')
+    assert yz.merge(zw) == metadata.Dimensions('y', 'z', 'w')
+    assert zw.merge(yz) == metadata.Dimensions('z', 'w', 'y')
+    assert xy.merge(yz, zw) == metadata.Dimensions('x', 'y', 'z', 'w')
     assert xy.merge(1.1) == xy
-    assert xy.merge(yz, 1.1) == metadata.Axes('x', 'y', 'z')
+    assert xy.merge(yz, 1.1) == metadata.Dimensions('x', 'y', 'z')
 
 
 def test_name():

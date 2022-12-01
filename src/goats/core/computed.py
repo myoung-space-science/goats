@@ -493,7 +493,7 @@ class Quantity(iterables.ReprStrMixin):
     @property
     def dimensions(self):
         """This quantity's indexable axes."""
-        return metadata.Axes(self._dimensions)
+        return metadata.Dimensions(self._dimensions)
 
     @property
     def unit(self):
