@@ -695,7 +695,7 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
             simulation runtime parameter arguments.
         """
         if source or config:
-            context = self._build_context(source, config)
+            context = self._build_context(source=source, config=config)
             self._variables = context.variables
             self._axes = context.axes
             return super().update(context)
@@ -721,48 +721,59 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     def confpath(self) -> iotools.ReadOnlyPath:
         """The full path to this dataset's runtime parameter file."""
         if self._confpath is None:
-            if self._config is None:
-                return
-            # Compare the current config-file string to its filename.
-            if pathlib.Path(self._config).name == self._config:
-                # The current config-file string is just a filename.
-                full = self.datapath.parent / self._config
-                if full.exists():
-                    # The config file exists in the data directory.
-                    return full
-            # Expand and resolve the current config-file path.
-            this = iotools.ReadOnlyPath(self._config)
-            if this.exists():
-                # The absolute path exists.
-                return this
-            raise ValueError(
-                "Can't create path to configuration file"
-                f" from {self._config!r}"
-            ) from None
+            self._confpath = self._build_confpath()
         return self._confpath
+
+    def _build_confpath(self):
+        """Build the config-file path."""
+        # If the user hasn't supplied a path, there's nothing to do.
+        if self._config is None:
+            return
+        # Compare the current config-file string to its filename.
+        if pathlib.Path(self._config).name == self._config:
+            # The current config-file string is just a filename.
+            full = self.datapath.parent / self._config
+            if full.exists():
+                # The config file exists in the data directory.
+                return full
+        # Expand and resolve the current config-file path.
+        this = iotools.ReadOnlyPath(self._config)
+        if this.exists():
+            # The absolute path exists.
+            return this
+        # We're out of options.
+        raise ValueError(
+            "Can't create path to configuration file"
+            f" from {self._config!r}"
+        ) from None
 
     @property
     def datapath(self) -> iotools.ReadOnlyPath:
         """The path to this dataset."""
         if self._datapath is None:
-            if self._source is None:
-                return
-            # Expand and resolve the current data source.
-            this = iotools.ReadOnlyPath(self._source or '.')
-            if this.is_dir():
-                # The current data source is a directory.
-                path = iotools.find_file_by_template(
-                    self._templates,
-                    self._id,
-                    directory=this,
-                )
-                with contextlib.suppress(TypeError):
-                    return iotools.ReadOnlyPath(path)
-            # We couldn't create a valid data path for some reason.
-            raise TypeError(
-                f"Can't create path to dataset from {self._source!r}"
-            ) from None
+            self._datapath = self._build_datapath()
         return self._datapath
+
+    def _build_datapath(self):
+        """Build the path to this observer's dataset."""
+        # If the user hasn't supplied a path, there's nothing to do.
+        if self._source is None:
+            return
+        # Expand and resolve the current data source.
+        this = iotools.ReadOnlyPath(self._source or '.')
+        if this.is_dir():
+            # The current data source is a directory.
+            path = iotools.find_file_by_template(
+                self._templates,
+                self._id,
+                directory=this,
+            )
+            with contextlib.suppress(TypeError):
+                return iotools.ReadOnlyPath(path)
+        # We couldn't create a valid data path for some reason.
+        raise TypeError(
+            f"Can't create path to dataset from {self._source!r}"
+        ) from None
 
     @property
     def radius(self):
