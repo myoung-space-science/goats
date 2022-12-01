@@ -443,7 +443,7 @@ class Method(collections.abc.Mapping, iterables.ReprStrMixin):
         floats = []
         for name in self.parameters:
             arg = dependencies[name]
-            if isinstance(arg, physical.Array):
+            if isinstance(arg, variable.Quantity):
                 arrays.append(numpy.array(arg))
             elif isinstance(arg, physical.Scalar):
                 floats.append(float(arg))
