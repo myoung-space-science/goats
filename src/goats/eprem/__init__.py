@@ -704,8 +704,6 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
 
     def _build_context(self, source=None, config=None, system=None):
         """Create an instance of the EPREM observing context."""
-        if not source and not config:
-            return
         if config:
             self._config = config
             self._confpath = None
