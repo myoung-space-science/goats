@@ -330,7 +330,7 @@ class Functions(aliased.Mapping):
         """Recursively gather appropriate axes."""
         for parameter in target.parameters:
             if parameter in self.variables:
-                self._accumulated.extend(self.variables[parameter].axes)
+                self._accumulated.extend(self.variables[parameter].dimensions)
             elif method := self.get_method(parameter):
                 self._removed.extend(self._get_metadata(method, 'removed'))
                 self._added.extend(self._get_metadata(method, 'added'))
@@ -468,23 +468,23 @@ class Context(observing.Context):
     def _compute_interpolants(self, q: variable.Quantity):
         """Determine the coordinate axes over which to interpolate."""
         coordinates = {}
-        for a in q.axes:
-            idx = self.get_index(a)
+        for dimension in q.dimensions:
+            idx = self.get_index(dimension)
             if idx and idx.unit is not None:
                 contained = [
-                    self.coordinates[a].array_contains(target)
+                    self.coordinates[dimension].array_contains(target)
                     for target in idx.values
                 ]
                 if not numpy.all(contained):
-                    coordinates[a] = {
+                    coordinates[dimension] = {
                         'targets': numpy.array(idx.values),
-                        'reference': self.coordinates[a],
+                        'reference': self.coordinates[dimension],
                     }
         interpolants = {
             k: {**c, 'axis': self._axis_indices.get(k)}
             for k, c in coordinates.items()
         }
-        if 'shell' not in q.axes:
+        if 'shell' not in q.dimensions:
             # The rest of this method deals with radial interpolation, which
             # only applies when 'shell' is one of the target quantity's axes.
             return interpolants
