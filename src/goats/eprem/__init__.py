@@ -683,6 +683,17 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         source: iotools.PathLike=None,
         config: iotools.PathLike=None,
     ) -> Instance:
+        """Change the data source or config-file path.
+        
+        Parameters
+        ----------
+        source : string or `~pathlib.Path`, optional
+            A new directory in which to search for this observer's data.
+
+        config : string or `~pathlib.Path`, optional
+            The path to a new EPREM configuration file from which to extract
+            simulation runtime parameter arguments.
+        """
         if source or config:
             context = self._build_context(source, config)
             self._variables = context.variables
