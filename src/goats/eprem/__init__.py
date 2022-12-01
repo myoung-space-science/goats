@@ -313,17 +313,17 @@ class Functions(aliased.Mapping):
 
     def get_dimensions(self, key: str):
         """Compute appropriate axis names for `key`."""
-        if 'axes' not in self._cache:
-            self._cache['axes'] = {}
-        if key in self._cache['axes']:
-            return self._cache['axes'][key]
+        if 'dimensions' not in self._cache:
+            self._cache['dimensions'] = {}
+        if key in self._cache['dimensions']:
+            return self._cache['dimensions'][key]
         method = self.get_method(key)
         self._removed = self._get_metadata(method, 'removed')
         self._added = self._get_metadata(method, 'added')
         self._accumulated = []
-        axes = self._gather_dimensions(method)
-        self._cache['axes'][key] = axes
-        return axes
+        dimensions = self._gather_dimensions(method)
+        self._cache['dimensions'][key] = dimensions
+        return dimensions
 
     def _gather_dimensions(self, target: computed.Method):
         """Recursively gather appropriate axes."""
@@ -489,7 +489,8 @@ class Context(observing.Context):
         }
         if 'shell' not in q.dimensions:
             # The rest of this method deals with radial interpolation, which
-            # only applies when 'shell' is one of the target quantity's axes.
+            # only applies when 'shell' is one of the target quantity's
+            # dimensions.
             return interpolants
         for key in reference.ALIASES['radius']:
             if values := self.get_value(key):
@@ -528,8 +529,8 @@ class Context(observing.Context):
             'shell' if d == 'radius' else d
             for d in coordinates
         ]
-        axes = list(set(q.axes) - set(interpolated))
-        return self._subscript(base, *axes)
+        dimensions = list(set(q.dimensions) - set(interpolated))
+        return self._subscript(base, *dimensions)
 
     def _interpolate_coordinate(
         self,
@@ -541,7 +542,7 @@ class Context(observing.Context):
     ) -> numpy.ndarray:
         """Interpolate a variable array based on a known coordinate."""
         array = numpy.array(q) if workspace is None else workspace
-        indices = (q.axes.index(d) for d in reference.axes)
+        indices = (q.dimensions.index(d) for d in reference.dimensions)
         dst, src = zip(*enumerate(indices))
         reordered = numpy.moveaxis(array, src, dst)
         interpolated = interpolation.apply(
