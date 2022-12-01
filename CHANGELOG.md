@@ -2,6 +2,9 @@
 
 ## NEXT
 
+- Refactor observing framework
+- Allow user to create EPREM observers without explicit paths; source and config paths are required at the time of observation
+
 ## v0.0.35 (11Nov2022)
 
 - End use of `goats.Environment`.
