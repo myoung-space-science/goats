@@ -28,52 +28,6 @@ def testdata(rootpath: pathlib.Path):
 
 
 _DATASETS = {
-    'eprem-obs': {
-        'axes': {
-            'time': {'size': 20},
-            'shell': {'size': 100},
-            'species': {'size': 2},
-            'energy': {'size': 10},
-            'mu': {'size': 5},
-        },
-        'variables': {
-            'time': {
-                'axes': ['time'],
-                'unit': 's',
-            },
-            'Vr': {
-                'axes': ['time', 'shell'],
-                'unit': 'km / s',
-            },
-            'Dist': {
-                'axes': ['time', 'shell', 'species', 'energy', 'mu'],
-                'unit': 's^3 / km^6',
-            },
-        },
-    },
-    'eprem-flux': {
-        'axes': {
-            'time': {'size': 20},
-            'shell': {'size': 100},
-            'species': {'size': 2},
-            'energy': {'size': 10},
-            'mu': {'size': 5},
-        },
-        'variables': {
-            'time': {
-                'axes': ['time'],
-                'unit': 's',
-            },
-            'Vr': {
-                'axes': ['time', 'shell'],
-                'unit': 'km / s',
-            },
-            'flux': {
-                'axes': ['time', 'shell', 'species', 'energy'],
-                'unit': '# / cm^2 s sr MeV',
-            },
-        },
-    },
     'basic': {
         'axes': {
             'time': {'size': 0},
@@ -98,7 +52,7 @@ _DATASETS = {
                 'axes': ['time', 'level', 'lat', 'lon'],
                 'unit': 'K',
             },
-        }
-    }
+        },
+    },
 }
 
