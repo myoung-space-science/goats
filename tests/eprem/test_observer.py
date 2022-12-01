@@ -11,10 +11,8 @@ import matplotlib.pyplot as plt
 import pytest
 
 from goats.core import constant
-from goats.core import fundamental
 from goats.core import metric
 from goats.core import observing
-from goats.core import observed
 from goats.core import observer
 from goats.core import physical
 from goats.core import variable
@@ -384,10 +382,10 @@ def test_change_source(rootpath: pathlib.Path):
     assert stream.datapath == olddir / 'obs000000.nc'
     assert stream.confpath == olddir / 'eprem_input_file'
     newdir = rootpath / 'wind' / 'obs'
-    stream.reset(source=newdir)
+    stream.update(source=newdir)
     assert stream.datapath == newdir / 'obs000000.nc'
     assert stream.confpath == olddir / 'eprem_input_file'
-    stream.reset(config=newdir / 'eprem_input_file')
+    stream.update(config=newdir / 'eprem_input_file')
     assert stream.datapath == newdir / 'obs000000.nc'
     assert stream.confpath == newdir / 'eprem_input_file'
 
@@ -412,7 +410,7 @@ def test_create_observation(
     """Create the default observation from each observable quantity."""
     for name, expected in observables.items():
         observation = stream[name].observe()
-        assert isinstance(observation, observed.Quantity)
+        assert isinstance(observation, observing.Result)
         for axis in expected['axes']:
             assert isinstance(observation[axis], physical.Array), axis
 
@@ -458,8 +456,7 @@ def test_observation_unit(stream: eprem.Stream):
         assert observation.data.unit == u0
         converted = observation[u1]
         assert converted is not observation
-        assert converted.data.name == observation.data.name
-        assert converted.data.axes == observation.data.axes
+        assert converted.data.dimensions == observation.data.dimensions
         assert converted.data.unit == u1
 
 
@@ -572,9 +569,9 @@ def test_observable_aliases(stream: eprem.Stream):
         'fluence': [],
     }
     for name, aliases in tests.items():
-        observable = stream[name]
+        reference = stream[name]
         for alias in aliases:
-            assert stream[alias].name == observable.name
+            assert stream[alias] == reference
 
 
 def test_repeated_access(stream: eprem.Stream):
