@@ -386,7 +386,7 @@ class Target:
         return self._name
 
 
-class Implementation:
+class Implementation(iterables.ReprStrMixin):
     """An arbitrary observable quantity."""
 
     def __init__(
