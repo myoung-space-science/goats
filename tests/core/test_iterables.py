@@ -433,21 +433,29 @@ def test_oftype():
 
 def test_hastype():
     """Test the function that checks for compound type matches."""
-    # TODO: Expand these initial cases.
+    # 1) all identical to `isinstance(...)`
     assert iterables.hastype(1, int)
     assert iterables.hastype('s', str)
     assert iterables.hastype([1, 2], list)
+    # 2) targets have declared type and are wrapped in a `list`
     assert iterables.hastype([1, 2], int, list)
+    # 3) same as case 2, but no declared wrapper
     assert not iterables.hastype([1, 2], int)
+    # 4) same as case 2, but declared wrapper is not `list`
     assert not iterables.hastype([1, 2], int, tuple)
+    # 5) similar to case 2, but one target has undeclared type
     assert not iterables.hastype([1, 2.0], int, list, strict=True)
+    # 6) non-strict versions of 5
     assert iterables.hastype([1, 2.0], int, list, strict=False)
-    assert iterables.hastype([1, 2.0], (int, float), list)
     assert iterables.hastype([1, '2.0'], int, list, strict=False)
+    # 7) similar to cases 5 & 6, with consistent types
+    assert iterables.hastype([1, 2.0], (int, float), list, strict=False)
+    assert iterables.hastype([1, 2.0], (int, float), list, strict=True)
+    # 8) variations on case 7 in which `float` is interpreted as a wrapper type
+    #    (may lead to subtle bugs in user code)
     assert not iterables.hastype([1, 2.0], int, float, list, strict=True)
     assert iterables.hastype([1, 2.0], int, float, list)
-    # The indices below mirror those tested in
-    # test_variable.py::test_variable_getitem.
+    # *) indices tested in test_variable.py::test_variable_getitem
     indices = [
         slice(None),
         Ellipsis,
