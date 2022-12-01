@@ -59,30 +59,11 @@ class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
             if isinstance(__interface, measurable.Quantified)
             else __interface
         )
-        # Sort out initialization arguments.
-        self._init_args = {
-            'dimensions': (
-                __interface.dimensions
-                if isinstance(__interface, Quantity)
-                else dimensions
-            ),
-            'unit': (
-                __interface.unit
-                if isinstance(__interface, Quantity)
-                else unit
-            ),
-        }
         # Carry the internal array from an existing instance.
-        self._full_array = (
-            __interface._array
-            if isinstance(__interface, Quantity)
-            else None
-        )
+        self._full_array = getattr(__interface, '_array', None)
         # Reset the internal array scale factor.
         self._scale = 1.0
         # Initialize other attributes to `None`.
-        self._dimensions = None
-        self._unit = None
         self._ndim = None
         self._shape = None
         # Set up algebraic operators for metadata attributes.
@@ -96,6 +77,15 @@ class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
         )
         self.meta.register('dimensions')
         self.meta.register('unit')
+        # Sort out initialization arguments.
+        tmp = getattr(__interface, 'unit', unit or '1')
+        self._unit = metadata.Unit(tmp)
+        tmp = getattr(
+            __interface,
+            'dimensions',
+            dimensions or [f'x{i}' for i in range(self.ndim)]
+        )
+        self._dimensions = metadata.Axes(*tmp)
         # Finally, check for consistency between the given dimensions and the
         # dimensions of the data array. This must happen last because it will
         # call properties that require the previously initialized attributes.
@@ -105,6 +95,9 @@ class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
                 f"Number of given dimensions ({ndim})"
                 f" must equal number of array dimensions ({self.ndim})"
             )
+        # NOTE: The use of properties above supports an argument for going back
+        # to the `Array` subclass, since that would have finished all
+        # initialization by this point.
 
     def __repr__(self) -> str:
         attrs = [
@@ -128,19 +121,11 @@ class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
     @property
     def unit(self):
         """This quantity's metric unit."""
-        if self._unit is None:
-            self._unit = metadata.Unit(self._init_args['unit'] or '1')
         return self._unit
 
     @property
     def dimensions(self):
         """The quantity's indexable dimensions."""
-        if self._dimensions is None:
-            dimensions = (
-                self._init_args['dimensions']
-                or [f'x{i}' for i in range(self.ndim)]
-            )
-            self._dimensions = metadata.Axes(*dimensions)
         return self._dimensions
 
     def __measure__(self):
