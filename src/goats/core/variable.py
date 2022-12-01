@@ -262,7 +262,12 @@ class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
         including v[:], v[...], v[i, :], v[:, j], and v[i, j], where i and j are
         integers.
         """
-        return self._get_array(indices)
+        array = self._get_array(indices)
+        return Quantity(
+            numpy.array(array, ndmin=self.ndim),
+            dimensions=self.dimensions,
+            unit=self.unit,
+        )
 
     def _subscript_custom(self, args):
         """Perform array subscription specific to this object.
@@ -391,18 +396,28 @@ class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
         
         Notes
         -----
-        This method exists to handle cases in which floating-point arithmetic
-        has caused a numeric operation to return an imprecise result, especially
-        for small numbers (e.g., converting energy from eV to J). It will first
-        check the built-in `__contains__` method via `in` before attempting to
-        determine if `value` is close enough to count, albeit within a very
-        strict tolerance.
+        * This method exists to handle cases in which floating-point arithmetic
+          has caused a numeric operation to return an imprecise result,
+          especially for small numbers (e.g., converting energy from eV to J).
+          It will first check the built-in `__contains__` method via `in` before
+          attempting to determine if `value` is close enough to count, albeit
+          within a very strict tolerance.
         """
-        if value in self._array:
+        if value in self:
             return True
         if value < numpy.min(self._array) or value > numpy.max(self._array):
             return False
         return numpy.any([numpy.isclose(value, self._array, atol=0.0)])
+
+    def __contains__(self, __x):
+        """Called for x in self.
+        
+        See Also
+        --------
+        array_contains
+            Perform additional containment checks beyond this method.
+        """
+        return __x in self._array
 
     _HANDLED_FUNCTIONS = {}
 
