@@ -59,7 +59,7 @@ class Interface:
         collection represents the minimal set of quantities that this observer
         can observe.
         """
-        available = aliased.KeyMap(*self.context.available)
+        available = aliased.KeyMap(*self.context.observable)
         return available.without(*self._unobservable)
 
     def __getitem__(self, __k: str):
