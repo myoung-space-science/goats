@@ -599,7 +599,7 @@ class Context(observing.Context):
         if key in self._cache['values']:
             return self._cache['values'][key]
         with contextlib.suppress(ContextKeyError):
-            val = self.compute_value(key, **self.constraints)
+            val = self.compute_value(key)
             self._cache['values'][key] = val
             return val
         return default
