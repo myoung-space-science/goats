@@ -279,12 +279,12 @@ _nucleons = {
 }
 
 def elements(
-    mass: typing.Iterable,
-    charge: typing.Iterable,
+    mass: typing.Union[int, typing.Iterable[int]],
+    charge: typing.Union[int, typing.Iterable[int]],
 ) -> typing.List[str]:
     """The elemental species symbols, based on masses and charges."""
-    _mass = numpy.array(list(iterables.whole(mass)))
-    _charge = numpy.array(list(iterables.whole(charge)))
+    _mass = numpy.array(mass, ndmin=1)
+    _charge = numpy.array(charge, ndmin=1)
     if len(_mass) != len(_charge):
         message = (
             f"Length of mass ({len(_mass)})"
