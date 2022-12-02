@@ -14,6 +14,7 @@ from goats.core import iterables
 from goats.core import measurable
 from goats.core import metric
 from goats.core import metadata
+from goats.core import utilities
 
 
 IndexLike = typing.TypeVar(
@@ -519,11 +520,12 @@ class Quantity(Array):
 
     def __eq__(self, other: typing.Any):
         """True if two instances have the same data and attributes."""
-        if not isinstance(other, type(self)):
+        if not isinstance(other, Quantity):
             return NotImplemented
-        if not self.unit == other.unit:
-            return False
-        return numpy.array_equal(other, self)
+        for name in 'unit', 'dimensions':
+            if not utilities.equal_attrs(name, self, other):
+                return False
+        return super().__eq__(other)
 
     @typing.overload
     def __getitem__(
