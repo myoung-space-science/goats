@@ -198,12 +198,12 @@ class Result(iterables.ReprStrMixin):
     @property
     def unit(self):
         """The metric unit of the observed values."""
-        return self._unit
+        return self._data.unit
 
     @property
     def dimensions(self):
         """The dimensions of the data array."""
-        return self._dimensions
+        return self._data.dimensions
 
     def __getitem__(self, __x):
         """Get context items or update the unit.
@@ -404,7 +404,7 @@ class Context(collections.abc.Collection, typing.Generic[T]):
 C = typing.TypeVar('C', bound=Context)
 
 
-class Target:
+class Target(iterables.ReprStrMixin):
     """An arbitrary observing target."""
 
     def __init__(self, name: str, unit: metadata.UnitLike=None) -> None:
@@ -427,6 +427,9 @@ class Target:
     def unit(self):
         """The metric unit of the result."""
         return self._unit
+
+    def __str__(self) -> str:
+        return f"{self.name!r} unit={str(self.unit)!r}"
 
 
 class Implementation(iterables.ReprStrMixin):
@@ -543,10 +546,8 @@ class Implementation(iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         display = [
-            f"{str(self.name)!r}",
-            f"unit={str(self.unit)!r}",
-            f"dimensions={str(self.dimensions)}",
-            f"parameters={str(self.parameters)}",
+            f"{self.target}",
+            f"{type(self._context)}",
         ]
         return ', '.join(display)
 
