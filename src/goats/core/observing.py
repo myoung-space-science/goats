@@ -3,6 +3,7 @@ import collections
 import collections.abc
 import numbers
 import operator as standard
+import types
 import typing
 
 import numpy
@@ -269,6 +270,27 @@ class Context(collections.abc.Collection, typing.Generic[T]):
         """
         self._mappings = mappings
         self._default = dict(constraints or {})
+        """Internal mapping of fixed default constraints.
+        
+        See Also
+        --------
+        constrain
+            Update or reset the user constraints.
+
+        constraints
+            The full set of observing constraints.
+        """
+        self._user = {}
+        """Internal mapping of dynamic user constraints.
+        
+        See Also
+        --------
+        constrain
+            Update or reset the user constraints.
+
+        constraints
+            The full set of observing constraints.
+        """
         self._constraints = None
         self._available = None
         self._observable = None
@@ -288,17 +310,28 @@ class Context(collections.abc.Collection, typing.Generic[T]):
         append : bool, default=false
             If true, append the new constraints to the current collection.
             Otherwise, append the new constraints to the default collection.
+
+        Notes
+        -----
+        * From an internal perspective, this method first updates or overwrites
+          the collection of user constraints, then nullifies the full collection
+          of constraints, thereby triggering a rebuild of the latter with the
+          new set of user constraints upon the next call to the `constraints`
+          property.
         """
-        if not append:
-            self._constraints = self._default.copy()
-        self._constraints.update(new)
+        if append:
+            self._user.update(new)
+        else:
+            self._user = dict(new)
+        self._constraints = None
         return self
 
     @property
     def constraints(self):
         """The current set of observing constraints."""
         if self._constraints is None:
-            self._constraints = self._default.copy()
+            constraints = {**self._default, **self._user}
+            self._constraints = types.MappingProxyType(constraints)
         return self._constraints
 
     def __contains__(self, __x: str) -> bool:
