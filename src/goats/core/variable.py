@@ -125,7 +125,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
         unwrapped = iterables.unwrap(args)
         indices = self._normalize_indices(unwrapped)
         array = numpy.array(self._get_array(indices), ndmin=self.ndim)
-        return Array(array)
+        return self._copy_with(data=array)
 
     def _normalize_indices(self, args):
         """Compute appropriate array indices from `args`.
