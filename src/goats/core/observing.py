@@ -291,6 +291,7 @@ class Context(collections.abc.Collection, typing.Generic[T]):
         constraints
             The full set of observing constraints.
         """
+        self._cache = {}
         self._constraints = None
         self._available = None
         self._observable = None
@@ -324,6 +325,7 @@ class Context(collections.abc.Collection, typing.Generic[T]):
         else:
             self._user = dict(new)
         self._constraints = None
+        self._cache = {}
         return self
 
     @property

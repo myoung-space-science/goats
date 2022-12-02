@@ -375,7 +375,6 @@ class Context(observing.Context):
         self._system = variables.system
         self._parameters = None
         self._coordinates = None
-        self._cache = {}
 
     def observe(self, name: str) -> observing.Result:
         result = self._observe(name)
