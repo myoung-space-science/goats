@@ -66,9 +66,11 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
         """
         return super().data
 
-    def __eq__(self, other):
-        # TODO
-        return super().__eq__(other)
+    def __eq__(self, other: typing.Any):
+        """True if two instances have equivalent data arrays."""
+        if not isinstance(other, Array):
+            return NotImplemented
+        return numpy.array_equal(other, self)
 
     def __len__(self):
         """Called for len(self)."""
