@@ -115,13 +115,7 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
     _builtin = (int, slice, type(...), type(None))
 
     def __getitem__(self, *args):
-        """Extract a subarray.
-        
-        Notes
-        -----
-        Using this special method to change the unit supports a simple and
-        relatively intuitive syntax but is arguably an abuse of notation.
-        """
+        """Extract a subarray."""
         unwrapped = iterables.unwrap(args)
         indices = self._normalize_indices(unwrapped)
         array = numpy.array(self._get_array(indices), ndmin=self.ndim)
