@@ -496,12 +496,19 @@ class Quantity(Array):
             )
 
     def __repr__(self) -> str:
-        attrs = [
-            f"{self.data.__class__}",
-            f"unit={str(self.unit)!r}",
+        values = numpy.array2string(
+            numpy.array(self),
+            threshold=4,
+            edgeitems=2,
+            separator=', ',
+            precision=3,
+            floatmode='maxprec_equal',
+        )
+        parts = [
             f"dimensions={self.dimensions}",
+            f"unit={str(self.unit)!r}",
         ]
-        return f"{self.__class__.__qualname__}({', '.join(attrs)})"
+        return f",\n".join([values, *parts])
 
     @property
     def unit(self):
