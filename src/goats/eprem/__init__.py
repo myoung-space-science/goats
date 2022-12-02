@@ -653,8 +653,8 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
     def __init__(
         self,
         __id: int,
-        source: iotools.PathLike=None,
         config: iotools.PathLike=None,
+        source: iotools.PathLike=None,
         system: str=None,
     ) -> None:
         self._id = __id
