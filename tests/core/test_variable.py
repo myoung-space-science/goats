@@ -12,13 +12,6 @@ from goats.core import variable
 
 
 @pytest.mark.variable
-def test_variable_display():
-    """Test the results of printing a variable."""
-    v = variable.Quantity([1.2], unit='m', dimensions=['x'])
-    assert repr(v).endswith("(<class 'list'>, unit='m', dimensions=['x'])")
-
-
-@pytest.mark.variable
 def test_variable():
     """Test the object that represents a variable."""
     v0 = variable.Quantity([3.0, 4.5], unit='m', dimensions=['x'])
@@ -416,7 +409,7 @@ def test_variable_getitem(var: typing.Dict[str, variable.Quantity]):
         assert numpy.array_equal(sliced, expected)
     assert numpy.array_equal(v[0, 0], [[1.0]])
     assert numpy.array_equal(v[0, :], [[+1.0, +2.0]])
-    assert numpy.array_equal(v[:, 0], [[+1.0, +2.0, -4.0]])
+    assert numpy.array_equal(v[:, 0], [[+1.0], [+2.0], [-4.0]])
     assert numpy.array_equal(v[:, 0:1], [[+1.0], [+2.0], [-4.0]])
     assert numpy.array_equal(v[(0, 1), :], [[+1.0, +2.0], [+2.0, -3.0]])
     expected = numpy.array([[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
