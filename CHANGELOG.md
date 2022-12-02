@@ -9,6 +9,8 @@
 - Redefine `variable.Quantity` to reduce inheritance.
 - Deprecate core/observable.py; merge `observable.Quantity` into `observing.Implementation`.
 - Redefine interface to EPREM runtime constants.
+- Fix subscription bug in `variable.Array`.
+- Redefine `variable.Quantity.__repr__` to improve readability.
 
 ## v0.0.35 (11Nov2022)
 
