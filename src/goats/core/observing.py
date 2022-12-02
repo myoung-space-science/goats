@@ -277,7 +277,7 @@ class Context(collections.abc.Collection, typing.Generic[T]):
     def observe(self, name: str) -> Result:
         """Observe the named quantity."""
 
-    def constrain(self, new: typing.Mapping, update: bool=False):
+    def constrain(self, new: typing.Mapping, append: bool=False):
         """Update the observing constraints.
         
         Parameters
@@ -285,11 +285,11 @@ class Context(collections.abc.Collection, typing.Generic[T]):
         new : mapping
             A mapping from string name to constraint value.
 
-        update : bool, default=false
-            If true, update the current constraints from `new`.
-            Otherwise, overwrite the current constraints with `new`.
+        append : bool, default=false
+            If true, append the new constraints to the current collection.
+            Otherwise, append the new constraints to the default collection.
         """
-        if not update:
+        if not append:
             self._constraints = self._default.copy()
         self._constraints.update(new)
         return self
