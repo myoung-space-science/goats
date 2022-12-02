@@ -118,8 +118,22 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
         """Extract a subarray."""
         unwrapped = iterables.unwrap(args)
         indices = self._normalize_indices(unwrapped)
+        base = self._get_array(indices)
         array = numpy.array(self._get_array(indices), ndmin=self.ndim)
-        return self._copy_with(data=array)
+        if base.ndim != self.ndim:
+            try:
+                shape = tuple(
+                    1
+                    if isinstance(v, int)
+                    else self.shape[i]
+                    for i, v in enumerate(indices)
+                )
+                result = array.reshape(shape)
+            except TypeError:
+                result = array
+        else:
+            result = array
+        return self._copy_with(data=result)
 
     def _normalize_indices(self, args):
         """Compute appropriate array indices from `args`.
