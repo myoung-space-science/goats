@@ -114,3 +114,20 @@ def setattrval(*args, **kwargs):
         setattr(obj, name, args[0])
 
 
+def equal_attrs(name: str, *objects):
+    """True if all objects have the named attribute with equal values."""
+    if len(objects) == 0:
+        raise ValueError("No objects to compare")
+    try:
+        v = getattr(objects[0], name)
+    except AttributeError:
+        return False
+    if len(objects) == 1:
+        return True
+    try:
+        truth = all(getattr(i, name) == v for i in objects[1:])
+    except AttributeError:
+        return False
+    return truth
+
+

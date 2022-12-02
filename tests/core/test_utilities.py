@@ -66,3 +66,43 @@ def test_setattrval():
             utilities.setattrval(instance, 'other', None)
 
 
+class A:
+    def __init__(self, x, y) -> None:
+        self.x = x
+        self.y = y
+class B:
+    def __init__(self, x, z) -> None:
+        self.x = x
+        self.z = z
+class C:
+    def __init__(self, x) -> None:
+        self.x = x
+        self.y = None
+
+def test_equal_attrs():
+    """Test the function that checks attribute presence and equality."""
+    true = [
+        # Trivially true for a single object
+        ['x', [A(1, 2)]],
+        ['y', [A(1, 2)]],
+        # All objects have equal `x` values
+        ['x', [A(1, 2), B(1, 2)]],
+        ['x', [A(1, 2), B(1, 2), C(1)]],
+    ]
+    false = [
+        # Not all objects have equal `x` values
+        ['x', [A(2, 2), B(1, 2)]],
+        ['x', [A(1, 2), B(1, 2), C(2)]],
+        # Not all objects have the named attribute
+        ['y', [A(1, 2), B(1, 2)]],
+        ['z', [A(1, 2), B(1, 2)]],
+        # Trivially false for a single object without the named attribute
+        ['z', [A(1, 2)]],
+    ]
+    for (name, objects) in true:
+        assert utilities.equal_attrs(name, *objects)
+    for (name, objects) in false:
+        assert not utilities.equal_attrs(name, *objects)
+    with pytest.raises(ValueError):
+        utilities.equal_attrs('x')
+
