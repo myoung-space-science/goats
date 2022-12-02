@@ -532,7 +532,8 @@ def test_interpolation(stream: eprem.Stream):
         'shell': {'linestyle': '', 'marker': 'o', 'markevery': 10},
     }
     # TODO: This should test actual values to make sure that the results at
-    # difference shells are different.
+    # different shells are different. See ./test_interpolation.png for a
+    # graphical comparison.
     time_unit = 'hour'
     data_unit = 'cm^-2 s^-1 sr^-1'
     for case in cases:
