@@ -376,7 +376,7 @@ class Target:
         self._name = name
         self._unit = metric.Unit(unit or '1')
 
-    def apply(self, context: Context) -> Result:
+    def apply(self, context: C) -> Result:
         """Observe this quantity within the given context."""
         result = context.observe(self.name)
         if self.unit:
@@ -400,7 +400,7 @@ class Implementation(iterables.ReprStrMixin):
     def __init__(
         self,
         name: str,
-        context: Context,
+        context: C,
         unit: metadata.UnitLike=None,
     ) -> None:
         """Initialize this instance.
