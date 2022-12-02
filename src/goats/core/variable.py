@@ -25,34 +25,13 @@ IndexLike = typing.TypeVar(
 IndexLike = typing.Union[typing.Iterable[int], slice, type(Ellipsis)]
 
 
-Instance = typing.TypeVar('Instance', bound='Quantity')
+Instance = typing.TypeVar('Instance', bound='Array')
 
 
-class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
-    """An quantity with a unit and dimensions."""
+class Array(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
+    """The array-like base of each variable quantity."""
 
-    @typing.overload
-    def __init__(
-        self: Instance,
-        __data: numpy.typing.ArrayLike,
-        dimensions: typing.Iterable[str]=None,
-        unit: metadata.UnitLike=None,
-    ) -> None:
-        """Create a new variable from scratch."""
-
-    @typing.overload
-    def __init__(
-        self: Instance,
-        instance: Instance,
-    ) -> None:
-        """Create a new variable from an existing variable."""
-
-    def __init__(
-        self,
-        __interface,
-        dimensions: typing.Iterable[str]=None,
-        unit: metadata.UnitLike=None,
-    ) -> None:
+    def __init__(self, __interface) -> None:
         # Initialize the parent class.
         super().__init__(
             __interface.data
@@ -75,37 +54,6 @@ class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
             typing.Iterable,
             symmetric=True
         )
-        self.meta.register('dimensions')
-        self.meta.register('unit')
-        # Sort out initialization arguments.
-        tmp = getattr(__interface, 'unit', unit or '1')
-        self._unit = metadata.Unit(tmp)
-        tmp = getattr(
-            __interface,
-            'dimensions',
-            dimensions or [f'x{i}' for i in range(self.ndim)]
-        )
-        self._dimensions = metadata.Dimensions(*tmp)
-        # Finally, check for consistency between the given dimensions and the
-        # dimensions of the data array. This must happen last because it will
-        # call properties that require the previously initialized attributes.
-        ndim = len(self.dimensions)
-        if ndim != self.ndim:
-            raise ValueError(
-                f"Number of given dimensions ({ndim})"
-                f" must equal number of array dimensions ({self.ndim})"
-            )
-        # NOTE: The use of properties above supports an argument for going back
-        # to the `Array` subclass, since that would have finished all
-        # initialization by this point.
-
-    def __repr__(self) -> str:
-        attrs = [
-            f"{self.data.__class__}",
-            f"unit={str(self.unit)!r}",
-            f"dimensions={self.dimensions}",
-        ]
-        return f"{self.__class__.__qualname__}({', '.join(attrs)})"
 
     @property
     def data(self):
@@ -118,28 +66,9 @@ class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
         """
         return super().data
 
-    @property
-    def unit(self):
-        """This quantity's metric unit."""
-        return self._unit
-
-    @property
-    def dimensions(self):
-        """The quantity's indexable dimensions."""
-        return self._dimensions
-
-    def __measure__(self):
-        """Create a measurement from this array's data and unit."""
-        # NOTE: This may produce unexpected results when `self.ndim` > 1.
-        return measurable.Measurement(self._array, self.unit)
-
-    def __eq__(self, other: typing.Any):
-        """True if two instances have the same data and attributes."""
-        if not isinstance(other, type(self)):
-            return NotImplemented
-        if not self.unit == other.unit:
-            return False
-        return numpy.array_equal(other, self)
+    def __eq__(self, other):
+        # TODO
+        return super().__eq__(other)
 
     def __len__(self):
         """Called for len(self)."""
@@ -182,94 +111,39 @@ class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
 
     _builtin = (int, slice, type(...), type(None))
 
-    @typing.overload
-    def __getitem__(
-        self: Instance,
-        unit: typing.Union[str, metric.Unit],
-    ) -> Instance: ...
-
-    @typing.overload
-    def __getitem__(
-        self: Instance,
-        *args: IndexLike,
-    ) -> Instance: ...
-
     def __getitem__(self, *args):
-        """Set a new unit or extract a subarray.
+        """Extract a subarray.
         
         Notes
         -----
         Using this special method to change the unit supports a simple and
         relatively intuitive syntax but is arguably an abuse of notation.
         """
-        if len(args) == 1 and isinstance(args[0], metadata.UnitLike):
-            return self._update_unit(args[0])
         unwrapped = iterables.unwrap(args)
-        if iterables.hastype(unwrapped, self._builtin, tuple, strict=True):
-            return self._subscript_standard(unwrapped)
-        return self._subscript_custom(unwrapped)
+        indices = self._normalize_indices(unwrapped)
+        array = numpy.array(self._get_array(indices), ndmin=self.ndim)
+        return Array(array)
 
-    def _update_unit(self, arg: metadata.UnitLike):
-        """Set the unit of this object's values.
+    def _normalize_indices(self, args):
+        """Compute appropriate array indices from `args`.
         
-        Raises
-        ------
-        ValueError
-            The proposed unit is inconsistent with this quantity. A proposed
-            unit is consistent if it has the same dimension in a known metric
-            system as the existing unit.
+        If the indices in `args` have a standard form involving slices, an
+        ellipsis, or integers (including v[:], v[...], v[i, :], v[:, j], and
+        v[i, j], where i and j are integers), this method will immediately
+        return them. Otherwise, it will extract a sequence of indices that
+        represents the original dimensions of the data.
         """
-        this = (
-            self.unit.norm[arg]
-            if str(arg).lower() in metric.SYSTEMS else arg
-        )
-        if this == self.unit:
-            # If it's the current unit, there's nothing to update.
-            return self
-        unit = metadata.Unit(this)
-        if not (self.unit | unit):
-            # The proposed unit is inconsistent with the current unit.
-            raise ValueError(
-                f"The unit {str(unit)!r} is inconsistent"
-                f" with {str(self.unit)!r}"
-            ) from None
-        # Create a copy of this instance.
-        new = self._copy_with(unit=unit)
-        # Update the new instance's internal `scale` attribute.
-        new._scale = self._scale * (unit // self._unit)
-        # Return the new instance.
-        return new
-
-    def _subscript_standard(self, indices):
-        """Perform standard array subscription.
-
-        This method handles cases involving slices, an ellipsis, or integers,
-        including v[:], v[...], v[i, :], v[:, j], and v[i, j], where i and j are
-        integers.
-        """
-        array = self._get_array(indices)
-        return Quantity(
-            numpy.array(array, ndmin=self.ndim),
-            dimensions=self.dimensions,
-            unit=self.unit,
-        )
-
-    def _subscript_custom(self, args):
-        """Perform array subscription specific to this object.
-
-        This method handles all cases that don't meet the criteria for
-        `_subscript_standard`.
-        """
+        if iterables.hastype(args, self._builtin, tuple, strict=True):
+            return args
         if not isinstance(args, (tuple, list)):
             args = [args]
         expanded = self._expand_ellipsis(args)
-        idx = [
+        indices = [
             range(self.shape[i])
             if isinstance(arg, slice) else arg
             for i, arg in enumerate(expanded)
         ]
-        indices = numpy.ix_(*list(idx))
-        return self._copy_with(data=self._get_array(indices))
+        return numpy.ix_(*list(indices))
 
     def _expand_ellipsis(
         self,
@@ -314,11 +188,11 @@ class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
         """
         out = kwargs.get('out', ())
         for x in args + out:
-            if not isinstance(x, self._HANDLED_TYPES + (Quantity,)):
+            if not isinstance(x, self._HANDLED_TYPES + (Array,)):
                 return NotImplemented
         if out:
             kwargs['out'] = tuple(
-                x._array if isinstance(x, Quantity)
+                x._array if isinstance(x, Array)
                 else x for x in out
             )
         name = ufunc.__name__
@@ -342,34 +216,15 @@ class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
 
     def _ufunc_hook(self, ufunc, *inputs):
         """Convert input arrays into arrays appropriate to `ufunc`."""
-        multiplicative = ufunc.__name__ in {'multiply', 'divide', 'true_divide'}
-        correct_type = all(isinstance(v, type(self)) for v in inputs)
-        if multiplicative and correct_type:
-            dims = self.dimensions.merge(*[v.dimensions for v in inputs])
-            tmp = {}
-            for v in inputs:
-                tmp.update(v.shape_dict)
-            full_shape = tuple(tmp[d] for d in dims)
-            indices = numpy.ix_(*[range(i) for i in full_shape])
-            arrays = []
-            for v in inputs:
-                idx = tuple(indices[dims.index(d)] for d in v.shape_dict)
-                arrays.append(v._get_array(idx))
-            return arrays
         if ufunc.__name__ == 'power':
             inputs = [
                 float(x) if isinstance(x, numbers.Real)
                 else x for x in inputs
             ]
         return tuple(
-            x._array if isinstance(x, Quantity)
+            x._array if isinstance(x, Array)
             else x for x in inputs
         )
-
-    @property
-    def shape_dict(self) -> typing.Dict[str, int]:
-        """Label and size for each axis."""
-        return dict(zip(self.dimensions, self.shape))
 
     def array_contains(self, value: numbers.Real):
         """True if `value` is in this variable quantity's array.
@@ -418,19 +273,19 @@ class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
         The initial `issubclass` check allows subclasses that don't override
         `__array_function__` to handle objects of this type.
         """
-        accepted = (Quantity, numpy.ndarray, numpy.ScalarType)
+        accepted = (Array, numpy.ndarray, numpy.ScalarType)
         if not all(issubclass(ti, accepted) for ti in types):
             return NotImplemented
         if func in self._HANDLED_FUNCTIONS:
             result = self._HANDLED_FUNCTIONS[func](*args, **kwargs)
             return self._new_from_func(result)
         args = tuple(
-            arg._array if isinstance(arg, Quantity)
+            arg._array if isinstance(arg, Array)
             else arg for arg in args
         )
         types = tuple(
             ti for ti in types
-            if not issubclass(ti, Quantity)
+            if not issubclass(ti, Array)
         )
         data = self._array
         arr = data.__array_function__(func, types, args, kwargs)
@@ -584,6 +439,167 @@ class Quantity(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
             cls._HANDLED_FUNCTIONS[numpy_function] = func
             return func
         return decorator
+
+
+Instance = typing.TypeVar('Instance', bound='Quantity')
+
+
+class Quantity(Array):
+    """An array-like quantity with a unit and dimensions."""
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        __data: numpy.typing.ArrayLike,
+        dimensions: typing.Iterable[str]=None,
+        unit: metadata.UnitLike=None,
+    ) -> None:
+        """Create a new variable from scratch."""
+
+    @typing.overload
+    def __init__(
+        self: Instance,
+        instance: Instance,
+    ) -> None:
+        """Create a new variable from an existing variable."""
+
+    def __init__(
+        self,
+        __interface,
+        dimensions: typing.Iterable[str]=None,
+        unit: metadata.UnitLike=None,
+    ) -> None:
+        # Initialize the parent class.
+        super().__init__(__interface)
+        # Initialize and register the unit.
+        tmp = getattr(__interface, 'unit', unit or '1')
+        self._unit = metadata.Unit(tmp)
+        self.meta.register('unit')
+        # Initialize and register the dimensions.
+        tmp = getattr(
+            __interface,
+            'dimensions',
+            dimensions or [f'x{i}' for i in range(self.ndim)]
+        )
+        self._dimensions = metadata.Dimensions(*tmp)
+        self.meta.register('dimensions')
+        # Check for consistency between the given dimensions and the dimensions
+        # of the data array.
+        ndim = len(self._dimensions)
+        if ndim != self.ndim:
+            raise ValueError(
+                f"Number of given dimensions ({ndim})"
+                f" must equal number of array dimensions ({self.ndim})"
+            )
+
+    def __repr__(self) -> str:
+        attrs = [
+            f"{self.data.__class__}",
+            f"unit={str(self.unit)!r}",
+            f"dimensions={self.dimensions}",
+        ]
+        return f"{self.__class__.__qualname__}({', '.join(attrs)})"
+
+    @property
+    def unit(self):
+        """This quantity's metric unit."""
+        return self._unit
+
+    @property
+    def dimensions(self):
+        """The quantity's indexable dimensions."""
+        return self._dimensions
+
+    def __measure__(self):
+        """Create a measurement from this variable's data and unit."""
+        # NOTE: This may produce unexpected results when `self.ndim` > 1.
+        return measurable.Measurement(self._array, self.unit)
+
+    def __eq__(self, other: typing.Any):
+        """True if two instances have the same data and attributes."""
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        if not self.unit == other.unit:
+            return False
+        return numpy.array_equal(other, self)
+
+    @typing.overload
+    def __getitem__(
+        self: Instance,
+        unit: typing.Union[str, metric.Unit],
+    ) -> Instance: ...
+
+    @typing.overload
+    def __getitem__(
+        self: Instance,
+        *args: IndexLike,
+    ) -> Instance: ...
+
+    def __getitem__(self, *args):
+        """Set a new unit or extract a subarray.
+        
+        Notes
+        -----
+        Using this special method to change the unit supports a simple and
+        relatively intuitive syntax but is arguably an abuse of notation.
+        """
+        if len(args) == 1 and isinstance(args[0], metadata.UnitLike):
+            return self._update_unit(args[0])
+        return self._copy_with(data=super().__getitem__(*args))
+
+    def _update_unit(self, arg: metadata.UnitLike):
+        """Set the unit of this object's values.
+        
+        Raises
+        ------
+        ValueError
+            The proposed unit is inconsistent with this quantity. A proposed
+            unit is consistent if it has the same dimension in a known metric
+            system as the existing unit.
+        """
+        this = (
+            self.unit.norm[arg]
+            if str(arg).lower() in metric.SYSTEMS else arg
+        )
+        if this == self.unit:
+            # If it's the current unit, there's nothing to update.
+            return self
+        unit = metadata.Unit(this)
+        if not (self.unit | unit):
+            # The proposed unit is inconsistent with the current unit.
+            raise ValueError(
+                f"The unit {str(unit)!r} is inconsistent"
+                f" with {str(self.unit)!r}"
+            ) from None
+        # Create a copy of this instance.
+        new = self._copy_with(unit=unit)
+        # Update the new instance's internal `scale` attribute.
+        new._scale = self._scale * (unit // self._unit)
+        # Return the new instance.
+        return new
+
+    def _ufunc_hook(self, ufunc, *inputs):
+        """Convert input arrays into arrays appropriate to `ufunc`."""
+        multiplicative = ufunc.__name__ in {'multiply', 'divide', 'true_divide'}
+        correct_type = all(isinstance(v, type(self)) for v in inputs)
+        if multiplicative and correct_type:
+            dims = self.dimensions.merge(*[v.dimensions for v in inputs])
+            tmp = {}
+            for v in inputs:
+                tmp.update(v.shape_dict)
+            full_shape = tuple(tmp[d] for d in dims)
+            indices = numpy.ix_(*[range(i) for i in full_shape])
+            arrays = []
+            for v in inputs:
+                idx = tuple(indices[dims.index(d)] for d in v.shape_dict)
+                arrays.append(v._get_array(idx))
+            return arrays
+        return super()._ufunc_hook(ufunc, *inputs)
+
+    @property
+    def shape_dict(self) -> typing.Dict[str, int]:
+        """Label and size for each axis."""
+        return dict(zip(self.dimensions, self.shape))
 
 
 @Quantity.implements(numpy.squeeze)
