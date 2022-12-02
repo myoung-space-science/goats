@@ -414,18 +414,6 @@ class Context(observing.Context):
                 q0 *= result ** term.exponent
         return q0
 
-    def evaluate(self, q) -> observing.Quantity:
-        """Create an observing quantity based on the given quantity."""
-        if isinstance(q, computed.Quantity):
-            parameters = [
-                parameter for parameter in q.parameters
-                if parameter in self.parameters
-            ]
-            return observing.Quantity(self.compute(q), parameters=parameters)
-        if isinstance(q, variable.Quantity):
-            return observing.Quantity(self.process(q))
-        raise ValueError(f"Unknown quantity: {q!r}") from None
-
     def compute(self, q: computed.Quantity) -> variable.Quantity:
         """Determine dependencies and compute the result of this function."""
         dependencies = {p: self.get_dependency(p) for p in q.parameters}
