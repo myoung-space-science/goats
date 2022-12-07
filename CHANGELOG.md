@@ -2,6 +2,8 @@
 
 ## NEXT
 
+## v0.0.36 (07Dec2022)
+
 - Refactor observing framework. Observers must define a concrete implementation of the abstract base class `observing.Context`.
 - Allow user to create EPREM observers without explicit paths; source and config paths are required at the time of observation.
 - Rename 'axes' to 'dimensions' in regard to variable quantities.
