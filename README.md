@@ -10,18 +10,7 @@ The Generalized Observer Analysis Tool Set (GOATS) is a collection of objects th
 $ pip install goats
 ```
 
-## Usage
-
-Before getting started, let's make sure we know which version we're using.
-
-
-```python
-import goats
-print(goats.__version__)
-```
-
-    0.0.32
-
+## Usage Example: EPREM
 
 The first thing we'll do is import the packages we need.
 
@@ -54,7 +43,7 @@ We can request the value of simulation runtime parameters by aliased keyword. Fo
 print(stream['lambda0'])
 ```
 
-    'lamo | lambda0 | lam0': [1.] [au]
+    'lamo | lam0 | lambda0': [1.] [au]
 
 
 The text tells us that this simulation run used a value of 1.0 au (astronomical unit) for this parameter. It also suggests that we could have requested this value by the keywords 'lamo' or 'lam0'.
@@ -65,8 +54,8 @@ print(stream['lamo'])
 print(stream['lam0'])
 ```
 
-    'lamo | lambda0 | lam0': [1.] [au]
-    'lamo | lambda0 | lam0': [1.] [au]
+    'lamo | lam0 | lambda0': [1.] [au]
+    'lamo | lam0 | lambda0': [1.] [au]
 
 
 We can also request observable quantities by aliased keyword. Here is the radial velocity.
@@ -77,7 +66,7 @@ vr = stream['Vr']
 print(vr)
 ```
 
-    'Vr | vr', unit='m s^-1', axes=['time', 'shell']
+    'Vr' unit='m s^-1', <class 'goats.eprem.Context'>
 
 
 The text tells us that the radial velocity output array has a time axis and a shell axis. EPREM shells are logical surface of nodes in the Lagrangian grid. Each shell index along a given stream represents one node. We can observe radial velocity at a single time (e.g., 1 hour of real time since simulation start) on a single node as follows:
@@ -91,7 +80,7 @@ vr.observe(time=t0, shell=1000)
 
 
 
-    core.observed.Quantity('Vr | vr': unit='m s^-1', dimensions=['time', 'shell'], parameters=[])
+    core.observing.Result(unit='m s^-1', dimensions=['time', 'shell'], parameters=[])
 
 
 
@@ -108,8 +97,7 @@ Now that we have an observation of the radial velocity at 0.1 au as a function o
 
 
 ```python
-time = observed['time']['hour']
-data = observed.data['km / s']
+time = observed['time']
 ```
 
 Next, we'll make sure there's a `figures` directory (to avoid cluttering the current directory) and load the plotting library.
@@ -124,7 +112,7 @@ Finally, we'll create and save the plot.
 
 
 ```python
-plt.plot(time, data)
+plt.plot(time['hour'], observed['km / s'].array)
 plt.xlabel('Time [hours]')
 plt.ylabel('Vr [km/s]')
 plt.savefig(figpath / 'vr-hours.png')
@@ -132,7 +120,7 @@ plt.savefig(figpath / 'vr-hours.png')
 
 
     
-![png](readme_files/readme_22_0.png)
+![png](readme_files/readme_24_0.png)
     
 
 
@@ -156,7 +144,7 @@ stream['flux']
 
 
 
-    core.observable.Quantity('J | Flux | j | j(E) | J(E) | flux', unit='J^-1 s^-1 sr^-1 m^-2', axes=['time', 'shell', 'species', 'energy'])
+    core.observing.Implementation('flux' unit='J^-1 s^-1 sr^-1 m^-2', <class 'goats.eprem.Context'>)
 
 
 
@@ -168,7 +156,7 @@ stream['mean free path']
 
 
 
-    core.observable.Quantity('mean free path | mean_free_path | mfp', unit='m', axes=['time', 'shell', 'species', 'energy'])
+    core.observing.Implementation('mean free path' unit='m', <class 'goats.eprem.Context'>)
 
 
 
@@ -182,7 +170,7 @@ stream['mfp / Vr']
 
 
 
-    core.observable.Quantity('mfp / Vr', unit='s', axes=['time', 'shell', 'species', 'energy'])
+    core.observing.Implementation('mfp / Vr' unit='s', <class 'goats.eprem.Context'>)
 
 
 
@@ -194,7 +182,7 @@ stream['rho * energy']
 
 
 
-    core.observable.Quantity('rho * energy', unit='kg m^-1 s^-2', axes=['species', 'energy', 'time', 'shell'])
+    core.observing.Implementation('rho * energy' unit='kg m^-1 s^-2', <class 'goats.eprem.Context'>)
 
 
 
@@ -216,7 +204,7 @@ plt.savefig(figpath / 'mfp_vr-hours.png')
 
 
     
-![png](readme_files/readme_32_0.png)
+![png](readme_files/readme_34_0.png)
     
 
 
