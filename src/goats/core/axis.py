@@ -51,6 +51,29 @@ class Indexer(iterables.ReprStrMixin):
         return f"{self._method.__qualname__}, size={self.size}"
 
 
+class IndexTypeError(Exception):
+    """Invalid index argument."""
+
+
+def indexer(n: int):
+    """Create an instance of the default axis-indexer."""
+    def method(targets):
+        try:
+            indices = [int(arg) for arg in targets]
+            if all(0 <= idx < n for idx in indices):
+                return index.Data(indices)
+        except TypeError as err:
+            raise IndexTypeError(
+                f"Can't convert {targets!r} to integer indices."
+            ) from err
+        raise ValueError(
+            f"One or more index in {targets} is outside the interval"
+            f" [0, {n-1}]"
+        ) from None
+    method.__qualname__ = "default"
+    return Indexer(method, n)
+
+
 Instance = typing.TypeVar('Instance', bound='Quantity')
 
 
