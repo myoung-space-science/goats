@@ -107,7 +107,7 @@ class Quantity(collections.abc.Sequence):
         parts = [values]
         if self.unit:
             parts.append(f"unit={str(self.unit)!r}")
-        string = ', '.join([values, *parts])
+        string = ', '.join(parts)
         return f"{prefix}{string}{suffix}"
 
 
