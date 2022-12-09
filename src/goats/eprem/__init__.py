@@ -370,9 +370,9 @@ class Context(observing.Context):
         self._parameters = None
         self._coordinates = None
 
-    def observe(self, name: str) -> observing.Result:
+    def observe(self, name: str) -> observing.Observation:
         result = self._observe(name)
-        return observing.Result(
+        return observing.Observation(
             result,
             indices={k: self.get_index(k) for k in result.dimensions},
             assumptions={k: self.get_value(k) for k in result.parameters},

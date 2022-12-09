@@ -410,7 +410,7 @@ def test_create_observation(
     """Create the default observation from each observable quantity."""
     for name, expected in observables.items():
         observation = stream[name].observe()
-        assert isinstance(observation, observing.Result)
+        assert isinstance(observation, observing.Observation)
         for axis in expected['axes']:
             assert isinstance(observation[axis], physical.Array), axis
 

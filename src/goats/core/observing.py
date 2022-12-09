@@ -125,7 +125,7 @@ class Quantity(variable.Quantity):
         return self._parameters
 
 
-class Result(iterables.ReprStrMixin):
+class Observation(iterables.ReprStrMixin):
     """A general observing result.
     
     An instance of this class represents the observation of a named observable
@@ -296,7 +296,7 @@ class Context(collections.abc.Collection, typing.Generic[T]):
         self._observable = None
 
     @abc.abstractmethod
-    def observe(self, name: str) -> Result:
+    def observe(self, name: str) -> Observation:
         """Observe the named quantity."""
 
     def constrain(self, new: typing.Mapping, append: bool=False):
@@ -410,7 +410,7 @@ class Target(iterables.ReprStrMixin):
         self._name = name
         self._unit = metric.Unit(unit or '1')
 
-    def apply(self, context: C) -> Result:
+    def apply(self, context: C) -> Observation:
         """Observe this quantity within the given context."""
         result = context.observe(self.name)
         if self.unit:
