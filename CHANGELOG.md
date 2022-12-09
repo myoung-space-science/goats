@@ -2,6 +2,8 @@
 
 ## NEXT
 
+- Restrict NumPy version to "<1.23" due to bug when running ufuncs on metadata attributes.
+
 ## v0.0.36 (07Dec2022)
 
 - Refactor observing framework. Observers must define a concrete implementation of the abstract base class `observing.Context`.
