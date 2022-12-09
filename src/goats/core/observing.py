@@ -431,7 +431,7 @@ class Target(iterables.ReprStrMixin):
         return f"{self.name!r} unit={str(self.unit)!r}"
 
 
-class Implementation(iterables.ReprStrMixin):
+class Implementation:
     """An arbitrary observable quantity."""
 
     def __init__(
@@ -543,10 +543,15 @@ class Implementation(iterables.ReprStrMixin):
             )
         return NotImplemented
 
+    def __repr__(self) -> str:
+        """An unambiguous representation of this object."""
+        return f"{self.__class__.__qualname__}({self})"
+
     def __str__(self) -> str:
+        """A simplified representation of this object."""
         display = [
-            f"{self.target}",
-            f"{type(self._context)}",
+            f"{self.name!r}",
+            f"unit={str(self.unit)!r}",
         ]
         return ', '.join(display)
 
