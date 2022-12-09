@@ -398,7 +398,7 @@ def test_quantity_access(
     for name, it_is in quantities.items():
         quantity = stream[name]
         if it_is['observable']:
-            assert isinstance(quantity, observing.Implementation), name
+            assert isinstance(quantity, observing.Observable), name
         else:
             assert isinstance(quantity, variable.Quantity), name
 

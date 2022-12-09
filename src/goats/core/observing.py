@@ -431,8 +431,8 @@ class Target(iterables.ReprStrMixin):
         return f"{self.name!r} unit={str(self.unit)!r}"
 
 
-class Implementation:
-    """An arbitrary observable quantity."""
+class Observable:
+    """The implementation of an arbitrary observable quantity."""
 
     def __init__(
         self,
@@ -500,7 +500,7 @@ class Implementation:
         self._target = None
         if unit == self._unit:
             return self
-        return Implementation(self.name, self._context, unit=unit)
+        return Observable(self.name, self._context, unit=unit)
 
     @property
     def unit(self):
@@ -536,7 +536,7 @@ class Implementation:
 
     def __eq__(self, __o) -> bool:
         """True if two instances have equivalent attributes."""
-        if isinstance(__o, Implementation):
+        if isinstance(__o, Observable):
             return all(
                 getattr(self, attr) == getattr(__o, attr)
                 for attr in self._checkable

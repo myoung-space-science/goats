@@ -65,7 +65,7 @@ class Interface:
     def __getitem__(self, __k: str):
         """Access an observable quantity by keyword, if possible."""
         if self.observes(__k):
-            return observing.Implementation(__k, self.context)
+            return observing.Observable(__k, self.context)
         if __k in self.context:
             return self.context.get_quantity(__k)
         self._check_spelling(__k) # -> None if `__k` is spelled correctly
