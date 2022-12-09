@@ -12,6 +12,8 @@ $ pip install goats
 
 ## Usage Example: EPREM
 
+The [Energetic Particle Radiation Environment Module](https://github.com/myoung-space-science/eprem) (EPREM) simulates acceleration and transport of energetic particles throughout the heliosphere by modeling the focused transport equation on a Lagragian grid in the frame co-moving with the solar wind. It was the primary motivation for developing this package.
+
 The first thing we'll do is import the packages we need.
 
 * `pathlib` is the built-in package for working with system paths  
@@ -43,7 +45,7 @@ We can request the value of simulation runtime parameters by aliased keyword. Fo
 print(stream['lambda0'])
 ```
 
-    'lamo | lam0 | lambda0': [1.] [au]
+    'lambda0 | lamo | lam0': [1.] [au]
 
 
 The text tells us that this simulation run used a value of 1.0 au (astronomical unit) for this parameter. It also suggests that we could have requested this value by the keywords 'lamo' or 'lam0'.
@@ -54,8 +56,8 @@ print(stream['lamo'])
 print(stream['lam0'])
 ```
 
-    'lamo | lam0 | lambda0': [1.] [au]
-    'lamo | lam0 | lambda0': [1.] [au]
+    'lambda0 | lamo | lam0': [1.] [au]
+    'lambda0 | lamo | lam0': [1.] [au]
 
 
 We can also request observable quantities by aliased keyword. Here is the radial velocity.
@@ -120,7 +122,7 @@ plt.savefig(figpath / 'vr-hours.png')
 
 
     
-![png](readme_files/readme_24_0.png)
+![png](readme_files/readme_25_0.png)
     
 
 
@@ -204,7 +206,7 @@ plt.savefig(figpath / 'mfp_vr-hours.png')
 
 
     
-![png](readme_files/readme_34_0.png)
+![png](readme_files/readme_35_0.png)
     
 
 
