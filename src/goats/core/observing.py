@@ -125,7 +125,7 @@ class Quantity(variable.Quantity):
         return self._parameters
 
 
-class Observation(iterables.ReprStrMixin):
+class Observation:
     """A general observing result.
     
     An instance of this class represents the observation of a named observable
@@ -234,14 +234,16 @@ class Observation(iterables.ReprStrMixin):
             )
         return NotImplemented
 
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        attrs = [
+    def __repr__(self) -> str:
+        """An unambiguous representation of this object."""
+        display = [
             f"unit={str(self.unit)!r}",
             f"dimensions={self.dimensions}",
-            f"parameters={self.parameters}",
         ]
-        return ', '.join(attrs)
+        if self.parameters:
+            display.append(f"parameters={self.parameters}")
+        string = ', '.join(display)
+        return f"{self.__class__.__qualname__}({string})"
 
 
 class Context(collections.abc.Collection, typing.Generic[T]):
