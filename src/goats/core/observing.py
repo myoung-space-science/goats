@@ -545,13 +545,10 @@ class Observable:
 
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
-        return f"{self.__class__.__qualname__}({self})"
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
         display = [
             f"{self.name!r}",
             f"unit={str(self.unit)!r}",
         ]
-        return ', '.join(display)
+        string = ', '.join(display)
+        return f"{self.__class__.__qualname__}({string})"
 
