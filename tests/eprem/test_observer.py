@@ -359,6 +359,29 @@ def test_create_stream(rootpath: pathlib.Path):
     if testdir.resolve() != pathlib.Path.cwd():
         testdir.rmdir()
     # from only ID
+    dirname = 'local-data'
+    testdir = pathlib.Path(dirname)
+    if testdir.resolve() != pathlib.Path.cwd():
+        testdir.mkdir()
+    testdata = pathlib.Path(shutil.copy(datapath, dirname)).resolve()
+    assert testdata.parent == pathlib.Path.cwd() / dirname
+    testconf = pathlib.Path(shutil.copy(confpath, dirname)).resolve()
+    assert testconf.parent == pathlib.Path.cwd() / dirname
+    stream = eprem.Stream(0)
+    assert isinstance(stream, observer.Interface)
+    assert stream.datapath == None
+    assert stream.confpath == None
+    stream.update(source=dirname)
+    assert stream.datapath == testdata
+    assert stream.confpath == None
+    stream.update(config='eprem_input_file')
+    assert stream.datapath == testdata
+    assert stream.confpath == testconf
+    testdata.unlink()
+    testconf.unlink()
+    if testdir.resolve() != pathlib.Path.cwd():
+        testdir.rmdir()
+    # from local directory
     dirname = '.'
     testdata = pathlib.Path(shutil.copy(datapath, dirname)).resolve()
     assert testdata.parent == pathlib.Path.cwd() / dirname

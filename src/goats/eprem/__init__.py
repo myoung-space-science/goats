@@ -652,8 +652,6 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         system: str=None,
     ) -> None:
         self._id = __id
-        # Consider also allowing `source` to be null, thereby only associating
-        # an instance with its ID.
         self._source = source or pathlib.Path.cwd()
         self._config = config
         self._system = system or 'mks'
@@ -681,8 +679,8 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
             The path to a new EPREM configuration file from which to extract
             simulation runtime parameter arguments.
         """
-        if source or config:
-            context = self._build_context(source=source, config=config)
+        context = self._build_context(source=source, config=config)
+        if context:
             self._variables = context.variables
             self._axes = context.axes
             return super().update(context)
@@ -696,11 +694,12 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         if source:
             self._source = source
             self._datapath = None
-        dataset = datafile.Interface(self.datapath)
-        variables = Variables(dataset, system=system or 'mks')
-        axes = Axes(dataset, system=system or 'mks')
-        constants = runtime.Interface(self.confpath)
-        return Context(variables, axes, constants)
+        if self.datapath and self.confpath:
+            dataset = datafile.Interface(self.datapath)
+            variables = Variables(dataset, system=system or 'mks')
+            axes = Axes(dataset, system=system or 'mks')
+            constants = runtime.Interface(self.confpath)
+            return Context(variables, axes, constants)
 
     @property
     def confpath(self) -> iotools.ReadOnlyPath:
@@ -740,25 +739,25 @@ class Observer(observer.Interface, iterables.ReprStrMixin):
         return self._datapath
 
     def _build_datapath(self):
-        """Build the path to this observer's dataset."""
+        """Build the path to this observer's dataset, if possible."""
         # If the user hasn't supplied a path, there's nothing to do.
         if self._source is None:
             return
         # Expand and resolve the current data source.
         this = iotools.ReadOnlyPath(self._source or '.')
-        if this.is_dir():
-            # The current data source is a directory.
-            path = iotools.find_file_by_template(
-                self._templates,
-                self._id,
-                directory=this,
-            )
-            with contextlib.suppress(TypeError):
-                return iotools.ReadOnlyPath(path)
-        # We couldn't create a valid data path for some reason.
-        raise TypeError(
-            f"Can't create path to dataset from {self._source!r}"
-        ) from None
+        if not this.is_dir():
+            # We can't create a valid path.
+            raise TypeError(
+                f"Can't create path to dataset from {this!r}"
+            ) from None
+        # The current data source is a directory.
+        path = iotools.find_file_by_template(
+            self._templates,
+            self._id,
+            directory=this,
+        )
+        with contextlib.suppress(TypeError):
+            return iotools.ReadOnlyPath(path)
 
     @property
     def radius(self):
