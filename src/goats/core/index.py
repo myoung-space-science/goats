@@ -52,7 +52,7 @@ class Quantity(collections.abc.Sequence):
             self._values = tuple(__data.values)
         else:
             self._values = __data.values
-        self._name = metadata.Name(meta.get('name', '<anonymous>'))
+        self._dimension = metadata.Name(meta.get('dimension', '<anonymous>'))
         unit = meta.get('unit')
         self._unit = metadata.Unit(unit) if unit else None
 
@@ -72,9 +72,9 @@ class Quantity(collections.abc.Sequence):
         return self._values
 
     @property
-    def name(self):
+    def dimension(self):
         """The name of the axis that these indices represent."""
-        return self._name
+        return self._dimension
 
     @property
     def unit(self):
@@ -112,7 +112,7 @@ class Quantity(collections.abc.Sequence):
             suffix=suffix,
         )
         parts = []
-        for key in ('name', 'unit'):
+        for key in ('dimension', 'unit'):
             if v := getattr(self, key, None):
                 parts.append(f'{key}={str(v)!r}')
         string = ', '.join([values, *parts])
@@ -142,7 +142,11 @@ class Array(Quantity):
     def __init__(self, arg, **meta) -> None:
         if not meta and isinstance(arg, Quantity):
             data = Data(arg._points, values=arg.values)
-            return super().__init__(data, name=arg.name, unit=arg.unit)
+            return super().__init__(
+                data,
+                dimension=arg.dimension,
+                unit=arg.unit,
+            )
         super().__init__(arg, **meta)
 
     def __array__(self, *args, **kwargs):
@@ -187,7 +191,7 @@ class Array(Quantity):
             return type(self)(
                 Data(self._points, values=values),
                 unit=new,
-                name=self.name,
+                dimension=self.dimension,
             )
         raise ValueError(
             f"The unit {str(unit)!r} is inconsistent with {str(self.unit)!r}"
