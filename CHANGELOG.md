@@ -3,6 +3,12 @@
 ## NEXT
 
 - Restrict NumPy version to "<1.23" due to bug when running ufuncs on metadata attributes.
+- Remove names from `axis.Quantity` and `index.Quantity`.
+- Extract `axis.indexer` helper function.
+- Remove `axis.Interface`. Observers should define their own interface to dataset axes. If it becomes clear that there is a lot of commonality among axis interfaces, we will consider defining a new base class.
+- Rename classes in core/observing.py:
+  - `Implementation` -> `Observable`
+  - `Result` -> `Observation`
 
 ## v0.0.36 (07Dec2022)
 
