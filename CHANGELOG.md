@@ -9,6 +9,7 @@
 - Rename classes in core/observing.py:
   - `Implementation` -> `Observable`
   - `Result` -> `Observation`
+- Further improve EPREM observer path handling
 
 ## v0.0.36 (07Dec2022)
 
