@@ -15,22 +15,6 @@ from goats.core import variable
 T = typing.TypeVar('T')
 
 
-class Metadata(collections.UserDict):
-    """Metadata attributes relevant to a dataset axis."""
-
-    def __init__(
-        self,
-        name: typing.Union[str, typing.Iterable[str]]=None,
-        unit: typing.Union[str, metric.Unit]=None,
-    ) -> None:
-        attrs = {}
-        if name is not None:
-            attrs['name'] = metadata.Name(name)
-        if unit is not None:
-            attrs['unit'] = metadata.Unit(unit)
-        super().__init__(attrs)
-
-
 class Indexer(iterables.ReprStrMixin):
     """An object that computes axis indices from user values."""
 
@@ -74,7 +58,11 @@ class Quantity(iterables.ReprStrMixin):
     """A callable representation of a dataset axis."""
 
     @typing.overload
-    def __init__(self, __computer: Indexer, **meta) -> None:
+    def __init__(
+        self,
+        __computer: Indexer,
+        unit: typing.Union[str, metric.Unit]=None,
+    ) -> None:
         """Create a new axis from scratch."""
 
     @typing.overload
@@ -87,20 +75,15 @@ class Quantity(iterables.ReprStrMixin):
             return __a
         return super().__new__(cls)
 
-    def __init__(self, __a: Indexer, **meta) -> None:
+    def __init__(self, __a: Indexer, unit=None) -> None:
         self._indexer = __a
-        self._meta = meta
+        self._unit = metadata.Unit(unit) if unit else None
         self._reference = None
-
-    @property
-    def name(self) -> metadata.Name:
-        """The name of this axis."""
-        return self._meta.get('name')
 
     @property
     def unit(self) -> metadata.Unit:
         """The unit of this axis's values."""
-        return self._meta.get('unit')
+        return self._unit
 
     @property
     def reference(self):
@@ -115,10 +98,9 @@ class Quantity(iterables.ReprStrMixin):
         unit = kwargs.pop('unit', self.unit)
         if unit:
             data = self._indexer.compute(targets, unit, **kwargs)
-            meta = {**self._meta, 'unit': unit}
-            return index.Quantity(data, **meta)
+            return index.Quantity(data, unit=unit)
         data = self._indexer.compute(targets, **kwargs)
-        return index.Quantity(data, **self._meta)
+        return index.Quantity(data, unit=unit)
 
     # NOTE: The following unit-related logic includes significant overlap with
     # `measurable.Quantity`.
@@ -152,14 +134,14 @@ class Quantity(iterables.ReprStrMixin):
             return self
         new = metadata.Unit(unit)
         if self.unit | new:
-            return type(self)(self._indexer, unit=new, name=self.name)
+            return type(self)(self._indexer, unit=new)
         raise ValueError(
             f"The unit {str(unit)!r} is inconsistent with {str(self.unit)!r}"
         ) from None
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        return ', '.join(f"{k}={str(v)!r}" for k, v in self._meta.items())
+        return f"{self._indexer}, unit={str(self.unit)!r}"
 
 
 class IndexTypeError(Exception):
@@ -207,8 +189,12 @@ class Interface(aliased.MutableMapping):
             raise KeyError(
                 f"No known indexing method for {__k}"
             ) from err
-        meta = self.get_metadata(__k)
-        return Quantity(method, **meta)
+        name = reference.NAMES.get(__k, __k)
+        try:
+            unit = self.variables[__k].unit
+        except KeyError:
+            unit = None
+        return Quantity(method, unit=unit)
 
     def _get_indexer(self, key: str):
         """Get the axis indexer for `key`, or use the default."""
@@ -233,15 +219,6 @@ class Interface(aliased.MutableMapping):
                 " [0, {n-1}]"
             ) from None
         return Indexer(method, n)
-
-    def get_metadata(self, key: str):
-        """Get metadata attributes corresponding to `key`."""
-        name = reference.NAMES.get(key, key)
-        try:
-            unit = self.variables[key].unit
-        except KeyError:
-            unit = None
-        return Metadata(name=name, unit=unit)
 
     def resolve(
         self,

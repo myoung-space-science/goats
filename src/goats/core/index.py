@@ -43,7 +43,7 @@ class Quantity(collections.abc.Sequence):
     def __init__(
         self,
         __data: Data,
-        **meta,
+        unit: typing.Union[str, metric.Unit]=None,
     ) -> None:
         self._points = __data.points
         try:
@@ -52,8 +52,6 @@ class Quantity(collections.abc.Sequence):
             self._values = tuple(__data.values)
         else:
             self._values = __data.values
-        self._dimension = metadata.Name(meta.get('dimension', '<anonymous>'))
-        unit = meta.get('unit')
         self._unit = metadata.Unit(unit) if unit else None
 
     def __getitem__(self, __i: typing.SupportsIndex):
@@ -70,11 +68,6 @@ class Quantity(collections.abc.Sequence):
     def values(self):
         """The axis value at each index."""
         return self._values
-
-    @property
-    def dimension(self):
-        """The name of the axis that these indices represent."""
-        return self._dimension
 
     @property
     def unit(self):
@@ -111,10 +104,9 @@ class Quantity(collections.abc.Sequence):
             prefix=prefix,
             suffix=suffix,
         )
-        parts = []
-        for key in ('dimension', 'unit'):
-            if v := getattr(self, key, None):
-                parts.append(f'{key}={str(v)!r}')
+        parts = [values]
+        if self.unit:
+            parts.append(f"unit={str(self.unit)!r}")
         string = ', '.join([values, *parts])
         return f"{prefix}{string}{suffix}"
 
@@ -144,7 +136,6 @@ class Array(Quantity):
             data = Data(arg._points, values=arg.values)
             return super().__init__(
                 data,
-                dimension=arg.dimension,
                 unit=arg.unit,
             )
         super().__init__(arg, **meta)
@@ -191,7 +182,6 @@ class Array(Quantity):
             return type(self)(
                 Data(self._points, values=values),
                 unit=new,
-                dimension=self.dimension,
             )
         raise ValueError(
             f"The unit {str(unit)!r} is inconsistent with {str(self.unit)!r}"

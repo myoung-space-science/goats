@@ -119,20 +119,14 @@ class Axes(aliased.Mapping):
         """Get the named axis object, if possible."""
         if __k in self.keys():
             method = super().__getitem__(__k)
-            meta = self.get_metadata(__k)
-            return axis.Quantity(method, **meta)
+            try:
+                unit = self.variables[__k].unit
+            except KeyError:
+                unit = None
+            return axis.Quantity(method, unit=unit)
         raise KeyError(
             f"No known indexing method for {__k}"
         ) from None
-
-    def get_metadata(self, key: str):
-        """Get metadata attributes corresponding to `key`."""
-        name = reference.NAMES.get(key, key)
-        try:
-            unit = self.variables[key].unit
-        except KeyError:
-            unit = None
-        return axis.Metadata(name=name, unit=unit)
 
     def resolve(
         self,

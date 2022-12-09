@@ -148,7 +148,6 @@ class Result(iterables.ReprStrMixin):
             k: physical.Array( # <- eventually want an `axis.Array` class
                 index.values,
                 unit=index.unit,
-                name=index.dimension,
             )
             for k, index in items
             # HACK: This handles cases in which a function added a
