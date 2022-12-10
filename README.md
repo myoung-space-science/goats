@@ -2,7 +2,7 @@
 
 A set of tools for analyzing heliophysical datasets
 
-The Generalized Observer Analysis Tool Set (GOATS) is a collection of objects that support interactive and scripted analysis of simulated and observed data in heliophysics.
+The Generalized Observing Application Tool Suite (GOATS) is a collection of objects that support interactive and scripted analysis of simulated and observed data in heliophysics.
 
 ## Installation
 
@@ -45,7 +45,7 @@ We can request the value of simulation runtime parameters by aliased keyword. Fo
 print(stream['lambda0'])
 ```
 
-    'lambda0 | lamo | lam0': [1.] [au]
+    'lam0 | lambda0 | lamo': [1.] [au]
 
 
 The text tells us that this simulation run used a value of 1.0 au (astronomical unit) for this parameter. It also suggests that we could have requested this value by the keywords 'lamo' or 'lam0'.
@@ -56,8 +56,8 @@ print(stream['lamo'])
 print(stream['lam0'])
 ```
 
-    'lambda0 | lamo | lam0': [1.] [au]
-    'lambda0 | lamo | lam0': [1.] [au]
+    'lam0 | lambda0 | lamo': [1.] [au]
+    'lam0 | lambda0 | lamo': [1.] [au]
 
 
 We can also request observable quantities by aliased keyword. Here is the radial velocity.
@@ -68,7 +68,7 @@ vr = stream['Vr']
 print(vr)
 ```
 
-    'Vr' unit='m s^-1', <class 'goats.eprem.Context'>
+    Observable('Vr', unit='m s^-1')
 
 
 The text tells us that the radial velocity output array has a time axis and a shell axis. EPREM shells are logical surface of nodes in the Lagrangian grid. Each shell index along a given stream represents one node. We can observe radial velocity at a single time (e.g., 1 hour of real time since simulation start) on a single node as follows:
@@ -82,7 +82,7 @@ vr.observe(time=t0, shell=1000)
 
 
 
-    core.observing.Result(unit='m s^-1', dimensions=['time', 'shell'], parameters=[])
+    Observation(unit='m s^-1', dimensions=['time', 'shell'])
 
 
 
@@ -146,7 +146,7 @@ stream['flux']
 
 
 
-    core.observing.Implementation('flux' unit='J^-1 s^-1 sr^-1 m^-2', <class 'goats.eprem.Context'>)
+    Observable('flux', unit='J^-1 s^-1 sr^-1 m^-2')
 
 
 
@@ -158,7 +158,7 @@ stream['mean free path']
 
 
 
-    core.observing.Implementation('mean free path' unit='m', <class 'goats.eprem.Context'>)
+    Observable('mean free path', unit='m')
 
 
 
@@ -172,7 +172,7 @@ stream['mfp / Vr']
 
 
 
-    core.observing.Implementation('mfp / Vr' unit='s', <class 'goats.eprem.Context'>)
+    Observable('mfp / Vr', unit='s')
 
 
 
@@ -184,7 +184,7 @@ stream['rho * energy']
 
 
 
-    core.observing.Implementation('rho * energy' unit='kg m^-1 s^-2', <class 'goats.eprem.Context'>)
+    Observable('rho * energy', unit='kg m^-1 s^-2')
 
 
 

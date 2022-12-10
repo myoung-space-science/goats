@@ -2,7 +2,7 @@
 GOATS
 =====
 
-Generalized Observer Analysis Tool Set
+The Generalized Observing Application Tool Suite
 """
 
 # read version from installed package
