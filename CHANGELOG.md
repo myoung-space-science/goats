@@ -9,7 +9,8 @@
 - Rename classes in core/observing.py:
   - `Implementation` -> `Observable`
   - `Result` -> `Observation`
-- Further improve EPREM observer path handling
+- Further improve EPREM observer path handling.
+- Rename package to Generalized Observing Application Tool Suite.
 
 ## v0.0.36 (07Dec2022)
 
