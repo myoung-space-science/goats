@@ -2,6 +2,8 @@
 
 ## NEXT
 
+## v0.1.0
+
 - Restrict NumPy version to "<1.23" due to bug when running ufuncs on metadata attributes.
 - Remove names from `axis.Quantity` and `index.Quantity`.
 - Extract `axis.indexer` helper function.
