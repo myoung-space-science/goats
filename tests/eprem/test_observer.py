@@ -583,6 +583,20 @@ def test_interpolation(stream: eprem.Stream):
     plt.close()
 
 
+def test_interpolation_extrema(stream: eprem.Stream):
+    """Test interpolation when the value is outside the reference array."""
+    flux = stream['flux']
+    times = [
+        (1.0, 'hour'),
+        (100.0, 'day'),
+    ]
+    for time in times:
+        observed = flux.observe(time=time)
+        assert isinstance(observed, observing.Observation)
+        assert observed.data.shape == (1, 2000, 1, 20)
+        assert observed.array.shape == (2000, 20)
+
+
 def test_observable_aliases(stream: eprem.Stream):
     """Explicitly check a few aliases to prevent regression."""
     tests = {

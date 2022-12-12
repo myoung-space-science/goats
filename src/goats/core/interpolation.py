@@ -119,7 +119,7 @@ def _apply_interp1d(
     else:
         ref = reference
         arr = array
-    # HACK: If `ref.size == 1`, the restriction process constrained the
+    # NOTE: If `ref.size == 1`, the restriction process constrained the
     # reference array to a single value. There is no point in attempting to
     # interpolate over a single reference value since interpolation will fail
     # with fewer than two interpolant values. This may mean that `target` is
@@ -133,7 +133,10 @@ def _apply_interp1d(
         interps = [interp1d(x, y, axis=0) for x, y in zip(ref, arr)]
         return numpy.array([interp(target) for interp in interps])
     if ref.size == 1:
-        return numpy.squeeze(arr)
+        # This works because we are interpolating over the leading dimension by
+        # definition. Squeezing does not necessarily work because there may be
+        # other singular dimensions.
+        return arr[0]
     interp = interp1d(ref, arr, axis=0)
     return interp(target)
 
