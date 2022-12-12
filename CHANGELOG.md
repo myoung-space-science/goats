@@ -2,6 +2,8 @@
 
 ## NEXT
 
+- Fix bug in interpolation caused by target value being outside the bounds of the coordinate reference array.
+
 ## v0.1.0
 
 - Restrict NumPy version to "<1.23" due to bug when running ufuncs on metadata attributes.
