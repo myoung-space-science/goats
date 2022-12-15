@@ -1489,13 +1489,13 @@ DIRECTORY = pathlib.Path(__file__).expanduser().resolve().parent
 """The full directory containing this module."""
 
 
-def generate_defaults(path: iotools.PathLike):
-    """Generate default arguments from the EPREM source code in `path`."""
+def generate_defaults(src: iotools.PathLike, dst: iotools.PathLike=None):
+    """Generate default arguments from the EPREM source code in `src`."""
     obj = {
-        '_BASETYPES_H': {**BaseTypesH(path).format('json')},
-        '_CONFIGURATION_C': {**ConfigurationC(path).format('json')},
+        '_BASETYPES_H': {**BaseTypesH(src).format('json')},
+        '_CONFIGURATION_C': {**ConfigurationC(src).format('json')},
     }
-    outpath = pathlib.Path(__file__).with_suffix('.json')
+    outpath = pathlib.Path(dst or __file__).with_suffix('.json')
     with outpath.open('w') as fp:
         json.dump(obj, fp, indent=4, sort_keys=True)
 
@@ -1507,13 +1507,19 @@ if __name__ == '__main__':
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument(
-        '-r',
-        '--generate_defaults',
-        help=generate_defaults.__doc__.replace('`path`', 'SRC'),
+        '-i',
+        '--input',
+        help=generate_defaults.__doc__.replace('`src`', 'SRC'),
         metavar='SRC',
+    )
+    parser.add_argument(
+        '-o',
+        '--output',
+        help="write database of default values to DST (with .json suffix)",
+        metavar='DST',
     )
     args = parser.parse_args()
     kwargs = vars(args)
-    if 'generate_defaults' in kwargs:
-        generate_defaults(kwargs['generate_defaults'])
+    if 'input' in kwargs:
+        generate_defaults(kwargs['input'], dst=kwargs.get('output'))
 
