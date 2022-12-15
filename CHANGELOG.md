@@ -3,6 +3,7 @@
 ## NEXT
 
 - Allow user to specify output destination when running eprem/runtime.py as a script.
+- Add full and simplified logo images.
 
 ## v0.1.1
 
