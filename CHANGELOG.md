@@ -2,6 +2,8 @@
 
 ## NEXT
 
+- Allow user to specify output destination when running eprem/runtime.py as a script.
+
 ## v0.1.1
 
 - Fix bug in interpolation caused by target value being outside the bounds of the coordinate reference array.
