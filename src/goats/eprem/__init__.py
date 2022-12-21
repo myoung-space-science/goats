@@ -239,7 +239,7 @@ class Axes(aliased.Mapping):
             if measured.unit != '1':
                 # If the targets include a dimensioned unit, we want to
                 # initialize the array with that unit.
-                array = physical.Array(measured.values, unit=measured.unit)
+                array = physical.Array(measured.data, unit=measured.unit)
             else:
                 # If the measured unit is dimensionless, it could be because the
                 # targets truly are dimensionless or because the user wants to
@@ -248,7 +248,7 @@ class Axes(aliased.Mapping):
                 # `core.axis.Quantity`) passed an appropriate default unit,
                 # which may be dimensionless, the default unit is the
                 # appropriate unit for both cases.
-                array = physical.Array(measured.values, unit=unit)
+                array = physical.Array(measured.data, unit=unit)
             if array.unit | converted.unit: # Could also use try/except
                 array = array[converted.unit]
             values = numpy.array(array)

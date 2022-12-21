@@ -345,7 +345,7 @@ def test_measurement():
     unit = 'm'
     measurement = measurable.Measurement(values, unit)
     assert isinstance(measurement, measurable.Measurement)
-    assert measurement.values == values
+    assert measurement.data == values
     assert measurement.unit == unit
     assert len(measurement) == len(values)
     for i, value in enumerate(values):

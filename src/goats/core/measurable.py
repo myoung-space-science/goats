@@ -25,16 +25,16 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
 
     def __init__(
         self,
-        values: typing.Iterable[numbers.Real],
+        data: typing.Iterable[numbers.Real],
         unit: metadata.UnitLike,
     ) -> None:
-        self._values = values
+        self._data = data
         self._unit = unit
 
     @property
-    def values(self):
-        """This measurement's values."""
-        return tuple(self._values)
+    def data(self):
+        """This measurement's value(s)."""
+        return tuple(self._data)
 
     @property
     def unit(self):
@@ -42,18 +42,18 @@ class Measurement(collections.abc.Sequence, iterables.ReprStrMixin):
         return metadata.Unit(self._unit)
 
     def __len__(self) -> int:
-        return len(self._values)
+        return len(self._data)
 
     def __getitem__(self, index):
         """Called for index-based value access."""
         if isinstance(index, typing.SupportsIndex) and index < 0:
             index += len(self)
-        values = iterables.whole(self.values[index])
+        values = iterables.whole(self.data[index])
         unit = str(self.unit)
         return [(value, unit) for value in values]
 
     def __str__(self) -> str:
-        values = ', '.join(str(value) for value in self.values)
+        values = ', '.join(str(value) for value in self.data)
         return f"{values} [{self._unit}]"
 
 

@@ -160,7 +160,7 @@ class Vector(Quantity):
     def __init__(self, __data, **meta) -> None:
         if isinstance(__data, measurable.Measurement):
             meta = {'unit': __data.unit}
-            __data = __data.values
+            __data = __data.data
         elif isinstance(__data, Scalar):
             meta = {k: getattr(__data, k) for k in ('unit', 'name')}
             __data = __data.data
@@ -205,7 +205,7 @@ def scalar(this) -> Scalar:
     if isinstance(this, Vector) and len(this) == 1:
         return this[0]
     if isinstance(this, measurable.Measurement) and len(this) == 1:
-        return Scalar(this.values[0], unit=this.unit)
+        return Scalar(this.data[0], unit=this.unit)
     measured = measurable.measure(this)
     if len(measured) > 1:
         raise ValueError(
