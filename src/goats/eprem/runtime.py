@@ -511,6 +511,31 @@ class ConfigFile(iterables.MappingBase):
         self.parsed = self._parse()
         super().__init__(tuple(self.parsed))
 
+    def diff(self, __o, **kwargs):
+        """Compute the symmetric difference between two config files."""
+        other = self._config_type(__o, **kwargs)
+        return {
+            'keys': {
+                0: set(self) - set(other),
+                1: set(other) - set(self),
+            },
+            'full': {
+                0: dict(set(self.items())),
+                1: dict(set(other.items())),
+            },
+        }
+
+    def _config_type(self, __o, **kwargs):
+        """Ensure correct type."""
+        if isinstance(__o, ConfigFile):
+            return __o
+        if isinstance(__o, (str, pathlib.Path)):
+            return ConfigFile(__o, **kwargs)
+        raise TypeError(
+            "Argument must be a path-like object"
+            " or an instance of this class"
+        ) from None
+
     def __getitem__(self, key: str):
         """Get a value and unit for a configuration option."""
         if key in self.parsed:
