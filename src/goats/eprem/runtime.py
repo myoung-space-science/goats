@@ -59,6 +59,7 @@ from goats.core import constant
 from goats.core import iotools
 from goats.core import iterables
 from goats.core import numerical
+from goats.core import operational
 
 
 class BaseTypeDef:
@@ -865,11 +866,7 @@ class Interface(aliased.Mapping):
             this = super().__getitem__(__k)
         except KeyError:
             raise KeyError(f"No parameter corresponding to {__k!r}") from None
-        value = this['value']
-        aliases = self.alias(__k, include=True)
-        if unit := this['unit']:
-            return constant.Assumption(value, unit=unit, name=aliases)
-        return constant.Option(value, name=aliases)
+        return operational.Argument(this['value'], this['unit'])
 
     @property
     def basetypes(self):
