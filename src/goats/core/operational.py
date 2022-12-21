@@ -32,56 +32,67 @@ class _HasDataAndUnit(typing.Protocol):
         pass
 
 
+class NumericCastError(Exception):
+    """Unable to cast to a numeric type."""
+
+
 class Argument:
-    """Base class for arbitrary operational arguments."""
-
-    def __init__(self, data, unit) -> None:
-        self._data = data
-        self._unit = unit
-
-    @property
-    def data(self):
-        """This argument's value(s)."""
-        return self._data
-
-    @property
-    def unit(self):
-        """The unit of `data`, if any."""
-        return self._unit
-
-
-class Assumption(Argument):
-    """A physical operational argument.
+    """An arbitrary operational argument.
     
-    Assumptions represent algebraically real-valued objects (cf.
-    `~algebraic.Real`) with an associated metric unit. An assumption with a
-    unitless value has a metric unit of '1'. If the argument is multivalued, all
-    values must have the same unit.
-
-    See Also
-    --------
-    `~Option`
-        An argument for which the notion of a metric unit is meaningless.
+    Operational arguments comprise two categories: assumptions and options.
+    
+    - Assumptions represent algebraically real-valued objects (cf.
+      `~algebraic.Real`) with an associated metric unit. An assumption with a
+      unitless value has a metric unit of '1'. If the argument is multivalued,
+      all values must have the same unit.
+    
+    - Options represent strings, integer-like values, or iterables of those
+      types. An option's metric unit is always `None` (as opposed to unitless)
+      because the notion of measuring a non-physical quantity is meaningless.
+      Integer-like options support conversion to the equivalent integer.
     """
+
+    def __new__(cls, *args, **kwargs):
+        """Reject incorrect non-physical data types."""
+        if not kwargs and len(args) == 1:
+            arg = args[0]
+            valid = (numbers.Integral, str, _HasDataAndUnit)
+            if not iterables.hastype(arg, valid, strict=True):
+                raise TypeError(
+                    f"An argument of type {type(arg)} requires a unit"
+                ) from None
+        return super().__new__(cls)
+
+    @typing.overload
+    def __init__(
+        self,
+        __data: typing.Union[numbers.Integral, str],
+    ) -> None:
+        """Represent a non-physical argument."""
 
     @typing.overload
     def __init__(
         self,
         __data: typing.Union[algebraic.Real, numpy.typing.ArrayLike],
-        unit: typing.Union[str, metric.Unit]='1',
+        unit: typing.Union[str, metric.Unit],
     ) -> None:
-        """Create an instance from data and a unit."""
+        """Represent a physical argument."""
 
     @typing.overload
     def __init__(
         self,
         __data: _HasDataAndUnit,
     ) -> None:
-        """Create an instance from an object with data and a unit."""
+        """Convert an object into a physical argument."""
 
     def __init__(self, *args, **kwargs) -> None:
         data, unit = self._init_from(*args, **kwargs)
-        super().__init__(numpy.array(data, ndmin=1), metadata.Unit(unit))
+        if unit:
+            self._data = numpy.array(data, ndmin=1)
+            self._unit = metadata.Unit(unit)
+        else:
+            self._data = data
+            self._unit = None
 
     def _init_from(self, *args, **kwargs):
         """Internal initialization logic."""
@@ -89,7 +100,7 @@ class Assumption(Argument):
             arg = args[0]
             if isinstance(arg, _HasDataAndUnit):
                 return arg.data, arg.unit
-            return arg, kwargs.get('unit') or '1'
+            return arg, kwargs.get('unit')
         if len(args) != 2:
             raise TypeError(
                 f"Wrong arguments to {self.__class__}"
@@ -102,97 +113,81 @@ class Assumption(Argument):
             ) from None
         return args
 
-    def __float__(self):
-        """Represent a single-valued measurement as a `float`."""
-        return self._cast_to(float)
-
-    def __int__(self):
-        """Represent a single-valued measurement as a `int`."""
-        return self._cast_to(int)
-
-    T = typing.TypeVar('T', int, float)
-
-    def _cast_to(self, __type: typing.Type[T]) -> T:
-        """Internal method for casting to numeric type."""
-        nv = len(self.data)
-        if nv == 1:
-            return __type(self.data[0])
-        errmsg = f"Can't convert measurement with {nv!r} values to {__type}"
-        raise TypeError(errmsg) from None
-
-    def __eq__(self, other):
-        """True if `other` is equivalent to this option's data."""
-        if isinstance(other, Assumption):
-            return other.data == self.data and other.unit == self.unit
-        return other == self.data
-
-    def __repr__(self) -> str:
-        """An unambiguous representation of this object."""
-        args = f"{self.data}, unit={str(self.unit)!r}"
-        return f"{self.__class__.__qualname__}({args})"
-
-
-class Option(Argument):
-    """A non-physical operational argument.
-    
-    Options represent strings, integer-like values, or iterables of those types.
-    An option's metric unit is always `None` (as opposed to unitless) because
-    the notion of measuring a non-physical quantity is meaningless. Integer-like
-    options support conversion to the equivalent integer.
-
-    See Also
-    --------
-    `~Assumption`
-        A real-valued argument with an associated metric unit.
-    """
-
-    def __new__(cls, value):
-        """Reject incorrect `value` types."""
-        if iterables.hastype(value, (numbers.Integral, str)):
-            return super().__new__(cls)
-        raise TypeError(
-            f"An Option may not represent a value of type {type(value)}"
-        ) from None
-
-    def __init__(self, value):
-        super().__init__(value, None)
-
     def __bool__(self) -> bool:
         """Called for bool(self).
         
         Notes
         -----
-        - If `data` is an integer, this object is unconditionally true. This
+        - If `data` is a number, this object is unconditionally true. This
           design choice is intended to give a value of `0` the same status as
-          other integral values.
+          other numerical values. It therefore requires that any argument
+          representing a boolean value use `True` or `False`.
         - If `data` is a string, the truth of this object is equal to the truth
           of that string after stripping leading and trailing whitespace. This
           design choice is intended to treat strings that contain only
           whitespace as the empty string.
         - Otherwise, the truth of this object is equal to the truth of `data`.
         """
-        if isinstance(self.data, int):
+        if isinstance(self.data, numbers.Real):
+            if isinstance(self.data, bool):
+                # because `bool` <: `int` <: `numbers.Real`
+                return self.data
             return True
         if isinstance(self.data, str):
             return bool(self.data.strip())
         return bool(self.data)
 
-    def __int__(self) -> int:
-        """Called for int(self)."""
+    def __float__(self):
+        """Represent a single-valued physical argument as a `float`."""
+        if self.unit:
+            return self._cast_to(float)
+        return NotImplemented
+
+    def __int__(self):
+        """Represent a single-valued argument as a `int`."""
+        return self._cast_to(int)
+
+    T = typing.TypeVar('T', int, float)
+
+    def _cast_to(self, __type: typing.Type[T]) -> T:
+        """Internal method for casting to numeric type."""
         try:
-            return int(self.data)
+            nv = len(self.data)
+        except TypeError:
+            nv = 0
+        if nv > 1:
+            errmsg = f"Can't convert data with {nv} values to {__type}"
+            raise NumericCastError(errmsg) from None
+        if nv == 1:
+            return __type(self.data[0])
+        try: # nv == 0
+            return __type(self.data)
         except ValueError as err:
-            raise ValueError(
-                f"Can't convert {self!r} to integer."
-            ) from err
+            raise ValueError(f"Can't convert {self!r} to integer.") from err
+
+    @property
+    def data(self):
+        """This argument's value(s)."""
+        return self._data
+
+    @property
+    def unit(self):
+        """The unit of `data`, if any."""
+        return self._unit
 
     def __eq__(self, other):
-        """True if `other` is equivalent to this option's data."""
-        if isinstance(other, Option):
-            return other.data == self.data
+        """Called for self == other."""
+        if isinstance(other, Argument):
+            same_data = other.data == self.data
+            if self.unit:
+                return same_data and other.unit == self.unit
+            return same_data
         return other == self.data
 
     def __repr__(self) -> str:
-        """An unambiguous representation of this object."""
-        return f"{self.__class__.__qualname__}({self.data!r})"
+        """An unambiguous representation of this argument."""
+        args = str(self.data)
+        if self.unit:
+            args += f", unit={str(self.unit)!r}"
+        return f"{self.__class__.__qualname__}({args})"
 
