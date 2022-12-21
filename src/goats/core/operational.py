@@ -13,6 +13,7 @@ from goats.core import algebraic
 from goats.core import iterables
 from goats.core import metadata
 from goats.core import metric
+from goats.core import physical
 
 
 @typing.runtime_checkable
@@ -91,7 +92,7 @@ class Argument:
             self._data = numpy.array(data, ndmin=1)
             self._unit = metadata.Unit(unit)
         else:
-            self._data = data
+            self._data = [data] if isinstance(data, str) else data
             self._unit = None
 
     def _init_from(self, *args, **kwargs):
@@ -163,11 +164,48 @@ class Argument:
         try: # nv == 0
             return __type(self.data)
         except ValueError as err:
-            raise ValueError(f"Can't convert {self!r} to integer.") from err
+            raise ValueError(f"Can't convert {self!r} to {__type}.") from err
+
+    def __iter__(self) -> typing.Iterator:
+        """Called for iter(self)."""
+        try:
+            return iter(self.data)
+        except TypeError:
+            return iter([self.data])
+
+    def __len__(self) -> int:
+        """Called for len(self)."""
+        try:
+            return len(self.data)
+        except TypeError:
+            return 1
+
+    def __getitem__(self, index):
+        """Called for index-based value access."""
+        if isinstance(index, typing.SupportsIndex) and index < 0:
+            index += len(self)
+        data = self.data[index]
+        try:
+            iter(data)
+        except TypeError:
+            iterable = False
+        else:
+            iterable = True
+        unit = self.unit
+        return (
+            [physical.Scalar(value, unit=unit) for value in data] if iterable
+            else physical.Scalar(data, unit=unit)
+        )
 
     @property
     def data(self):
         """This argument's value(s)."""
+        try:
+            nv = len(self._data)
+        except TypeError:
+            nv = 0
+        if nv == 1:
+            return self._data[0]
         return self._data
 
     @property
