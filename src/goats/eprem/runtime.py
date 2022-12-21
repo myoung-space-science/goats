@@ -511,6 +511,14 @@ class ConfigFile(iterables.MappingBase):
         self.parsed = self._parse()
         super().__init__(tuple(self.parsed))
 
+    def compare(self, __o, **kwargs):
+        """Compare this config file to another."""
+        diff = self.diff(__o, **kwargs)
+        df0 = diff['full'][0]
+        df1 = diff['full'][1]
+        keys = sorted(set(df0) | set(df1))
+        return {k: (df0.get(k), df1.get(k)) for k in keys}
+
     def diff(self, __o, **kwargs):
         """Compute the symmetric difference between two config files."""
         other = self._config_type(__o, **kwargs)
