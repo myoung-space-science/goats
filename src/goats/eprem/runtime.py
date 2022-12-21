@@ -1519,6 +1519,33 @@ DIRECTORY = pathlib.Path(__file__).expanduser().resolve().parent
 """The full directory containing this module."""
 
 
+def display_config(*paths, src: iotools.PathLike=None):
+    """Display values of EPREM configuration parameters.
+    
+    This method will print the name of each parameter and its default value, as
+    well as the corresponding value contained in each configuration file in
+    `paths`. If `src` is not absent, it will read parameter names and default
+    values from the version of `configuration.c` in `src`; otherwise it will use
+    the values in `runtime.json`.
+    """
+    cfg = ConfigurationC(src)
+    defaults = Interface()
+    targets = [Interface(path) for path in paths]
+    for key in sorted(cfg.keys()):
+        default = defaults[key]
+        value = default.data
+        base = (
+            f"{key} [{value!r} {str(default.unit)!r}]"
+            if default.unit and default.unit != '1'
+            else f"{key} [{value!r}]"
+        )
+        line = (
+            base if not targets
+            else f"{base} {' '.join(str(f.get(key)) for f in targets)}"
+        )
+        print(line)
+
+
 def generate_defaults(src: iotools.PathLike, dst: iotools.PathLike=None):
     """Generate default arguments from the EPREM source code in `src`."""
     obj = {
@@ -1537,19 +1564,30 @@ if __name__ == '__main__':
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument(
-        '-i',
-        '--input',
+        '-s',
+        '--source',
         help=generate_defaults.__doc__.replace('`src`', 'SRC'),
         metavar='SRC',
     )
     parser.add_argument(
         '-o',
         '--output',
-        help="write database of default values to DST (with .json suffix)",
-        metavar='DST',
+        help="write database of default values to OUT (with .json suffix)",
+        metavar='OUT',
+    )
+    parser.add_argument(
+        '-c',
+        '--config',
+        help="compare values in one or more configuration files",
+        nargs='+',
+        metavar=('FILE0', 'FILE1'),
     )
     args = parser.parse_args()
     kwargs = vars(args)
-    if 'input' in kwargs:
-        generate_defaults(kwargs['input'], dst=kwargs.get('output'))
+    source = kwargs['source']
+    if 'output' in kwargs:
+        generate_defaults(source, dst=kwargs.get('output'))
+    if 'config' in kwargs:
+        paths = kwargs['config']
+        display_config(*paths, src=source)
 
