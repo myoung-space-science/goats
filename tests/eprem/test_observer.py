@@ -10,10 +10,10 @@ import numpy
 import matplotlib.pyplot as plt
 import pytest
 
-from goats.core import constant
 from goats.core import metric
 from goats.core import observing
 from goats.core import observer
+from goats.core import operational
 from goats.core import physical
 from goats.core import variable
 from goats import eprem
@@ -449,8 +449,7 @@ def test_parameter_access(stream: eprem.Stream) -> None:
     for aliases, expected in cases.items():
         for alias in aliases:
             argument = stream[alias]
-            assert isinstance(argument, constant.Assumption)
-            assert alias in argument.name
+            assert isinstance(argument, operational.Argument)
             assert float(argument) == expected['value']
             assert argument.unit == expected['unit']
 
