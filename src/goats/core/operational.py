@@ -224,8 +224,10 @@ class Argument:
 
     def __repr__(self) -> str:
         """An unambiguous representation of this argument."""
-        args = str(self.data)
-        if self.unit:
-            args += f", unit={str(self.unit)!r}"
-        return f"{self.__class__.__qualname__}({args})"
+        return f"{self.__class__.__qualname__}({self})"
 
+    def __str__(self) -> str:
+        """A simplified representation of this argument."""
+        if self.unit and self.unit != '1':
+            return f"{self.data} {str(self.unit)!r}"
+        return str(self.data)
