@@ -868,6 +868,10 @@ class Interface(aliased.Mapping):
             raise KeyError(f"No parameter corresponding to {__k!r}") from None
         return operational.Argument(this['value'], this['unit'])
 
+    _T = typing.TypeVar('_T')
+    def get(self, __k: str, default: _T=None) -> operational.Argument:
+        return super().get(__k, default=default)
+
     @property
     def basetypes(self):
         """Values of constants defined in EPREM `src/baseTypes.h`."""
