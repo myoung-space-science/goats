@@ -46,6 +46,7 @@ respect the formal distinction between parameters and arguments.
 
 import abc
 import argparse
+import contextlib
 import functools
 import numbers
 import pathlib
@@ -1528,55 +1529,96 @@ DIRECTORY = pathlib.Path(__file__).expanduser().resolve().parent
 """The full directory containing this module."""
 
 
-def display_config(*paths, src: iotools.PathLike=None):
+def display_config(
+    files: typing.Iterable[iotools.PathLike],
+    source: iotools.PathLike=None,
+    action: str=None,
+) -> None:
     """Display values of EPREM configuration parameters.
     
     This method will print the name of each parameter and its default value, as
     well as the corresponding value contained in each configuration file in
-    `paths`. If `src` is not absent, it will read parameter names and default
-    values from the version of `configuration.c` in `src`; otherwise it will use
-    the values in `runtime.json`.
+    `paths`. If `source` is not absent, it will read parameter names and default
+    values from the version of `configuration.c` in `source`; otherwise it will
+    use the values in `runtime.json`.
     """
-    cfg = ConfigurationC(src)
-    defaults = Interface()
-    items = {k: {} for k in cfg}
-    for key in cfg:
-        default = defaults[key]
-        items[key]['default'] = (
-            f"{default.data} {str(default.unit)!r}"
-            if default.unit and default.unit != '1'
-            else f"{default.data!r}"
-        )
-        for path in paths:
-            target = Interface(path)
-            value = target.get(key)
-            items[key][target.user.filepath.name] = (
-                f"{value.data} {str(value.unit)!r}"
-                if value.unit and value.unit != '1'
-                else f"{value.data!r}"
-            )
-    keys = sorted(cfg.keys())
-    lwidth = max(len(k) for k in items[keys[0]])
-    rwidth = max(len(v) for item in items.values() for v in item.values())
+    mode = action or 'show'
+    if mode not in {'show', 'diff'}:
+        raise ValueError(f"Unrecognized action: {action!r}")
+    args = _build_arg_dict(files, source=source, mode=mode)
+    topkeys = next(list(v.keys()) for v in args.values() if v)
+    lwidth = max(len(k) for k in topkeys)
+    nonnull = (v for item in args.values() for v in item.values() if v)
+    rwidth = max(len(v) for v in nonnull)
     cwidth = lwidth + rwidth
-    for key in keys:
+    print()
+    for key, item in args.items():
         print(str(key).center(cwidth))
         print('-' * cwidth)
-        item = items[key]
         for k, v in item.items():
             print(f"{str(k).ljust(lwidth)}{str(v).rjust(rwidth)}")
         print()
 
 
-def generate_defaults(src: iotools.PathLike, dst: iotools.PathLike=None):
+def _build_arg_dict(
+    files: typing.Iterable[iotools.PathLike],
+    source: iotools.PathLike=None,
+    mode: str=None,
+) -> typing.Dict[str, typing.Dict[str, typing.Any]]:
+    """Build a `dict` of parameter values."""
+    default = Interface()
+    targets = [Interface(path) for path in files]
+    keys = sorted(ConfigurationC(source))
+    built = {key: {} for key in keys}
+    for key in keys:
+        current = {
+            target.user.filepath.name: _format_arg(target.config(key))
+            for target in targets
+        }
+        values = list(current.values())
+        v0 = values[0]
+        if mode == 'show' or any(vi != v0 for vi in values):
+            built[key] = {
+                'default': _format_arg(default[key]),
+                **current,
+            }
+    if mode == 'show':
+        return built
+    return {k: v for k, v in built.items() if v}
+
+
+def _format_arg(arg: operational.Argument):
+    """Format this argument for display."""
+    with contextlib.suppress(AttributeError):
+        return (
+            f"{arg.data} {str(arg.unit)!r}"
+            if arg.unit and arg.unit != '1'
+            else f"{arg.data!r}"
+        )
+
+
+def generate_defaults(
+    source: iotools.PathLike,
+    output: iotools.PathLike=None,
+    action: str=None,
+) -> None:
     """Generate default arguments from the EPREM source code in `src`."""
     obj = {
-        '_BASETYPES_H': {**BaseTypesH(src).format('json')},
-        '_CONFIGURATION_C': {**ConfigurationC(src).format('json')},
+        '_BASETYPES_H': {**BaseTypesH(source).format('json')},
+        '_CONFIGURATION_C': {**ConfigurationC(source).format('json')},
     }
-    outpath = pathlib.Path(dst or __file__).with_suffix('.json')
-    with outpath.open('w') as fp:
-        json.dump(obj, fp, indent=4, sort_keys=True)
+    outpath = pathlib.Path(output or __file__).with_suffix('.json')
+    mode = action or 'write'
+    if mode not in {'append', 'write'}:
+        raise ValueError(f"Unrecognized action: {action!r}")
+    if mode == 'append':
+        obj.update(json.load(outpath.open('r')))
+    json.dump(
+        obj,
+        outpath.open('w'),
+        indent=4,
+        sort_keys=True,
+    )
 
 
 if __name__ == '__main__':
@@ -1585,31 +1627,54 @@ if __name__ == '__main__':
         description=doclines[0],
         formatter_class=argparse.RawTextHelpFormatter,
     )
+    subparsers = parser.add_subparsers(
+        title="modes",
+        dest="mode",
+    )
     parser.add_argument(
         '-s',
         '--source',
-        help=generate_defaults.__doc__.replace('`src`', 'SRC'),
+        help="use files in SRC for default parameter values",
         metavar='SRC',
     )
-    parser.add_argument(
+    generate_parser = subparsers.add_parser(
+        'generate',
+        help="generate database of default parameter values",
+    )
+    generate_parser.add_argument(
         '-o',
         '--output',
-        help="write database of default values to OUT (with .json suffix)",
+        help="write database to OUT (with .json suffix)",
         metavar='OUT',
     )
-    parser.add_argument(
+    generate_parser.add_argument(
+        '-a',
+        '--action',
+        help="how to create the parameter database",
+        choices=('append', 'write'),
+    )
+    config_parser = subparsers.add_parser(
+        'compare',
+        help="compare user configuration-file values",
+    )
+    config_parser.add_argument(
         '-c',
         '--config',
-        help="compare values in one or more configuration files",
+        dest='files',
+        help="one or more configuration files to show",
         nargs='+',
         metavar=('FILE0', 'FILE1'),
     )
-    args = parser.parse_args()
-    kwargs = vars(args)
-    source = kwargs['source']
-    if 'output' in kwargs:
-        generate_defaults(source, dst=kwargs.get('output'))
-    if 'config' in kwargs:
-        paths = kwargs['config']
-        display_config(*paths, src=source)
+    config_parser.add_argument(
+        '-a',
+        '--action',
+        help="how to compare the given files",
+        choices=('show', 'diff'),
+    )
+    cli = vars(parser.parse_args())
+    usermode = cli.pop('mode')
+    if usermode == 'generate':
+        generate_defaults(**cli)
+    if usermode == 'compare':
+        display_config(**cli)
 
