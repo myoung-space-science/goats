@@ -878,7 +878,7 @@ class Interface(aliased.Mapping):
         return self._basetypes
 
     @property
-    def user(self) -> typing.Mapping[str, str]:
+    def user(self):
         """The user-provided parameter values."""
         return self._user
 
