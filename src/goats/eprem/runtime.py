@@ -1529,12 +1529,12 @@ DIRECTORY = pathlib.Path(__file__).expanduser().resolve().parent
 """The full directory containing this module."""
 
 
-def display_config(
+def compare_arguments(
     files: typing.Iterable[iotools.PathLike],
     source: iotools.PathLike=None,
     action: str=None,
 ) -> None:
-    """Display values of EPREM configuration parameters.
+    """Compare values of EPREM configuration parameters.
     
     This method will print the name of each parameter and its default value, as
     well as the corresponding value contained in each configuration file in
@@ -1676,5 +1676,5 @@ if __name__ == '__main__':
     if usermode == 'generate':
         generate_defaults(**cli)
     if usermode == 'compare':
-        display_config(**cli)
+        compare_arguments(**cli)
 
