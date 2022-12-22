@@ -1538,7 +1538,7 @@ def display_config(*paths, src: iotools.PathLike=None):
     for key in cfg:
         default = defaults[key]
         items[key]['default'] = (
-            f"{default.data!r} {str(default.unit)!r}"
+            f"{default.data} {str(default.unit)!r}"
             if default.unit and default.unit != '1'
             else f"{default.data!r}"
         )
@@ -1546,7 +1546,7 @@ def display_config(*paths, src: iotools.PathLike=None):
             target = Interface(path)
             value = target.get(key)
             items[key][target.user.filepath.name] = (
-                f"{value.data!r} {str(value.unit)!r}"
+                f"{value.data} {str(value.unit)!r}"
                 if value.unit and value.unit != '1'
                 else f"{value.data!r}"
             )
