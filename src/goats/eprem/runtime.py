@@ -1534,20 +1534,33 @@ def display_config(*paths, src: iotools.PathLike=None):
     """
     cfg = ConfigurationC(src)
     defaults = Interface()
-    targets = [Interface(path) for path in paths]
-    for key in sorted(cfg.keys()):
+    items = {k: {} for k in cfg}
+    for key in cfg:
         default = defaults[key]
-        value = default.data
-        base = (
-            f"{key} [{value!r} {str(default.unit)!r}]"
+        items[key]['default'] = (
+            f"{default.data!r} {str(default.unit)!r}"
             if default.unit and default.unit != '1'
-            else f"{key} [{value!r}]"
+            else f"{default.data!r}"
         )
-        line = (
-            base if not targets
-            else f"{base} {' '.join(str(f.get(key)) for f in targets)}"
-        )
-        print(line)
+        for path in paths:
+            target = Interface(path)
+            value = target.get(key)
+            items[key][target.user.filepath.name] = (
+                f"{value.data!r} {str(value.unit)!r}"
+                if value.unit and value.unit != '1'
+                else f"{value.data!r}"
+            )
+    keys = sorted(cfg.keys())
+    lwidth = max(len(k) for k in items[keys[0]])
+    rwidth = max(len(v) for item in items.values() for v in item.values())
+    cwidth = lwidth + rwidth
+    for key in keys:
+        print(str(key).center(cwidth))
+        print('-' * cwidth)
+        item = items[key]
+        for k, v in item.items():
+            print(f"{str(k).ljust(lwidth)}{str(v).rjust(rwidth)}")
+        print()
 
 
 def generate_defaults(src: iotools.PathLike, dst: iotools.PathLike=None):
