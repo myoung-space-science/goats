@@ -869,8 +869,13 @@ class Interface(aliased.Mapping):
         return operational.Argument(this['value'], this['unit'])
 
     _T = typing.TypeVar('_T')
+
     def get(self, __k: str, default: _T=None) -> operational.Argument:
         return super().get(__k, default=default)
+
+    def config(self, __k: str, default: _T=None) -> operational.Argument:
+        """Get a value from the user config file, if possible."""
+        return self.get(__k, default=default) if __k in self.user else default
 
     @property
     def basetypes(self):
