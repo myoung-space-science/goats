@@ -2,6 +2,8 @@
 
 ## NEXT
 
+## v0.2.1
+
 - Allow user to specify output destination when running eprem/runtime.py as a script.
 - Add full and simplified logo images.
 - Convert use of `constant.Assumption` and `constant.Option` to `operational.Argument`.
