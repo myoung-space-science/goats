@@ -1546,17 +1546,18 @@ def compare_arguments(
     if mode not in {'show', 'diff'}:
         raise ValueError(f"Unrecognized action: {action!r}")
     args = _build_arg_dict(files, source=source, mode=mode)
+    pwidth = max(len(k) for k in args)
     topkeys = next(list(v.keys()) for v in args.values() if v)
     lwidth = max(len(k) for k in topkeys)
     nonnull = (v for item in args.values() for v in item.values() if v)
     rwidth = max(len(v) for v in nonnull)
-    cwidth = lwidth + rwidth
+    cwidth = max(pwidth, lwidth + rwidth)
     print()
     for key, item in args.items():
         print(str(key).center(cwidth))
         print('-' * cwidth)
         for k, v in item.items():
-            print(f"{str(k).ljust(lwidth)}{str(v).rjust(rwidth)}")
+            print(f"{str(k).ljust(lwidth)}{str(v).rjust(pwidth-lwidth)}")
         print()
 
 
