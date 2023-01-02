@@ -396,23 +396,20 @@ def test_variable_array(var: typing.Dict[str, variable.Quantity]):
 @pytest.mark.variable
 def test_variable_getitem(var: typing.Dict[str, variable.Quantity]):
     """Subscript a Variable."""
-    # reference = [
-    #     [+1.0, +2.0],
-    #     [+2.0, -3.0],
-    #     [-4.0, +6.0],
-    # ]
+    # The 'reference' variable
+    # - array: [[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]]
+    # - shape: (3, 2)
     v = var['reference']
+    expected = numpy.array(v)
     for sliced in (v[:], v[...]):
         assert isinstance(sliced, variable.Quantity)
         assert sliced is not v
-        expected = numpy.array([[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
         assert numpy.array_equal(sliced, expected)
     assert numpy.array_equal(v[0, 0], [[1.0]])
     assert numpy.array_equal(v[0, :], [[+1.0, +2.0]])
     assert numpy.array_equal(v[:, 0], [[+1.0], [+2.0], [-4.0]])
     assert numpy.array_equal(v[:, 0:1], [[+1.0], [+2.0], [-4.0]])
     assert numpy.array_equal(v[(0, 1), :], [[+1.0, +2.0], [+2.0, -3.0]])
-    expected = numpy.array([[+1.0, +2.0], [+2.0, -3.0], [-4.0, +6.0]])
     assert numpy.array_equal(v[:, (0, 1)], expected)
     assert numpy.array_equal(v[:, None, 0], [[+1.0], [+2.0], [-4.0]])
     assert numpy.array_equal(v[None, :, 0], [[+1.0, +2.0, -4.0]])
