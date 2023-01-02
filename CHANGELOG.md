@@ -9,6 +9,10 @@
 - Convert use of `constant.Assumption` and `constant.Option` to `operational.Argument`.
 - Refactor eprem/runtime.py CLI and add options.
 
+## v0.2.0
+
+(Accidentally omitted)
+
 ## v0.1.1
 
 - Fix bug in interpolation caused by target value being outside the bounds of the coordinate reference array.
