@@ -2,6 +2,10 @@
 
 ## NEXT
 
+## v0.2.2
+
+- Improve slice handling in `variable.Array`.
+
 ## v0.2.1
 
 - Allow user to specify output destination when running eprem/runtime.py as a script.
