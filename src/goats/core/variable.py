@@ -123,11 +123,19 @@ class Array(numpy.lib.mixins.NDArrayOperatorsMixin, measurable.Quantified):
         if array.ndim != self.ndim:
             with contextlib.suppress(TypeError):
                 shape = [
-                    1 if isinstance(v, int) else self.shape[i]
+                    self._get_axis_size(i, v)
                     for i, v in enumerate(indices)
                 ]
                 return self._copy_with(data=result.reshape(shape))
         return self._copy_with(data=result)
+
+    def _get_axis_size(self, i: int, v):
+        """Helper for computing shape in `__getitem__`."""
+        if isinstance(v, int):
+            return 1
+        if isinstance(v, slice):
+            return (v.stop or self.shape[i]) - (v.start or 0)
+        return self.shape[i]
 
     def _normalize_indices(self, args):
         """Compute appropriate array indices from `args`.
