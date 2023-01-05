@@ -374,7 +374,7 @@ def integral_flux(
             f = flux[..., s, :]
             e = species_energy
             y, x = (f, e) if use_all else _interpolate(f, e, m)
-            int_flux[..., s, i] = integrate.simps(y, x)
+            int_flux[..., s, i] = integrate.simpson(y, x)
     return int_flux
 
 def _interpolate(

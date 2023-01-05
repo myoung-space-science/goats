@@ -2,6 +2,8 @@
 
 ## NEXT
 
+- Update `numpy.simps` to `numpy.simpson`.
+
 ## v0.2.2
 
 - Improve slice handling in `variable.Array`.
