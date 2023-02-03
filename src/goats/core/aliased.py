@@ -70,7 +70,7 @@ class MappingKey(collections.abc.Set, iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         """A simplified representation of this instance."""
-        return ' | '.join(str(alias) for alias in self._aliases)
+        return ', '.join(str(alias) for alias in self._aliases)
 
 
 class KeyMap(iterables.MappingBase, iterables.ReprStrMixin):
@@ -123,7 +123,7 @@ class KeyMap(iterables.MappingBase, iterables.ReprStrMixin):
         return type(self)(*subset)
 
     def __str__(self) -> str:
-        return ', '.join(f"{str(k)!r}" for k in self._groups)
+        return '; '.join(f"{{{str(k)!r}}}" for k in self._groups)
 
 
 def keysfrom(
@@ -881,8 +881,11 @@ class NameMap(iterables.MappingBase):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        items = {f"{k}: '{v}'" for k, v in self._mapping.items(aliased=True)}
-        return ', '.join(items)
+        items = {
+            f"{{{str(k)!r}}}: {str(v)!r}"
+            for k, v in self._mapping.items(aliased=True)
+        }
+        return '; '.join(items)
 
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
