@@ -329,14 +329,6 @@ class Context(collections.abc.Collection, typing.Generic[T]):
         self._cache = {}
         return self
 
-    @property
-    def constraints(self):
-        """The current set of observing constraints."""
-        if self._constraints is None:
-            constraints = {**self._default, **self._user}
-            self._constraints = types.MappingProxyType(constraints)
-        return self._constraints
-
     def __contains__(self, __x: str) -> bool:
         """True if `__x` is an available physical quantity."""
         return __x in self.available
@@ -353,15 +345,31 @@ class Context(collections.abc.Collection, typing.Generic[T]):
     def available(self):
         """The names of available physical quantities."""
         if self._available is None:
-            self._available = self.observable + tuple(self.constraints)
+            constraints = self._collect_aliases(self.constraints)
+            self._available = self.observable + tuple(constraints)
         return self._available
+
+    @property
+    def constraints(self):
+        """The current set of observing constraints."""
+        if self._constraints is None:
+            constraints = {**self._default, **self._user}
+            self._constraints = types.MappingProxyType(constraints)
+        return self._constraints
 
     @property
     def observable(self):
         """The names of observable physical quantities."""
         if self._observable is None:
-            self._observable = tuple({k for m in self._mappings for k in m})
+            self._observable = tuple(self._collect_aliases(self._mappings))
         return self._observable
+
+    def _collect_aliases(self, this: typing.Iterable[typing.Iterable[str]]):
+        """Extract groups of aliased keys, based on reference alias groups."""
+        return {
+            reference.ALIASES.get(key, key)
+            for keys in this for key in keys
+        }
 
     def get_unit(self, name: str):
         """Compute or retrieve the metric unit of a physical quantity."""
