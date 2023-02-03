@@ -70,7 +70,7 @@ class MappingKey(collections.abc.Set, iterables.ReprStrMixin):
 
     def __str__(self) -> str:
         """A simplified representation of this instance."""
-        return ', '.join(str(alias) for alias in self._aliases)
+        return ' = '.join(str(alias) for alias in self._aliases)
 
 
 class KeyMap(iterables.MappingBase, iterables.ReprStrMixin):
@@ -123,7 +123,18 @@ class KeyMap(iterables.MappingBase, iterables.ReprStrMixin):
         return type(self)(*subset)
 
     def __str__(self) -> str:
-        return '; '.join(f"{{{str(k)!r}}}" for k in self._groups)
+        """A simplified representation of this object."""
+        return self._display_items(separator='\n')
+
+    def __repr__(self) -> str:
+        """An unambiguous representation of this object."""
+        items = self._display_items(separator='; ')
+        return f"{self.__class__.__qualname__}({items})"
+
+    def _display_items(self, separator: str=', '):
+        """Build a collection of 'key: value' strings."""
+        items = {f"{str(k)!r}" for k in self._groups}
+        return separator.join(items)
 
 
 def keysfrom(
@@ -881,15 +892,20 @@ class NameMap(iterables.MappingBase):
 
     def __str__(self) -> str:
         """A simplified representation of this object."""
-        items = {
-            f"{{{str(k)!r}}}: {str(v)!r}"
-            for k, v in self._mapping.items(aliased=True)
-        }
-        return '; '.join(items)
+        return self._display_items(separator='\n')
 
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
-        return f"{self.__class__.__qualname__}({self})"
+        items = self._display_items(separator='; ')
+        return f"{self.__class__.__qualname__}({items})"
+
+    def _display_items(self, separator: str=', '):
+        """Build a collection of 'key: value' strings."""
+        items = {
+            f"{str(k)!r}: {str(v)!r}"
+            for k, v in self._mapping.items(aliased=True)
+        }
+        return separator.join(items)
 
     def keys(self, aliased: bool=False):
         """A view on this object's aliased keys."""
