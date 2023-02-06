@@ -1,3 +1,4 @@
+import abc
 import collections
 import collections.abc
 import typing
@@ -5,10 +6,12 @@ import typing
 from goats.core import iterables
 
 
-Aliases = typing.TypeVar('Aliases')
-Aliases = typing.Union[str, typing.Iterable[str]]
+_KT = typing.TypeVar('_KT')
+_AT = typing.TypeVar('_AT')
+_VT = typing.TypeVar('_VT')
 
-class MappingKey(collections.abc.Set, iterables.ReprStrMixin):
+
+class MappingKey(collections.abc.Set, typing.Generic[_KT]):
     """A mapping key with associated aliases."""
 
     __slots__ = ('_aliases')
@@ -16,7 +19,7 @@ class MappingKey(collections.abc.Set, iterables.ReprStrMixin):
     _builtin = (tuple, list, set)
 
     @classmethod
-    def supports(cls, key: str):
+    def supports(cls, key: _KT):
         """True if `key` can instantiate this class."""
         try:
             cls(key)
@@ -24,16 +27,19 @@ class MappingKey(collections.abc.Set, iterables.ReprStrMixin):
             return False
         return True
 
-    def __init__(self, *a: Aliases) -> None:
+    def __init__(self, *a: typing.Union[_KT, typing.Iterable[_KT]]) -> None:
         if not a:
             raise TypeError("At least one alias is required") from None
         self._aliases = self._from_iterable(a)
 
     @classmethod
-    def _from_iterable(cls, it):
+    def _from_iterable(
+        cls,
+        it: typing.Tuple[typing.Union[_KT, typing.Iterable[_KT]]],
+    ) -> typing.Set[_KT]:
         return iterables.unwrap(it, wrap=set)
 
-    def __iter__(self) -> typing.Iterator:
+    def __iter__(self):
         return iter(self._aliases)
 
     def __len__(self) -> int:
@@ -72,11 +78,18 @@ class MappingKey(collections.abc.Set, iterables.ReprStrMixin):
         """A simplified representation of this instance."""
         return ' = '.join(str(alias) for alias in self._aliases)
 
+    def __repr__(self) -> str:
+        """An unambiguous representation of this instance."""
+        return f"aliased.{self.__class__.__qualname__}({self})"
 
-class KeyMap(iterables.MappingBase, iterables.ReprStrMixin):
+
+class KeyMap(iterables.MappingBase, typing.Generic[_KT]):
     """A collection that associates common aliases."""
 
-    def __init__(self, *keys: Aliases) -> None:
+    def __init__(
+        self,
+        *keys: typing.Union[_KT, typing.Iterable[_KT]],
+    ) -> None:
         """
         Parameters
         ----------
@@ -88,7 +101,7 @@ class KeyMap(iterables.MappingBase, iterables.ReprStrMixin):
         self._flat = [key for group in self._groups for key in group]
         super().__init__(self._flat)
 
-    def __getitem__(self, __k) -> MappingKey:
+    def __getitem__(self, __k):
         """Look up aliases by key.
         
         This method will sequentially check for a one of the following cases:
@@ -107,7 +120,7 @@ class KeyMap(iterables.MappingBase, iterables.ReprStrMixin):
         else:
             return found
 
-    def without(self, *keys: typing.Union[str, MappingKey]):
+    def without(self, *keys: typing.Union[_KT, MappingKey[_KT]]):
         """Create a new keymap after removing `keys`."""
         subset = [
             group
@@ -129,7 +142,7 @@ class KeyMap(iterables.MappingBase, iterables.ReprStrMixin):
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
         items = self._display_items(separator='; ')
-        return f"{self.__class__.__qualname__}({items})"
+        return f"aliased.{self.__class__.__qualname__}({items})"
 
     def _display_items(self, separator: str=', '):
         """Build a collection of 'key: value' strings."""
@@ -176,16 +189,6 @@ def keysfrom(
     return [keymap[k] for k in keys]
 
 
-_VT = typing.TypeVar('_VT')
-
-
-Aliasable = typing.TypeVar('Aliasable', bound=typing.Mapping)
-Aliasable = typing.Union[
-    typing.Mapping[Aliases, _VT],
-    typing.Mapping[str, typing.Mapping[str, typing.Any]],
-]
-
-
 def _build_mapping(
     mapping: typing.Mapping=None,
     key: str=None,
@@ -212,7 +215,7 @@ def _build_mapping(
 
 
 def _build_from_aliases(
-    mapping: typing.Mapping[Aliases, _VT],
+    mapping: typing.Mapping[_KT, _VT],
 ) -> typing.Dict[MappingKey, _VT]:
     """Build a `dict` that maps aliased keys to user values."""
     out = {}
@@ -284,7 +287,84 @@ def _build_from_key(
     return dict(zip(keys, values))
 
 
-class Mapping(collections.abc.Mapping):
+@typing.runtime_checkable
+class _MappingProtocol(typing.Protocol[_KT, _VT]):
+    """Protocol for aliased mappings."""
+
+    __slots__ = ()
+
+    @property
+    @abc.abstractmethod
+    def as_dict(self) -> typing.Dict[_KT, _VT]:
+        pass
+
+    @abc.abstractmethod
+    def _flat_keys(self) -> typing.KeysView[_KT]:
+        pass
+
+    @abc.abstractmethod
+    def __getitem__(self, __k: _KT) -> _VT:
+        pass
+
+
+class MappingView(collections.abc.MappingView, typing.Generic[_KT, _VT]):
+    """Base class for views of aliased mappings."""
+
+    __slots__ = ('_mapping', '_keys')
+
+    def __init__(
+        self,
+        mapping: _MappingProtocol[_KT, _VT],
+        aliased: bool=False,
+    ) -> None:
+        super().__init__(mapping)
+        aliases = mapping.as_dict.keys()
+        self._keys = aliases if aliased else mapping._flat_keys()
+        self._mapping = mapping
+
+    def __len__(self):
+        """Called for len(self)."""
+        return len(self._keys)
+
+    def __str__(self):
+        """A simplified representation of this object."""
+        return str(list(self))
+
+    def __repr__(self) -> str:
+        """An unambiguous representation of this object."""
+        return f"aliased.{self.__class__.__qualname__}({self})"
+
+
+class KeysView(MappingView[_KT, _VT], collections.abc.KeysView):
+    """A view on the keys of an aliased mapping."""
+
+    def __iter__(self):
+        """Iterate over aliased mapping keys."""
+        yield from self._keys
+
+
+class ValuesView(MappingView[_KT, _VT], collections.abc.ValuesView):
+    """A view on the values of an aliased mapping."""
+
+    def __iter__(self):
+        """Iterate over aliased mapping values."""
+        for key in self._keys:
+            yield self._mapping[key]
+
+
+class ItemsView(MappingView[_KT, _VT], collections.abc.ItemsView):
+    """A view on the key-value pairs of an aliased mapping."""
+
+    def __iter__(self):
+        """Iterate over aliased mapping items."""
+        for key in self._keys:
+            yield (key, self._mapping[key])
+
+
+_MT = typing.TypeVar('_MT', bound='Mapping')
+
+
+class Mapping(collections.abc.Mapping, typing.Generic[_KT, _VT]):
     """A mapping class that supports aliased keys.
     
     Examples
@@ -381,12 +461,27 @@ class Mapping(collections.abc.Mapping):
     aliases and values in a one-to-one mapping.
     """
 
+    @typing.overload
     def __init__(
         self,
-        mapping: typing.Union[Aliasable, 'Mapping']=None,
-        key: str=None,
-        keymap: typing.Union[KeyMap, 'Mapping']=None,
-    ) -> None:
+        mapping: typing.Mapping[typing.Union[_KT, typing.Tuple[_KT]], _VT],
+    ) -> None: ...
+
+    @typing.overload
+    def __init__(
+        self,
+        mapping: typing.Mapping[_KT, typing.Mapping[_AT, _VT]],
+        key: typing.Optional[_AT]=None,
+    ) -> None: ...
+
+    @typing.overload
+    def __init__(
+        self,
+        mapping: typing.Mapping[_KT, _VT],
+        keymap: typing.Optional[KeyMap[_KT]]=None,
+    ) -> None: ...
+
+    def __init__(self, mapping=None, key=None, keymap=None) -> None:
         """Initialize this instance.
         
         Parameters
@@ -514,11 +609,11 @@ class Mapping(collections.abc.Mapping):
 
     @classmethod
     def fromkeys(
-        cls,
-        __iterable: typing.Iterable,
+        cls: typing.Type[_MT],
+        __iterable: typing.Iterable[_KT],
         key: str='aliases',
-        value: typing.Any=None,
-    ): # How do I annotate this so it's correct for subclasses?
+        value: _VT=None,
+    ) -> _MT:
         """Create an aliased mapping based on another mapping's keys.
 
         Parameters
@@ -609,7 +704,7 @@ class Mapping(collections.abc.Mapping):
         """An unambiguous representation of this object."""
         module = f"{self.__module__.replace('goats.', '')}."
         name = self.__class__.__qualname__
-        return f"{module}{name}({self})"
+        return f"aliased.{module}{name}({self})"
 
     def keys(self, aliased: bool=False):
         """A view on this instance's keys."""
@@ -626,52 +721,6 @@ class Mapping(collections.abc.Mapping):
     def copy(self):
         """Create a shallow copy of this instance."""
         return type(self)(self.as_dict)
-
-
-class MappingView(iterables.ReprStrMixin, collections.abc.MappingView):
-    """Base class for views of aliased mappings."""
-
-    __slots__ = ('_mapping', '_keys')
-
-    def __init__(self, mapping: Mapping, aliased: bool=False) -> None:
-        super().__init__(mapping)
-        aliases = mapping.as_dict.keys()
-        self._keys = aliases if aliased else mapping._flat_keys()
-        self._mapping = mapping
-
-    def __len__(self):
-        """Called for len(self)."""
-        return len(self._keys)
-
-    def __str__(self):
-        """A simplified representation of this object."""
-        return str(list(self))
-
-
-class KeysView(MappingView, collections.abc.KeysView):
-    """A view on the keys of an aliased mapping."""
-
-    def __iter__(self):
-        """Iterate over aliased mapping keys."""
-        yield from self._keys
-
-
-class ValuesView(MappingView, collections.abc.ValuesView):
-    """A view on the values of an aliased mapping."""
-
-    def __iter__(self):
-        """Iterate over aliased mapping values."""
-        for key in self._keys:
-            yield self._mapping[key]
-
-
-class ItemsView(MappingView, collections.abc.ItemsView):
-    """A view on the key-value pairs of an aliased mapping."""
-
-    def __iter__(self):
-        """Iterate over aliased mapping items."""
-        for key in self._keys:
-            yield (key, self._mapping[key])
 
 
 class MutableMapping(Mapping, collections.abc.MutableMapping):
