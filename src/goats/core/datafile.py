@@ -217,7 +217,7 @@ class Interface(iterables.ReprStrMixin, metaclass=iotools.PathSet):
         self._units = None
 
     @property
-    def variables(self):
+    def variables(self) -> aliased.Mapping[str, Variable]:
         """The variables in this dataset."""
         if self._variables is None:
             variables = {
@@ -239,7 +239,7 @@ class Interface(iterables.ReprStrMixin, metaclass=iotools.PathSet):
         return self._units
 
     @property
-    def axes(self):
+    def axes(self) -> aliased.Mapping[str, Axis]:
         """The axes in this dataset."""
         if self._axes is None:
             axes = {
