@@ -25,10 +25,18 @@ def unique(*items: T) -> typing.List[T]:
 W = typing.TypeVar('W', bound=typing.Iterable)
 
 
+@typing.overload
+def unwrap(obj: typing.Union[T, typing.Iterable[T]]) -> T: ...
+
+
+@typing.overload
 def unwrap(
     obj: typing.Union[T, typing.Iterable[T]],
     wrap: typing.Type[W]=None,
-) -> typing.Union[T, W]:
+) -> W: ...
+
+
+def unwrap(obj, wrap=None):
     """Remove redundant outer lists and tuples.
 
     This function will strip away enclosing instances of ``list`` or ``tuple``,
