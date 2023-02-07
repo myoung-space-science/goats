@@ -482,6 +482,13 @@ class Mapping(collections.abc.Mapping, typing.Generic[_KT, _VT]):
         aliases: typing.Optional[KeyMap[_KT]]=None,
     ) -> None: ...
 
+    @typing.overload
+    def __init__(
+        self: _MT,
+        mapping: typing.Mapping[_KT, _VT],
+        aliases: typing.Optional[_MT]=None,
+    ) -> None: ...
+
     def __init__(self, mapping=None, aliases=None) -> None:
         """Initialize this instance.
         
@@ -493,23 +500,27 @@ class Mapping(collections.abc.Mapping, typing.Generic[_KT, _VT]):
             represent aliases for each other. Omitting this argument will
             produce an empty mapping.
 
-        aliases : string or `~aliased.KeyMap`, default='aliases'
-            Either a string that points to values in `mapping` to use as aliases
-            or an instance of `~aliased.KeyMap` that maps keys in `mapping` to
-            the values to use as their aliases. The former case assumes that the
-            values of `mapping` are themselves mappings. These values will not
-            appear in the aliased mapping values.
+        aliases : string or `~Mapping` or `~KeyMap`, default='aliases'
+            Either a string that points to values in `mapping` to use as
+            aliases, an instance of `~aliased.KeyMap` that maps keys in
+            `mapping` to the values to use as their aliases, or an instance of
+            this class. The first case assumes that the values of `mapping` are
+            themselves mappings. These values will not appear in the aliased
+            mapping values.
         """
-        if isinstance(mapping, Mapping):
-            self.as_dict = dict(mapping.items(aliased=True))
-        else:
-            hint = (
-                KeyMap(*aliases.keys(aliased=True))
-                if isinstance(aliases, Mapping)
-                else aliases
-            )
-            self.as_dict = _build_mapping(mapping=mapping, aliases=hint)
+        self.as_dict = self._build_dict(mapping, aliases)
         self._flat_dict = {alias: k for k in self.as_dict for alias in k}
+
+    def _build_dict(self, mapping, aliases):
+        """Build the equivalent `dict` attribute."""
+        if isinstance(mapping, Mapping):
+            return dict(mapping.items(aliased=True))
+        if isinstance(aliases, Mapping):
+            return _build_mapping(
+                mapping=mapping,
+                aliases=KeyMap(*aliases.keys(aliased=True)),
+            )
+        return _build_mapping(mapping=mapping, aliases=aliases)
 
     def _flat_keys(self) -> typing.KeysView[str]:
         """Define a flat list of all the keys in this mapping."""
