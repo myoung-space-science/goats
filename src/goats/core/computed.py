@@ -402,7 +402,7 @@ def _interpolate(
     return fc[..., i0:], xc[i0:]
 
 
-REGISTRY = aliased.Mapping(registry, keymap=reference.ALIASES)
+REGISTRY = aliased.Mapping(registry, aliases=reference.ALIASES)
 
 
 class Method(collections.abc.Mapping, iterables.ReprStrMixin):

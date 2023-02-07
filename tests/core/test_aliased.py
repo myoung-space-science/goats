@@ -254,7 +254,7 @@ def test_declared_aliases():
         'c': {'name': 'Chrunk'},
     }
     assert mapping.flat == expected
-    mapping = aliased.Mapping(this, key='k')
+    mapping = aliased.Mapping(this, aliases='k')
     expected = {
         'a': {'name': 'Annabez', 'aliases': ('A', 'a0')},
         'Ka': {'name': 'Annabez', 'aliases': ('A', 'a0')},
@@ -348,7 +348,7 @@ def test_mapping_from_keymap():
         'D': {'name': 'Dilk'},
     }
     keymap = aliased.KeyMap(('a', 'A', 'a0'), ('b', 'B'), ('c', 'C'), 'D')
-    mapping = aliased.Mapping(init, keymap=keymap)
+    mapping = aliased.Mapping(init, aliases=keymap)
     expected = {
         'a': {'name': 'Annabez', 'k': ['Ka']},
         'A': {'name': 'Annabez', 'k': ['Ka']},
@@ -377,7 +377,7 @@ def test_mapping_as_keymap():
         'C': {'name': 'Chrunk'},
         'D': {'name': 'Dilk'},
     }
-    mapping = aliased.Mapping(init, keymap=keymap)
+    mapping = aliased.Mapping(init, aliases=keymap)
     expected = {
         'a': {'name': 'Annabez', 'k': ['Ka']},
         'A': {'name': 'Annabez', 'k': ['Ka']},
@@ -398,13 +398,17 @@ def test_mapping_extract_keys():
         'b': {'aliases': 'B', 'name': 'Borb', 'k': ('Kb', 'KB')},
         'C': {'aliases': ('c',), 'name': 'Chrunk'}
     }
-    keys = aliased.keysfrom(this)
-    expected = [
+    groups = [
         ['a', 'A', 'a0'],
         ['b', 'B'],
         ['C', 'c'],
     ]
-    assert keys == [aliased.MappingKey(k) for k in expected]
+    keys = aliased.keysfrom(this)
+    expected = [aliased.MappingKey(k) for k in this.keys()]
+    assert keys == expected
+    keys = aliased.keysfrom(this, aliases='aliases')
+    expected = [aliased.MappingKey(k) for k in groups]
+    assert keys == expected
 
 
 def test_keysview():

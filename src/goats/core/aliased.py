@@ -156,9 +156,8 @@ class KeyMap(iterables.MappingBase, typing.Generic[_KT]):
 
 def keysfrom(
     mapping: typing.Mapping[str, typing.Mapping[str, typing.Any]],
-    key: str=None,
-    keymap: KeyMap=None,
-) -> typing.List[MappingKey]:
+    aliases: typing.Union[str, KeyMap[str]]=None,
+) -> typing.List[MappingKey[str]]:
     """Extract keys for use in an aliased mapping.
     
     Parameters
@@ -166,7 +165,7 @@ def keysfrom(
     mapping
         Same as for `~aliased.Mapping.__init__`.
 
-    aliases : string
+    aliases
         Same as for `~aliased.Mapping.__init__`.
 
     Examples
@@ -181,35 +180,35 @@ def keysfrom(
     """
     if isinstance(mapping, Mapping):
         return mapping.keys(aliased=True)
-    if not (key or keymap):
-        key = 'aliases'
-    keys = [
-        MappingKey(k) | MappingKey(v.get(key, ()))
-        if key else MappingKey(k)
+    if aliases is None:
+        return [MappingKey(k) for k in mapping.keys()]
+    if isinstance(aliases, KeyMap):
+        return [
+            MappingKey(k) | aliases.get(k, ())
+            for k in mapping.keys()
+        ]
+    return [
+        MappingKey(k) | MappingKey(v.get(aliases, ()))
         for k, v in mapping.items()
     ]
-    if not keymap:
-        return keys
-    return [keymap[k] for k in keys]
 
 
 def _build_mapping(
     mapping: typing.Mapping=None,
-    key: str=None,
-    keymap: KeyMap=None,
+    aliases: typing.Union[str, KeyMap[str]]=None,
 ) -> dict:
     """Build the internal `dict` for an `~aliased.Mapping`."""
     # Is it empty?
     if not mapping:
         return {}
-    # Did the user declare an alias key or a key map to use?
-    if keymap or key:
-        return _build_from_key(mapping, key=key, keymap=keymap)
+    # Did the user provide explicit aliases?
+    if aliases:
+        return _build_from_key(mapping, aliases=aliases)
     # Does the mapping contain implicit aliases?
     if any(
         isinstance(group, typing.Mapping) and 'aliases' in group
         for group in mapping.values()
-    ): return _build_from_key(mapping, key='aliases')
+    ): return _build_from_key(mapping, aliases='aliases')
     # Does it have the form {<aliased key>: <value>}?
     if all(MappingKey.supports(key) for key in mapping):
         return _build_from_aliases(mapping)
@@ -234,8 +233,7 @@ def _build_from_aliases(
 
 def _build_from_key(
     mapping: typing.Mapping[str, typing.Mapping[str, typing.Any]],
-    key: str=None,
-    keymap: KeyMap=None,
+    aliases: typing.Union[str, KeyMap[str]]=None,
 ) -> typing.Dict[MappingKey, _VT]:
     """Build a `dict` with aliased keys taken from interior mappings.
     
@@ -245,11 +243,8 @@ def _build_from_key(
         An object that maps string keys to interior mappings of strings to
         any type.
 
-    key : str, default='aliases'
-        The key in the interior mappings whose values to use as aliases for
-        the corresponding keys in the user-provided mapping. Absence of this
-        key from a given interior mapping simply means the corresponding key
-        in the user-provided mapping will be the only alias for that entry.
+    aliases
+        Same as for `~aliased.Mapping.__init__`.
 
     Examples
     --------
@@ -272,22 +267,22 @@ def _build_from_key(
     ...     'a': {'foo': 'A', 'bar': 'a0'},
     ...     'b': {'foo': 'B', 'bar': 'b0'},
     ... }
-    >>> amap = aliased.Mapping(mapping, key='foo')
+    >>> amap = aliased.Mapping(mapping, aliases='foo')
     >>> amap
     aliased.Mapping('A | a': a0, 'b | B': b0)
     >>> amap['a']
     'a0'
-    >>> amap = aliased.Mapping(mapping, key='bar')
+    >>> amap = aliased.Mapping(mapping, aliases='bar')
     >>> amap
     aliased.Mapping('a0 | a': A, 'b | b0': B)
     >>> amap['a']
     'A'
     """
-    keys = keysfrom(mapping, key=key, keymap=keymap)
+    keys = keysfrom(mapping, aliases=aliases)
     values = [
-        {k: v for k, v in group.items() if k != key}
+        {k: v for k, v in group.items() if k != aliases}
         for group in mapping.values()
-    ] if key else mapping.values()
+    ] if aliases and isinstance(aliases, str) else mapping.values()
     return dict(zip(keys, values))
 
 
@@ -477,17 +472,17 @@ class Mapping(collections.abc.Mapping, typing.Generic[_KT, _VT]):
     def __init__(
         self,
         mapping: typing.Mapping[_KT, typing.Mapping[_AT, _VT]],
-        key: typing.Optional[_AT]=None,
+        aliases: typing.Optional[_AT]=None,
     ) -> None: ...
 
     @typing.overload
     def __init__(
         self,
         mapping: typing.Mapping[_KT, _VT],
-        keymap: typing.Optional[KeyMap[_KT]]=None,
+        aliases: typing.Optional[KeyMap[_KT]]=None,
     ) -> None: ...
 
-    def __init__(self, mapping=None, key=None, keymap=None) -> None:
+    def __init__(self, mapping=None, aliases=None) -> None:
         """Initialize this instance.
         
         Parameters
@@ -498,30 +493,22 @@ class Mapping(collections.abc.Mapping, typing.Generic[_KT, _VT]):
             represent aliases for each other. Omitting this argument will
             produce an empty mapping.
 
-        key : string, default=None
-            A key that points to values in `mapping` to use as aliases when the
+        aliases : string or `~aliased.KeyMap`, default='aliases'
+            Either a string that points to values in `mapping` to use as aliases
+            or an instance of `~aliased.KeyMap` that maps keys in `mapping` to
+            the values to use as their aliases. The former case assumes that the
             values of `mapping` are themselves mappings. These values will not
-            appear in the aliased mapping values. Omitting this argument will
-            cause all input mapping values to appear in the the aliased mapping
-            unless `keymap` is also ``None``, in which case the initialization
-            algorithm will search for aliases under the key 'aliases'.
-
-        keymap : `~aliased.KeyMap`, default=None
-            An instance of `~aliased.KeyMap` that maps keys in `mapping` to the
-            values to use as their aliases.
+            appear in the aliased mapping values.
         """
         if isinstance(mapping, Mapping):
             self.as_dict = dict(mapping.items(aliased=True))
         else:
-            self.as_dict = _build_mapping(
-                mapping=mapping,
-                key=key,
-                keymap=(
-                    KeyMap(*keymap.keys(aliased=True))
-                    if isinstance(keymap, Mapping)
-                    else keymap
-                ),
+            hint = (
+                KeyMap(*aliases.keys(aliased=True))
+                if isinstance(aliases, Mapping)
+                else aliases
             )
+            self.as_dict = _build_mapping(mapping=mapping, aliases=hint)
         self._flat_dict = {alias: k for k in self.as_dict for alias in k}
 
     def _flat_keys(self) -> typing.KeysView[str]:
@@ -668,7 +655,7 @@ class Mapping(collections.abc.Mapping, typing.Generic[_KT, _VT]):
             isinstance(__iterable, KeyMap)
             or not isinstance(__iterable, typing.Mapping)
         ): return cls({k: value for k in __iterable})
-        keys = keysfrom(__iterable, key=key)
+        keys = keysfrom(__iterable, aliases=key)
         d = {k: value for k in keys}
         return cls(d)
 

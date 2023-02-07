@@ -113,7 +113,7 @@ class Axes(aliased.Mapping):
             'energy': self.energy,
             'mu': self.mu,
         }
-        super().__init__(indexers, keymap=__data.axes)
+        super().__init__(indexers, aliases=__data.axes)
 
     def __getitem__(self, __k: str):
         """Get the named axis object, if possible."""
@@ -268,7 +268,7 @@ class Functions(aliased.Mapping):
         axes: Axes,
         variables: Variables,
     ) -> None:
-        super().__init__(computed.registry, keymap=reference.ALIASES)
+        super().__init__(computed.registry, aliases=reference.ALIASES)
         self.axes = axes
         self.variables = variables
         self._cache = {}
