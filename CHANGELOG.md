@@ -3,6 +3,8 @@
 ## NEXT
 
 - Update `numpy.simps` to `numpy.simpson`.
+- Define `observing.Context.keys` and refactor container-like methods.
+- Update type annotations on some core/aliased.py objects.
 
 ## v0.2.2
 
