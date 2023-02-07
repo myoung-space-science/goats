@@ -293,6 +293,7 @@ class Context(collections.abc.Collection, typing.Generic[T]):
             The full set of observing constraints.
         """
         self._cache = {}
+        self._keys = None
         self._constraints = None
         self._available = None
         self._observable = None
@@ -331,15 +332,22 @@ class Context(collections.abc.Collection, typing.Generic[T]):
 
     def __contains__(self, __x: str) -> bool:
         """True if `__x` is an available physical quantity."""
-        return __x in self.available
+        return __x in self.keys
 
     def __len__(self) -> int:
         """Compute the number of available physical quantities."""
-        return len(self.available)
+        return len(self.keys)
 
     def __iter__(self) -> typing.Iterator[str]:
         """Iterate over available physical quantities."""
-        return iter(self.available)
+        return iter(self.keys)
+
+    @property
+    def keys(self):
+        """The unaliased collection of available quantities."""
+        if self._keys is None:
+            self._keys = {key for group in self.available for key in group}
+        return self._keys
 
     @property
     def available(self):
@@ -361,14 +369,17 @@ class Context(collections.abc.Collection, typing.Generic[T]):
     def observable(self):
         """The names of observable physical quantities."""
         if self._observable is None:
-            self._observable = tuple(self._collect_aliases(self._mappings))
+            self._observable = tuple(self._collect_aliases(*self._mappings))
         return self._observable
 
-    def _collect_aliases(self, this: typing.Iterable[typing.Iterable[str]]):
+    def _collect_aliases(
+        self,
+        *groups: typing.Iterable[str],
+    ) -> typing.Set[typing.List[str]]:
         """Extract groups of aliased keys, based on reference alias groups."""
         return {
-            reference.ALIASES.get(key, key)
-            for keys in this for key in keys
+            tuple(reference.ALIASES.get(key, [key]))
+            for keys in groups for key in keys
         }
 
     def get_unit(self, name: str):
