@@ -80,7 +80,9 @@ class MappingKey(collections.abc.Set, typing.Generic[_KT]):
 
     def __repr__(self) -> str:
         """An unambiguous representation of this instance."""
-        return f"aliased.{self.__class__.__qualname__}({self})"
+        module = f"{self.__module__.replace('goats.', '')}."
+        name = self.__class__.__qualname__
+        return f"{module}{name}({self})"
 
 
 class KeyMap(iterables.MappingBase, typing.Generic[_KT]):
@@ -142,7 +144,9 @@ class KeyMap(iterables.MappingBase, typing.Generic[_KT]):
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
         items = self._display_items(separator='; ')
-        return f"aliased.{self.__class__.__qualname__}({items})"
+        module = f"{self.__module__.replace('goats.', '')}."
+        name = self.__class__.__qualname__
+        return f"{module}{name}({items})"
 
     def _display_items(self, separator: str=', '):
         """Build a collection of 'key: value' strings."""
@@ -332,7 +336,9 @@ class MappingView(collections.abc.MappingView, typing.Generic[_KT, _VT]):
 
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
-        return f"aliased.{self.__class__.__qualname__}({self})"
+        module = f"{self.__module__.replace('goats.', '')}."
+        name = self.__class__.__qualname__
+        return f"{module}{name}({self})"
 
 
 class KeysView(MappingView[_KT, _VT], collections.abc.KeysView):
@@ -704,7 +710,7 @@ class Mapping(collections.abc.Mapping, typing.Generic[_KT, _VT]):
         """An unambiguous representation of this object."""
         module = f"{self.__module__.replace('goats.', '')}."
         name = self.__class__.__qualname__
-        return f"aliased.{module}{name}({self})"
+        return f"{module}{name}({self})"
 
     def keys(self, aliased: bool=False):
         """A view on this instance's keys."""
