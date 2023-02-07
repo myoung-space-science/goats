@@ -155,9 +155,9 @@ class KeyMap(iterables.MappingBase, typing.Generic[_KT]):
 
 
 def keysfrom(
-    mapping: typing.Mapping[str, typing.Mapping[str, typing.Any]],
-    aliases: typing.Union[str, KeyMap[str]]=None,
-) -> typing.List[MappingKey[str]]:
+    mapping: typing.Mapping[_KT, typing.Mapping[_KT, _VT]],
+    aliases: typing.Optional[typing.Union[_KT, KeyMap[_KT]]]=None,
+) -> typing.List[MappingKey[_KT]]:
     """Extract keys for use in an aliased mapping.
     
     Parameters
