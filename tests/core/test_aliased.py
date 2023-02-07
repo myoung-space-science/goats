@@ -391,7 +391,7 @@ def test_mapping_as_keymap():
     assert mapping.flat == expected
 
 
-def test_mapping_extract_keys():
+def test_module_keysfrom():
     """Test the module function that extracts aliased keys."""
     this = {
         'a': {'aliases': ('A', 'a0'), 'name': 'Annabez', 'k': ['Ka']},
