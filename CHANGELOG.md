@@ -4,7 +4,7 @@
 
 - Update `numpy.simps` to `numpy.simpson`.
 - Define `observing.Context.keys` and refactor container-like methods.
-- Update type annotations on some core/aliased.py objects.
+- Significant updates to core/aliased.py, including replacing `KeyMap` with `Groups`, renaming `MappingKey` to `Group`, and improving type annotations.
 
 ## v0.2.2
 
