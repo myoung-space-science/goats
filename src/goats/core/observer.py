@@ -82,7 +82,7 @@ class Interface:
 
     def _observes(self, key: str):
         """Internal helper for `~Interface.observes`."""
-        if key in list(self.observables):
+        if key in self.observables:
             return True
         if symbolic.composition(key):
             expression = symbolic.Expression(key)
