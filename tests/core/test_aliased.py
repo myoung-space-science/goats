@@ -39,39 +39,71 @@ def test_groups():
 
 def test_groups_update():
     """Test the ability to update a collection of groups (in-place merge)."""
-    groups = aliased.Groups(('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2'])
-    these = aliased.Groups(('a', 'a1'), ['this', 'that'])
-    groups.update(these)
-    assert groups.find('a') == aliased.Group('a', 'A', 'a1')
-    assert groups.find('A') == aliased.Group('a', 'A', 'a1')
-    assert groups.find('b') == aliased.Group('b')
-    assert groups.find('c') == aliased.Group('c', 'C')
-    assert groups.find('C') == aliased.Group('c', 'C')
-    assert groups.find('d0') == aliased.Group('d0', 'd1', 'd2')
-    assert groups.find('d1') == aliased.Group('d0', 'd1', 'd2')
-    assert groups.find('d2') == aliased.Group('d0', 'd1', 'd2')
-    assert groups.find('this') == aliased.Group('this', 'that')
+    original = [('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2']]
+    modified = {
+        ('a', 'A'): ['a', 'A', 'a1'],
+        ('b',): None,
+        ('c', 'C'): None,
+        ('d0', 'd1', 'd2'): None,
+    }
+    inserted = {
+        ('this', 'that'),
+    }
+    targets = [('a', 'a1'), ['this', 'that']]
+    update_groups(original, modified, inserted, aliased.Groups(*targets))
+
+
+def update_groups(
+    original,
+    modified: typing.Dict[tuple, typing.Optional[list]],
+    inserted: typing.Set[tuple],
+    *others,
+) -> None:
+    """Helper for testing `aliased.Groups.update`."""
+    groups = aliased.Groups(*original)
+    groups.update(*others)
+    for old, new in modified.items():
+        keys = new or old
+        for key in keys:
+            assert groups.find(key) == aliased.Group(*keys)
+    for keys in inserted:
+        for key in keys:
+            assert groups.find(key) == aliased.Group(*keys)
 
 
 def test_groups_merge():
     """Test the ability to create a merged collection of groups."""
-    groups = aliased.Groups(('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2'])
-    these = aliased.Groups(('a', 'a1'), ['this', 'that'])
-    merged = groups.merge(these)
-    assert merged.find('a') == aliased.Group('a', 'A', 'a1')
-    assert merged.find('A') == aliased.Group('a', 'A', 'a1')
-    assert merged.find('a1') == aliased.Group('a', 'A', 'a1')
-    assert merged.find('b') == aliased.Group('b')
-    assert merged.find('c') == aliased.Group('c', 'C')
-    assert merged.find('C') == aliased.Group('c', 'C')
-    assert merged.find('d0') == aliased.Group('d0', 'd1', 'd2')
-    assert merged.find('d1') == aliased.Group('d0', 'd1', 'd2')
-    assert merged.find('d2') == aliased.Group('d0', 'd1', 'd2')
-    assert merged.find('this') == aliased.Group('this', 'that')
-    assert groups.find('a') == aliased.Group('a', 'A')
-    assert groups.find('A') == aliased.Group('a', 'A')
-    assert 'this' not in groups
-    assert 'that' not in groups
+    original = [('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2']]
+    modified = {
+        ('a', 'A'): ['a', 'A', 'a1'],
+        ('b',): None,
+        ('c', 'C'): None,
+        ('d0', 'd1', 'd2'): None,
+    }
+    inserted = {
+        ('this', 'that'),
+    }
+    targets = [('a', 'a1'), ['this', 'that']]
+    merge_groups(original, modified, inserted, aliased.Groups(*targets))
+
+
+def merge_groups(
+    original,
+    modified: typing.Dict[tuple, typing.Optional[list]],
+    inserted: typing.Set[tuple],
+    *others,
+) -> None:
+    """Helper for testing `aliased.Groups.merge`."""
+    groups = aliased.Groups(*original)
+    merged = groups.merge(*others)
+    for old, new in modified.items():
+        keys = new or old
+        for key in keys:
+            assert merged.find(key) == aliased.Group(*keys)
+        for key in old:
+            assert groups.find(key) == aliased.Group(*old)
+    for keys in inserted:
+        assert all(key not in groups for key in keys)
 
 
 def test_groups_without():
