@@ -113,7 +113,7 @@ class Axes(aliased.Mapping):
             'energy': self.energy,
             'mu': self.mu,
         }
-        super().__init__(indexers, aliases=__data.axes)
+        super().__init__(indexers, aliases=reference.ALIASES)
 
     def __getitem__(self, __k: str):
         """Get the named axis object, if possible."""
