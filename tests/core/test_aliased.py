@@ -51,30 +51,6 @@ def test_groups():
     assert groups.find('a') == aliased.MappingKey('a', 'A', 'a1')
 
 
-def test_keymap():
-    """Test the collection that groups aliases."""
-    original = [('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2']]
-    keymap = aliased.KeyMap(*original)
-    assert keymap['a'] == aliased.MappingKey('a', 'A')
-    assert keymap['A'] == aliased.MappingKey('a', 'A')
-    assert keymap['b'] == aliased.MappingKey('b')
-    assert keymap['c'] == aliased.MappingKey('c', 'C')
-    assert keymap['C'] == aliased.MappingKey('c', 'C')
-    assert keymap['d0'] == aliased.MappingKey('d0', 'd1', 'd2')
-    assert keymap['d1'] == aliased.MappingKey('d0', 'd1', 'd2')
-    assert keymap['d2'] == aliased.MappingKey('d0', 'd1', 'd2')
-    splits = {
-        'a': ['b', ('c', 'C'), ('d0', 'd1', 'd2')],
-        ('a', 'd1'): ['b', ('c', 'C')],
-        ('d1', 'a'): ['b', ('c', 'C')],
-        (aliased.MappingKey('c', 'C'), 'd0'): [('a', 'A'), 'b'],
-        (aliased.MappingKey('C'), 'd0'): [('a', 'A'), 'b', ('c', 'C')],
-        ('T', 'd0'): [('a', 'A'), 'b', ('c', 'C')],
-    }
-    for r, k in splits.items():
-        assert keymap.without(*r) == aliased.KeyMap(*k)
-
-
 def test_mapping():
     """Test the object that represents a mapping with aliased keys."""
     # Set up mappings.
@@ -346,7 +322,7 @@ def test_mapping_fromkeys():
         'D': None,
     }
     assert mapping.flat == expected
-    keys = aliased.KeyMap(('a', 'A', 'a0'), ('b', 'B'), ('c', 'C'), 'D')
+    keys = aliased.Groups(('a', 'A', 'a0'), ('b', 'B'), ('c', 'C'), 'D')
     mapping = aliased.Mapping.fromkeys(keys)
     assert mapping.flat == expected
     keys = [('a', 'A', 'a0'), ('b', 'B'), ('c', 'C'), 'D']
@@ -366,15 +342,15 @@ def test_mapping_fromkeys():
     assert mapping.flat == expected
 
 
-def test_mapping_from_keymap():
-    """Initialize an aliased mapping with a key map."""
+def test_mapping_from_groups():
+    """Initialize an aliased mapping with aliased groups."""
     init = {
         'a': {'name': 'Annabez', 'k': ['Ka']},
         'b': {'name': 'Borb', 'k': ('Kb', 'KB')},
         'C': {'name': 'Chrunk'},
         'D': {'name': 'Dilk'},
     }
-    keymap = aliased.KeyMap(('a', 'A', 'a0'), ('b', 'B'), ('c', 'C'), 'D')
+    keymap = aliased.Groups(('a', 'A', 'a0'), ('b', 'B'), ('c', 'C'), 'D')
     mapping = aliased.Mapping(init, aliases=keymap)
     expected = {
         'a': {'name': 'Annabez', 'k': ['Ka']},

@@ -85,75 +85,6 @@ class MappingKey(collections.abc.Set, typing.Generic[_KT]):
         return f"{module}{name}({self})"
 
 
-class KeyMap(iterables.MappingBase, typing.Generic[_KT]):
-    """A collection that associates common aliases."""
-
-    def __init__(
-        self,
-        *keys: typing.Union[_KT, typing.Iterable[_KT]],
-    ) -> None:
-        """
-        Parameters
-        ----------
-        keys
-            An iterable collection of associated keys. Each key may be a string
-            or an iterable of strings (including instances of `~MappingKey`).
-        """
-        self._groups = [MappingKey(key) for key in keys]
-        self._flat = [key for group in self._groups for key in group]
-        super().__init__(self._flat)
-
-    def __getitem__(self, __k):
-        """Look up aliases by key.
-        
-        This method will sequentially check for a one of the following cases:
-            - one of the internal mapping keys contains the given key
-            - the given key is equal to one of the internal mapping keys
-        If it finds a match, it will immediately return it (i.e., without
-        checking other keys); if not, it will raise a ``KeyError``.
-        """
-        s = str(__k)
-        m = MappingKey(__k)
-        alias = (k for k in self._groups if s in k or m == k)
-        try:
-            found = next(alias)
-        except StopIteration as err:
-            raise KeyError(f"{s!r} not found") from err
-        else:
-            return found
-
-    def without(self, *keys: typing.Union[_KT, MappingKey[_KT]]):
-        """Create a new keymap after removing `keys`."""
-        subset = [
-            group
-            for group in self._groups
-            if (
-                # none of the keys is in this group
-                all(key not in group for key in keys)
-                and
-                # this group is not one of the keys
-                group not in keys
-            )
-        ]
-        return type(self)(*subset)
-
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        return self._display_items(separator='\n')
-
-    def __repr__(self) -> str:
-        """An unambiguous representation of this object."""
-        items = self._display_items(separator='; ')
-        module = f"{self.__module__.replace('goats.', '')}."
-        name = self.__class__.__qualname__
-        return f"{module}{name}({items})"
-
-    def _display_items(self, separator: str=', '):
-        """Build a collection of 'key: value' strings."""
-        items = {f"{str(k)!r}" for k in self._groups}
-        return separator.join(items)
-
-
 class Groups(collections.abc.MutableSet, typing.Generic[_KT]):
     """A collection of unique groups of associated members."""
 
@@ -267,7 +198,7 @@ class Groups(collections.abc.MutableSet, typing.Generic[_KT]):
 
 def keysfrom(
     mapping: typing.Mapping[_KT, typing.Mapping[_KT, _VT]],
-    aliases: typing.Optional[typing.Union[_KT, KeyMap[_KT]]]=None,
+    aliases: typing.Optional[typing.Union[_KT, Groups[_KT]]]=None,
 ) -> typing.List[MappingKey[_KT]]:
     """Extract keys for use in an aliased mapping.
     
@@ -293,9 +224,9 @@ def keysfrom(
         return mapping.keys(aliased=True)
     if aliases is None:
         return [MappingKey(k) for k in mapping.keys()]
-    if isinstance(aliases, KeyMap):
+    if isinstance(aliases, Groups):
         return [
-            MappingKey(k) | aliases.get(k, ())
+            MappingKey(k) | aliases.find(k, ())
             for k in mapping.keys()
         ]
     return [
@@ -306,7 +237,7 @@ def keysfrom(
 
 def _build_mapping(
     mapping: typing.Mapping=None,
-    aliases: typing.Union[str, KeyMap[str]]=None,
+    aliases: typing.Union[str, Groups[str]]=None,
 ) -> dict:
     """Build the internal `dict` for an `~aliased.Mapping`."""
     # Is it empty?
@@ -344,7 +275,7 @@ def _build_from_aliases(
 
 def _build_from_key(
     mapping: typing.Mapping[str, typing.Mapping[str, typing.Any]],
-    aliases: typing.Union[str, KeyMap[str]]=None,
+    aliases: typing.Union[str, Groups[str]]=None,
 ) -> typing.Dict[MappingKey, _VT]:
     """Build a `dict` with aliased keys taken from interior mappings.
     
@@ -590,7 +521,7 @@ class Mapping(collections.abc.Mapping, typing.Generic[_KT, _VT]):
     def __init__(
         self,
         mapping: typing.Mapping[_KT, _VT],
-        aliases: typing.Optional[KeyMap[_KT]]=None,
+        aliases: typing.Optional[Groups[_KT]]=None,
     ) -> None: ...
 
     @typing.overload
@@ -611,9 +542,9 @@ class Mapping(collections.abc.Mapping, typing.Generic[_KT, _VT]):
             represent aliases for each other. Omitting this argument will
             produce an empty mapping.
 
-        aliases : string or `~Mapping` or `~KeyMap`, default='aliases'
+        aliases : string or `~Mapping` or `~Groups`, default='aliases'
             Either a string that points to values in `mapping` to use as
-            aliases, an instance of `~aliased.KeyMap` that maps keys in
+            aliases, an instance of `~aliased.Groups` that maps keys in
             `mapping` to the values to use as their aliases, or an instance of
             this class. The first case assumes that the values of `mapping` are
             themselves mappings. These values will not appear in the aliased
@@ -629,7 +560,7 @@ class Mapping(collections.abc.Mapping, typing.Generic[_KT, _VT]):
         if isinstance(aliases, Mapping):
             return _build_mapping(
                 mapping=mapping,
-                aliases=KeyMap(*aliases.keys(aliased=True)),
+                aliases=Groups(*aliases.keys(aliased=True)),
             )
         return _build_mapping(mapping=mapping, aliases=aliases)
 
@@ -735,12 +666,12 @@ class Mapping(collections.abc.Mapping, typing.Generic[_KT, _VT]):
         ----------
         __iterable
             A mapping capable of initializing `~aliases.Mapping`, an iterable
-            capable of initializing `~aliases.KeyMap`, or an instance of
-            `~aliases.KeyMap`.
+            capable of initializing `~aliases.Groups`, or an instance of
+            `~aliases.Groups`.
 
         key : string
             Same as for `~aliases.Mapping.__init__`. Ignored of `__iterable` is
-            an `~aliased.KeyMap` or a non-mapping iterable.
+            an `~aliased.Groups` or a non-mapping iterable.
 
         value : any
             The fill value to use for all items.
@@ -768,13 +699,13 @@ class Mapping(collections.abc.Mapping, typing.Generic[_KT, _VT]):
         >>> amap = aliased.Mapping.fromkeys(keys, value=-1.0)
         >>> amap
         aliased.Mapping('a0 | a | A': -1.0, 'B | b': -1.0, 'c': -1.0)
-        >>> keys = aliased.KeyMap(*keys)
+        >>> keys = aliased.Groups(*keys)
         >>> amap = aliased.Mapping.fromkeys(keys, value=-1.0)
         >>> amap
         aliased.Mapping('a0 | a | A': -1.0, 'B | b': -1.0, 'c': -1.0)
         """
         if (
-            isinstance(__iterable, KeyMap)
+            isinstance(__iterable, Groups)
             or not isinstance(__iterable, typing.Mapping)
         ): return cls({k: value for k in __iterable})
         keys = keysfrom(__iterable, aliases=key)

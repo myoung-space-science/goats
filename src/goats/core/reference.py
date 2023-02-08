@@ -146,6 +146,6 @@ _METADATA = {
     for k, v in _BASE.items()
 }
 
-ALIASES = aliased.KeyMap(*_METADATA.keys())
+ALIASES = aliased.Groups(*_METADATA.keys())
 METADATA = aliased.Mapping(_METADATA)
 
