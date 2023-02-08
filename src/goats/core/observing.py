@@ -378,7 +378,7 @@ class Context(collections.abc.Collection, typing.Generic[T]):
     ) -> typing.Set[typing.List[str]]:
         """Extract groups of aliased keys, based on reference alias groups."""
         return {
-            tuple(reference.ALIASES.get(key, [key]))
+            tuple(reference.ALIASES.find(key, [key]))
             for keys in groups for key in keys
         }
 
