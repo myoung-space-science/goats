@@ -53,8 +53,11 @@ class Group(collections.abc.Set, typing.Generic[_KT]):
         return hash(tuple(self._aliases))
 
     def __bool__(self) -> bool:
-        """Same as the truth value of the equivalent string."""
-        return bool(str(self))
+        """Called for bool(self)."""
+        # NOTE: The truth value of a Group is equal to whether or not it has at
+        # least one alias. Since it is currently not possible to instantiate a
+        # Group with zero aliases, this should always return True.
+        return bool(self._aliases)
 
     def _implement(operator):
         def method(self: 'Group', other):
