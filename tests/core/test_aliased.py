@@ -26,8 +26,7 @@ def test_group():
 
 def test_groups():
     """Test the collection that groups aliases."""
-    original = [('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2']]
-    groups = aliased.Groups(*original)
+    groups = aliased.Groups(('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2'])
     assert groups.find('a') == aliased.Group('a', 'A')
     assert groups.find('A') == aliased.Group('a', 'A')
     assert groups.find('b') == aliased.Group('b')
@@ -36,6 +35,19 @@ def test_groups():
     assert groups.find('d0') == aliased.Group('d0', 'd1', 'd2')
     assert groups.find('d1') == aliased.Group('d0', 'd1', 'd2')
     assert groups.find('d2') == aliased.Group('d0', 'd1', 'd2')
+
+
+def test_groups_update():
+    """Test the ability to update a collection of groups (in-place merge)."""
+    groups = aliased.Groups(('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2'])
+    these = aliased.Groups(('a', 'a1'), ['this', 'that'])
+    groups.update(these)
+    assert groups.find('a') == aliased.Group('a', 'A', 'a1')
+
+
+def test_groups_without():
+    """Test the ability to exclude groups from a collection."""
+    groups = aliased.Groups(('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2'])
     splits = {
         'a': ['b', ('c', 'C'), ('d0', 'd1', 'd2')],
         ('a', 'd1'): ['b', ('c', 'C')],
@@ -46,9 +58,6 @@ def test_groups():
     }
     for r, k in splits.items():
         assert groups.without(*r) == aliased.Groups(*k)
-    others = aliased.Groups(('a', 'a1'), ['this', 'that'])
-    groups.update(others)
-    assert groups.find('a') == aliased.Group('a', 'A', 'a1')
 
 
 def test_mapping():
