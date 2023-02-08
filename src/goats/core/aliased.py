@@ -217,7 +217,9 @@ class Groups(collections.abc.MutableSet, typing.Generic[_KT]):
         if found := self.find(__x):
             self._groups.remove(found)
 
-    def find(self, __x: _KT):
+    DefaultType = typing.TypeVar('DefaultType')
+
+    def find(self, __x: _KT, default: typing.Optional[DefaultType]=None):
         """Get the group containing `__x`, if possible.
         
         This method will sequentially check for a one of the following cases:
@@ -229,7 +231,7 @@ class Groups(collections.abc.MutableSet, typing.Generic[_KT]):
         s = str(__x)
         m = MappingKey(__x)
         alias = (k for k in self._groups if s in k or m == k)
-        return next(alias, None)
+        return next(alias, default)
 
     def without(self, *keys: typing.Union[_KT, MappingKey[_KT]]):
         """Create a new keymap after removing `keys`."""
