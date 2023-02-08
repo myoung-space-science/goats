@@ -519,11 +519,10 @@ class MappingBase(collections.abc.Mapping):
     The following class implements `collections.abc.Mapping`::
 
         class Implemented(MappingBase):
-
             def __init__(self, mapping: Mapping) -> None:
-                __mapping = mapping or {} super().__init__(__mapping.keys())
+                __mapping = mapping or {}
+                super().__init__(__mapping.keys())
                 self.__mapping = __mapping
-
             def __getitem__(self, k: Any):
                 if k in self.__mapping:
                     return self.__mapping
