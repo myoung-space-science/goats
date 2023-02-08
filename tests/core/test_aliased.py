@@ -43,6 +43,14 @@ def test_groups_update():
     these = aliased.Groups(('a', 'a1'), ['this', 'that'])
     groups.update(these)
     assert groups.find('a') == aliased.Group('a', 'A', 'a1')
+    assert groups.find('A') == aliased.Group('a', 'A', 'a1')
+    assert groups.find('b') == aliased.Group('b')
+    assert groups.find('c') == aliased.Group('c', 'C')
+    assert groups.find('C') == aliased.Group('c', 'C')
+    assert groups.find('d0') == aliased.Group('d0', 'd1', 'd2')
+    assert groups.find('d1') == aliased.Group('d0', 'd1', 'd2')
+    assert groups.find('d2') == aliased.Group('d0', 'd1', 'd2')
+    assert groups.find('this') == aliased.Group('this', 'that')
 
 
 def test_groups_without():
