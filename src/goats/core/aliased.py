@@ -85,6 +85,9 @@ class Group(collections.abc.Set, typing.Generic[_KT]):
         return f"{module}{name}({self})"
 
 
+GroupsType = typing.TypeVar('GroupsType', bound='Groups')
+
+
 class Groups(collections.abc.MutableSet, typing.Generic[_KT]):
     """A collection of unique groups of associated members."""
 
@@ -117,13 +120,19 @@ class Groups(collections.abc.MutableSet, typing.Generic[_KT]):
         """Called for __x in self."""
         return self.find(__x) is not None
 
-    def update(self, *others):
+    def update(
+        self: GroupsType,
+        *others: typing.Union[_KT, typing.Iterable[_KT], GroupsType]
+    ) -> None:
         """Merge groups from `others` into these groups."""
         if not others:
             return
         self._groups = self._merge(*others)
 
-    def merge(self, *others):
+    def merge(
+        self: GroupsType,
+        *others: typing.Union[_KT, typing.Iterable[_KT], GroupsType]
+    ) -> GroupsType:
         """Create a new instance with merged groups."""
         return type(self)(*self._merge(*others))
 
