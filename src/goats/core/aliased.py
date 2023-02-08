@@ -129,9 +129,9 @@ class Groups(collections.abc.MutableSet, typing.Generic[_KT]):
 
     def _merge(self, *others):
         """Combine this instance's groups with other groups."""
-        valid = (this for this in others if isinstance(this, Groups))
         these = self._groups.copy()
-        for groups in valid:
+        for this in others:
+            groups = this if isinstance(this, Groups) else [this]
             for group in groups:
                 if found := self._search(group):
                     these.remove(found)

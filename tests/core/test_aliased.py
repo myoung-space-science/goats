@@ -50,6 +50,7 @@ def test_groups_update():
         ('this', 'that'),
     }
     targets = [('a', 'a1'), ['this', 'that']]
+    update_groups(original, modified, inserted, *targets)
     update_groups(original, modified, inserted, aliased.Groups(*targets))
 
 
@@ -84,6 +85,7 @@ def test_groups_merge():
         ('this', 'that'),
     }
     targets = [('a', 'a1'), ['this', 'that']]
+    merge_groups(original, modified, inserted, *targets)
     merge_groups(original, modified, inserted, aliased.Groups(*targets))
 
 
