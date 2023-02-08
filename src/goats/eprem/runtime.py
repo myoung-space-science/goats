@@ -61,6 +61,7 @@ from goats.core import iotools
 from goats.core import iterables
 from goats.core import numerical
 from goats.core import operational
+from goats.core import reference
 
 
 class BaseTypeDef:
@@ -761,6 +762,7 @@ class Runtime(iterables.MappingBase):
         return arg
 
 
+# Is this in use or can we remove it?
 class Arguments(constant.Interface):
     """Aliased access to EPREM parameter arguments."""
 
@@ -816,7 +818,10 @@ class Arguments(constant.Interface):
         return aliased.MutableMapping(base)
 
 
-class Interface(aliased.Mapping):
+_VT = typing.TypeVar('_VT')
+
+
+class Interface(aliased.Mapping[str, _VT]):
     """An interface to EPREM parameters."""
 
     def __init__(self, path: iotools.PathLike=None, **opts) -> None:
@@ -840,22 +845,14 @@ class Interface(aliased.Mapping):
         characters (e.g., `~`).
         """
         runtime = Runtime(config_path=path)
-        values = {
-            **{
-                key: info.get('default')
-                for key, info in _LOCAL.items()
-            },
-            **dict(runtime),
-        }
+        values = {key: info.get('default') for key, info in _LOCAL.items()}
+        values.update(dict(runtime))
         keys = tuple(set(tuple(_LOCAL) + tuple(runtime)))
         base = {
-            (key, *_ALIASES.get(key, [])): {
-                'unit': _UNITS.get(key),
-                'value': values.get(key),
-            }
+            key: {'unit': _UNITS.get(key), 'value': values.get(key)}
             for key in keys
         }
-        super().__init__(base)
+        super().__init__(base, aliases=reference.ALIASES.merge(*ALIASES))
         self._user = ConfigFile(path, **opts) if path else {}
         self._reference = ConfigurationC()
         self._basetypes = BaseTypesH()
@@ -1517,6 +1514,8 @@ _ALIASES = {
     for key, info in _metadata.items()
 }
 """Collection of aliases from metadata."""
+
+ALIASES = aliased.keysfrom(_metadata, aliases='aliases')
 
 _UNITS = {
     key: info.get('unit')
