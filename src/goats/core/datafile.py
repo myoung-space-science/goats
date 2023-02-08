@@ -220,11 +220,10 @@ class Interface(iterables.ReprStrMixin, metaclass=iotools.PathSet):
     def variables(self) -> aliased.Mapping[str, Variable]:
         """The variables in this dataset."""
         if self._variables is None:
-            variables = {
-                reference.ALIASES.get(name, name): variable
-                for name, variable in self.viewers['variables'].items()
-            }
-            self._variables = aliased.Mapping(variables)
+            self._variables = aliased.Mapping(
+                self.viewers['variables'],
+                aliases=reference.ALIASES,
+            )
         return self._variables
 
     @property
@@ -242,11 +241,10 @@ class Interface(iterables.ReprStrMixin, metaclass=iotools.PathSet):
     def axes(self) -> aliased.Mapping[str, Axis]:
         """The axes in this dataset."""
         if self._axes is None:
-            axes = {
-                reference.ALIASES.get(name, name): axis
-                for name, axis in self.viewers['axes'].items()
-            }
-            self._axes = aliased.Mapping(axes)
+            self._axes = aliased.Mapping(
+                self.viewers['axes'],
+                aliases=reference.ALIASES,
+            )
         return self._axes
 
     def available(self, key: str):
@@ -254,13 +252,13 @@ class Interface(iterables.ReprStrMixin, metaclass=iotools.PathSet):
         if key in {'variable', 'variables'}:
             return SubsetKeys(
                 full=tuple(self.variables),
-                aliased=tuple(self.variables.keys(aliased=True)),
+                grouped=tuple(self.variables.keys(aliased=True)),
                 canonical=tuple(self.viewers['variables'].keys()),
             )
         if key in {'axis', 'axes', 'dimension', 'dimensions'}:
             return SubsetKeys(
                 full=tuple(self.axes),
-                aliased=tuple(self.axes.keys(aliased=True)),
+                grouped=tuple(self.axes.keys(aliased=True)),
                 canonical=tuple(self.viewers['axes'].keys()),
             )
 
