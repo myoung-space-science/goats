@@ -119,14 +119,26 @@ class Groups(collections.abc.MutableSet, typing.Generic[_KT]):
 
     def update(self, *others):
         """Merge groups from `others` into these groups."""
+        if not others:
+            return
+        self._groups = self._merge(*others)
+
+    def merge(self, *others):
+        """Create a new instance with merged groups."""
+        return type(self)(*self._merge(*others))
+
+    def _merge(self, *others):
+        """Combine this instance's groups with other groups."""
         valid = (this for this in others if isinstance(this, Groups))
+        these = self._groups.copy()
         for groups in valid:
             for group in groups:
                 if found := self._search(group):
-                    self._groups.remove(found)
-                    self._groups.append(found | group)
+                    these.remove(found)
+                    these.append(found | group)
                 else:
-                    self._groups.append(group)
+                    these.append(group)
+        return these
 
     def _search(self, group: typing.Iterable[_KT]):
         """Search for a member of `group` that is in this instance."""

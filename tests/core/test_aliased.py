@@ -53,6 +53,27 @@ def test_groups_update():
     assert groups.find('this') == aliased.Group('this', 'that')
 
 
+def test_groups_merge():
+    """Test the ability to create a merged collection of groups."""
+    groups = aliased.Groups(('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2'])
+    these = aliased.Groups(('a', 'a1'), ['this', 'that'])
+    merged = groups.merge(these)
+    assert merged.find('a') == aliased.Group('a', 'A', 'a1')
+    assert merged.find('A') == aliased.Group('a', 'A', 'a1')
+    assert merged.find('a1') == aliased.Group('a', 'A', 'a1')
+    assert merged.find('b') == aliased.Group('b')
+    assert merged.find('c') == aliased.Group('c', 'C')
+    assert merged.find('C') == aliased.Group('c', 'C')
+    assert merged.find('d0') == aliased.Group('d0', 'd1', 'd2')
+    assert merged.find('d1') == aliased.Group('d0', 'd1', 'd2')
+    assert merged.find('d2') == aliased.Group('d0', 'd1', 'd2')
+    assert merged.find('this') == aliased.Group('this', 'that')
+    assert groups.find('a') == aliased.Group('a', 'A')
+    assert groups.find('A') == aliased.Group('a', 'A')
+    assert 'this' not in groups
+    assert 'that' not in groups
+
+
 def test_groups_without():
     """Test the ability to exclude groups from a collection."""
     groups = aliased.Groups(('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2'])
