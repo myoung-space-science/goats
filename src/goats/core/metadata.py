@@ -742,7 +742,15 @@ class Name(collections.abc.Collection, Attribute):
         return Name([f"trunc({i})" for i in self])
 
     def __bool__(self) -> bool:
-        return bool(self._aliases)
+        """Called for bool(self)."""
+        # NOTE: Essentially, we want an instance to be False if it's equivalent
+        # to the empty string. This is not entirely robust but it should catch
+        # most common use cases.
+        if len(self._aliases) == 1:
+            name = list(self._aliases)[0]
+            if name == '':
+                return False
+        return True
 
     def __hash__(self) -> int:
         return hash(self._aliases)
