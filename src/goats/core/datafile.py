@@ -192,7 +192,7 @@ class SubsetKeys(typing.NamedTuple):
 
     full: typing.Tuple[str]
     """Every attribute's names and aliases in a flat sequence."""
-    aliased: typing.Tuple[aliased.Group]
+    grouped: typing.Tuple[aliased.Group]
     """Groups of aliases for each attribute."""
     canonical: typing.Tuple[str]
     """The (unaliased) name of each attribute as defined on disk."""

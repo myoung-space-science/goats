@@ -31,7 +31,7 @@ def test_interface(testdata: dict):
         aliased.Group(key)
         for key in ('level', ('time', 't', 'times'), 'lat', 'lon', 'temp')
     ]
-    assert sorted(available.aliased) == sorted(aliases)
+    assert sorted(available.grouped) == sorted(aliases)
     canonical = ['level', 'time', 'lat', 'lon', 'temp']
     assert sorted(available.canonical) == sorted(canonical)
 
