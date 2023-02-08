@@ -24,6 +24,33 @@ def test_key():
     assert aliased.MappingKey(2) == 2
 
 
+def test_groups():
+    """Test the collection that groups aliases."""
+    original = [('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2']]
+    groups = aliased.Groups(*original)
+    assert groups.find('a') == aliased.MappingKey('a', 'A')
+    assert groups.find('A') == aliased.MappingKey('a', 'A')
+    assert groups.find('b') == aliased.MappingKey('b')
+    assert groups.find('c') == aliased.MappingKey('c', 'C')
+    assert groups.find('C') == aliased.MappingKey('c', 'C')
+    assert groups.find('d0') == aliased.MappingKey('d0', 'd1', 'd2')
+    assert groups.find('d1') == aliased.MappingKey('d0', 'd1', 'd2')
+    assert groups.find('d2') == aliased.MappingKey('d0', 'd1', 'd2')
+    splits = {
+        'a': ['b', ('c', 'C'), ('d0', 'd1', 'd2')],
+        ('a', 'd1'): ['b', ('c', 'C')],
+        ('d1', 'a'): ['b', ('c', 'C')],
+        (aliased.MappingKey('c', 'C'), 'd0'): [('a', 'A'), 'b'],
+        (aliased.MappingKey('C'), 'd0'): [('a', 'A'), 'b', ('c', 'C')],
+        ('T', 'd0'): [('a', 'A'), 'b', ('c', 'C')],
+    }
+    for r, k in splits.items():
+        assert groups.without(*r) == aliased.Groups(*k)
+    others = aliased.Groups(('a', 'a1'), ['this', 'that'])
+    groups.update(others)
+    assert groups.find('a') == aliased.MappingKey('a', 'A', 'a1')
+
+
 def test_keymap():
     """Test the collection that groups aliases."""
     original = [('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2']]

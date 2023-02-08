@@ -154,6 +154,115 @@ class KeyMap(iterables.MappingBase, typing.Generic[_KT]):
         return separator.join(items)
 
 
+class Groups(collections.abc.MutableSet, typing.Generic[_KT]):
+    """A collection of unique groups of associated members."""
+
+    def __init__(
+        self,
+        *keys: typing.Union[_KT, typing.Iterable[_KT]],
+    ) -> None:
+        """
+        Parameters
+        ----------
+        keys
+            Zero or more groups of associated objects.
+        """
+        self._groups = [MappingKey(key) for key in keys]
+
+    @property
+    def flat(self):
+        """All current aliases, in a single list."""
+        return [key for group in self._groups for key in group]
+
+    def __len__(self) -> int:
+        """Called for len(self)."""
+        return len(self._groups)
+
+    def __iter__(self):
+        """Called for iter(self)."""
+        return iter(self._groups)
+
+    def __contains__(self, __x: _KT) -> bool:
+        """Called for __x in self."""
+        return self.find(__x) is not None
+
+    def update(self, *others):
+        """Merge groups from `others` into these groups."""
+        valid = (this for this in others if isinstance(this, Groups))
+        for groups in valid:
+            for group in groups:
+                if found := self._search(group):
+                    self._groups.remove(found)
+                    self._groups.append(found | group)
+                else:
+                    self._groups.append(group)
+
+    def _search(self, group: typing.Iterable[_KT]):
+        """Search for a member of `group` that is in this instance."""
+        for member in group:
+            if found := self.find(member):
+                return found
+
+    def add(self, __x: typing.Iterable[_KT]) -> None:
+        """Add `__x` to the existing groups."""
+        for i in __x:
+            if i in self.flat:
+                raise ValueError(
+                    f"Cannot add {__x}: {i} already exists in a group"
+                ) from None
+        self._groups.append(MappingKey(__x))
+
+    def discard(self, __x: _KT) -> None:
+        """Remove the group containing `__x`."""
+        if found := self.find(__x):
+            self._groups.remove(found)
+
+    def find(self, __x: _KT):
+        """Get the group containing `__x`, if possible.
+        
+        This method will sequentially check for a one of the following cases:
+            - one of the internal mapping keys contains the given key
+            - the given key is equal to one of the internal mapping keys
+        If it finds a match, it will immediately return it (i.e., without
+        checking other keys).
+        """
+        s = str(__x)
+        m = MappingKey(__x)
+        alias = (k for k in self._groups if s in k or m == k)
+        return next(alias, None)
+
+    def without(self, *keys: typing.Union[_KT, MappingKey[_KT]]):
+        """Create a new keymap after removing `keys`."""
+        subset = [
+            group
+            for group in self._groups
+            if (
+                # none of the keys is in this group
+                all(key not in group for key in keys)
+                and
+                # this group is not one of the keys
+                group not in keys
+            )
+        ]
+        return type(self)(*subset)
+
+    def __str__(self) -> str:
+        """A simplified representation of this object."""
+        return self._display_items(separator='\n')
+
+    def __repr__(self) -> str:
+        """An unambiguous representation of this object."""
+        items = self._display_items(separator='; ')
+        module = f"{self.__module__.replace('goats.', '')}."
+        name = self.__class__.__qualname__
+        return f"{module}{name}({items})"
+
+    def _display_items(self, separator: str=', '):
+        """Build a collection of 'key: value' strings."""
+        items = {f"{str(k)!r}" for k in self._groups}
+        return separator.join(items)
+
+
 def keysfrom(
     mapping: typing.Mapping[_KT, typing.Mapping[_KT, _VT]],
     aliases: typing.Optional[typing.Union[_KT, KeyMap[_KT]]]=None,
