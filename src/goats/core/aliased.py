@@ -76,13 +76,19 @@ class Group(collections.abc.Set, typing.Generic[_KT]):
 
     def __str__(self) -> str:
         """A simplified representation of this instance."""
-        return ' = '.join(str(alias) for alias in self._aliases)
+        return self._display_items(separator=' = ')
 
     def __repr__(self) -> str:
         """An unambiguous representation of this instance."""
+        items = self._display_items(separator=', ')
         module = f"{self.__module__.replace('goats.', '')}."
         name = self.__class__.__qualname__
-        return f"{module}{name}({self})"
+        return f"{module}{name}({items})"
+
+    def _display_items(self, separator: str=', '):
+        """Build a collection of strings for printing."""
+        items = {f"{k!r}" for k in self._aliases}
+        return separator.join(items)
 
 
 GroupsType = typing.TypeVar('GroupsType', bound='Groups')
@@ -200,21 +206,12 @@ class Groups(collections.abc.MutableSet, typing.Generic[_KT]):
         ]
         return type(self)(*subset)
 
-    def __str__(self) -> str:
-        """A simplified representation of this object."""
-        return self._display_items(separator='\n')
-
     def __repr__(self) -> str:
         """An unambiguous representation of this object."""
-        items = self._display_items(separator='; ')
         module = f"{self.__module__.replace('goats.', '')}."
         name = self.__class__.__qualname__
+        items = ', '.join(str(group) for group in self._groups)
         return f"{module}{name}({items})"
-
-    def _display_items(self, separator: str=', '):
-        """Build a collection of 'key: value' strings."""
-        items = {f"{str(k)!r}" for k in self._groups}
-        return separator.join(items)
 
 
 def keysfrom(
