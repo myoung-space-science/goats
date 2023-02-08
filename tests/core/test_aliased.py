@@ -17,7 +17,9 @@ def test_group():
     assert key | 't3' == aliased.Group('t0', 't1', 't2', 't3')
     assert key - 't2' == aliased.Group('t0', 't1')
     assert aliased.Group('a', 'b') == aliased.Group('b', 'a')
-    assert not aliased.Group('')
+    assert aliased.Group('')
+    with pytest.raises(TypeError):
+        aliased.Group()
     assert key == ('t0', 't1', 't2')
     assert key == ['t0', 't1', 't2']
     assert aliased.Group('2') == '2'
