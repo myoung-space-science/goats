@@ -28,7 +28,7 @@ def test_interface(testdata: dict):
     full = ['time', 't', 'times', 'level', 'lat', 'lon', 'temp']
     assert sorted(available.full) == sorted(full)
     aliases = [
-        aliased.MappingKey(key)
+        aliased.Group(key)
         for key in ('level', ('time', 't', 'times'), 'lat', 'lon', 'temp')
     ]
     assert sorted(available.aliased) == sorted(aliases)

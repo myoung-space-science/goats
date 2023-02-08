@@ -214,7 +214,7 @@ class Observation:
             that quantity. If `__x` is a valid unit for this observed quantity,
             return a new instance with updated unit.
         """
-        if not isinstance(__x, (str, aliased.MappingKey, metric.Unit)):
+        if not isinstance(__x, (str, aliased.Group, metric.Unit)):
             raise TypeError(
                 f"{__x!r} must name a context item or a unit."
                 "Use the array property to access data values."

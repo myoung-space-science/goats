@@ -59,7 +59,7 @@ class Option(metadata.NameMixin, iterables.ReprStrMixin):
     ) -> None:
         self.value = __value
         """The value of this optional parameter."""
-        self._name = aliased.MappingKey(name or '')
+        self._name = aliased.Group(name or '')
         self.display.register('value')
         self.display['__str__'] = "{value}"
         self.display['__repr__'] = "{value}"

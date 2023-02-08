@@ -6,49 +6,49 @@ import pytest
 from goats.core import aliased
 
 
-def test_key():
-    """Test the object that represents aliased mapping keys."""
-    assert len(aliased.MappingKey('t0')) == 1
-    assert len(aliased.MappingKey(('t0', 't1', 't2'))) == 3
-    assert len(aliased.MappingKey(['t0', 't1', 't2'])) == 3
-    assert len(aliased.MappingKey({'t0', 't1', 't2'})) == 3
-    assert len(aliased.MappingKey('t0', 't1', 't2')) == 3
-    key = aliased.MappingKey('t0', 't1', 't2')
-    assert key | 't3' == aliased.MappingKey('t0', 't1', 't2', 't3')
-    assert key - 't2' == aliased.MappingKey('t0', 't1')
-    assert aliased.MappingKey('a', 'b') == aliased.MappingKey('b', 'a')
-    assert not aliased.MappingKey('')
+def test_group():
+    """Test the object that represents a group of aliases."""
+    assert len(aliased.Group('t0')) == 1
+    assert len(aliased.Group(('t0', 't1', 't2'))) == 3
+    assert len(aliased.Group(['t0', 't1', 't2'])) == 3
+    assert len(aliased.Group({'t0', 't1', 't2'})) == 3
+    assert len(aliased.Group('t0', 't1', 't2')) == 3
+    key = aliased.Group('t0', 't1', 't2')
+    assert key | 't3' == aliased.Group('t0', 't1', 't2', 't3')
+    assert key - 't2' == aliased.Group('t0', 't1')
+    assert aliased.Group('a', 'b') == aliased.Group('b', 'a')
+    assert not aliased.Group('')
     assert key == ('t0', 't1', 't2')
     assert key == ['t0', 't1', 't2']
-    assert aliased.MappingKey('2') == '2'
-    assert aliased.MappingKey(2) == 2
+    assert aliased.Group('2') == '2'
+    assert aliased.Group(2) == 2
 
 
 def test_groups():
     """Test the collection that groups aliases."""
     original = [('a', 'A'), 'b', ['c', 'C'], ['d0', 'd1', 'd2']]
     groups = aliased.Groups(*original)
-    assert groups.find('a') == aliased.MappingKey('a', 'A')
-    assert groups.find('A') == aliased.MappingKey('a', 'A')
-    assert groups.find('b') == aliased.MappingKey('b')
-    assert groups.find('c') == aliased.MappingKey('c', 'C')
-    assert groups.find('C') == aliased.MappingKey('c', 'C')
-    assert groups.find('d0') == aliased.MappingKey('d0', 'd1', 'd2')
-    assert groups.find('d1') == aliased.MappingKey('d0', 'd1', 'd2')
-    assert groups.find('d2') == aliased.MappingKey('d0', 'd1', 'd2')
+    assert groups.find('a') == aliased.Group('a', 'A')
+    assert groups.find('A') == aliased.Group('a', 'A')
+    assert groups.find('b') == aliased.Group('b')
+    assert groups.find('c') == aliased.Group('c', 'C')
+    assert groups.find('C') == aliased.Group('c', 'C')
+    assert groups.find('d0') == aliased.Group('d0', 'd1', 'd2')
+    assert groups.find('d1') == aliased.Group('d0', 'd1', 'd2')
+    assert groups.find('d2') == aliased.Group('d0', 'd1', 'd2')
     splits = {
         'a': ['b', ('c', 'C'), ('d0', 'd1', 'd2')],
         ('a', 'd1'): ['b', ('c', 'C')],
         ('d1', 'a'): ['b', ('c', 'C')],
-        (aliased.MappingKey('c', 'C'), 'd0'): [('a', 'A'), 'b'],
-        (aliased.MappingKey('C'), 'd0'): [('a', 'A'), 'b', ('c', 'C')],
+        (aliased.Group('c', 'C'), 'd0'): [('a', 'A'), 'b'],
+        (aliased.Group('C'), 'd0'): [('a', 'A'), 'b', ('c', 'C')],
         ('T', 'd0'): [('a', 'A'), 'b', ('c', 'C')],
     }
     for r, k in splits.items():
         assert groups.without(*r) == aliased.Groups(*k)
     others = aliased.Groups(('a', 'a1'), ['this', 'that'])
     groups.update(others)
-    assert groups.find('a') == aliased.MappingKey('a', 'A', 'a1')
+    assert groups.find('a') == aliased.Group('a', 'A', 'a1')
 
 
 def test_mapping():
@@ -90,7 +90,7 @@ def test_mapping():
 
     # Containment checks should support strings and aliased keys.
     assert 'the other' in mixed and ('the other',) not in mixed
-    assert aliased.MappingKey('that', 'second') in mixed
+    assert aliased.Group('that', 'second') in mixed
 
     # Check lengths of keys, values, and items.
     for mapping, n_keys in zip([standard, basic, mixed], [3, 6, 4]):
@@ -150,8 +150,8 @@ def test_repeated_key():
     for key, value in flat.items():
         assert amap[key] == value
     aliased_keys = [
-        aliased.MappingKey('a', 'A'),
-        aliased.MappingKey('b', 'B'),
+        aliased.Group('a', 'A'),
+        aliased.Group('b', 'B'),
     ]
     assert sorted(amap.keys(aliased=True)) == aliased_keys
 
@@ -407,10 +407,10 @@ def test_module_keysfrom():
         ['C', 'c'],
     ]
     keys = aliased.keysfrom(this)
-    expected = [aliased.MappingKey(k) for k in this.keys()]
+    expected = [aliased.Group(k) for k in this.keys()]
     assert keys == expected
     keys = aliased.keysfrom(this, aliases='aliases')
-    expected = [aliased.MappingKey(k) for k in groups]
+    expected = [aliased.Group(k) for k in groups]
     assert keys == expected
 
 
@@ -438,11 +438,11 @@ def test_keysview():
     expected = [k for key in d1 for k in key]
     assert sorted(a1.keys()) == sorted(expected)
     for key in d1:
-        assert aliased.MappingKey(key) in a1.keys(aliased=True)
+        assert aliased.Group(key) in a1.keys(aliased=True)
     key = ('a', 'b', 'c')
     a3 = aliased.Mapping({key: 1})
     for permutation in itertools.permutations(key, len(key)):
-        aliased_key = aliased.MappingKey(permutation)
+        aliased_key = aliased.Group(permutation)
         assert aliased_key in a3
         assert aliased_key in a3.keys(aliased=True)
 
@@ -461,7 +461,7 @@ def test_itemsview():
     assert a1.items() == a2.items()
     assert a1.items(aliased=True) == a1.items(aliased=True)
     for key, value in d1.items():
-        aliases = aliased.MappingKey(key)
+        aliases = aliased.Group(key)
         assert (aliases, value) in a1.items(aliased=True)
         assert aliases in a1.keys(aliased=True)
         assert value in a1.values(aliased=True)

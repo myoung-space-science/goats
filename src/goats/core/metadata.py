@@ -613,7 +613,7 @@ class Name(collections.abc.Collection, Attribute):
     """The name attribute of a quantity."""
 
     def __init__(self, *aliases: str) -> None:
-        self._aliases = aliased.MappingKey(*aliases)
+        self._aliases = aliased.Group(*aliases)
 
     def add(self, aliases: typing.Union[str, typing.Iterable[str]]):
         """Add `aliases` to this name."""

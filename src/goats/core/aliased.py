@@ -11,8 +11,8 @@ _AT = typing.TypeVar('_AT')
 _VT = typing.TypeVar('_VT')
 
 
-class MappingKey(collections.abc.Set, typing.Generic[_KT]):
-    """A mapping key with associated aliases."""
+class Group(collections.abc.Set, typing.Generic[_KT]):
+    """A group of associated aliases."""
 
     __slots__ = ('_aliases')
 
@@ -57,8 +57,8 @@ class MappingKey(collections.abc.Set, typing.Generic[_KT]):
         return bool(str(self))
 
     def _implement(operator):
-        def method(self: 'MappingKey', other):
-            return operator(self, MappingKey(other))
+        def method(self: 'Group', other):
+            return operator(self, Group(other))
         def wrapper(self, other):
             result = method(self, other)
             if isinstance(result, typing.Iterable):
@@ -98,7 +98,7 @@ class Groups(collections.abc.MutableSet, typing.Generic[_KT]):
         keys
             Zero or more groups of associated objects.
         """
-        self._groups = [MappingKey(key) for key in keys]
+        self._groups = [Group(key) for key in keys]
 
     @property
     def flat(self):
@@ -141,7 +141,7 @@ class Groups(collections.abc.MutableSet, typing.Generic[_KT]):
                 raise ValueError(
                     f"Cannot add {__x}: {i} already exists in a group"
                 ) from None
-        self._groups.append(MappingKey(__x))
+        self._groups.append(Group(__x))
 
     def discard(self, __x: _KT) -> None:
         """Remove the group containing `__x`."""
@@ -160,11 +160,11 @@ class Groups(collections.abc.MutableSet, typing.Generic[_KT]):
         checking other keys).
         """
         s = str(__x)
-        m = MappingKey(__x)
+        m = Group(__x)
         alias = (k for k in self._groups if s in k or m == k)
         return next(alias, default)
 
-    def without(self, *keys: typing.Union[_KT, MappingKey[_KT]]):
+    def without(self, *keys: typing.Union[_KT, Group[_KT]]):
         """Create a new keymap after removing `keys`."""
         subset = [
             group
@@ -199,7 +199,7 @@ class Groups(collections.abc.MutableSet, typing.Generic[_KT]):
 def keysfrom(
     mapping: typing.Mapping[_KT, typing.Mapping[_KT, _VT]],
     aliases: typing.Optional[typing.Union[_KT, Groups[_KT]]]=None,
-) -> typing.List[MappingKey[_KT]]:
+) -> typing.List[Group[_KT]]:
     """Extract keys for use in an aliased mapping.
     
     Parameters
@@ -223,14 +223,14 @@ def keysfrom(
     if isinstance(mapping, Mapping):
         return mapping.keys(aliased=True)
     if aliases is None:
-        return [MappingKey(k) for k in mapping.keys()]
+        return [Group(k) for k in mapping.keys()]
     if isinstance(aliases, Groups):
         return [
-            MappingKey(k) | aliases.find(k, ())
+            Group(k) | aliases.find(k, ())
             for k in mapping.keys()
         ]
     return [
-        MappingKey(k) | MappingKey(v.get(aliases, ()))
+        Group(k) | Group(v.get(aliases, ()))
         for k, v in mapping.items()
     ]
 
@@ -252,7 +252,7 @@ def _build_mapping(
         for group in mapping.values()
     ): return _build_from_key(mapping, aliases='aliases')
     # Does it have the form {<aliased key>: <value>}?
-    if all(MappingKey.supports(key) for key in mapping):
+    if all(Group.supports(key) for key in mapping):
         return _build_from_aliases(mapping)
     # Is it a built-in dictionary?
     if isinstance(mapping, dict):
@@ -261,14 +261,14 @@ def _build_mapping(
 
 def _build_from_aliases(
     mapping: typing.Mapping[_KT, _VT],
-) -> typing.Dict[MappingKey, _VT]:
+) -> typing.Dict[Group, _VT]:
     """Build a `dict` that maps aliased keys to user values."""
     out = {}
     for key, value in mapping.items():
         try:
             aliased_key = next(k for k in out if key in k)
         except StopIteration:
-            aliased_key = MappingKey(key)
+            aliased_key = Group(key)
         out[aliased_key] = value
     return out
 
@@ -276,7 +276,7 @@ def _build_from_aliases(
 def _build_from_key(
     mapping: typing.Mapping[str, typing.Mapping[str, typing.Any]],
     aliases: typing.Union[str, Groups[str]]=None,
-) -> typing.Dict[MappingKey, _VT]:
+) -> typing.Dict[Group, _VT]:
     """Build a `dict` with aliased keys taken from interior mappings.
     
     Parameters
@@ -587,7 +587,7 @@ class Mapping(collections.abc.Mapping, typing.Generic[_KT, _VT]):
     def __len__(self) -> int:
         return len(self._flat_keys())
 
-    def __getitem__(self, key: typing.Union[str, MappingKey]) -> _VT:
+    def __getitem__(self, key: typing.Union[str, Group]) -> _VT:
         """Look up a value by one of its keys."""
         if resolved := self._resolve(key):
             return self.as_dict[resolved]
@@ -596,13 +596,13 @@ class Mapping(collections.abc.Mapping, typing.Generic[_KT, _VT]):
             " does not correspond to a known name or alias"
         ) from None
 
-    def _resolve(self, key: typing.Union[MappingKey, typing.Any]):
+    def _resolve(self, key: typing.Union[Group, typing.Any]):
         """Resolve `key` into an existing or new aliased key."""
-        if isinstance(key, MappingKey):
+        if isinstance(key, Group):
             return self._look_up_key(key)
         return self._flat_dict.get(key)
 
-    def _look_up_key(self, target: MappingKey):
+    def _look_up_key(self, target: Group):
         """Find the aliased key equivalent to `target`.
         
         Notes
@@ -817,7 +817,7 @@ class MutableMapping(Mapping, collections.abc.MutableMapping):
 
     def __setitem__(self, key: str, value: _VT):
         """Assign a value to `key` and its aliases."""
-        resolved = self._resolve(key) or MappingKey(key)
+        resolved = self._resolve(key) or Group(key)
         self.as_dict[resolved] = value
         self._refresh()
 
