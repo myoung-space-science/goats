@@ -381,7 +381,7 @@ class Context(observing.Context):
     def _observe(self, key: str) -> observing.Quantity:
         """Create an observation within the context of this application."""
         result = self._build(key)
-        if any(k in self.coordinates for k in reference.ALIASES.get(key, [])):
+        if any(k in self.coordinates for k in reference.ALIASES.find(key, [])):
             # This is an axis-reference quantity.
             return self._subscript(result)
         needed = self._compute_interpolants(result)
@@ -474,7 +474,7 @@ class Context(observing.Context):
             # only applies when 'shell' is one of the target quantity's
             # dimensions.
             return interpolants
-        for key in reference.ALIASES['radius']:
+        for key in reference.ALIASES.find('radius'):
             if values := self.get_value(key):
                 try:
                     iter(values)
