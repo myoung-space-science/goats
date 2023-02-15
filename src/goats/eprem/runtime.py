@@ -1546,18 +1546,34 @@ def compare_arguments(
     if mode not in {'show', 'diff'}:
         raise ValueError(f"Unrecognized action: {action!r}")
     args = _build_arg_dict(files, source=source, mode=mode)
-    pwidth = max(len(k) for k in args)
     topkeys = next(list(v.keys()) for v in args.values() if v)
-    lwidth = max(len(k) for k in topkeys)
     nonnull = (v for item in args.values() for v in item.values() if v)
-    rwidth = max(len(v) for v in nonnull)
-    cwidth = max(pwidth, lwidth + rwidth)
+    # width (i.e., string length) of the longest parameter
+    pwidth = max(len(k) for k in args)
+    # width (i.e., string length) of the longest file key
+    lwidth = max(len(k) for k in topkeys)
+    # width (i.e., string length) of the longest non-null value
+    vwidth = max(len(v) for v in nonnull)
+    # padded parameter-value width
+    rwidth = vwidth + 2
+    # amount of parameter-value right-justification
+    jwidth = min(78, rwidth)
+    # total width: either the longest parameter or the longest key-value combo.
+    # - longest parameter produces groups like
+    # * ParameterName
+    # * -------------
+    # * key     value
+    # - longest key-value combo produces groups like
+    # *    ParameterName
+    # * -------------------
+    # * key           value
+    cwidth = max(pwidth, lwidth + jwidth)
     print()
     for key, item in args.items():
         print(str(key).center(cwidth))
         print('-' * cwidth)
         for k, v in item.items():
-            print(f"{str(k).ljust(lwidth)}{str(v).rjust(pwidth-lwidth)}")
+            print(f"{str(k).ljust(lwidth)}{str(v).rjust(jwidth)}")
         print()
 
 
