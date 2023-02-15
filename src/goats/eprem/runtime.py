@@ -49,6 +49,7 @@ import argparse
 import contextlib
 import functools
 import numbers
+import os
 import pathlib
 import re
 import typing
@@ -1567,13 +1568,14 @@ def _build_arg_dict(
 ) -> typing.Dict[str, typing.Dict[str, typing.Any]]:
     """Build a `dict` of parameter values."""
     default = Interface()
-    targets = [Interface(path) for path in files]
+    paths = _get_relative_paths(files)
+    targets = {path: Interface(path) for path in paths}
     keys = sorted(ConfigurationC(source))
     built = {key: {} for key in keys}
     for key in keys:
         current = {
-            target.user.filepath.name: _format_arg(target.config(key))
-            for target in targets
+            name: _format_arg(interface.config(key))
+            for name, interface in targets.items()
         }
         values = list(current.values())
         v0 = values[0]
@@ -1585,6 +1587,15 @@ def _build_arg_dict(
     if mode == 'show':
         return built
     return {k: v for k, v in built.items() if v}
+
+
+def _get_relative_paths(paths: typing.Iterable[iotools.PathLike]):
+    """Strip the common ancestor, if any, from `paths`."""
+    these = {iotools.ReadOnlyPath(f) for f in paths}
+    common = os.path.commonpath(these)
+    if not common:
+        return these
+    return [os.path.relpath(path, start=common) for path in these]
 
 
 def _format_arg(arg: operational.Argument):
