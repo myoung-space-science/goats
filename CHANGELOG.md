@@ -2,6 +2,8 @@
 
 ## NEXT
 
+## v0.2.3
+
 - Update `numpy.simps` to `numpy.simpson`.
 - Define `observing.Context.keys` and refactor container-like methods.
 - Significant updates to core/aliased.py, including replacing `KeyMap` with `Groups`, renaming `MappingKey` to `Group`, and improving type annotations.
