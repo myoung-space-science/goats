@@ -118,6 +118,8 @@ def check_axis(this: axis.Quantity, parameters, system, **kwargs):
     assert len(full) == length
     user = this.index(*inputs, **kwargs)
     assert list(user) == points
+    assert user[:] == tuple(points)
+    assert user[-1] == points[-1]
     assert user.unit == unit
     if user.unit is not None:
         assert numpy.allclose(user.values, values)

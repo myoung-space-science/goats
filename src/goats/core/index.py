@@ -56,9 +56,7 @@ class Quantity(collections.abc.Sequence):
 
     def __getitem__(self, __i: typing.SupportsIndex):
         """Get the `__i`-th index point."""
-        length = len(self._points)
-        idx = length-__i if __i < 0 else __i
-        return self._points[idx]
+        return self._points[__i]
 
     def __len__(self) -> int:
         """Called for len(self)."""

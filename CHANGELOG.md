@@ -2,6 +2,8 @@
 
 ## NEXT
 
+- Fix indexing bug in `index.Quantity`.
+
 ## v0.2.3
 
 - Update `numpy.simps` to `numpy.simpson`.
