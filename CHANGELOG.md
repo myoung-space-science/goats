@@ -3,6 +3,7 @@
 ## NEXT
 
 - Fix indexing bug in `index.Quantity`.
+- Update eprem/test_dataset.py to check additional axis-indexing cases.
 
 ## v0.2.3
 
