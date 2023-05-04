@@ -2,6 +2,10 @@
 
 ## NEXT
 
+## v0.2.5
+
+- Update `eprem.Axes` to handle 1D or 2D EPREM 'egrid'.
+
 ## v0.2.4
 
 - Fix indexing bug in `index.Quantity`.
