@@ -200,7 +200,13 @@ class Axes(aliased.Mapping):
                 )
                 compute = self._build_coordinate(numpy.squeeze(this[s, :]))
                 return compute(t, unit)
-            self._energy = axis.Indexer(method, this.shape[1])
+            try:
+                # Versions of EPREM with logically 2D egrid.
+                size = this.shape[1]
+            except IndexError:
+                # Versions of EPREM with truly 1D egrid.
+                size = this.shape[0]
+            self._energy = axis.Indexer(method, size)
         return self._energy
 
     @property
