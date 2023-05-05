@@ -137,7 +137,7 @@ def test_egrid_shape(datapath):
     """
     paths = [
         datapath,
-        '~/emmrem/open/development/eprem/2023-05-05/cone-short/obs000000.nc',
+        datapath.parent.parent / 'egrid-1d/obs000000.nc',
     ]
     for path in paths:
         data = datafile.Interface(path)
