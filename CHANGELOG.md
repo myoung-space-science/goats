@@ -2,6 +2,10 @@
 
 ## NEXT
 
+## v0.2.7
+
+- Fix bug for EPREM point-observer class.
+
 ## v0.2.6
 
 - Fix additional 'egrid' dimension bug.
