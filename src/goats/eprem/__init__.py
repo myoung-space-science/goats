@@ -818,6 +818,6 @@ class Point(Observer):
     """An EPREM point observer."""
 
     _templates = [
-        lambda n: f'p_obs{n:06}.nc',
+        lambda n: f'p_obs{n:03}.nc',
     ]
 
