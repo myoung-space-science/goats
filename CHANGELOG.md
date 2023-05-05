@@ -2,6 +2,10 @@
 
 ## NEXT
 
+## v0.2.6
+
+- Fix additional 'egrid' dimension bug.
+
 ## v0.2.5
 
 - Update `eprem.Axes` to handle 1D or 2D EPREM 'egrid'.
