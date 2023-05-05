@@ -445,14 +445,16 @@ def test_quantity_access(
 
 def test_create_observation(
     stream: eprem.Stream,
+    point: eprem.Point,
     observables: typing.Dict[str, dict],
 ) -> None:
     """Create the default observation from each observable quantity."""
     for name, expected in observables.items():
-        observation = stream[name].observe()
-        assert isinstance(observation, observing.Observation)
-        for axis in expected['axes']:
-            assert isinstance(observation[axis], physical.Array), axis
+        for this in (stream, point):
+            observation = this[name].observe()
+            assert isinstance(observation, observing.Observation)
+            for axis in expected['axes']:
+                assert isinstance(observation[axis], physical.Array), axis
 
 
 def test_parameter_access(stream: eprem.Stream) -> None:
