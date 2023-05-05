@@ -127,6 +127,24 @@ def check_axis(this: axis.Quantity, parameters, system, **kwargs):
         assert list(user.values) == values
 
 
+def test_egrid_shape(datapath):
+    """Test the ability to detect 1D or 2D `egrid` in the dataset.
+    
+    This test exists because we changed `egrid` to be 1D -- indexed only by
+    species -- in April 2023. It had previously been logically 2D -- indexed by
+    species and energy -- but the energy dimension was always singular, making
+    it effectively 1D.
+    """
+    paths = [
+        datapath,
+        '~/emmrem/open/development/eprem/2023-05-05/cone-short/obs000000.nc',
+    ]
+    for path in paths:
+        data = datafile.Interface(path)
+        axes = eprem.Axes(data, system='mks')
+        assert isinstance(axes['energy'].index(), index.Quantity)
+
+
 def test_axis_unit(datapath):
     """Users should be able to update the default axis unit."""
     cases = {

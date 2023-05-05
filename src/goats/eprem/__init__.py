@@ -198,14 +198,10 @@ class Axes(aliased.Mapping):
                     if getattr(targets, 'ndim', None) == 2
                     else targets
                 )
-                compute = self._build_coordinate(numpy.squeeze(this[s, :]))
+                array = numpy.squeeze(this[s, :]) if this.ndim == 2 else this
+                compute = self._build_coordinate(array)
                 return compute(t, unit)
-            try:
-                # Versions of EPREM with logically 2D egrid.
-                size = this.shape[1]
-            except IndexError:
-                # Versions of EPREM with truly 1D egrid.
-                size = this.shape[0]
+            size = this.shape[this.ndim-1]
             self._energy = axis.Indexer(method, size)
         return self._energy
 
