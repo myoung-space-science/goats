@@ -36,6 +36,23 @@ def stream(rootpath: pathlib.Path):
     return get_stream(rootpath)
 
 
+def get_point(rootpath: pathlib.Path):
+    """Create a point observer.
+
+    This is separated out to allow developers to create a point outside of the
+    `point` fixture. One example application may be adding a `__main__` section
+    and calling simple plotting routines for visual end-to-end tests.
+    """
+    source = rootpath / 'cone' / 'p_obs'
+    return eprem.Point(0, config='eprem_input_file', source=source)
+
+
+@pytest.fixture
+def point(rootpath: pathlib.Path):
+    """Provide a point observer via fixture."""
+    return get_point(rootpath)
+
+
 @pytest.fixture
 def axes():
     """Metadata for EPREM dataset axes."""
