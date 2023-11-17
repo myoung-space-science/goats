@@ -1,5 +1,7 @@
 # GOATS
 
+**NOTE**: This repository is not in activate development. Please see [eprempy](https://github.com/myoung-space-science/eprempy) for an actively developed Python interface to EPREM.
+
 A set of tools for analyzing heliophysical datasets
 
 The Generalized Observing Application Tool Suite (GOATS) is a collection of objects that support interactive and scripted analysis of simulated and observed data in heliophysics.
